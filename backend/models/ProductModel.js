@@ -1,9 +1,37 @@
 //import connection
 import db from "../config/database.js";
 
+const getProd = 'SELECT * FROM products';
+const whereProc = 'WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (upc IS NULL OR upc = 0)';
+const whereUnproc = 'WHERE upc IS NOT NULL AND fnsku IS NULL AND asin IS NULL';
+
 //get all products
 export const getProducts=(result)=>{
-    db.query("SELECT * FROM products",(err,results)=>{
+    db.query(getProd,(err,results)=>{
+        if(err){
+            console.log(err);
+            result(err,null);
+        }else{
+            result(null, results);
+        }
+    });
+}
+
+//get processed products (has fnsku and/or asin)
+export const getProcProducts=(result)=>{
+    db.query("SELECT * FROM products WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (upc IS NULL OR upc = 0)",(err,results)=>{
+        if(err){
+            console.log(err);
+            result(err,null);
+        }else{
+            result(null, results);
+        }
+    });
+}
+
+//get unprocessed products (has upc and/or no fnsku)
+export const getUnprocProducts=(result)=>{
+    db.query("SELECT * FROM products WHERE upc IS NOT NULL AND fnsku IS NULL AND asin IS NULL",(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
