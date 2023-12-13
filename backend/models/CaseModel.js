@@ -9,6 +9,7 @@ export const getCases=(result)=>{
             console.log(err);
             result(err,null);
         }else{
+            console.log(results);
             result(null, results);
         }
     });
@@ -16,7 +17,7 @@ export const getCases=(result)=>{
 
 //get all processed cases (All processed cases should have a fnsku or asin and should not have a upc)
 export const getProcCases=(result)=>{
-    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name, products.id FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.upc IS NULL OR products.upc = 0)",(err,results)=>{
+    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.upc IS NULL OR products.upc = 0)",(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
@@ -30,7 +31,7 @@ export const getProcCases=(result)=>{
 
 //get all unprocessed cases (all unprocessed cases should have UPC (or maybe item num))
 export const getUnprocCases=(result)=>{
-    db.query("SELECT * FROM cases INNER JOIN products ON cases.product_id = products.id WHERE products.upc IS NOT NULL AND products.fnsku IS NULL AND products.asin IS NULL",(err,results)=>{
+    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE products.upc IS NOT NULL AND (products.fnsku IS NULL AND products.asin IS NULL) OR (products.fnsku = '' AND products.asin = '')",(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
@@ -55,8 +56,23 @@ export const insertCase=(data,result)=>{
     });
 }
 
+// Update Case to Database
+export const updateCaseById = (data, id, result) => {
+    //console.log("_________________________________________________")
+    //console.log(data);
+    db.query("UPDATE cases SET product_id = ?, units_per_case = ?, notes = ?, date_recieved = ? WHERE id = ?",[data.product_id, data.units_per_case, data.notes, data.date_recieved, id],(err,results)=>{
+        if (err) {
+            console.log(err);
+            result(err, null);
+        } else {
+            result(null, results);
+        }
+    });
+}
+
 //Delete Case from Database
 export const deleteCaseById = (id, result) => {
+    console.log(id);
     db.query("DELETE FROM cases WHERE id = ?", [id], (err,results) => {
         if(err) {
             console.log(err);

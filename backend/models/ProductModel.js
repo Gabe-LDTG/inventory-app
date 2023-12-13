@@ -3,7 +3,7 @@ import db from "../config/database.js";
 
 const getProd = 'SELECT * FROM products';
 const whereProc = 'WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (upc IS NULL OR upc = 0)';
-const whereUnproc = 'WHERE upc IS NOT NULL AND fnsku IS NULL AND asin IS NULL';
+const whereUnproc = 'WHERE upc IS NOT NULL AND (fnsku IS NULL AND asin IS NULL) OR (fnsku = "" AND asin = "")';
 
 //get all products
 export const getProducts=(result)=>{
@@ -19,7 +19,7 @@ export const getProducts=(result)=>{
 
 //get processed products (has fnsku and/or asin)
 export const getProcProducts=(result)=>{
-    db.query("SELECT * FROM products WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (upc IS NULL OR upc = 0)",(err,results)=>{
+    db.query("SELECT * FROM products "+whereProc,(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
@@ -31,7 +31,7 @@ export const getProcProducts=(result)=>{
 
 //get unprocessed products (has upc and/or no fnsku)
 export const getUnprocProducts=(result)=>{
-    db.query("SELECT * FROM products WHERE upc IS NOT NULL AND fnsku IS NULL AND asin IS NULL",(err,results)=>{
+    db.query("SELECT * FROM products "+whereUnproc,(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
@@ -72,8 +72,8 @@ export const insertProduct=(data,result)=>{
 
 // Update Product to Database
 export const updateProductById = (data, id, result) => {
-    console.log("_________________________________________________")
-    console.log(data);
+    //console.log("_________________________________________________")
+    //console.log(data);
     db.query("UPDATE products SET name = ?, asin = ?, fnsku = ?, upc = ?, notes = ? WHERE id = ?",[data.name, data.asin, data.fnsku, data.upc, data.notes, id],(err,results)=>{
         if (err) {
             console.log(err);

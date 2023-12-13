@@ -37,9 +37,6 @@
                 </h4>
             </div>
             <div class="card-body">
-                <button @click="awesome = !awesome">Toggle</button>
-
-                <h1 v-show="awesome">Vue is awesome!</h1>
 
                 <table class="table table-table-bordered">
                     <thead>
@@ -76,7 +73,7 @@
 
                                 <td><input class="form-control" v-model="product.upc"/><br> </td>
 
-                                <td><input class="form-control" placeholder="Notes" v-model="product.notes"/></td>
+                                <td><input class="form-control" v-model="product.notes"/></td>
 
                                 <td><button type="button" @click="product.EDIT = false">Cancel</button></td>
                                 <td><button type="button" @click="editProduct(product.id, product.name, product.asin, product.fnsku, product.upc, product.notes)">Submit</button></td>
@@ -110,9 +107,8 @@ export default {
             upc: "",
             notes: "",
             name: "",
-            displayCreate: false,
-            displayEdit: false,
-            awesome: false,
+            //displayCreate: false,
+            //displayEdit: false,
             
         }
     },
@@ -182,7 +178,7 @@ export default {
             }).catch(error => {
                 console.log(error);
             });
-        }
+        },
     },
 }
 </script>

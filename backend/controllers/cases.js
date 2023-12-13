@@ -4,6 +4,7 @@ import{
     getProcCases,
     getUnprocCases,
     insertCase,
+    updateCaseById,
     deleteCaseById,
 } from "../models/CaseModel.js";
 
@@ -51,6 +52,19 @@ export const createCase = (req,res) => {
         }
     });
 };
+
+// Update Case 
+export const updateCase = (req, res) => {
+    const data = req.body;
+    const id = req.params.id;
+    updateCaseById(data, id, (err, results) => {
+        if(err){
+            res.send(err);
+        }else{
+            res.json(results);
+        }
+    });
+}
 
 //delete case
 export const deleteCase = (req, res) => {

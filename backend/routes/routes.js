@@ -4,6 +4,8 @@ import express from "express";
 //import functions from controller
 import {
     showProducts,
+    showProcProducts,
+    showUnprocProducts,
     showProductsById,
     createProduct,
     updateProduct,
@@ -15,6 +17,7 @@ import {
     showProcCases, 
     showUnprocCases,
     createCase,
+    updateCase,
     deleteCase,
 } from "../controllers/cases.js";
 
@@ -24,6 +27,12 @@ const router=express.Router();
 //PRODUCTS---------------------------------------------------------------------------
 //get all product
 router.get("/products",showProducts);
+
+//get all product
+router.get("/products/processed",showProcProducts);
+
+//get all product
+router.get("/products/unprocessed",showUnprocProducts);
 
 //get single product
 router.get("/products/:id",showProductsById);
@@ -49,6 +58,9 @@ router.get("/cases/unprocessed",showUnprocCases);
 
 //Create Processed Cases
 router.post("/cases/create", createCase);
+
+//Update Case
+router.put('/cases/:id', updateCase);
 
 //Delete Cases
 router.delete('/cases/:id',deleteCase);

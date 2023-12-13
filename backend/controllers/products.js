@@ -1,6 +1,8 @@
 //import functions from Product model class
 import{
     getProducts,
+    getProcProducts,
+    getUnprocProducts,
     getProductById,
     insertProduct,
     updateProductById,
@@ -10,6 +12,28 @@ import{
 //get all products
 export const showProducts = (req,res) => {
     getProducts((err,results) => {
+        if(err){
+            res.send(err);
+        }else{
+            res.json(results);
+        }
+    });
+};
+
+//get processed products
+export const showProcProducts = (req,res) => {
+    getProcProducts((err,results) => {
+        if(err){
+            res.send(err);
+        }else{
+            res.json(results);
+        }
+    });
+};
+
+//get unprocessed products
+export const showUnprocProducts = (req,res) => {
+    getUnprocProducts((err,results) => {
         if(err){
             res.send(err);
         }else{

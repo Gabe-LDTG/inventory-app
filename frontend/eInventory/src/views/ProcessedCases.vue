@@ -3,7 +3,7 @@
         <div class="card">
             <div class="card-header">
                 <h4>
-                    Cases
+                    Processed Cases
 
                     <button onclick="window.dialog.showModal();">Add Case</button>
 
@@ -12,6 +12,7 @@
 
                             <label for="type">Product: </label><br>
                             <select v-model="product">
+                                <option disabled value="">Please select one</option>
                                 <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
                             </select><br>
 
@@ -22,7 +23,7 @@
                             <input class="form-control" placeholder="Notes" v-model="note"/><br>
 
                             <label for="type">Units Per Case: </label><br>
-                            <input class="form-control" placeholder="Number" v-model="unitspc"/><br>
+                            <input type="number" class="form-control" placeholder="Number" v-model="unitspc"/><br>
                         </form>
                     <form method="dialog">
                         <button>Close</button>
@@ -45,13 +46,35 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(c, index) in this.cases" :key="index">
-                            <td>{{ c.name }}</td>
-                            <td>{{ c.units_per_case }}</td>
-                            <td>{{ c.date_recieved }}</td>
-                            <td>{{ c.notes }}</td>
-                            <td><button class="btn btn-primary" @click="deleteCase(c.id)">Delete</button></td>
-                        </tr>   
+                        <template v-for="(c, index) in this.cases" :key="index">
+                            <tr>
+                                <template v-if="!c.EDIT">
+                                    <td>{{ c.name }}</td>
+                                    <td>{{ c.units_per_case }}</td>
+                                    <td>{{ c.date_recieved }}</td>
+                                    <td>{{ c.notes }}</td>
+
+                                    <td><button @click="c.EDIT = true; console.log(c.name)">Edit</button></td>
+
+                                    <td><button class="btn btn-primary" @click="deleteCase(c.id)">Delete</button></td>
+                                </template>
+
+                                <template v-else>
+                                    <td><select v-model="c.product_id">
+                                        <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
+                                    </select><br></td>
+
+                                    <td><input class="form-control" v-model="c.units_per_case"/><br></td>
+
+                                    <td><input type="date" class="form-control" v-model="c.date_recieved"/><br></td>
+
+                                    <td><input class="form-control" v-model="c.notes"/><br></td>
+
+                                    <td><button type="button" @click="c.EDIT = false">Cancel</button></td>
+                                    <td><button type="button" @click="editCase(c.id, c.product_id, c.units_per_case, c.notes, c.date_recieved)">Submit</button></td>
+                                </template>
+                            </tr>   
+                        </template>
                     </tbody>
                 </table>
             </div>
@@ -62,12 +85,9 @@
 // import { assertExpressionStatement } from '@babel/types';
 import { ref } from "vue";
 import axios from "axios";
-import ProcessedPopup from "@/components/ProcessedPopup.vue";
 
 //Want to work on making the dialog box its own vue file for more organization
 //import ProcessedDialog from "@/components/ProcessedDialog.vue";
-
-//const selected = ref('A')
 
 export default {
     data() {
@@ -75,11 +95,12 @@ export default {
             cases: [],
             products: [],
             selected: "",
-            product: [],
+            product: "",
             unitspc: "",
             note: "",
-            daterecieved: Date(),
+            daterecieved: new Date(),
             id: "",
+            testing: "adag",
 
         }
     },
@@ -95,11 +116,14 @@ export default {
             
             axios.get("http://localhost:5000/cases/processed").then(res => {
                 this.cases = res.data
+                for (let i = 0; i < this.cases.length; i++) {
+                this.cases[i].EDIT = false;
+                }
                 console.log(this.cases);
             })
         },
         getProducts(){
-            axios.get("http://localhost:5000/products").then(res => {
+            axios.get("http://localhost:5000/products/processed").then(res => {
                 this.products = res.data
                 console.log(this.products);
             })
@@ -111,14 +135,13 @@ export default {
                 units_per_case: this.unitspc,
                 notes: this.note,
                 date_recieved: this.daterecieved,
-
             }).then((res) => {
                 location.reload();
             }).catch(error => {
                 console.log(error);
             });
         },
-        deleteCase(id){
+        deleteCase(id: string){
             console.log(id);
             if(confirm("Do you really want to delete?")){
                 axios.delete("http://localhost:5000/cases/"+id)
@@ -127,7 +150,22 @@ export default {
                 })
             }
             location.reload();
-        }
+        },
+        editCase(id: string, product_id: string, units_per_case: string, notes: string, date_recieved: string){
+
+            axios.put("http://localhost:5000/cases/"+id, {
+                product_id: product_id,
+                units_per_case: units_per_case,
+                notes: notes,
+                date_recieved: date_recieved,
+
+            }).then((res) => {
+                //console.log(product_id);
+                location.reload();
+            }).catch(error => {
+                console.log(error);
+            });
+        },
     },
 }
 </script>
