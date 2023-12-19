@@ -11,7 +11,7 @@
                         <form action="">
 
                             <label for="type"> Name: </label><br>
-                            <input class="form-control" v-model="name"/><br>
+                            <input class="form-control" v-model="name" required/><br>
 
                             <label for="type"> ASIN: </label><br>
                             <input class="form-control" v-model="asin"/><br>
@@ -52,31 +52,31 @@
                         <template v-for="(product, index) in this.products" :key="index">
 
                         <tr>
-                            <template v-if="!product.EDIT">
+                            <template v-if="this.editId === product.id">
+                                <td> <input class="form-control" v-model="displayProducts[index].name" required/><br> </td>
+
+                                <td> <input class="form-control" v-model="displayProducts[index].asin"/><br> </td>
+
+                                <td><input class="form-control" v-model="displayProducts[index].fnsku"/><br> </td>
+
+                                <td><input class="form-control" v-model="displayProducts[index].upc"/><br> </td>
+
+                                <td><input class="form-control" v-model="displayProducts[index].notes"/></td>
+
+                                <td><button type="button" @click="this.editId = '';">Cancel</button></td>
+                                <td><button type="button" @click="editProduct(product.id, displayProducts[index].name, displayProducts[index].asin, displayProducts[index].fnsku, displayProducts[index].upc, displayProducts[index].notes)">Submit</button></td>
+                            </template>
+
+                            <template v-else>
                             <td>{{ product.name }}</td>
                             <td>{{ product.asin }}</td>
                             <td>{{ product.fnsku }}</td>
                             <td>{{ product.upc }}</td>
                             <td>{{ product.notes }}</td>
 
-                            <td><button @click="product.EDIT = true;">Edit</button></td>
+                            <td><button @click="toggleEdit(product.id);">Edit</button></td>
 
                             <td><button class="btn btn-primary" @click="deleteProduct(product.id)">Delete</button></td>
-                            </template>
-
-                            <template v-else>
-                                <td> <input class="form-control" v-model="product.name"/><br> </td>
-
-                                <td> <input class="form-control" v-model="product.asin"/><br> </td>
-
-                                <td><input class="form-control" v-model="product.fnsku"/><br> </td>
-
-                                <td><input class="form-control" v-model="product.upc"/><br> </td>
-
-                                <td><input class="form-control" v-model="product.notes"/></td>
-
-                                <td><button type="button" @click="product.EDIT = false">Cancel</button></td>
-                                <td><button type="button" @click="editProduct(product.id, product.name, product.asin, product.fnsku, product.upc, product.notes)">Submit</button></td>
                             </template>
                         </tr>
 
@@ -92,6 +92,34 @@
 import axios from "axios";
 import ProductCreateDialog from '../components/ProductCreateDialog.vue'
 import ProductEditDialog from '../components/ProductEditDialog.vue'
+import useVuelidate from '@vuelidate/core'
+import {required} from '@vuelidate/validators'
+import { reactive } from "vue";
+
+const formData = reactive({
+    asin: "",
+    fnsku: "",
+    upc: "",
+    notes: "",
+    name: "",
+})
+
+const rules = {
+    asin: {},
+    fnsku: {},
+    upc: {},
+    notes: {},
+    name: { required },
+}
+
+const v$ = useVuelidate(rules, formData);
+
+const submitForm = async () => {
+    const result = await v$.value.$validate();
+    alert("Success, form submitted!!");
+
+
+}
 
 export default {
     components :{
@@ -101,16 +129,24 @@ export default {
     data() {
         return {
             products: [],
+            displayProducts: [],
             specificProduct: [],
+            editId: "",
             asin: "",
             fnsku: "",
             upc: "",
             notes: "",
             name: "",
+            interval: '',
+
             //displayCreate: false,
             //displayEdit: false,
             
         }
+    },
+
+    created () {
+    this.interval = setInterval(this.refreshData, 1000)
     },
 
     mounted() {
@@ -118,14 +154,16 @@ export default {
         this.getProducts();
     },
 
+    updated () {
+    this.interval = setInterval(this.refreshData, 1000)
+    },
+
     methods: {
         getProducts(){
             
             axios.get("http://localhost:5000/products").then(res => {
-                this.products = res.data
-                for (let i = 0; i < this.products.length; i++) {
-                this.products[i].EDIT = false;
-                }
+                this.products = res.data;
+                this.displayProducts = this.products;
                 console.log(this.products);
             })
         },
@@ -138,7 +176,7 @@ export default {
                 notes: this.notes,
 
             }).then((res) => {
-                location.reload();
+                //location.reload();
             }).catch(error => {
                 console.log(error);
             });
@@ -151,7 +189,7 @@ export default {
                     console.log(error);
                 })
             }
-            location.reload();
+            //location.reload();
         },
         getProductById(id: string){
             //console.log(id);
@@ -174,11 +212,32 @@ export default {
                 notes: notes,
 
             }).then((res) => {
-                location.reload();
+                //location.reload();
+                this.refreshData;
+                this.editId = '';
             }).catch(error => {
                 console.log(error);
             });
         },
+        toggleEdit(id: string){
+            this.editId = id;
+            //console.log(this.editId);
+        },
+        refreshData () {
+        // fetch data
+        axios.get("http://localhost:5000/products")
+        .then(response => {
+            this.products = response.data
+        })
+
+  }
+        /* onCancel(index: string){
+            this.displayProducts[index].name = this.products[index].name;
+            this.displayProducts[index].asin = this.products[index].asin;
+            this.displayProducts[index].fnsku = this.products[index].fnsku;
+            this.displayProducts[index].upc = this.products[index].upc;
+            this.displayProducts[index].notes = this.products[index].notes;
+        }, */
     },
 }
 </script>

@@ -17,6 +17,7 @@ export const getCases=(result)=>{
 
 //get all processed cases (All processed cases should have a fnsku or asin and should not have a upc)
 export const getProcCases=(result)=>{
+    //DATE_FORMAT(cases.date_recieved, "%m %d %Y")
     db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.upc IS NULL OR products.upc = 0)",(err,results)=>{
         if(err){
             console.log(err);

@@ -60,18 +60,18 @@
                                 </template>
 
                                 <template v-else>
-                                    <td><select v-model="c.product_id">
+                                    <td><select v-model="this.displayCases[index].product_id">
                                         <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
                                     </select><br></td>
 
-                                    <td><input class="form-control" v-model="c.units_per_case"/><br></td>
+                                    <td><input type="number" class="form-control" v-model="this.displayCases[index].units_per_case"/><br></td>
 
-                                    <td><input type="date" class="form-control" v-model="c.date_recieved"/><br></td>
+                                    <td><input type="date" class="form-control" v-model="this.displayCases[index].date_recieved"/><br></td>
 
-                                    <td><input class="form-control" v-model="c.notes"/><br></td>
+                                    <td><input class="form-control" v-model="this.displayCases[index].notes"/><br></td>
 
                                     <td><button type="button" @click="c.EDIT = false">Cancel</button></td>
-                                    <td><button type="button" @click="editCase(c.id, c.product_id, c.units_per_case, c.notes, c.date_recieved)">Submit</button></td>
+                                    <td><button type="button" @click="editCase(c.id, this.displayCases[index].product_id, this.displayCases[index].units_per_case, this.displayCases[index].notes, this.displayCases[index].date_recieved)">Submit</button></td>
                                 </template>
                             </tr>   
                         </template>
@@ -93,6 +93,7 @@ export default {
     data() {
         return {
             cases: [],
+            displayCases: [],
             products: [],
             selected: "",
             product: "",
@@ -100,7 +101,8 @@ export default {
             note: "",
             daterecieved: new Date(),
             id: "",
-            testing: "adag",
+
+
 
         }
     },
@@ -115,11 +117,16 @@ export default {
         getCases(){
             
             axios.get("http://localhost:5000/cases/processed").then(res => {
-                this.cases = res.data
+                this.cases = res.data;
+                this.displayCases = this.cases;
+
                 for (let i = 0; i < this.cases.length; i++) {
                 this.cases[i].EDIT = false;
                 }
                 console.log(this.cases);
+
+                console.log('TESTING-------------------')
+                console.log(this.cases.date_recieved.getMonth());
             })
         },
         getProducts(){

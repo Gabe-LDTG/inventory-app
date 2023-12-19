@@ -12,6 +12,7 @@
 
                             <label for="type">Product: </label><br>
                             <select v-model="product">
+                                <option disabled value="">Please select one</option>
                                 <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.upc }}</option>
                             </select><br>
 
@@ -45,13 +46,35 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(c, index) in this.cases" :key="index">
-                            <td>{{ c.name }}</td>
-                            <td>{{ c.units_per_case }}</td>
-                            <td>{{ c.date_recieved }}</td>
-                            <td>{{ c.notes }}</td>
-                            <td><button class="btn btn-primary" @click="deleteCase(c.id)">Delete</button></td>
-                        </tr>   
+                        <template v-for="(c, index) in this.cases" :key="index">
+                            <tr>
+                                <template v-if="!c.EDIT">
+                                    <td>{{ c.name }}</td>
+                                    <td>{{ c.units_per_case }}</td>
+                                    <td>{{ c.date_recieved }}</td>
+                                    <td>{{ c.notes }}</td>
+
+                                    <td><button @click="c.EDIT = true; console.log(c.name)">Edit</button></td>
+
+                                    <td><button class="btn btn-primary" @click="deleteCase(c.id)">Delete</button></td>
+                                </template>
+
+                                <template v-else>
+                                    <td><select v-model="this.displayCases[index].product_id">
+                                        <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.upc }}</option>
+                                    </select><br></td>
+
+                                    <td><input type="number" class="form-control" v-model="this.displayCases[index].units_per_case"/><br></td>
+
+                                    <td><input type="date" class="form-control" v-model="this.displayCases[index].date_recieved"/><br></td>
+
+                                    <td><input class="form-control" v-model="this.displayCases[index].notes"/><br></td>
+
+                                    <td><button type="button" @click="c.EDIT = false">Cancel</button></td>
+                                    <td><button type="button" @click="editCase(c.id, this.displayCases[index].product_id, this.displayCases[index].units_per_case, this.displayCases[index].notes, this.displayCases[index].date_recieved)">Submit</button></td>
+                                </template>
+                            </tr>   
+                        </template>
                     </tbody>
                 </table>
             </div>
@@ -64,21 +87,22 @@ import { ref } from "vue";
 import axios from "axios";
 
 //Want to work on making the dialog box its own vue file for more organization
-//import UnprocessedDialog from "@/components/UnprocessedDialog.vue";
-
-//const selected = ref('A')
+//import ProcessedDialog from "@/components/ProcessedDialog.vue";
 
 export default {
     data() {
         return {
             cases: [],
+            displayCases: [],
             products: [],
             selected: "",
-            product: [],
+            product: "",
             unitspc: "",
             note: "",
-            daterecieved: Date(),
+            daterecieved: new Date(),
             id: "",
+
+
 
         }
     },
@@ -93,7 +117,12 @@ export default {
         getCases(){
             
             axios.get("http://localhost:5000/cases/unprocessed").then(res => {
-                this.cases = res.data
+                this.cases = res.data;
+                this.displayCases = this.cases;
+
+                for (let i = 0; i < this.cases.length; i++) {
+                this.cases[i].EDIT = false;
+                }
                 console.log(this.cases);
             })
         },
@@ -110,7 +139,6 @@ export default {
                 units_per_case: this.unitspc,
                 notes: this.note,
                 date_recieved: this.daterecieved,
-
             }).then((res) => {
                 location.reload();
             }).catch(error => {
@@ -126,7 +154,22 @@ export default {
                 })
             }
             location.reload();
-        }
+        },
+        editCase(id: string, product_id: string, units_per_case: string, notes: string, date_recieved: string){
+
+            axios.put("http://localhost:5000/cases/"+id, {
+                product_id: product_id,
+                units_per_case: units_per_case,
+                notes: notes,
+                date_recieved: date_recieved,
+
+            }).then((res) => {
+                //console.log(product_id);
+                location.reload();
+            }).catch(error => {
+                console.log(error);
+            });
+        },
     },
 }
 </script>
