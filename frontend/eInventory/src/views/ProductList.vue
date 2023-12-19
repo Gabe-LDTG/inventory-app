@@ -145,18 +145,18 @@ export default {
         }
     },
 
-    created () {
+/*     created () {
     this.interval = setInterval(this.refreshData, 1000)
-    },
+    }, */
 
     mounted() {
         console.log('on mounted');
         this.getProducts();
     },
 
-    updated () {
+/*     updated () {
     this.interval = setInterval(this.refreshData, 1000)
-    },
+    }, */
 
     methods: {
         getProducts(){
@@ -177,6 +177,7 @@ export default {
 
             }).then((res) => {
                 //location.reload();
+                this.interval = setInterval(this.refreshData, 1000);
             }).catch(error => {
                 console.log(error);
             });
@@ -190,6 +191,7 @@ export default {
                 })
             }
             //location.reload();
+            this.interval = setInterval(this.refreshData, 1000)
         },
         getProductById(id: string){
             //console.log(id);
