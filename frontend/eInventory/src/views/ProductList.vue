@@ -1,39 +1,43 @@
 <template>
     <div>
         <div class="card">
+            <div v-show="displayCreate">
+                <div class="createForm">
+                    <h2>Create a Product</h2>
+                    <p>
+                        <label for="type"> Name: </label><br>
+                        <input class="form-control" v-model="state.name"/><br>
+                        <span v-if="v$.name.$error">
+                            {{ v$.name.$errors[0].$message }}
+                        </span> <br>
+                    </p>
+                    <p>
+                        <label for="type"> ASIN: </label><br>
+                                <input class="form-control" v-model="state.asin"/><br>
+                    </p>
+                    <p>
+                        <label for="type"> FNSKU: </label><br>
+                                <input class="form-control" v-model="state.fnsku"/><br>
+                    </p>
+                    <p>
+                        <label for="type"> UPC: </label><br>
+                                <input class="form-control" v-model="state.upc"/><br>
+                    </p>
+                    <p>
+                        <label for="type">Notes: </label><br>
+                                <input class="form-control" placeholder="Notes" v-model="state.notes"/><br>
+                    </p>
+
+                    <button class="submitButton" @click="this.displayCreate = false;">Cancel</button>
+                    <button class="submitButton" @click="addProduct">Submit</button>
+                </div>
+            </div>
+
             <div class="card-header">
                 <h4>
                     Products
 
-                    <button onclick="window.dialog.showModal();">Add Product</button>
-
-                    <dialog id="dialog">
-                        <form action="">
-
-                            <label for="type"> Name: </label><br>
-                            <input class="form-control" v-model="name" required/><br>
-
-                            <label for="type"> ASIN: </label><br>
-                            <input class="form-control" v-model="asin"/><br>
-
-                            <label for="type"> FNSKU: </label><br>
-                            <input class="form-control" v-model="fnsku"/><br>
-
-                            <label for="type"> UPC: </label><br>
-                            <input class="form-control" v-model="upc"/><br>
-
-                            <label for="type">Notes: </label><br>
-                            <input class="form-control" placeholder="Notes" v-model="notes"/><br>
-
-                        </form>
-                    <form method="dialog">
-                        <button>Close</button>
-
-                        <button class="btn btn-primary" @click="addProduct">Add</button>
-                    </form>
-
-                    </dialog>
-
+                    <button @click="this.displayCreate = true;">Add Product</button>
                 </h4>
             </div>
             <div class="card-body">
@@ -53,7 +57,7 @@
 
                         <tr>
                             <template v-if="this.editId === product.id">
-                                <td> <input class="form-control" v-model="displayProducts[index].name" required/><br> </td>
+                                <td> <input class="form-control" v-model="displayProducts[index].name"/><br> </td>
 
                                 <td> <input class="form-control" v-model="displayProducts[index].asin"/><br> </td>
 
@@ -92,36 +96,37 @@
 import axios from "axios";
 import ProductCreateDialog from '../components/ProductCreateDialog.vue'
 import ProductEditDialog from '../components/ProductEditDialog.vue'
-import useVuelidate from '@vuelidate/core'
-import {required} from '@vuelidate/validators'
-import { reactive } from "vue";
+import useValidate from '@vuelidate/core'
+import {
+    required,
+    helpers,
 
-const formData = reactive({
-    asin: "",
-    fnsku: "",
-    upc: "",
-    notes: "",
-    name: "",
-})
-
-const rules = {
-    asin: {},
-    fnsku: {},
-    upc: {},
-    notes: {},
-    name: { required },
-}
-
-const v$ = useVuelidate(rules, formData);
-
-const submitForm = async () => {
-    const result = await v$.value.$validate();
-    alert("Success, form submitted!!");
-
-
-}
+} from '@vuelidate/validators'
+import { reactive, computed } from "vue";
 
 export default {
+    setup() {
+        const state = reactive({
+            asin: "",
+            fnsku: "",
+            upc: "",
+            notes: "",
+            name: "",
+        });
+        const rules = computed(() => {
+            return{
+                asin: {},
+                fnsku: {},
+                upc: {},
+                notes: {},
+                name: { required },
+            };
+        });
+
+    const v$ = useValidate(rules, state)
+
+    return { state, v$ }
+ },
     components :{
         ProductCreateDialog,
         ProductEditDialog,
@@ -132,12 +137,7 @@ export default {
             displayProducts: [],
             specificProduct: [],
             editId: "",
-            asin: "",
-            fnsku: "",
-            upc: "",
-            notes: "",
-            name: "",
-            interval: '',
+            displayCreate: false,
 
             //displayCreate: false,
             //displayEdit: false,
@@ -145,18 +145,10 @@ export default {
         }
     },
 
-/*     created () {
-    this.interval = setInterval(this.refreshData, 1000)
-    }, */
-
     mounted() {
         console.log('on mounted');
         this.getProducts();
     },
-
-/*     updated () {
-    this.interval = setInterval(this.refreshData, 1000)
-    }, */
 
     methods: {
         getProducts(){
@@ -168,19 +160,27 @@ export default {
             })
         },
         addProduct(){
-            axios.post("http://localhost:5000/products/create", {
-                name: this.name,
-                asin: this.asin,
-                fnsku: this.fnsku,
-                upc: this.upc,
-                notes: this.notes,
+            this.v$.$validate() // checks all inputs
+            if (!this.v$.$error) {
+                axios.post("http://localhost:5000/products/create", {
+                name: this.state.name,
+                asin: this.state.asin,
+                fnsku: this.state.fnsku,
+                upc: this.state.upc,
+                notes: this.state.notes,
 
-            }).then((res) => {
-                //location.reload();
-                this.interval = setInterval(this.refreshData, 1000);
-            }).catch(error => {
-                console.log(error);
-            });
+                }).then((res) => {
+                    //location.reload();
+                    setInterval(this.refreshData, 1000);
+                }).catch(error => {
+                    console.log(error);
+                });
+                // if ANY fail validation
+                this.displayCreate = false;
+                alert('Form successfully submitted.')
+            } else {
+                alert('Form failed validation')
+            }
         },
         deleteProduct(id: string){
             console.log(id);
@@ -191,7 +191,7 @@ export default {
                 })
             }
             //location.reload();
-            this.interval = setInterval(this.refreshData, 1000)
+            setInterval(this.refreshData, 1000)
         },
         getProductById(id: string){
             //console.log(id);
@@ -243,6 +243,38 @@ export default {
     },
 }
 </script>
-<style lang="">
+<style lang="css">
+.createForm {
+  width: 400px;
+  margin: 0 auto;
+  position: absolute;
+  top: 50px;
+  z-index: 10000;
+  padding: 30px;
+  margin-top: 100px;
+  border-radius: 20px;
+  display: inline-block;
+  background-color: gray;
+
+}
+
+input {
+  border: none;
+  outline: none;
+  border-bottom: 1px solid #ddd;
+  font-size: 1em;
+  padding: 5px 0;
+  margin: 10px 0 5px 0;
+  width: 100%;
+}
+
+.submitButton {
+  background-color: green;
+  padding: 10px 20px;
+  margin-top: 10px;
+  border: none;
+  color: white;
+  border-radius: 20px;
+}
 
 </style>
