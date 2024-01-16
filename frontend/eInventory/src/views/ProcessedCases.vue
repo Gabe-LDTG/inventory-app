@@ -1,37 +1,39 @@
 <template>
     <div>
         <div class="card">
-            <div class="card-header">
-                <h4>
-                    Processed Cases
-
-                    <button onclick="window.dialog.showModal();">Add Case</button>
-
-                    <dialog id="dialog">
-                        <form action="">
-
-                            <label for="type">Product: </label><br>
+            <div v-show="displayCreate">
+                <form class="createForm">
+                    <h2>Create a Case</h2>
+                    <p>
+                        <label for="type">Product: </label><br>
                             <select v-model="product">
                                 <option disabled value="">Please select one</option>
                                 <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
                             </select><br>
-
-                            <label for="type">Date Recieved: </label><br>
+                    </p>
+                    <p>
+                        <label for="type">Date Recieved: </label><br>
                             <input type="date" class="form-control" v-model="daterecieved"/><br>
-
-                            <label for="type">Notes: </label><br>
+                    </p>
+                    <p>
+                        <label for="type">Notes: </label><br>
                             <input class="form-control" placeholder="Notes" v-model="note"/><br>
-
-                            <label for="type">Units Per Case: </label><br>
+                    </p>
+                    <p>
+                        <label for="type">Units Per Case: </label><br>
                             <input type="number" class="form-control" placeholder="Number" v-model="unitspc"/><br>
-                        </form>
-                    <form method="dialog">
-                        <button>Close</button>
+                    </p>
 
-                        <button class="btn btn-primary" @click="addCase">Add</button>
-                    </form>
-                    </dialog>
+                    <button class="submitButton" @click="this.displayCreate = false;">Cancel</button>
+                    <button class="submitButton" @click="addCase">Submit</button>
+                </form>
+            </div>
 
+            <div class="card-header">
+                <h4>
+                    Processed Cases
+
+                    <button @click="this.displayCreate = true;">Add Case</button>
                 </h4>
             </div>
             <div class="card-body">
@@ -101,6 +103,7 @@ export default {
             note: "",
             daterecieved: new Date(),
             id: "",
+            displayCreate: false,
 
 
 
@@ -143,10 +146,12 @@ export default {
                 notes: this.note,
                 date_recieved: this.daterecieved,
             }).then((res) => {
-                location.reload();
+                //location.reload();
+                setInterval(this.refreshData, 1000);
             }).catch(error => {
                 console.log(error);
             });
+            this.displayCreate = false;
         },
         deleteCase(id: string){
             console.log(id);
@@ -156,7 +161,8 @@ export default {
                     console.log(error);
                 })
             }
-            location.reload();
+            //location.reload();
+            setInterval(this.refreshData, 1000);
         },
         editCase(id: string, product_id: string, units_per_case: string, notes: string, date_recieved: string){
 
@@ -168,12 +174,20 @@ export default {
 
             }).then((res) => {
                 //console.log(product_id);
-                location.reload();
+                //location.reload();
+                setInterval(this.refreshData, 1000);
             }).catch(error => {
                 console.log(error);
             });
         },
-    },
+        refreshData () {
+        // fetch data
+        axios.get("http://localhost:5000/cases/processed")
+        .then(response => {
+            this.cases = response.data
+        });
+        }
+    }
 }
 </script>
 <style lang="css">
@@ -201,5 +215,38 @@ button {
 .enter {
     display: flex;
     align-content: center;
+}
+
+.createForm {
+  width: 400px;
+  margin: 0 auto;
+  position: absolute;
+  top: 50px;
+  z-index: 10000;
+  padding: 30px;
+  margin-top: 100px;
+  border-radius: 20px;
+  display: inline-block;
+  background-color: gray;
+
+}
+
+input {
+  border: none;
+  outline: none;
+  border-bottom: 1px solid #ddd;
+  font-size: 1em;
+  padding: 5px 0;
+  margin: 10px 0 5px 0;
+  width: 100%;
+}
+
+.submitButton {
+  background-color: green;
+  padding: 10px 20px;
+  margin-top: 10px;
+  border: none;
+  color: white;
+  border-radius: 20px;
 }
 </style>
