@@ -4,6 +4,7 @@
             <div v-show="displayCreate">
                 <form class="createForm">
                     <h2>Create a Product</h2>
+                    <div class="errorMSG">Number of Errors: {{ numOfErr }}</div>
                     <p>
                         <label for="type"> Name: </label><br>
                         <input name="name" class="form-control" v-model="name"/><br>
@@ -28,7 +29,7 @@
                     </p>
 
                     <button type="button" class="submitButton" @click="this.displayCreate = false; clearForm();">Cancel</button>
-                    <button type="button" class="submitButton" @click="onSubmit('create', this.name, this.fnsku)">Submit</button>
+                    <button type="button" class="submitButton" @click="onSubmit('create', this.name, this.fnsku);">Submit</button>
                 </form>
             </div>
 
@@ -67,7 +68,7 @@
                                 <td><input class="form-control" v-model="product.notes"/></td>
 
                                 <td><button type="button" @click="this.editId = '';">Cancel</button></td>
-                                <td><button type="button" @click="onSubmit('edit', product.name, product. fnsku);">Submit</button></td>
+                                <td><button type="button" @click="this.heldProduct = product; onSubmit('edit', product.name, product.fnsku);">Submit</button></td>
                             </template>
 
                             <template v-else>
@@ -77,7 +78,7 @@
                             <td>{{ product.upc }}</td>
                             <td>{{ product.notes }}</td>
 
-                            <td><button @click="toggleEdit(product.id); this.heldProduct = product;">Edit</button></td>
+                            <td><button @click="toggleEdit(product.id); console.log(product.id)">Edit</button></td>
 
                             <td><button class="btn btn-primary" @click="deleteProduct(product.id)">Delete</button></td>
                             </template>
@@ -107,18 +108,18 @@ export default {
     data() {
         return {
             asin: "",
-            asinErrMSG: "",
             fnsku: "",
-            fnskuErrMSG: "",
             upc: "",
-            upcErrMSG: "",
             notes: "",
-            notesErrMSG: "",
             name: "",
+
+            asinErrMSG: "",
+            fnskuErrMSG: "",
+            upcErrMSG: "",
+            notesErrMSG: "",
             nameErrMSG: "",
 
             numOfErr: 0,
-            indexPostion: 0,
             success: 0, 
 
             products: [],
@@ -146,18 +147,20 @@ export default {
             this.success = 0;
 
             if (value == "create"){
-                this.numOfErr = this.validateName(name) + this.validateFnsku(fnsku);
+                console.log('CREATE');
+                this.numOfErr = this.validateName(name) + this.validateFnskuCreate(fnsku);
                 console.log(this.numOfErr);
                 if (this.numOfErr == 0){
                     console.log('submitted');
-                    //this.addProduct();
+                    this.addProduct();
+                    this.clearForm();
 
                     this.success = 1;
                 }
             }
 
             else if (value == "edit"){
-                this.numOfErr = this.validateName(name) + this.validateFnsku(fnsku);
+                this.numOfErr = this.validateName(name) + this.validateFnskuEdit(fnsku);
                 console.log(this.numOfErr);
                 console.log(fnsku);
                 if (this.numOfErr == 0){
@@ -212,14 +215,15 @@ export default {
 
             return isErr;
         },
-        validateFnskuEdit(inputFnsku: string, inputId: string){
+        validateFnskuEdit(inputFnsku: string){
             let isErr = 0;
 
             if (inputFnsku != '') {
                 for (let i = 0; i < this.products.length; i++) {
                     console.log(this.products[i].fnsku);
-                    if (this.products[i].fnsku == inputFnsku){
+                    if (this.products[i].fnsku == inputFnsku && this.products[i].id != this.heldProduct.id){
                         console.log(this.products[i]);
+                        console.log(this.heldProduct.id); 
                         this.fnskuErrMSG = "This fnsku is already in use";
                         isErr = 1;
                     }
@@ -302,7 +306,7 @@ export default {
         },
         toggleEdit(id: string){
             this.editId = id;
-            //console.log(this.editId);
+            console.log(this.editId);
         },
         refreshData () {
         // fetch data
