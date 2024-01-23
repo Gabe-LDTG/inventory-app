@@ -45,6 +45,7 @@
                 <table class="table table-table-bordered">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Name</th>
                             <th>ASIN</th>
                             <th>FNSKU</th>
@@ -72,6 +73,7 @@
                             </template>
 
                             <template v-else>
+                            <td>{{ index + 1}}</td>
                             <td>{{ product.name }}</td>
                             <td>{{ product.asin }}</td>
                             <td>{{ product.fnsku }}</td>

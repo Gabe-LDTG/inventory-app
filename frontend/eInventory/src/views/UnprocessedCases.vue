@@ -40,7 +40,7 @@
                     <thead>
                         <tr>
                             <th>Product Name</th>
-                            <th>Units Per Case</th>
+                            <th>Units Per Box</th>
                             <th>Date Recieved</th>
                             <th>Notes</th>
                         </tr>

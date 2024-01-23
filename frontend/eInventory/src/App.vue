@@ -10,8 +10,9 @@ import HelloWorld from './components/HelloWorld.vue'
       <nav>
         <RouterLink to="/">Home</RouterLink>
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
-        <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Cases</RouterLink>
-        <RouterLink :to="{ name: 'ProductList' }">Products</RouterLink>
+        <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
+        <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
+        <RouterLink :to="{ name: 'Import' }">Import</RouterLink>
         <RouterLink to="/about">About</RouterLink>
       </nav>
   

@@ -4,6 +4,7 @@ import ProcessedCases from '../views/ProcessedCases.vue'
 import UnprocessedCases from '../views/UnprocessedCases.vue'
 import ProductKey from '../views/ProductKey.vue'
 import ProductList from '../views/ProductList.vue'
+import Import from '../views/Import.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,6 +41,11 @@ const router = createRouter({
       path: '/productlist',
       name: 'ProductList',
       component: ProductList
+    },
+    {
+      path: '/import',
+      name: 'Import',
+      component: Import
     }
   ]
 })

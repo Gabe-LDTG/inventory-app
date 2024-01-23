@@ -24,8 +24,8 @@
                             <input type="number" class="form-control" placeholder="Number" v-model="unitspc"/><br>
                     </p>
 
-                    <button class="submitButton" @click="this.displayCreate = false;">Cancel</button>
-                    <button class="submitButton" @click="addCase">Submit</button>
+                    <button class="submitButton" @click="this.displayCreate = false;" type="button">Cancel</button>
+                    <button class="submitButton" @click="addCase" type="button">Submit</button>
                 </form>
             </div>
 
