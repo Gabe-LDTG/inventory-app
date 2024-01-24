@@ -4,14 +4,16 @@
     </div>
 </template>
 <script lang="ts">
-export default {
-    methods: {
-        dataCleaning(d){
-            console.log("CLEANING __________________________________________")
-            console.log(d);
-        }
-    },
+
+
+var cleaning = {
+  foo () { console.log('foo') },
+  bar () { console.log('bar') },
+  baz () { console.log('baz') }
 }
+
+export default cleaning
+
 </script>
 <style lang="">
     

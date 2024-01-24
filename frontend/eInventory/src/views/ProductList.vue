@@ -4,7 +4,7 @@
             <div v-show="displayCreate">
                 <form class="createForm">
                     <h2>Create a Product</h2>
-                    <div class="errorMSG">Number of Errors: {{ numOfErr }}</div>
+                    <div v-if="numOfErr > 0" class="errorMSG">Number of Errors: {{ numOfErr }}</div>
                     <p>
                         <label for="type"> Name: </label><br>
                         <input name="name" class="form-control" v-model="name"/><br>
@@ -28,8 +28,8 @@
                         <input class="form-control" placeholder="Notes" v-model="notes"/><br>
                     </p>
 
-                    <button type="button" class="submitButton" @click="this.displayCreate = false; clearForm();">Cancel</button>
-                    <button type="button" class="submitButton" @click="onSubmit('create', this.name, this.fnsku);">Submit</button>
+                    <button type="button" class="submitButton" @click="displayCreate = false; clearForm();">Cancel</button>
+                    <button type="button" class="submitButton" @click="onSubmit('create', name, fnsku);">Submit</button>
                 </form>
             </div>
 
@@ -37,7 +37,7 @@
                 <h4>
                     Products
 
-                    <button @click="this.displayCreate = true;">Add Product</button>
+                    <button @click="displayCreate = true;">Add Product</button>
                 </h4>
             </div>
             <div class="card-body">
@@ -51,16 +51,45 @@
                             <th>FNSKU</th>
                             <th>UPC</th>
                             <th>Notes</th>
+                            <!-- <th>30 Day Storage Cost</th>
+                            <th>Amz Fees Cost</th>
+                            <th>amz_fulfilment_cost</th>
+                            <th>bag_cost </th>
+                            <th>bag_size </th>
+                            <th>box_cost </th>
+                            <th>box_size </th>
+                            <th>box_type </th>
+                            <th>date_added </th>
+                            <th>do_we_carry </th>
+                            <th>holiday_storage_cost </th>
+                            <th>in_shipping_cost </th>
+                            <th>item_cost </th>
+                            <th>item_num </th>
+                            <th>labor_cost </th>
+                            <th>map </th>
+                            <th>meltable </th>
+                            <th>misc_cost </th>
+                            <th>out_shipping_cost </th>
+                            <th>price_2021 </th>
+                            <th>price_2022 </th>
+                            <th>price_2023 </th>
+                            <th>process_time_per_unit_sec </th>
+                            <th>total_cost </th>
+                            <th>total_holiday_cost </th>
+                            <th>vendor </th>
+                            <th>weight_lbs </th> -->
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="(product, index) in this.products" :key="index">
+                        <template v-for="(product, index) in products" :key="index">
 
                         <tr>
-                            <template v-if="this.editId === product.id">
-                                <td> <input class="form-control" v-model="product.name"/><br><div class="errorMSG">{{ nameErrMSG }}</div> </td>
+                            <template v-if="editId === product.id">
+                                <td>{{ index + 1}}</td>
 
-                                <td> <input class="form-control" v-model="product.asin"/><br> </td>
+                                <td><input class="form-control" v-model="product.name"/><br><div class="errorMSG">{{ nameErrMSG }}</div> </td>
+
+                                <td><input class="form-control" v-model="product.asin"/><br> </td>
 
                                 <td><input class="form-control" v-model="product.fnsku"/><br><div class="errorMSG">{{ fnskuErrMSG }}</div> </td>
 
@@ -68,8 +97,8 @@
 
                                 <td><input class="form-control" v-model="product.notes"/></td>
 
-                                <td><button type="button" @click="this.editId = '';">Cancel</button></td>
-                                <td><button type="button" @click="this.heldProduct = product; onSubmit('edit', product.name, product.fnsku);">Submit</button></td>
+                                <td><button type="button" @click="editId = '';">Cancel</button></td>
+                                <td><button type="button" @click="heldProduct = product; onSubmit('edit', product.name, product.fnsku);">Submit</button></td>
                             </template>
 
                             <template v-else>
@@ -79,6 +108,34 @@
                             <td>{{ product.fnsku }}</td>
                             <td>{{ product.upc }}</td>
                             <td>{{ product.notes }}</td>
+                            <!-- <td>{{ product['30_day_storage_cost'] }}</td>
+                            <td>{{ product.amz_fees_cost }}</td>
+                            <td>{{ product.amz_fulfilment_cost }}</td>
+                            <td>{{ product.bag_cost }}</td>
+                            <td>{{ product.bag_size }}</td>
+                            <td>{{ product.box_cost }}</td>
+                            <td>{{ product.box_size }}</td>
+                            <td>{{ product.box_type }}</td>
+                            <td>{{ product.date_added }}</td>
+                            <td>{{ product.do_we_carry }}</td>
+                            <td>{{ product.holiday_storage_cost }}</td>
+                            <td>{{ product.in_shipping_cost }}</td>
+                            <td>{{ product.item_cost }}</td>
+                            <td>{{ product.item_num }}</td>
+                            <td>{{ product.labor_cost }}</td>
+                            <td>{{ product.map }}</td>
+                            <td>{{ product.meltable }}</td>
+                            <td>{{ product.misc_cost }}</td>
+                            <td>{{ product.out_shipping_cost }}</td>
+                            <td>{{ product.price_2021 }}</td>
+                            <td>{{ product.price_2022 }}</td>
+                            <td>{{ product.price_2023 }}</td>
+                            <td>{{ product.process_time_per_unit_sec }}</td>
+                            <td>{{ product.total_cost }}</td>
+                            <td>{{ product.total_holiday_cost }}</td>
+                            <td>{{ product.vendor }}</td>
+                            <td>{{ product.weight_lbs }}</td> -->
+
 
                             <td><button @click="toggleEdit(product.id); console.log(product.id)">Edit</button></td>
 
@@ -96,17 +153,11 @@
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
 import axios from "axios";
-// import ProductCreateDialog from '../components/ProductCreateDialog.vue'
-// import ProductEditDialog from '../components/ProductEditDialog.vue'
+import validate from "../components/Validator.vue";
 import { reactive, computed } from "vue";
-import { Form, Field, ErrorMessage } from 'vee-validate';
+//  import { Form, Field, ErrorMessage } from 'vee-validate';
 
 export default {
-    components :{
-/*         Form,
-        Field,
-        ErrorMessage, */
-    },
     data() {
         return {
             asin: "",
@@ -114,6 +165,33 @@ export default {
             upc: "",
             notes: "",
             name: "",
+            db30_day_storage_cost: "",
+            amz_fees_cost: "",
+            amz_fulfilment_cost: "",
+            bag_cost: "",
+            bag_size: "",
+            box_cost: "",
+            box_size: "",
+            box_type: "",
+            date_added: "",
+            do_we_carry: "",
+            holiday_storage_cost: "",
+            in_shipping_cost: "",
+            item_cost: "",
+            item_num: "",
+            labor_cost: "",
+            map: "",
+            meltable: "",
+            misc_cost: "",
+            out_shipping_cost: "",
+            price_2021: "",
+            price_2022: "",
+            price_2023: "",
+            process_time_per_unit_sec: "",
+            total_cost: "",
+            total_holiday_cost: "",
+            vendor: "",
+            weight_lbs: "",
 
             asinErrMSG: "",
             fnskuErrMSG: "",
@@ -124,16 +202,12 @@ export default {
             numOfErr: 0,
             success: 0, 
 
-            products: [],
+            products: [] as any[],
             //displayProducts: [],
-            heldProduct: [],
+            heldProduct: "" as any,
             specificProduct: [],
             editId: "",
             displayCreate: false,
-
-            //displayCreate: false,
-            //displayEdit: false,
-            
         }
     },
 
@@ -148,10 +222,12 @@ export default {
         onSubmit(value: string, name: string, fnsku: string){
             this.success = 0;
 
+            //If the user is submitting a new product, the fnsku validation 
+            //function for newly created products will be used
             if (value == "create"){
-                console.log('CREATE');
+                //console.log('CREATE');
                 this.numOfErr = this.validateName(name) + this.validateFnskuCreate(fnsku);
-                console.log(this.numOfErr);
+                //console.log(this.numOfErr);
                 if (this.numOfErr == 0){
                     console.log('submitted');
                     this.addProduct();
@@ -161,10 +237,12 @@ export default {
                 }
             }
 
+            //If the user is submitting a new product, the fnsku validation 
+            //function for editted products will be used
             else if (value == "edit"){
                 this.numOfErr = this.validateName(name) + this.validateFnskuEdit(fnsku);
-                console.log(this.numOfErr);
-                console.log(fnsku);
+                //console.log(this.numOfErr);
+                //console.log(fnsku);
                 if (this.numOfErr == 0){
                     console.log('edited');
                     this.success = 1;
@@ -174,6 +252,8 @@ export default {
             }
             return this.success;
         },
+
+        // Clears the form when a user clicks cancel on the create product form
         clearForm(){
             this.asin = ""
             this.fnsku = ""
@@ -181,13 +261,15 @@ export default {
             this.notes = ""
             this.name = ""
         },
+
+        //Checks to make sure the name field is not empty
         validateName(value: string){
             let isErr = 0;
 
             // if the name field is empty
             if (!value) {
                 this.nameErrMSG = 'Name is a required field';
-                console.log(this.name);
+                //console.log(this.name);
                 isErr = 1;
             }
             else{
@@ -197,7 +279,10 @@ export default {
 
             return isErr;
         },
+
         validateAsin(value: string){},
+
+        //Checks all available products to make sure the fnsku being entered has not already been used
         validateFnskuCreate(inputFnsku: string){
             let isErr = 0;
 
@@ -217,6 +302,9 @@ export default {
 
             return isErr;
         },
+
+        //Checks to make sure the newly edited fnsku does not already exist
+        //Differs from validateFnskuCreate by ignoring the fnsku if it is the product's own fnsku
         validateFnskuEdit(inputFnsku: string){
             let isErr = 0;
 
@@ -239,45 +327,21 @@ export default {
         },
         validateUpc(value: string){},
         validateNotes(value: string){},
+
+        //Pulls all the products from the database using API
         getProducts(){
             
             axios.get("http://localhost:5000/products").then(res => {
                 this.products = res.data;
+
                 //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
                 //this.displayProducts = this.products;
-                console.log(this.products);
+
+                console.log("Product List Recieved\n",this.products);
             })
         },
-        addProduct(){
-                axios.post("http://localhost:5000/products/create", {
-                name: this.name,
-                asin: this.asin,
-                fnsku: this.fnsku,
-                upc: this.upc,
-                notes: this.notes,
 
-                }).then((res) => {
-                    //location.reload();
-                    //setInterval(this.refreshData, 1000);
-                }).catch(error => {
-                    console.log(error);
-                });
-                // if ANY fail validation
-                this.displayCreate = false;
-                alert('Form successfully submitted.')
-                setInterval(this.refreshData, 1000);
-        },
-        deleteProduct(id: string){
-            console.log(id);
-            if(confirm("Do you really want to delete?")){
-                axios.delete("http://localhost:5000/products/"+id)
-                .catch(error => {
-                    console.log(error);
-                })
-            }
-            //location.reload();
-            setInterval(this.refreshData, 1000)
-        },
+        //Used to search for a specific product by Id
         getProductById(id: string){
             //console.log(id);
             axios.get("http://localhost:5000/products/"+id)
@@ -289,6 +353,48 @@ export default {
                 console.log(error);
             })
         },
+
+        //Posts a newly added product into the database using API
+        addProduct(){
+            
+            //console.log("UPC ______ ", this.upc);
+            //console.log(this.fnsku);
+                axios.post("http://localhost:5000/products/create", {
+                name: this.name,
+                asin: this.asin,
+                fnsku: this.fnsku,
+                upc: this.upc,
+                notes: this.notes,
+
+                }).then((res) => {
+                    //location.reload();
+                    //setInterval(this.refreshData, 1000);
+
+                    // if ANY fail validation
+                    this.displayCreate = false;
+                    alert('Form successfully submitted.')
+                    this.refreshData();
+                }).catch(error => {
+                    console.log(error);
+                });
+        },
+
+        //Removes a product from the database using API
+        deleteProduct(id: string){
+            //console.log(id);
+            if(confirm("Do you really want to delete?")){
+                axios.delete("http://localhost:5000/products/"+id)
+                .then(res => {
+                    //location.reload();
+                    this.refreshData();
+                })
+                .catch(error => {
+                    console.log(error);
+                })
+            }
+        },
+
+        //Updates an already existing product in the database using API
         editProduct(id: string, name: string, asin: string, fnsku: string, upc: string, notes: string){
 
             axios.put("http://localhost:5000/products/"+id, {
@@ -300,22 +406,24 @@ export default {
 
             }).then((res) => {
                 //location.reload();
-                this.refreshData;
+                this.refreshData();
                 this.editId = '';
             }).catch(error => {
                 console.log(error);
             });
         },
+
+        // Used to allow for inline editing
         toggleEdit(id: string){
             this.editId = id;
             console.log(this.editId);
         },
+
+        // Uses API to grab the list of products
+        // Used to reflect the changes when a user edits the products in the database in any way
         refreshData () {
         // fetch data
-        axios.get("http://localhost:5000/products")
-        .then(response => {
-            this.products = response.data
-        })
+        this.getProducts()
         }
         /* onCancel(index: string){
             this.displayProducts[index].name = this.products[index].name;

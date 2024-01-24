@@ -28,7 +28,7 @@
     </table>
 </template>
 <script lang="ts">
-import Papa from 'papaparse';
+import Papa from "papaparse";
 import axios from "axios";
 import cleaning from '../components/DataCleaning.vue'
 
@@ -38,7 +38,7 @@ export default {
             file: '',
             content: [],
             testContent: [],
-            uContent: [],
+            uContent: [] as any[],
             parsed: false,
             lines: '',
             loading: false,
@@ -101,30 +101,14 @@ export default {
             console.log(d.data);
         }, */
 
-        handleFileUpload( event ){
+        handleFileUpload( event: any ){
             this.file = event.target.files[0];
             console.log(event.target.files[0]);
+            let d: 'd';
+            console.log(cleaning.foo());
             this.parseFile();
             //this.formatFile();
         },
-       /*  formatFile(){
-            Papa.parse( this.file, {
-                header: true,
-                skipEmptyLines: true,
-                //preview: 10,
-                complete: function( results ){
-                    //console.log(results);
-                    this.testContent = results;
-                    console.log(this.testContent);
-                    //this.dataCleaning(this.content);
-                    this.parsed = true;
-                    return results;
-                }.bind(this)
-            } );
-            Papa.unparse( this.testContent);
-            console.log(this.testContent);
-
-        }, */
         /* parseFile(){
             this.loading = true;
             Papa.parse( this.file, {
@@ -148,17 +132,39 @@ export default {
                 header: false,
                 skipEmptyLines: true,
                 //preview: 10,
-                complete: function( results ){
+                complete: function( results: any ){
+                    let keys = results.data[1];
+                    let myMap = new Map();
+                    console.log(keys);
                     for (let i = 2; i < results.data.length; i++) { // Notice that i changed i to 2, so that we skip the line 0 and 1.
-                        let tradehistory = {
-                        Date: results.data[i][0],
-                        Side: results.data[i][1],
+                        /* if (!results.data[i][2])
+                          continue; */
+                        /* for (let j = 0; j < keys.length; j++)
+                        {
+                            myMap.set(keys[j], results.data[i][j]);
+                        }  */
+                        let arrMap = {
+                        1: results.data[i][0],
+                        2: results.data[i][1],
+                        3: results.data[i][2],
+                        fnsku: results.data[i][3],
+                        5: results.data[i][4],
+                        6: results.data[i][5],
+                        7: results.data[i][6],
+                        8: results.data[i][7],
+                        9: results.data[i][8],
+                        10: results.data[i][9],
                         };
-                        this.loading = false;
-                        this.content.push(tradehistory);
+                        this.content.push(myMap);
                     }
+                    //console.log("Parsed map: ", myMap);
                     console.log("Parsed: k", results.data);
-                    console.log(this.content);
+                    console.log(results.data[1]);
+
+                    console.log("THIS CONTENT " ,this.content);
+
+                    this.loading = false;
+                    this.parsed = true;
                 }.bind(this)
             } );
         },
@@ -178,9 +184,8 @@ export default {
                 }).catch(error => {
                     console.log(error);
                 });
-                // if ANY fail validation
                 alert('Form successfully submitted.')
-                setInterval(this.refreshData, 1000);
+                //setInterval(this.refreshData, 1000);
         },
 
     }

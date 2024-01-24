@@ -8,7 +8,7 @@
                         <label for="type">Product: </label><br>
                             <select v-model="product">
                                 <option disabled value="">Please select one</option>
-                                <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
+                                <option v-for="p in products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
                             </select><br>
                     </p>
                     <p>
@@ -24,8 +24,8 @@
                             <input type="number" class="form-control" placeholder="Number" v-model="unitspc"/><br>
                     </p>
 
-                    <button class="submitButton" @click="this.displayCreate = false;" type="button">Cancel</button>
-                    <button class="submitButton" @click="addCase" type="button">Submit</button>
+                    <button class="submitButton" @click="displayCreate = false;" type="button">Cancel</button>
+                    <button class="submitButton" @click="onSubmit('create');" type="button">Submit</button>
                 </form>
             </div>
 
@@ -33,7 +33,7 @@
                 <h4>
                     Processed Cases
 
-                    <button @click="this.displayCreate = true;">Add Case</button>
+                    <button @click="displayCreate = true;">Add Case</button>
                 </h4>
             </div>
             <div class="card-body">
@@ -48,32 +48,32 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="(c, index) in this.cases" :key="index">
+                        <template v-for="(c, index) in cases" :key="index">
                             <tr>
-                                <template v-if="!c.EDIT">
+                                <template v-if="editId === c.id">
+                                    <td><select v-model="c.product_id">
+                                        <option v-for="p in products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
+                                    </select><br></td>
+
+                                    <td><input type="number" class="form-control" v-model="c.units_per_case"/><br></td>
+
+                                    <td><input type="date" class="form-control" v-model="c.date_recieved"/><br></td>
+
+                                    <td><input class="form-control" v-model="c.notes"/><br></td>
+
+                                    <td><button type="button" @click="editId = '';">Cancel</button></td>
+                                    <td><button type="button" @click="heldCase = c; onSubmit('edit')">Submit</button></td>
+                                </template>
+
+                                <template v-else>
                                     <td>{{ c.name }}</td>
                                     <td>{{ c.units_per_case }}</td>
                                     <td>{{ c.date_recieved }}</td>
                                     <td>{{ c.notes }}</td>
 
-                                    <td><button @click="c.EDIT = true; console.log(c.name)">Edit</button></td>
+                                    <td><button @click="editId = c.id; console.log(c.name)">Edit</button></td>
 
                                     <td><button class="btn btn-primary" @click="deleteCase(c.id)">Delete</button></td>
-                                </template>
-
-                                <template v-else>
-                                    <td><select v-model="this.displayCases[index].product_id">
-                                        <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.fnsku }}</option>
-                                    </select><br></td>
-
-                                    <td><input type="number" class="form-control" v-model="this.displayCases[index].units_per_case"/><br></td>
-
-                                    <td><input type="date" class="form-control" v-model="this.displayCases[index].date_recieved"/><br></td>
-
-                                    <td><input class="form-control" v-model="this.displayCases[index].notes"/><br></td>
-
-                                    <td><button type="button" @click="c.EDIT = false">Cancel</button></td>
-                                    <td><button type="button" @click="editCase(c.id, this.displayCases[index].product_id, this.displayCases[index].units_per_case, this.displayCases[index].notes, this.displayCases[index].date_recieved)">Submit</button></td>
                                 </template>
                             </tr>   
                         </template>
@@ -94,18 +94,23 @@ import axios from "axios";
 export default {
     data() {
         return {
-            cases: [],
-            displayCases: [],
-            products: [],
+            cases: [] as any[],
+            displayCases: [] as any [],
+            products: [] as any[],
             selected: "",
+            heldCase: "" as any,
+
             product: "",
             unitspc: "",
             note: "",
             daterecieved: new Date(),
             id: "",
+
             displayCreate: false,
 
+            editId: "",
 
+            numOfErr: 0,
 
         }
     },
@@ -117,19 +122,51 @@ export default {
     },
 
     methods: {
+        //The controller function. Checks whether the database interaction is a CREATE or EDIT. 
+        //Then, validates the input before sending the data through the API.
+        onSubmit(value: string){
+
+            //If the user is submitting a new product, the fnsku validation 
+            //function for newly created products will be used
+            if (value == "create"){
+                //console.log('CREATE');
+                //console.log(this.numOfErr);
+                if (this.numOfErr == 0){
+                    console.log('submitted');
+                    this.addCase();
+                    this.clearForm();
+
+                }
+            }
+
+            //If the user is submitting a new product, the fnsku validation 
+            //function for editted products will be used
+            else if (value == "edit"){
+                //console.log(this.numOfErr);
+                //console.log(fnsku);
+                if (this.numOfErr == 0){
+                    console.log('edited');
+                    this.editCase(this.heldCase.id, this.heldCase.product_id, this.heldCase.units_per_case, this.heldCase.notes, this.heldCase.date_recieved);
+
+                }
+            }
+        },
+
         getCases(){
             
             axios.get("http://localhost:5000/cases/processed").then(res => {
                 this.cases = res.data;
                 this.displayCases = this.cases;
 
-                for (let i = 0; i < this.cases.length; i++) {
+                /* for (let i = 0; i < this.cases.length; i++) {
                 this.cases[i].EDIT = false;
-                }
+                } */
                 console.log(this.cases);
 
+                console.log(this.cases[0].date_recieved);
+
                 console.log('TESTING-------------------')
-                console.log(this.cases.date_recieved.getMonth());
+                //console.log(this.cases.date_recieved.getMonth());
             })
         },
         getProducts(){
@@ -147,7 +184,7 @@ export default {
                 date_recieved: this.daterecieved,
             }).then((res) => {
                 //location.reload();
-                setInterval(this.refreshData, 1000);
+                this.refreshData();
             }).catch(error => {
                 console.log(error);
             });
@@ -162,7 +199,7 @@ export default {
                 })
             }
             //location.reload();
-            setInterval(this.refreshData, 1000);
+            this.refreshData();
         },
         editCase(id: string, product_id: string, units_per_case: string, notes: string, date_recieved: string){
 
@@ -175,7 +212,8 @@ export default {
             }).then((res) => {
                 //console.log(product_id);
                 //location.reload();
-                setInterval(this.refreshData, 1000);
+                this.refreshData();
+                this.editId = '';
             }).catch(error => {
                 console.log(error);
             });
@@ -186,7 +224,15 @@ export default {
         .then(response => {
             this.cases = response.data
         });
-        }
+        },
+
+        // Clears the form when a user clicks cancel on the create product form
+        clearForm(){
+            this.product = "";
+            this.unitspc = "";
+            this.note = "";
+            this.daterecieved = new Date();
+        },
     }
 }
 </script>
