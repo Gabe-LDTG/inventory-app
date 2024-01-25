@@ -2,8 +2,8 @@
 import db from "../config/database.js";
 
 const getProd = 'SELECT * FROM products';
-const whereProc = 'WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (upc IS NULL OR upc = 0)';
-const whereUnproc = 'WHERE (fnsku IS NULL AND asin IS NULL) OR (fnsku = "" AND asin = "")';
+const whereProc = 'WHERE (fnsku IS NOT NULL OR asin IS NOT NULL) AND (fnsku <> "" OR asin <> "")';
+const whereUnproc = 'WHERE (fnsku IS NULL AND asin IS NULL) OR (fnsku = "" AND asin = "") OR (fnsku IS NULL AND asin = "") OR (fnsku = "" AND asin IS NULL)';
 //WHERE upc IS NOT NULL AND 
 
 //get all products

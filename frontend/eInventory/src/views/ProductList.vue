@@ -3,46 +3,98 @@
         <div class="card">
             <div v-show="displayCreate">
                 <form class="createForm">
-                    <h2>Create a Product</h2>
+                    <h2>Create a Product</h2> <br>
                     <div v-if="numOfErr > 0" class="errorMSG">Number of Errors: {{ numOfErr }}</div>
-                    <p>
-                        <label for="type"> Name: </label><br>
-                        <input name="name" class="form-control" v-model="name"/><br>
-                        <div class="errorMSG">{{ nameErrMSG }}</div>
-                    </p>
-                    <p>
-                        <label for="type"> ASIN: </label><br>
-                        <input class="form-control" v-model="asin"/><br>
-                    </p>
-                    <p>
-                        <label for="type"> FNSKU: </label><br>
-                        <input class="form-control" v-model="fnsku"/><br>
-                        <div class="errorMSG">{{ fnskuErrMSG }}</div>
-                    </p>
-                    <p>
-                        <label for="type"> UPC: </label><br>
-                        <input class="form-control" v-model="upc"/><br>
-                    </p>
-                    <p>
-                        <label for="type">Notes: </label><br>
-                        <input class="form-control" placeholder="Notes" v-model="notes"/><br>
-                    </p>
+                    
+                    <span class="p-float-label">
+                        <InputText id="name" v-model="name"/>
+                        <label for="name">Name</label>
+                    </span>
+                    <div class="errorMSG">{{ nameErrMSG }}</div><br>
 
-                    <button type="button" class="submitButton" @click="displayCreate = false; clearForm();">Cancel</button>
-                    <button type="button" class="submitButton" @click="onSubmit('create', name, fnsku);">Submit</button>
+                    <span class="p-float-label">
+                        <label for="asin"> ASIN: </label>
+                        <InputText id="asin" v-model="asin"/>
+                    </span><br>
+
+                    <span class="p-float-label">
+                        <InputText id="fnsku" v-model="fnsku"/>
+                        <label for="fnsku"> FNSKU: </label>
+                    </span>
+                    <div class="errorMSG">{{ fnskuErrMSG }}</div><br>
+
+                    <span class="p-float-label">
+                        <InputText id="upc" v-model="upc"/>
+                        <label for="upc"> UPC: </label>
+                    </span><br>
+
+                    <span class="p-float-label">
+                        <InputText id="notes" v-model="notes"/>
+                        <label for="notes">Notes:</label>
+                    </span><br>
+
+                    <Button label= "Cancel" type="button" severity="secondary" rounded @click="displayCreate = false; clearForm();"/>
+                    <Button label= "Submit" type="button" rounded @click="onSubmit('create', name, fnsku);" />
                 </form>
             </div>
 
-            <div class="card-header">
-                <h4>
-                    Products
-
-                    <button @click="displayCreate = true;">Add Product</button>
-                </h4>
-            </div>
             <div class="card-body">
+                <DataTable scrollable v-model:editingRows="editingRows" :value="products" editMode="row" dataKey="id" @row-edit-save="onRowEditSave"
+                    :pt="{
+                        table: { style: 'min-width: 50rem' },
+                        column: {
+                            bodycell: ({ state }) => ({
+                                style:  state['d_editing']&&'padding-top: 0.6rem; padding-bottom: 0.6rem'
+                            })
+                        }
+                    }"
+                >
+        <template #header>
+            <div class="flex justify-content-between flex-wrap">
+            <div class="flex align-items-center">
+                Products
+            </div>
 
-                <table class="table table-table-bordered">
+            <div class="flex align-items-center">
+                <Button label= "Add Product" size="small" rounded @click="displayCreate = true;" />
+            </div>
+            </div>
+        </template>
+            <Column field="name" header="Name">
+                <template #editor="{ data, field }">
+                    <InputText v-model="data[field]" />
+                </template>
+            </Column>
+            <Column field="asin" header="ASIN">
+                <template #editor="{ data, field }">
+                    <InputText v-model="data[field]" />
+                </template>
+            </Column>
+            <Column field="fnsku" header="FNSKU">
+                <template #editor="{ data, field }">
+                    <InputText v-model="data[field]" />
+                </template>
+            </Column>
+            <Column field="upc" header="UPC">
+                <template #editor="{ data, field }">
+                    <InputText v-model="data[field]" />
+                </template>
+            </Column>
+            <Column field="notes" header="Notes">
+                <template #editor="{ data, field }">
+                    <InputText v-model="data[field]" />
+                </template>
+            </Column>
+            <Column :rowEditor="true" style="width: 10%; min-width: 8rem" frozen bodyStyle="text-align:center"></Column>
+            <Column :exportable="false" style="min-width:8rem">
+                    <template #body="slotProps">
+                        <!-- <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" /> deleteProduct(slotProps.data)-->
+                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="deleteProduct(slotProps.data.id)" />
+                    </template>
+            </Column>
+        </DataTable>
+
+                <!-- <table class="table table-table-bordered">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -51,7 +103,7 @@
                             <th>FNSKU</th>
                             <th>UPC</th>
                             <th>Notes</th>
-                            <!-- <th>30 Day Storage Cost</th>
+                            <th>30 Day Storage Cost</th>
                             <th>Amz Fees Cost</th>
                             <th>amz_fulfilment_cost</th>
                             <th>bag_cost </th>
@@ -77,7 +129,7 @@
                             <th>total_cost </th>
                             <th>total_holiday_cost </th>
                             <th>vendor </th>
-                            <th>weight_lbs </th> -->
+                            <th>weight_lbs </th> 
                         </tr>
                     </thead>
                     <tbody>
@@ -97,8 +149,10 @@
 
                                 <td><input class="form-control" v-model="product.notes"/></td>
 
-                                <td><button type="button" @click="editId = '';">Cancel</button></td>
-                                <td><button type="button" @click="heldProduct = product; onSubmit('edit', product.name, product.fnsku);">Submit</button></td>
+                                <span class="p-buttonset">
+                                    <Button label="Cancel" type="button" @click="editId = '';" />
+                                    <Button label="Submit" type="button" @click="heldProduct = product; onSubmit('edit', product.name, product.fnsku);"/>
+                                </span>
                             </template>
 
                             <template v-else>
@@ -108,7 +162,7 @@
                             <td>{{ product.fnsku }}</td>
                             <td>{{ product.upc }}</td>
                             <td>{{ product.notes }}</td>
-                            <!-- <td>{{ product['30_day_storage_cost'] }}</td>
+                            <td>{{ product['30_day_storage_cost'] }}</td>
                             <td>{{ product.amz_fees_cost }}</td>
                             <td>{{ product.amz_fulfilment_cost }}</td>
                             <td>{{ product.bag_cost }}</td>
@@ -134,18 +188,21 @@
                             <td>{{ product.total_cost }}</td>
                             <td>{{ product.total_holiday_cost }}</td>
                             <td>{{ product.vendor }}</td>
-                            <td>{{ product.weight_lbs }}</td> -->
+                            <td>{{ product.weight_lbs }}</td> 
 
+                            <span class="p-buttonset">
+                                <Button label="Edit" @click="toggleEdit(product.id); console.log(product.id)" />
 
-                            <td><button @click="toggleEdit(product.id); console.log(product.id)">Edit</button></td>
-
-                            <td><button class="btn btn-primary" @click="deleteProduct(product.id)">Delete</button></td>
+                                <Button label="Delete" class="btn btn-primary" @click="deleteProduct(product.id)" />
+                            </span>
                             </template>
                         </tr>
 
                     </template>
                     </tbody>
-                </table>
+                </table> -->
+
+
             </div>
         </div>
     </div>
@@ -154,8 +211,14 @@
 // import { assertExpressionStatement } from '@babel/types';
 import axios from "axios";
 import validate from "../components/Validator.vue";
-import { reactive, computed } from "vue";
+import action from "../components/utils/axiosUtils";
+import ProductTable from "../components/ProductTable.vue";
+import { createApp, reactive, computed } from "vue";
+
 //  import { Form, Field, ErrorMessage } from 'vee-validate';
+
+//REFERENCE FOR PAGES
+//https://codesandbox.io/s/6vr97h?file=/src/App.vue:3297-3712
 
 export default {
     data() {
@@ -206,6 +269,9 @@ export default {
             //displayProducts: [],
             heldProduct: "" as any,
             specificProduct: [],
+            columns: [] as any[],
+            editingRows: [] as any[],
+
             editId: "",
             displayCreate: false,
         }
@@ -217,6 +283,16 @@ export default {
     },
 
     methods: {
+        onRowEditSave(event: any) {
+            let { newData, index } = event;
+
+            this.products[index] = newData;
+            console.log(newData);
+
+            this.editProduct(newData);
+
+            //this.onSubmit('edit', newData.name, newData.fnsku);
+        },
         //The controller function. Checks whether the database interaction is a CREATE or EDIT. 
         //Then, validates the input before sending the data through the API.
         onSubmit(value: string, name: string, fnsku: string){
@@ -246,7 +322,7 @@ export default {
                 if (this.numOfErr == 0){
                     console.log('edited');
                     this.success = 1;
-                    this.editProduct(this.heldProduct.id, this.heldProduct.name, this.heldProduct.asin, this.heldProduct.fnsku, this.heldProduct.upc, this.heldProduct.notes)
+                    this.editProduct(this.heldProduct.id)
 
                 }
             }
@@ -260,6 +336,10 @@ export default {
             this.upc = ""
             this.notes = ""
             this.name = ""
+            this.nameErrMSG = ""
+            this.numOfErr = 0
+            this.fnskuErrMSG = ""
+
         },
 
         //Checks to make sure the name field is not empty
@@ -334,10 +414,12 @@ export default {
             axios.get("http://localhost:5000/products").then(res => {
                 this.products = res.data;
 
+                this.columns = Object.keys(this.products[0]);
                 //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
                 //this.displayProducts = this.products;
 
                 console.log("Product List Recieved\n",this.products);
+                console.log("Keys", Object.keys(this.products[1]));
             })
         },
 
@@ -395,14 +477,14 @@ export default {
         },
 
         //Updates an already existing product in the database using API
-        editProduct(id: string, name: string, asin: string, fnsku: string, upc: string, notes: string){
+        editProduct(value: any){
 
-            axios.put("http://localhost:5000/products/"+id, {
-                name: name,
-                asin: asin,
-                fnsku: fnsku,
-                upc: upc,
-                notes: notes,
+            axios.put("http://localhost:5000/products/"+value.id, {
+                name: value.name,
+                asin: value.asin,
+                fnsku: value.fnsku,
+                upc: value.upc,
+                notes: value.notes,
 
             }).then((res) => {
                 //location.reload();
@@ -446,7 +528,7 @@ export default {
   margin-top: 100px;
   border-radius: 20px;
   display: inline-block;
-  background-color: gray;
+  background-color: black;
 
 }
 

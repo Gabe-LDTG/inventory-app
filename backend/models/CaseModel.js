@@ -18,7 +18,7 @@ export const getCases=(result)=>{
 //get all processed cases (All processed cases should have a fnsku or asin and should not have a upc)
 export const getProcCases=(result)=>{
     //DATE_FORMAT(cases.date_recieved, "%m %d %Y")
-    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE products.fnsku IS NOT NULL OR products.asin IS NOT NULL",(err,results)=>{
+    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.fnsku <> '' OR products.asin <> '')",(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
@@ -32,7 +32,7 @@ export const getProcCases=(result)=>{
 
 //get all unprocessed cases (all unprocessed cases should have UPC (or maybe item num))
 export const getUnprocCases=(result)=>{
-    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NULL OR products.asin IS NULL) OR (products.fnsku = '' OR products.asin = '')",(err,results)=>{
+    db.query("SELECT cases.id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.id WHERE (products.fnsku IS NULL AND products.asin IS NULL) OR (products.fnsku = '' AND products.asin = '') OR (products.fnsku IS NULL AND products.asin = '') OR (products.fnsku = '' AND products.asin IS NULL)",(err,results)=>{
         if(err){
             console.log(err);
             result(err,null);
