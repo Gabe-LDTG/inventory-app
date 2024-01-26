@@ -11,6 +11,7 @@ import '/node_modules/primeflex/primeflex.css';
 //import 'primevue/resources/primevue.min.css';
 
 import Button from 'primevue/button';
+import Calendar from 'primevue/calendar';
 import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
 import DataTable from 'primevue/datatable';
@@ -37,6 +38,7 @@ app.use(ToastService);
 
 //PRIME VUE COMPONENTS
 app.component('Button', Button);
+app.component('Calendar', Calendar);
 app.component('Column', Column);
 app.component('ColumnGroup', ColumnGroup);
 app.component('DataTable', DataTable);

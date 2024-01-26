@@ -5,7 +5,7 @@
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" />
+                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases || !selectedCases.length" />
                 </template>
 
                 <template #end>
@@ -14,14 +14,14 @@
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="id"
+            <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">Manage Products</h4>
+                        <h4 class="m-0">Manage Cases</h4>
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -31,10 +31,9 @@
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
                 <Column field="name" header="Name" sortable></Column>
-                <Column field="asin" header="ASIN" sortable></Column>
-                <Column field="fnsku" header="FNSKU" sortable></Column>
-                <Column field="upc" header="UPC" sortable></Column>
+                <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
+                <Column field="date_recieved" header="Date Recieved" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
@@ -44,31 +43,30 @@
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="productDialog" :style="{width: '450px'}" header="Product Details" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="productDialog" :style="{width: '450px'}" header="Case Details" :modal="true" class="p-fluid">
+            
             <div class="field">
                 <label for="name">Name</label>
-                <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
+                <Dropdown v-model="selectedCases" optionLabel="name" required="true" 
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                :class="{'p-invalid': submitted && !product.name}" />
                 <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
             </div>
 
             <div class="field">
-                <label for="asin">ASIN</label>
-                <InputText id="asin" v-model="product.asin"/>
-            </div>
-
-            <div class="field">
-                <label for="fnsku"> FNSKU: </label>
-                <InputText id="fnsku" v-model="product.fnsku"/>
-            </div>
-
-            <div class="field">
-                <label for="upc"> UPC: </label>
-                <InputText id="upc" v-model="product.upc"/>
+                <label for="asin">QTY</label>
+                <InputNumber inputId="stacked-buttons" showButtons/>
             </div>
 
             <div class="field">
                 <label for="notes">Notes</label>
                 <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="fnsku"> Date Recieved: </label>
+                <InputText id="fnsku" v-model="product.fnsku"/>
             </div>
 
             <template #footer>
@@ -113,6 +111,10 @@ import action from "../components/utils/axiosUtils";
 export default {
     data() {
         return {
+            cases: [] as any[],
+            case: {},
+            selectedCases: null,
+
             products: [] as any[],
             productDialog: false,
             deleteProductDialog: false,
@@ -138,7 +140,10 @@ export default {
         this.getProducts();
         //this.products = Promise.resolve(action.getProducts());
 
-        console.log(this.products);
+        this.getProcCases();
+
+        console.log("PRODUCTS",this.products);
+        console.log("CASES",this.cases);
     },
     methods: {
         //Pulls all the products from the database using API
@@ -155,6 +160,23 @@ export default {
                 console.log("Keys", Object.keys(this.products[1]));
             })
         },
+
+        getProcCases(){
+
+            axios.get("http://localhost:5000/cases/processed").then(res => {
+                this.cases = res.data;
+                //this.displayCases = this.cases;
+                /* for (let i = 0; i < this.cases.length; i++) {
+                this.cases[i].EDIT = false;
+                } */
+
+                console.log(this.cases);
+                console.log(this.cases[0].date_recieved);
+                console.log('TESTING-------------------')
+                //console.log(this.cases.date_recieved.getMonth());
+            })
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -236,11 +258,11 @@ export default {
             this.deleteProductsDialog = true;
         },
         deleteSelectedProducts() {
-            this.products = this.products.filter(val => !this.selectedProducts.includes(val));
+            this.products = this.products.filter(val => !this.selectedCases.includes(val));
             
             //action.deleteProduct(this.product.id);
             this.deleteProductsDialog = false;
-            this.selectedProducts = null;
+            this.selectedCases = null;
             this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
         },
         initFilters() {

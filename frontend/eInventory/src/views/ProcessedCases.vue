@@ -82,16 +82,24 @@
             </div>
         </div>
     </div>
+    <!-- <ComponentA /> -->
+    <CaseList />
 </template>
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
 import { ref } from "vue";
 import axios from "axios";
+//import ComponentA from './ProductList.vue'
+import CaseList from '../components/CasesList.vue'
 
 //Want to work on making the dialog box its own vue file for more organization
 //import ProcessedDialog from "@/components/ProcessedDialog.vue";
 
 export default {
+    components: {
+        //ComponentA,
+        CaseList
+    },
     data() {
         return {
             cases: [] as any[],
