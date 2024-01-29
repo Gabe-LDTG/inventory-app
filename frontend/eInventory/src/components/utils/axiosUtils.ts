@@ -7,7 +7,7 @@ var action = {
     getProducts(){
         let products;
             
-        axios.get("http://localhost:5000/products").then(res => {
+        return axios.get("http://localhost:5000/products").then(res => {
             products = res.data;
 
             //this.columns = Object.keys(this.products[0]);
@@ -16,6 +16,28 @@ var action = {
 
             console.log("Product List Recieved\n",products);
             console.log("Keys", Object.keys(products[1]));
+
+            return products;
+        })
+    },
+
+    getProcProducts(){
+        let products;
+
+        return axios.get("http://localhost:5000/products/processed").then(res => {
+            products = res.data
+            console.log(products);
+            return products;
+        });
+
+    },
+
+    getUnprocProducts(){
+        let products;
+
+        return axios.get("http://localhost:5000/products/unprocessed").then(res => {
+            products = res.data
+            console.log(products);
             return products;
         })
     },
@@ -95,7 +117,7 @@ var action = {
             //location.reload();
             //this.refreshData();
             //this.editId = '';
-            alert("AHHH");
+            //alert("AHHH");
         }).catch(error => {
             console.log(error);
         });
@@ -108,7 +130,7 @@ var action = {
     getProcCases(){
         let cases;
 
-        axios.get("http://localhost:5000/cases/processed").then(res => {
+        return axios.get("http://localhost:5000/cases/processed").then(res => {
             cases = res.data;
             //this.displayCases = this.cases;
 
@@ -126,14 +148,29 @@ var action = {
         })
     },
 
+    getUnprocCases(){
+        let cases;
+            
+        return axios.get("http://localhost:5000/cases/unprocessed").then(res => {
+            cases = res.data;
+            //this.displayCases = this.cases;
+
+            /* for (let i = 0; i < this.cases.length; i++) {
+            this.cases[i].EDIT = false;
+            } */
+            console.log(cases);
+            return cases;
+        });
+    },
+
     //
     addCase(c: any){
         //console.log(this.product);
         axios.post("http://localhost:5000/cases/create", {
-            product_id: c.product,
-            units_per_case: c.unitspc,
-            notes: c.note,
-            date_recieved: c.daterecieved,
+            product_id: c.product_id,
+            units_per_case: c.units_per_case,
+            notes: c.notes,
+            date_recieved: c.date_recieved,
         }).then((res) => {
             //location.reload();
             //this.refreshData();
@@ -146,12 +183,12 @@ var action = {
     //
     deleteCase(id: string){
         console.log(id);
-        if(confirm("Do you really want to delete?")){
+        //if(confirm("Do you really want to delete?")){
             axios.delete("http://localhost:5000/cases/"+id)
             .catch(error => {
                 console.log(error);
             })
-        }
+        //}
         //location.reload();
         //this.refreshData();
     },

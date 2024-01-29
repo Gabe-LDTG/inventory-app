@@ -17,6 +17,7 @@
             <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
+                removableSort
                 :rowClass="({ desc }) => desc === 'Disconnected' ? 'text-red-500': null"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -38,6 +39,7 @@
                 <Column field="notes" header="Notes" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
+                        <Button icon="pi pi-cog" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
                         <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
@@ -58,12 +60,12 @@
             </div>
 
             <div class="field">
-                <label for="fnsku"> FNSKU: </label>
+                <label for="fnsku">FNSKU</label>
                 <InputText id="fnsku" v-model="product.fnsku"/>
             </div>
 
             <div class="field">
-                <label for="upc"> UPC: </label>
+                <label for="upc">UPC</label>
                 <InputText id="upc" v-model="product.upc"/>
             </div>
 
@@ -76,6 +78,21 @@
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveProduct" />
             </template>
+        </Dialog>
+
+        <Dialog v-model:visible="productInfoDialog" :modal="true">
+                    <!-- <div v-for="column in columns">
+                        <p>
+                            <div class="field">
+                                <label for="asin">{{ column.header }}</label>
+                                
+                            </div>
+                        </p>
+                    </div> -->
+                    <!-- <DataTable :value="product" scrollable tableStyle="min-width: 50rem" scrollHeight="400px">
+                        <Column v-for="col of columns" :key="col.field" :field="col.field" :header="col.header"></Column>
+                    </DataTable>
+                    <Button label="Okay" icon="pi pi-times" text @click="productInfoDialog = false"/> -->
         </Dialog>
 
         <Dialog v-model:visible="deleteProductDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
@@ -116,6 +133,7 @@ export default {
         return {
             products: [] as any[],
             productDialog: false,
+            productInfoDialog: false,
             deleteProductDialog: false,
             deleteProductsDialog: false,
             product: {},
@@ -126,11 +144,41 @@ export default {
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
-            ]
+            ],
+            columns: [] as any[],
         }
     },
     created() {
         this.initFilters();
+        this.columns = [
+            { field: '30_day_storage_cost', header: '30 Day Storage Cost'},
+            { field: 'amz_fees_cost', header: 'Amz Fees Cost'},
+            { field: 'amz_fulfilment_cost', header: 'Amz Fulfilment Cost'},
+            { field: 'bag_cost', header: 'Bag Cost' },
+            { field: 'bag_size' , header: 'Bag Size'},
+            { field: 'box_cost' , header: 'Box Cost'},
+            { field: 'box_size', header: 'Box Size' },
+            { field: 'box_type', header: 'Box Type' },
+            { field: 'date_added', header: 'Date Added' },
+            { field: 'do_we_carry', header: 'Do We Carry?' },
+            { field: 'holiday_storage_cost', header: 'Holiday Storage Cost' },
+            { field: 'in_shipping_cost', header: 'In-shipping Cost' },
+            { field: 'item_cost', header: 'Item Cost'},
+            { field: 'item_num', header: 'Item Number'},
+            { field: 'labor_cost', header: 'Labor Cost' },
+            { field: 'map', header: 'Map' },
+            { field: 'meltable', header: 'Meltable?' },
+            { field: 'misc_cost', header: 'Misc Cost' },
+            { field: 'out_shipping_cost', header: 'Out-shipping Cost' },
+            { field: 'price_2021', header: 'Price 2021' },
+            { field: 'price_2022', header: 'Price 2022' },
+            { field: 'price_2023', header: 'Price 2023' },
+            { field: 'process_time_per_unit_sec', header: 'Process Time per Unit Sec' },
+            { field: 'total_cost', header: 'Total Cost'},
+            { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
+            { field: 'vendor', header: 'Vendor' },
+            { field: 'weight_lbs', header: 'Weight (Lbs)' },
+        ];
     },
     mounted() {
         console.log('Mounted');
@@ -142,20 +190,12 @@ export default {
         console.log(this.products);
     },
     methods: {
-        //Pulls all the products from the database using API
         getProducts(){
-            
-            axios.get("http://localhost:5000/products").then(res => {
-                this.products = res.data;
-
-                //this.columns = Object.keys(this.products[0]);
-                //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
-                //this.displayProducts = this.products;
-
-                console.log("Product List Recieved\n",this.products);
-                console.log("Keys", Object.keys(this.products[1]));
-            })
+            action.getProducts().then(data => {
+                this.products = data;
+            });
         },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -179,8 +219,10 @@ export default {
                     action.editProduct(this.product);
                     //Promise.resolve(action.editProduct(this.product));
                     this.products[this.findIndexById(this.product.id)] = this.product;
+                    console.log(this.products[this.findIndexById(this.product.id)]);
+                    console.log(this.product);
                     //alert("Testing");
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Updated', life: 3000});
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
                 }
                 else {
                     //this.product.id = this.createId();
@@ -199,6 +241,17 @@ export default {
         editProduct(product) {
             this.product = {...product}; //ASK MICHAEL
             this.productDialog = true;
+        },
+        displayProductInfo(product){
+            this.product = {...product};
+            console.log(this.product);
+            console.log("Keys", Object.keys(this.product));
+            let keys = Object.keys(this.product);
+            console.log(this.columns);
+            for (let i = 0; i<keys.length; i++){
+    
+            }
+            this.productInfoDialog = true;
         },
         confirmDeleteProduct(product) {
             this.product = product;
@@ -239,7 +292,9 @@ export default {
         deleteSelectedProducts() {
             this.products = this.products.filter(val => !this.selectedProducts.includes(val));
             
-            //action.deleteProduct(this.product.id);
+            for(let i=0; i<this.selectedProducts.length; i++){
+                action.deleteProduct(this.selectedProducts[i].id);
+            }
             this.deleteProductsDialog = false;
             this.selectedProducts = null;
             this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});

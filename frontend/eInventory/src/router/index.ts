@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ProcessedCases from '../views/ProcessedCases.vue'
 import UnprocessedCases from '../views/UnprocessedCases.vue'
-import ProductKey from '../views/ProductKey.vue'
 import ProductList from '../views/ProductList.vue'
 import Import from '../views/Import.vue'
 
@@ -31,11 +30,6 @@ const router = createRouter({
       path: '/unprocessed',
       name: 'UnprocessedCases',
       component: UnprocessedCases
-    },
-    {
-      path: '/productkey',
-      name: 'ProductKey',
-      component: ProductKey
     },
     {
       path: '/productlist',

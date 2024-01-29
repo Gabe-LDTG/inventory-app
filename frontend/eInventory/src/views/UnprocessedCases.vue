@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <!-- <div>
         <div class="card">
             <div class="card-header">
                 <h4>
@@ -79,18 +79,24 @@
                 </table>
             </div>
         </div>
-    </div>
+    </div> -->
+    <CaseList display-value="unprocessed"/>
 </template>
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
 import { ref } from "vue";
 import axios from "axios";
+import CaseList from '../components/CasesList.vue'
 
 //Want to work on making the dialog box its own vue file for more organization
 //import ProcessedDialog from "@/components/ProcessedDialog.vue";
 
 export default {
-    data() {
+    components: {
+        //ComponentA,
+        CaseList
+    },
+    /* data() {
         return {
             cases: [],
             displayCases: [],
@@ -170,7 +176,7 @@ export default {
                 console.log(error);
             });
         },
-    },
+    }, */
 }
 </script>
 <style lang="css">

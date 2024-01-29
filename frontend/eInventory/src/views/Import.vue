@@ -30,7 +30,6 @@
 <script lang="ts">
 import Papa from "papaparse";
 import axios from "axios";
-import cleaning from '../components/DataCleaning.vue'
 
 export default {
     data() {

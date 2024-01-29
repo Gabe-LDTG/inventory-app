@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <!-- <div>
         <div class="card">
             <div v-show="displayCreate">
                 <form class="createForm">
@@ -81,9 +81,9 @@
                 </table>
             </div>
         </div>
-    </div>
+    </div> -->
     <!-- <ComponentA /> -->
-    <CaseList />
+    <CaseList display-value="processed"/>
 </template>
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
@@ -100,7 +100,7 @@ export default {
         //ComponentA,
         CaseList
     },
-    data() {
+    /* data() {
         return {
             cases: [] as any[],
             displayCases: [] as any [],
@@ -168,7 +168,7 @@ export default {
 
                 /* for (let i = 0; i < this.cases.length; i++) {
                 this.cases[i].EDIT = false;
-                } */
+                } 
                 console.log(this.cases);
 
                 console.log(this.cases[0].date_recieved);
@@ -241,7 +241,7 @@ export default {
             this.note = "";
             this.daterecieved = new Date();
         },
-    }
+    } */
 }
 </script>
 <style lang="css">

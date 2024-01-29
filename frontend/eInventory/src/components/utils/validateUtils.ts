@@ -1,4 +1,3 @@
-<script lang="ts">
 import axios from "axios";
 var validate = {
 
@@ -80,8 +79,3 @@ var validate = {
 }
 
 export default validate
-</script>
-
-<template>
-
-</template>

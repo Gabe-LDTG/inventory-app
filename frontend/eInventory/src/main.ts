@@ -24,6 +24,7 @@ import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
 import InputMask from 'primevue/inputmask';
 import InputNumber from 'primevue/inputnumber';
+import OrderList from 'primevue/orderlist';
 import Row from 'primevue/row';                   // optional
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
@@ -51,6 +52,7 @@ app.component('InputMask', InputMask);
 app.component('InputNumber', InputNumber);
 app.component('InputSwitch', InputSwitch);
 app.component('InputText', InputText);
+app.component('OrderList', OrderList);
 app.component('Row', Row);
 app.component('Tag', Tag);
 app.component('Toast', Toast);
