@@ -35,6 +35,7 @@
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
                 <Column field="name" header="Name" sortable></Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
+                <Column field="location" header="Location" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
                 <Column field="date_recieved" header="Date Recieved" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
@@ -67,14 +68,26 @@
                 <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
             </div>
 
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="location">Location:</label>
+                <InputText id="location" v-model="eCase.location" rows="3" cols="20" />
+            </div>
+
             <div class="field">
                 <label for="notes">Notes:</label>
                 <InputText id="notes" v-model="eCase.notes" rows="3" cols="20" />
             </div>
 
+            <div v-show="!eCase.id" class="field">
+                <label for="amount">How Many Recieved?</label>
+                <InputNumber inputId="stacked-buttons" required="true" 
+                v-model="amount" showButtons/>
+            </div>
+
             <div class="field">
-                <label for="fnsku"> Date Recieved: </label>
-                <Calendar id="fnsku" dateFormat="yy/mm/dd" v-model="eCase.date_recieved"/>
+                <label for="date_revieved"> Date Recieved: </label>
+                <Calendar id="date_revieved" dateFormat="yy/mm/dd" v-model="eCase.date_recieved"/>
             </div>
 
             <template #footer>
@@ -136,6 +149,8 @@ export default {
             product: {},
             //selectedProducts: null,
 
+            amount: 1,
+
             filters: {},
             submitted: false,
             statuses: [
@@ -150,17 +165,11 @@ export default {
     },
     mounted() {
         console.log('Mounted');
-        //ProductService.getProducts().then((data) => (this.products = data));
-        //action.getProducts().then((data) => (this.products = data));
-        /* this.getProcProducts();
-        //this.products = Promise.resolve(action.getProducts());
-
-        this.getProcCases(); */
 
         this.displayController(this.displayValue);
 
-        console.log("PRODUCTS",this.products);
-        console.log("CASES",this.cases);
+        //console.log("PRODUCTS",this.products);
+        //console.log("CASES",this.cases);
     },
     methods: {
         displayController(value: string){
@@ -211,6 +220,7 @@ export default {
             //this.product = [];
             this.eCase = [];
             this.submitted = false;
+            this.amount = 1;
             //this.productDialog = true;
             this.caseDialog = true;
         },
@@ -247,6 +257,9 @@ export default {
 
                     //this.cases.push(this.eCase);
 
+                    for(let i = 0; i < this.amount; i++){
+                        action.addCase(this.eCase);
+                    }
                     //Had to regrab the list of cases because of weird formatting.
                     //ASK MICHAEL IF THERES A BETTER WAY
                     if(this.displayValue == 'processed'){
@@ -258,14 +271,14 @@ export default {
                         console.log('Unprocessed');
                         this.getUnprocCases();
                     }
-                    action.addCase(this.eCase);
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Created', life: 3000});
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
                 }
 
                 //this.productDialog = false;
                 this.caseDialog = false;
                 this.product = {};
                 this.eCase = {};
+                this.amount = 1;
             }
         },
         editCase(value) {

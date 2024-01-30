@@ -69,6 +69,32 @@ var action = {
             fnsku: p.fnsku,
             upc: p.upc,
             notes: p.notes,
+            '30_day_storage_cost': p['30_day_storage_cost'],
+            amz_fees_cost: p.amz_fees_cost,
+            amz_fulfilment_cost: p.amz_fulfilment_cost,
+            bag_cost: p.bag_cost,
+            bag_size: p.bag_size,
+            box_cost: p.box_cost,
+            box_type: p.box_type,
+            date_added: p.date_added,
+            do_we_carry: p.do_we_carry,
+            holiday_storage_cost: p.holiday_storage_cost,
+            in_shipping_cost: p.in_shipping_cost,
+            item_cost: p.item_cost,
+            item_num: p.item_num,
+            labor_cost: p.labor_cost,
+            map: p.map,
+            meltable: p.meltable,
+            misc_cost: p.misc_cost,
+            out_shipping_cost: p.out_shipping_cost,
+            price_2021: p.price_2021,
+            price_2022: p.price_2022,
+            price_2023: p.price_2023,
+            process_time_per_unit_sec: p.process_time_per_unit_sec,
+            total_cost: p.total_cost,
+            total_holiday_cost: p.total_holiday_cost,
+            vendor: p.vendor,
+            weight_lbs: p.weight_lbs
 
             }).then((res) => {
                 //location.reload();
@@ -112,6 +138,32 @@ var action = {
             fnsku: p.fnsku,
             upc: p.upc,
             notes: p.notes,
+            '30_day_storage_cost': p['30_day_storage_cost'],
+            amz_fees_cost: p.amz_fees_cost,
+            amz_fulfilment_cost: p.amz_fulfilment_cost,
+            bag_cost: p.bag_cost,
+            bag_size: p.bag_size,
+            box_cost: p.box_cost,
+            box_type: p.box_type,
+            date_added: p.date_added,
+            do_we_carry: p.do_we_carry,
+            holiday_storage_cost: p.holiday_storage_cost,
+            in_shipping_cost: p.in_shipping_cost,
+            item_cost: p.item_cost,
+            item_num: p.item_num,
+            labor_cost: p.labor_cost,
+            map: p.map,
+            meltable: p.meltable,
+            misc_cost: p.misc_cost,
+            out_shipping_cost: p.out_shipping_cost,
+            price_2021: p.price_2021,
+            price_2022: p.price_2022,
+            price_2023: p.price_2023,
+            process_time_per_unit_sec: p.process_time_per_unit_sec,
+            total_cost: p.total_cost,
+            total_holiday_cost: p.total_holiday_cost,
+            vendor: p.vendor,
+            weight_lbs: p.weight_lbs
 
         }).then((res) => {
             //location.reload();
@@ -124,6 +176,23 @@ var action = {
     },
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
+    //Get all cases
+    getCases(){
+        let cases;
+        console.log("IN GET CASES");
+
+        return axios.get("http://localhost:5000/cases").then(res => {
+            cases = res.data;
+
+            console.log('TESTING-------------------')
+            console.log("Case List Recieved\n",cases);
+            console.log("Keys", Object.keys(cases[1]));
+            //console.log(this.cases.date_recieved.getMonth());
+
+            return cases;
+        })
+    },
+    
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //
@@ -169,6 +238,7 @@ var action = {
         axios.post("http://localhost:5000/cases/create", {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
+            location: c.location,
             notes: c.notes,
             date_recieved: c.date_recieved,
         }).then((res) => {
@@ -199,6 +269,7 @@ var action = {
         axios.put("http://localhost:5000/cases/"+c.id, {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
+            location: c.location,
             notes: c.notes,
             date_recieved: c.date_recieved,
 

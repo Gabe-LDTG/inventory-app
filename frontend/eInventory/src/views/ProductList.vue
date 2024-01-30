@@ -74,25 +74,151 @@
                 <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
             </div>
 
+            <div class="field">
+                <label for="30_day_storage_cost">30 Day Storage Cost</label>
+                <InputNumber v-model="product['30_day_storage_cost']" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="amz_fees_cost">Amz Fees Cost</label>
+                <InputNumber v-model="product.amz_fees_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="amz_fulfilment_cost">Amz Fulfilment Cost</label>
+                <InputNumber v-model="product.amz_fulfilment_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="bag_cost">Bag Cost</label>
+                <InputNumber v-model="product.bag_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="bag_size">Bag Size</label>
+                <InputText id="bag_size" v-model="product.bag_size" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="box_cost">Box Cost</label>
+                <InputNumber v-model="product.box_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="box_type">Box Type</label>
+                <InputText id="box_type" v-model="product.box_type" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="date_added">Date Added</label>
+                <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_recieved"/>
+            </div>
+
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="do_we_carry">Do We Carry?</label>
+                <InputText id="do_we_carry" v-model="product.do_we_carry" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="holiday_storage_cost">Holiday Storage Cost</label>
+                <InputNumber v-model="product.holiday_storage_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="in_shipping_cost">In-shipping Cost</label>
+                <InputNumber v-model="product.in_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="item_cost">Item Cost</label>
+                <InputNumber v-model="product.item_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="item_num">Item Number</label>
+                <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="labor_cost">Labor Cost</label>
+                <InputNumber v-model="product.labor_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="map">Map</label>
+                <InputNumber v-model="product.labor_cost" inputId="minmaxfraction" :minFractionDigits="2" />
+            </div>
+
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="meltable">Meltable</label>
+                <InputText id="meltable" v-model="product.meltable" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="misc_cost">Misc Cost</label>
+                <InputNumber v-model="product.misc_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="out_shipping_cost">Out-shipping Cost</label>
+                <InputNumber v-model="product.out_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="price_2021">Price 2021</label>
+                <InputNumber v-model="product.price_2021" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="price_2022">Price 2022</label>
+                <InputNumber v-model="product.price_2022" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="price_2023">Price 2023</label>
+                <InputNumber v-model="product.price_2023" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <div class="field">
+                <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
+                <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
+            </div>
+            
+            <div class="field">
+                <label for="total_cost">Total Cost</label>
+                <InputNumber v-model="product.total_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+            
+            <div class="field">
+                <label for="total_holiday_cost">Total Holiday Cost</label>
+                <InputNumber v-model="product.total_holiday_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+            </div>
+
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="vendor">Vendor</label>
+                <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="weight_lbs">Weight (lbs)</label>
+                <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+            </div>
+
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveProduct" />
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="productInfoDialog" :modal="true">
-                    <!-- <div v-for="column in columns">
-                        <p>
-                            <div class="field">
-                                <label for="asin">{{ column.header }}</label>
-                                
-                            </div>
-                        </p>
-                    </div> -->
-                    <!-- <DataTable :value="product" scrollable tableStyle="min-width: 50rem" scrollHeight="400px">
-                        <Column v-for="col of columns" :key="col.field" :field="col.field" :header="col.header"></Column>
-                    </DataTable>
-                    <Button label="Okay" icon="pi pi-times" text @click="productInfoDialog = false"/> -->
+        <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
+            <div v-for="(item, index) in product">
+                <label>{{ index }}: </label><br>
+                {{ item }} <br><br>
+            </div>
         </Dialog>
 
         <Dialog v-model:visible="deleteProductDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
@@ -120,8 +246,6 @@
 </template>
 
 <script lang="ts">
-import { ProductService } from '@/components/service/ProductService';
-import axios from 'axios';
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 
@@ -132,6 +256,7 @@ export default {
     data() {
         return {
             products: [] as any[],
+            cases: [] as any[],
             productDialog: false,
             productInfoDialog: false,
             deleteProductDialog: false,
@@ -157,7 +282,6 @@ export default {
             { field: 'bag_cost', header: 'Bag Cost' },
             { field: 'bag_size' , header: 'Bag Size'},
             { field: 'box_cost' , header: 'Box Cost'},
-            { field: 'box_size', header: 'Box Size' },
             { field: 'box_type', header: 'Box Type' },
             { field: 'date_added', header: 'Date Added' },
             { field: 'do_we_carry', header: 'Do We Carry?' },
@@ -185,6 +309,7 @@ export default {
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
         this.getProducts();
+        this.getCases();
         //this.products = Promise.resolve(action.getProducts());
 
         console.log(this.products);
@@ -193,6 +318,12 @@ export default {
         getProducts(){
             action.getProducts().then(data => {
                 this.products = data;
+            });
+        },
+
+        getCases(){
+            action.getCases().then(data => {
+                this.cases = data;
             });
         },
 
@@ -238,33 +369,47 @@ export default {
                 this.product = {};
             }
         },
-        editProduct(product) {
+        editProduct(product: any) {
             this.product = {...product}; //ASK MICHAEL
             this.productDialog = true;
         },
-        displayProductInfo(product){
+        displayProductInfo(product: any){
             this.product = {...product};
             console.log(this.product);
             console.log("Keys", Object.keys(this.product));
+
             let keys = Object.keys(this.product);
-            console.log(this.columns);
-            for (let i = 0; i<keys.length; i++){
-    
-            }
+            let map = {};
+
+            keys.forEach((key) => {
+                //console.log(`${key}: ${this.product[key]}`);
+                for (let j = 0; j<this.columns.length; j++){
+                    if (key==this.columns[j].field){
+                        //console.log(this.columns[j].header);
+                        map[this.columns[j].header] = this.product[key];
+                    }
+                }
+            });
+            console.log(map);
+            this.product = map;
             this.productInfoDialog = true;
         },
-        confirmDeleteProduct(product) {
+        confirmDeleteProduct(product: any) {
             this.product = product;
             this.deleteProductDialog = true;
         },
         deleteProduct() {
-            this.products = this.products.filter(val => val.id !== this.product.id);
-            action.deleteProduct(this.product.id);
+            let stop = this.validateDelete(this.product);
+            //console.log(stop);
             this.deleteProductDialog = false;
             this.product = {};
-            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
+            if (stop == false){
+                this.products = this.products.filter(val => val.id !== this.product.id);
+                action.deleteProduct(this.product.id);
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
+            }
         },
-        findIndexById(id) {
+        findIndexById(id: number) {
             let index = -1;
             for (let i = 0; i < this.products.length; i++) {
                 if (this.products[i].id === id) {
@@ -290,14 +435,25 @@ export default {
             this.deleteProductsDialog = true;
         },
         deleteSelectedProducts() {
-            this.products = this.products.filter(val => !this.selectedProducts.includes(val));
-            
+            let stop = false;
+
+            //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
+            //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
             for(let i=0; i<this.selectedProducts.length; i++){
-                action.deleteProduct(this.selectedProducts[i].id);
+                stop = this.validateDelete(this.selectedProducts[i]);
+
+                if(stop == false){
+                    action.deleteProduct(this.selectedProducts[i].id);
+                    this.products = this.products.filter(val => !this.selectedProducts.includes(val));
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
+                }
+                else{
+                    break;
+                }
             }
             this.deleteProductsDialog = false;
             this.selectedProducts = null;
-            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
+            //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
         },
         initFilters() {
             this.filters = {
@@ -318,7 +474,24 @@ export default {
                 default:
                     return null;
             }
-        }
+        },
+        validateDelete(product: any){
+            let valErr = false;
+
+            //WORKS WHEN MOUNTED, ASK MICHAEL WHY WON'T WORK IN FUNCTION
+            //this.getCases();
+            console.log("CASE",this.cases);
+            console.log(this.product);
+            for (let i = 0; i < this.cases.length; i++){
+                console.log(this.cases[i].product_id);
+                if(product.id == this.cases[i].product_id){
+                    console.log("Product Id is being used in the following case: ",this.cases[i]);
+                    this.$toast.add({severity:'error', summary: 'Error', detail: product.name+' used in box '+this.cases[i].id, life: 3000});
+                    valErr=true;
+                }
+            }
+            return valErr;
+        },
     }
 }
 </script>
