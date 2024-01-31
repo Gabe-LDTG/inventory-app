@@ -21,8 +21,24 @@ import {
     deleteCase,
 } from "../controllers/cases.js";
 
+import {
+    showUsers,
+    createUser,
+    validate,
+} from "../controllers/authentication.js";
+
 //init express router
 const router=express.Router();
+
+//USERS------------------------------------------------------------------------------
+//get all users
+router.get("/users",showUsers);
+
+//create New User
+router.post('/users/create', createUser);
+
+//validates a password
+router.post('/users/validate', validate)
 
 //PRODUCTS---------------------------------------------------------------------------
 //get all product

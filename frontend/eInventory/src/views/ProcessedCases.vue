@@ -254,13 +254,6 @@ h4 {
     display: flex;
     justify-content: space-between;  
 }
-table, .table-table-bordered, tr, th, td{
-    border: 1px;
-}
-
-tr{
-    border: 1px;
-}
 
 button {
     text-align: right;

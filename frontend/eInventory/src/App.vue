@@ -6,14 +6,13 @@ import { RouterLink, RouterView } from 'vue-router'
   <header>
     <img alt="Vue logo" class="logo" src="@/assets/echapps rgb.png" width="200" height="50" />
 
-      <nav>
-        <RouterLink :to="{ name: 'Login'}">Login</RouterLink>
-        <RouterLink to="/">Home</RouterLink>
+      <nav>    
+        <RouterLink :to="{name: 'Home'}">Home</RouterLink>
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
         <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
         <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
         <RouterLink :to="{ name: 'Import' }">Import</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
+        <RouterLink to="/about">About</RouterLink> 
       </nav>
   
   </header>

@@ -2,6 +2,38 @@ import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 
 var action = {
+    //AUTHENTICATION COMMANDS----------------------------------------------------------------------------------------
+    //Add a user
+    addUser(u: any){
+        //console.log(this.product);
+        axios.post("http://localhost:5000/users/create", {
+            username: u.username,
+            password: u.password
+        }).then((res) => {
+            //location.reload();
+            //this.refreshData();
+            console.log(res);
+
+        }).catch(error => {
+            console.log(error);
+        });
+    },
+
+    validatePassword(u){
+        //console.log(this.product);
+        axios.post("http://localhost:5000/users/validate", {
+            username: u.username,
+            password: u.password
+        }).then((res) => {
+            //location.reload();
+            //this.refreshData();
+            console.log(res);
+
+        }).catch(error => {
+            console.log(error);
+        });
+    },
+
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     getProducts(){

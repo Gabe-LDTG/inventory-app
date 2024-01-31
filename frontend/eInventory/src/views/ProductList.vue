@@ -9,7 +9,7 @@
                 </template>
 
                 <template #end>
-                    <FileUpload mode="basic" accept="image/*" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" />
+                    <FileUpload mode="basic" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload()"/>
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)"  />
                 </template>
             </Toolbar>
@@ -61,7 +61,8 @@
 
             <div class="field">
                 <label for="fnsku">FNSKU</label>
-                <InputText id="fnsku" v-model="product.fnsku"/>
+                <InputText id="fnsku" v-model="product.fnsku" />
+                <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
             </div>
 
             <div class="field">
@@ -210,7 +211,7 @@
 
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" text @click="saveProduct" />
+                <Button label="Save" icon="pi pi-check" text @click="validate" />
             </template>
         </Dialog>
 
@@ -261,7 +262,7 @@ export default {
             productInfoDialog: false,
             deleteProductDialog: false,
             deleteProductsDialog: false,
-            product: {},
+            product: {} as any,
             selectedProducts: null,
             filters: {},
             submitted: false,
@@ -271,6 +272,7 @@ export default {
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
             ],
             columns: [] as any[],
+            validFnsku: true,
         }
     },
     created() {
@@ -309,7 +311,7 @@ export default {
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
         this.getProducts();
-        this.getCases();
+        //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
 
         console.log(this.products);
@@ -321,11 +323,11 @@ export default {
             });
         },
 
-        getCases(){
+        /* getCases(){
             action.getCases().then(data => {
                 this.cases = data;
             });
-        },
+        }, */
 
         formatCurrency(value: any) {
             if(value)
@@ -336,13 +338,22 @@ export default {
             this.product = [];
             this.submitted = false;
             this.productDialog = true;
+            this.validFnsku = true;
         },
         hideDialog() {
             this.productDialog = false;
             this.submitted = false;
         },
-        saveProduct() {
+        validate() {
+            //this.validateFnsku();
             this.submitted = true;
+            this.validFnsku = this.validateFnsku();
+            if (this.validFnsku == true){
+                this.saveProduct();
+            }
+        },
+        saveProduct() {
+            //this.submitted = true;
 
 			if (this.product.name.trim()) {
                 if (this.product.id) {
@@ -402,12 +413,12 @@ export default {
             let stop = this.validateDelete(this.product);
             //console.log(stop);
             this.deleteProductDialog = false;
-            this.product = {};
             if (stop == false){
                 this.products = this.products.filter(val => val.id !== this.product.id);
                 action.deleteProduct(this.product.id);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
             }
+            this.product = {};
         },
         findIndexById(id: number) {
             let index = -1;
@@ -427,6 +438,9 @@ export default {
                 id += chars.charAt(Math.floor(Math.random() * chars.length));
             }
             return id;
+        },
+        onUpload() {
+            console.log("Uploaded");
         },
         exportCSV() {
             this.$refs.dt.exportCSV();
@@ -483,7 +497,7 @@ export default {
             console.log("CASE",this.cases);
             console.log(this.product);
             for (let i = 0; i < this.cases.length; i++){
-                console.log(this.cases[i].product_id);
+                //console.log(this.cases[i].product_id);
                 if(product.id == this.cases[i].product_id){
                     console.log("Product Id is being used in the following case: ",this.cases[i]);
                     this.$toast.add({severity:'error', summary: 'Error', detail: product.name+' used in box '+this.cases[i].id, life: 3000});
@@ -492,6 +506,27 @@ export default {
             }
             return valErr;
         },
+        //Checks all available products to make sure the fnsku being entered has not already been used
+        validateFnsku(){
+                let noErr = true;
+                console.log("IN VALIDATE")
+
+                console.log("THIS PRODUCT: ",this.product);
+
+                if (this.product.fnsku) {
+                    for (let i = 0; i < this.products.length; i++) {
+                        //console.log(this.products[i].fnsku);
+                        if (this.products[i].fnsku == this.product.fnsku && this.products[i].id != this.product.id){
+                            console.log("PRODUCT ALREADY HAS THIS FNSKU: ",this.products[i]);
+                            noErr = false;
+                            //this.validFnsku = false;
+                        }
+                    }
+                } 
+
+                console.log("NO ERROR RESULT: ",noErr);
+                return noErr;
+            },
     }
 }
 </script>

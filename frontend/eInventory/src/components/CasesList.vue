@@ -9,7 +9,7 @@
                 </template>
 
                 <template #end>
-                    <FileUpload mode="basic" accept="image/*" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" />
+                    <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload(event)" />
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)"  />
                 </template>
             </Toolbar>
@@ -18,6 +18,7 @@
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
+                showGridlines
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
@@ -139,19 +140,19 @@ export default {
             caseDialog: false,
             deleteCaseDialog: false,
             deleteCasesDialog: false,
-            eCase: {},
+            eCase: {} as any,
             selectedCases: null,
 
             products: [] as any[],
             //productDialog: false,
             //deleteProductDialog: false,
             //deleteProductsDialog: false,
-            product: {},
+            product: {} as any,
             //selectedProducts: null,
 
             amount: 1,
 
-            filters: {},
+            filters: {} as any,
             submitted: false,
             statuses: [
 				{label: 'INSTOCK', value: 'instock'},
@@ -229,13 +230,21 @@ export default {
             this.caseDialog = false;
             this.submitted = false;
         },
-        saveCase() {
+        // AS PER WHAT MICHAEL SAID, SPLIT THE ADD AND EDIT INTO SEPARATE FUNCTIONS WITH TRY CATCHES
+        // THAT GET CALLED BY SAVE CASE
+        async saveCase() {
             this.submitted = true;
+
+            try {
+                
+            } catch (error) {
+                
+            }
 
 			if (this.eCase.product_id) {
                 if (this.eCase.id) {
                     //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
-                    action.editCase(this.eCase);
+                    await action.editCase(this.eCase);
 
                     const idx = this.cases.findIndex(c => c.id === this.eCase.id)
                     if(idx >= 0)
@@ -281,13 +290,13 @@ export default {
                 this.amount = 1;
             }
         },
-        editCase(value) {
+        editCase(value: any) {
             this.product = {...value}; //ASK MICHAEL
             this.eCase = {...value}
             //this.productDialog = true;
             this.caseDialog = true;
         },
-        confirmDeleteCase(value) {
+        confirmDeleteCase(value: any) {
             this.product = value;
             this.eCase = value;
             this.deleteCaseDialog = true;
@@ -318,6 +327,9 @@ export default {
             }
             return id;
         },
+        onUpload(event: File) {
+            console.log(event);
+        },
         exportCSV() {
             this.$refs.dt.exportCSV();
         },
@@ -339,7 +351,7 @@ export default {
                 'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
             }
         },
-        getStatusLabel(status) {
+        getStatusLabel(status: any) {
             switch (status) {
                 case 'INSTOCK':
                     return 'success';

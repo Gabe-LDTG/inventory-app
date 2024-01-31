@@ -1,5 +1,13 @@
+//import connection
+import db from "./config/database.js";
+
 //import express
 import express from "express";
+import session from "express-session";
+import mysqlSession from "express-mysql-session";
+
+const SessionStore = mysqlSession(session);
+const sessionStore = new SessionStore({}, db)
 
 //import cors
 import cors from "cors";
@@ -16,6 +24,17 @@ app.use(express.json());
 
 //use cors
 app.use(cors());
+
+app.use(session({
+    secret: 'Tiny Cactus',
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    cook: {
+        sameSite: false,
+        maxAge: 1000,
+    }
+}));
 
 //use router
 app.use(Router);

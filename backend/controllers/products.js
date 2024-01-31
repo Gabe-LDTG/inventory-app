@@ -1,8 +1,7 @@
 //import functions from Product model class
 import{
     getProducts,
-    getProcProducts,
-    getUnprocProducts,
+    getProductsByType,
     getProductById,
     insertProduct,
     updateProductById,
@@ -10,65 +9,71 @@ import{
 } from "../models/ProductModel.js";
 
 //get all products
-export const showProducts = (req,res) => {
-    getProducts((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showProducts(req,res){
+    try {
+        const products = await getProducts();
+        res.json(products);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //get processed products
-export const showProcProducts = (req,res) => {
-    getProcProducts((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showProcProducts(req,res){
+    try {
+        const procProduct = await getProductsByType(true);
+        res.json(procProduct);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //get unprocessed products
-export const showUnprocProducts = (req,res) => {
-    getUnprocProducts((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showUnprocProducts(req,res){
+    try {
+        const unprocProduct = await getProductsByType(false);
+        res.json(unprocProduct);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //get single product
-export const showProductsById = (req,res) => {
-    getProductById(req.params.id,(err,results)=>{
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showProductsById(req,res){
+    try {
+        const productById = await getProductById(req.params.id);
+        res.json(productById);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //create new product
-export const createProduct = (req,res) => {
-    const data=req.body;
-    insertProduct(data, (err,results)=> {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function createProduct (req,res){
+    try {
+        const data=req.body;
+        let insertedProduct = await insertProduct(data);
+        
+        res.json(insertedProduct);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 // Update Product 
-export const updateProduct = (req, res) => {
-    const data = req.body;
-    const id = req.params.id;
+export async function updateProduct (req, res){
+    try {
+        const data = req.body;
+        const id = req.params.id;
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
     updateProductById(data, id, (err, results) => {
         if(err){
             res.send(err);

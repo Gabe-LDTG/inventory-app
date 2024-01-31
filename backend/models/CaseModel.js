@@ -9,7 +9,7 @@ export const getCases=(result)=>{
             console.log(err);
             result(err,null);
         }else{
-            console.log(results);
+            //console.log(results);
             result(null, results);
         }
     });
