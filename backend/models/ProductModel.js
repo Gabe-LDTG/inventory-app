@@ -39,5 +39,5 @@ export async function updateProductById (data, id){
 
 //Delete Product from Database
 export async function deleteProductById(id){
-    db.query("DELETE FROM products WHERE id = ?", [id]).then(([results, fields])=>results);
+    return db.query("DELETE FROM products WHERE id = ?", [id]).then(([results, fields])=>results);
 }

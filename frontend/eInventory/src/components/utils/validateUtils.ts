@@ -30,8 +30,8 @@ var validate = {
     validateAsin(value: string){},
 
     //Checks all available products to make sure the fnsku being entered has not already been used
-    validateFnskuCreate(inputFnsku: string){
-            let isErr = 0;
+    validateFnskuCreate(inputFnsku: string, products: any){
+            let isVal = true;
 
             /* if (inputFnsku != '') {
                 for (let i = 0; i < this.products.length; i++) {

@@ -9,7 +9,7 @@
                 </template>
 
                 <template #end>
-                    <FileUpload mode="basic" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload()"/>
+                    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)"  />
                 </template>
             </Toolbar>
@@ -18,7 +18,10 @@
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
-                :rowClass="({ desc }) => desc === 'Disconnected' ? 'text-red-500': null"
+                showGridlines
+                stripedRows
+                
+                :rowStyle="rowStyle"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
@@ -249,6 +252,7 @@
 <script lang="ts">
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
+import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -273,6 +277,10 @@ export default {
             ],
             columns: [] as any[],
             validFnsku: true,
+
+            working: false,
+            loading: false,
+
         }
     },
     created() {
@@ -317,10 +325,18 @@ export default {
         console.log(this.products);
     },
     methods: {
-        getProducts(){
+        /* getProducts(){
             action.getProducts().then(data => {
                 this.products = data;
             });
+        }, */
+
+        async getProducts(){
+            try {
+                this.products = await action.getProducts();
+            } catch (err) {
+                console.log(err);
+            }
         },
 
         /* getCases(){
@@ -352,32 +368,52 @@ export default {
                 this.saveProduct();
             }
         },
-        saveProduct() {
+        async saveProduct() {
             //this.submitted = true;
 
 			if (this.product.name.trim()) {
                 if (this.product.id) {
-                    //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
-                    action.editProduct(this.product);
-                    //Promise.resolve(action.editProduct(this.product));
-                    this.products[this.findIndexById(this.product.id)] = this.product;
-                    console.log(this.products[this.findIndexById(this.product.id)]);
-                    console.log(this.product);
-                    //alert("Testing");
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
+                    await this.confirmEdit();
                 }
                 else {
-                    //this.product.id = this.createId();
-                    //this.product.code = this.createId();
-                    //this.product.image = 'product-placeholder.svg';
-                    //this.product.inventoryStatus = this.product.inventoryStatus ? this.product.inventoryStatus.value : 'INSTOCK';
-                    this.products.push(this.product);
-                    action.addProduct(this.product);
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
+                    await this.confirmCreate();
                 }
 
                 this.productDialog = false;
+                //this.selectedProducts = null;
                 this.product = {};
+            }
+        },
+        async confirmEdit(){
+            try {
+                //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
+
+                //Promise.resolve(action.editProduct(this.product));
+                this.products[this.findIndexById(this.product.id)] = this.product;
+                console.log(this.products[this.findIndexById(this.product.id)]);
+
+                console.log("PRODUCT BEFORE AWAIT",this.product);
+
+                const editedProduct = await action.editProduct(this.product);
+                
+                console.log("PRODUCT AFTER AWAIT",this.product);
+                //alert("Testing");
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
+                return editedProduct;
+            } catch (err) {
+                console.log(err);
+                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+            }
+        },
+        async confirmCreate(){
+            try {
+                this.products.push(this.product);
+                let addedProduct = await action.addProduct(this.product);
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
+                return addedProduct;
+            } catch (err) {
+                console.log(err);
+                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
         editProduct(product: any) {
@@ -409,16 +445,24 @@ export default {
             this.product = product;
             this.deleteProductDialog = true;
         },
-        deleteProduct() {
-            let stop = this.validateDelete(this.product);
-            //console.log(stop);
-            this.deleteProductDialog = false;
-            if (stop == false){
+        async deleteProduct() {
+            try {
+                //let stop = this.validateDelete(this.product);
+                //console.log(stop);
+                this.deleteProductDialog = false;
+
+                const deletedProduct = await action.deleteProduct(this.product.id);
+                
                 this.products = this.products.filter(val => val.id !== this.product.id);
-                action.deleteProduct(this.product.id);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
+
+                this.product = {};
+                return deletedProduct;
+            } catch (err) {
+                console.log(err);
+
+                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
-            this.product = {};
         },
         findIndexById(id: number) {
             let index = -1;
@@ -439,8 +483,27 @@ export default {
             }
             return id;
         },
-        onUpload() {
+        //https://codesandbox.io/p/sandbox/primevue-fileuploader-custom-q2dqhh?file=%2Fsrc%2FFileUploadDemo.vue%3A42%2C7-42%2C27
+        onUpload(event) {
             console.log("Uploaded");
+            const fileUp = event.files[0];
+
+            console.log(fileUp);
+
+            Papa.parse( fileUp, {
+                header: false,
+                skipEmptyLines: true,
+                //preview: 10,
+                complete: function( results: any ){
+                    //console.log(results.data.splice(0,2))
+                    let keys = results.data.splice(0,2);
+                    console.log(keys);
+                    keys.splice(0,1);
+                    console.log(keys);
+                    console.log(results);
+                }.bind(this)
+            });
+
         },
         exportCSV() {
             this.$refs.dt.exportCSV();
@@ -448,26 +511,27 @@ export default {
         confirmDeleteSelected() {
             this.deleteProductsDialog = true;
         },
-        deleteSelectedProducts() {
-            let stop = false;
+        async deleteSelectedProducts() {
+            try {
+                //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
+                //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
+                for(let i=0; i<this.selectedProducts.length; i++){
+                    //stop = this.validateDelete(this.selectedProducts[i]);
 
-            //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
-            //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
-            for(let i=0; i<this.selectedProducts.length; i++){
-                stop = this.validateDelete(this.selectedProducts[i]);
-
-                if(stop == false){
-                    action.deleteProduct(this.selectedProducts[i].id);
+                    await action.deleteProduct(this.selectedProducts[i].id);
                     this.products = this.products.filter(val => !this.selectedProducts.includes(val));
                     this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
                 }
-                else{
-                    break;
-                }
+                this.deleteProductsDialog = false;
+                
+                //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
+            } catch (err) {
+                console.log(err);
+                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+            } finally {
+                this.selectedProducts = null;
             }
-            this.deleteProductsDialog = false;
-            this.selectedProducts = null;
-            //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
+            
         },
         initFilters() {
             this.filters = {
@@ -489,7 +553,7 @@ export default {
                     return null;
             }
         },
-        validateDelete(product: any){
+        /* validateDelete(product: any){
             let valErr = false;
 
             //WORKS WHEN MOUNTED, ASK MICHAEL WHY WON'T WORK IN FUNCTION
@@ -505,10 +569,10 @@ export default {
                 }
             }
             return valErr;
-        },
+        }, */
         //Checks all available products to make sure the fnsku being entered has not already been used
         validateFnsku(){
-                let noErr = true;
+                let isVal = true;
                 console.log("IN VALIDATE")
 
                 console.log("THIS PRODUCT: ",this.product);
@@ -518,15 +582,26 @@ export default {
                         //console.log(this.products[i].fnsku);
                         if (this.products[i].fnsku == this.product.fnsku && this.products[i].id != this.product.id){
                             console.log("PRODUCT ALREADY HAS THIS FNSKU: ",this.products[i]);
-                            noErr = false;
+                            isVal = false;
                             //this.validFnsku = false;
                         }
                     }
                 } 
 
-                console.log("NO ERROR RESULT: ",noErr);
-                return noErr;
+                console.log("NO ERROR RESULT: ",isVal);
+                return isVal;
             },
+            rowStyle(data) {
+            /* if (data.fnsku === '' && data.asin === '') {
+                return { background: 'red' };
+            }
+            else {
+                return { background: 'green'}
+            }  */
+        },
+        parseFile(){
+            this.loading = true;
+        },
     }
 }
 </script>

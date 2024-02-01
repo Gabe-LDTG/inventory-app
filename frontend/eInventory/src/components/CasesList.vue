@@ -243,44 +243,10 @@ export default {
 
 			if (this.eCase.product_id) {
                 if (this.eCase.id) {
-                    //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
-                    await action.editCase(this.eCase);
-
-                    const idx = this.cases.findIndex(c => c.id === this.eCase.id)
-                    if(idx >= 0)
-                        this.cases[idx] = this.eCase;
-                    else
-                        throw new Error('Could not find case we were editing :(')
-                    //alert("Testing");
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
+                    await this.confirmEdit();
                 }
                 else {
-                    //this.product.id = this.createId();
-                    //this.product.code = this.createId();
-                    //this.product.image = 'product-placeholder.svg';
-                    //this.product.inventoryStatus = this.product.inventoryStatus ? this.product.inventoryStatus.value : 'INSTOCK';
-                    console.log("NEW CASE", this.eCase);
-                    //console.log(this.eCase.product_id.id);
-                    //console.log(this.products[this.findIndexById(this.eCase.product_id)].name);
-                    //this.products[this.findIndexById(this.eCase.product_id)].name = this.eCase.name;
-
-                    //this.cases.push(this.eCase);
-
-                    for(let i = 0; i < this.amount; i++){
-                        action.addCase(this.eCase);
-                    }
-                    //Had to regrab the list of cases because of weird formatting.
-                    //ASK MICHAEL IF THERES A BETTER WAY
-                    if(this.displayValue == 'processed'){
-                        console.log('Processed');
-                        this.getProcCases();
-
-                    }
-                    else if(this.displayValue == 'unprocessed'){
-                        console.log('Unprocessed');
-                        this.getUnprocCases();
-                    }
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
+                    await this.confirmCreate();
                 }
 
                 //this.productDialog = false;
@@ -288,6 +254,52 @@ export default {
                 this.product = {};
                 this.eCase = {};
                 this.amount = 1;
+            }
+        },
+        async confirmEdit(){
+            try {
+                //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
+
+                const idx = this.cases.findIndex(c => c.id === this.eCase.id)
+                if(idx >= 0)
+                    this.cases[idx] = this.eCase;
+                else
+                    throw new Error('Could not find case we were editing :(')
+                //alert("Testing");
+
+                console.log(this.eCase);
+                action.editCase(this.eCase);
+                console.log(this.eCase);
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
+            } catch (err) {
+                console.log(err);
+                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+            }
+        },
+        async confirmCreate(){
+            try {
+                console.log("NEW CASE", this.eCase);
+
+                for(let i = 0; i < this.amount; i++){
+                    action.addCase(this.eCase);
+                    console.log("LOOP CASE ",this.eCase);
+                }
+                //Had to regrab the list of cases because of weird formatting.
+                //ASK MICHAEL IF THERES A BETTER WAY
+                if(this.displayValue == 'processed'){
+                    console.log('Processed');
+                    this.getProcCases();
+
+                }
+                else if(this.displayValue == 'unprocessed'){
+                    console.log('Unprocessed');
+                    this.getUnprocCases();
+                }
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
+            } catch (err) {
+                console.log(err);
+                console.log("CREATE CATCH")
+                this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
             }
         },
         editCase(value: any) {
@@ -301,12 +313,16 @@ export default {
             this.eCase = value;
             this.deleteCaseDialog = true;
         },
-        deleteCase() {
-            this.cases = this.cases.filter(val => val.id !== this.eCase.id);
-            action.deleteCase(this.eCase.id);
-            this.deleteCaseDialog = false;
-            this.product = {};
-            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
+        async deleteCase() {
+            try {
+                this.cases = this.cases.filter(val => val.id !== this.eCase.id);
+                await action.deleteCase(this.eCase.id);
+                this.deleteCaseDialog = false;
+                this.product = {};
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
+            } catch (err) {
+                console.log(err);
+            }
         },
         findIndexById(id) {
             let index = -1;
@@ -336,15 +352,20 @@ export default {
         confirmDeleteSelected() {
             this.deleteCasesDialog = true;
         },
-        deleteSelectedCases() {
-            this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
+        async deleteSelectedCases() {
+            try {
+                this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
             
-            for(let i = 0; i < this.selectedCases.length; i++){
-                action.deleteCase(this.selectedCases[i].id);
+                for(let i = 0; i < this.selectedCases.length; i++){
+                   await action.deleteCase(this.selectedCases[i].id);
+                }
+                this.deleteCasesDialog = false;
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Cases Deleted', life: 3000});
+            } catch (err) {
+                console.log(err);
+            } finally {
+                this.selectedCases = null;
             }
-            this.deleteCasesDialog = false;
-            this.selectedCases = null;
-            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Cases Deleted', life: 3000});
         },
         initFilters() {
             this.filters = {

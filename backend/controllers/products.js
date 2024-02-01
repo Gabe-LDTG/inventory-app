@@ -8,6 +8,10 @@ import{
     deleteProductById,
 } from "../models/ProductModel.js";
 
+import{
+    getCases
+} from "../models/CaseModel.js";
+
 //get all products
 export async function showProducts(req,res){
     try {
@@ -70,27 +74,33 @@ export async function updateProduct (req, res){
     try {
         const data = req.body;
         const id = req.params.id;
+
+        const updatedProduct = await updateProductById(data, id);
+        res.json(updatedProduct);
     } catch (err) {
         console.error(err);
         res.sendStatus(500);
     }
-    updateProductById(data, id, (err, results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
 }
 
 //Delete Product
-export const deleteProduct = (req, res) => {
-    const id = req.params.id;
-    deleteProductById(id, (err, results) =>{
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
+export async function deleteProduct(req, res){
+    try {
+        const id = req.params.id;
+        
+        const cases = await getCases();
+
+        for(let i = 0; i<cases.length; i++){
+
+            if(cases[i].product_id == id){
+                throw new Error('Product is in use');
+            }
         }
-    });
+
+        const deletedProduct = await deleteProductById(id);
+        res.json(deletedProduct);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send(err.message);
+    }
 }

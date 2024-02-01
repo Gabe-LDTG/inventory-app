@@ -1,79 +1,82 @@
 //import functions from Cases model class
 import{
     getCases,
-    getProcCases,
-    getUnprocCases,
+    getCasesByType,
     insertCase,
     updateCaseById,
     deleteCaseById,
 } from "../models/CaseModel.js";
 
 //get all cases
-export const showCases = (req,res) => {
-    getCases((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showCases(req,res){
+    try {
+        const cases = await getCases();
+        res.json(cases);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //get processed cases
-export const showProcCases = (req,res) => {
-    getProcCases((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showProcCases(req,res){
+    try {
+        const procCases = await getCasesByType(true);
+        res.json(procCases);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //get processed cases
-export const showUnprocCases = (req,res) => {
-    getUnprocCases((err,results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function showUnprocCases(req,res){
+    try {
+        const unprocCases = await getCasesByType(false);
+        res.json(unprocCases);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 //create new case
-export const createCase = (req,res) => {
-    const data=req.body;
-    insertCase(data, (err,results)=> {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function createCase(req,res){
+    try {
+        const data=req.body;
+        const createdCase = await insertCase(data);
+
+        res.json(createdCase);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 };
 
 // Update Case 
-export const updateCase = (req, res) => {
-    const data = req.body;
-    const id = req.params.id;
-    updateCaseById(data, id, (err, results) => {
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function updateCase(req, res){
+    try {
+        const data = req.body;
+        const id = req.params.id;
+
+        const updatedCase = await updateCaseById(data, id);
+
+        res.json(updatedCase);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 }
 
 //delete case
-export const deleteCase = (req, res) => {
-    const id = req.params.id;
-    deleteCaseById(id, (err, results) =>{
-        if(err){
-            res.send(err);
-        }else{
-            res.json(results);
-        }
-    });
+export async function deleteCase(req, res){
+    try {
+        const id = req.params.id;
+        const deletedCase = await deleteCaseById(id);
+
+        res.json(deletedCase);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 }

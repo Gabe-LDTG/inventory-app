@@ -4,9 +4,9 @@ import axios from "axios";
 var action = {
     //AUTHENTICATION COMMANDS----------------------------------------------------------------------------------------
     //Add a user
-    addUser(u: any){
+    async addUser(u: any){
         //console.log(this.product);
-        axios.post("http://localhost:5000/users/create", {
+        return axios.post("http://localhost:5000/users/create", {
             username: u.username,
             password: u.password
         }).then((res) => {
@@ -19,9 +19,9 @@ var action = {
         });
     },
 
-    validatePassword(u){
+    async validatePassword(u){
         //console.log(this.product);
-        axios.post("http://localhost:5000/users/validate", {
+        return axios.post("http://localhost:5000/users/validate", {
             username: u.username,
             password: u.password
         }).then((res) => {
@@ -36,7 +36,7 @@ var action = {
 
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
-    getProducts(){
+    async getProducts(){
         let products;
             
         return axios.get("http://localhost:5000/products").then(res => {
@@ -53,7 +53,7 @@ var action = {
         })
     },
 
-    getProcProducts(){
+    async getProcProducts(){
         let products;
 
         return axios.get("http://localhost:5000/products/processed").then(res => {
@@ -64,7 +64,7 @@ var action = {
 
     },
 
-    getUnprocProducts(){
+    async getUnprocProducts(){
         let products;
 
         return axios.get("http://localhost:5000/products/unprocessed").then(res => {
@@ -75,7 +75,7 @@ var action = {
     },
 
     //Used to search for a specific product by Id
-    getProductById(id: string){
+    async getProductById(id: string){
         let specificProduct;
         //console.log(id);
         axios.get("http://localhost:5000/products/"+id)
@@ -91,11 +91,11 @@ var action = {
     },
 
     //Posts a newly added product into the database using API
-    addProduct(p: any){
+    async addProduct(p: any){
             
         //console.log("UPC ______ ", this.upc);
         //console.log(this.fnsku);
-            axios.post("http://localhost:5000/products/create", {
+            return axios.post("http://localhost:5000/products/create", {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -142,29 +142,33 @@ var action = {
     },
 
     //Removes a product from the database using API
-    deleteProduct(id: string){
+    async deleteProduct(id: string){
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
-            axios.delete("http://localhost:5000/products/"+id)
+            return axios.delete("http://localhost:5000/products/"+id)
             .then(res => {
                 //location.reload();
                 //this.refreshData();
             })
             .catch(error => {
+                console.log(error.response.data);
+                console.log(error.request.data);
                 console.log(error);
+                //console.log("########################AXIOS ERROR##############################")
+                throw error.response.data;
             })
         //}
     },
 
     //Updates an already existing product in the database using API
-    editProduct(p: any){
+    async editProduct(p: any){
 
         console.log(p.name);
         /* console.log(value.asin);
         console.log(value.fnsku);
         console.log(value.upc);
         console.log(value.notes); */
-        axios.put("http://localhost:5000/products/"+p.id, {
+        return axios.put("http://localhost:5000/products/"+p.id, {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -202,6 +206,7 @@ var action = {
             //this.refreshData();
             //this.editId = '';
             //alert("AHHH");
+            console.log(res);
         }).catch(error => {
             console.log(error);
         });
@@ -228,16 +233,11 @@ var action = {
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //
-    getProcCases(){
+    async getProcCases(){
         let cases;
 
         return axios.get("http://localhost:5000/cases/processed").then(res => {
             cases = res.data;
-            //this.displayCases = this.cases;
-
-            /* for (let i = 0; i < this.cases.length; i++) {
-            this.cases[i].EDIT = false;
-            } */
             console.log(cases);
 
             console.log(cases[0].date_recieved);
@@ -249,25 +249,20 @@ var action = {
         })
     },
 
-    getUnprocCases(){
+    async getUnprocCases(){
         let cases;
             
         return axios.get("http://localhost:5000/cases/unprocessed").then(res => {
             cases = res.data;
-            //this.displayCases = this.cases;
-
-            /* for (let i = 0; i < this.cases.length; i++) {
-            this.cases[i].EDIT = false;
-            } */
             console.log(cases);
             return cases;
         });
     },
 
     //
-    addCase(c: any){
+    async addCase(c: any){
         //console.log(this.product);
-        axios.post("http://localhost:5000/cases/create", {
+        return axios.post("http://localhost:5000/cases/create", {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
             location: c.location,
@@ -283,22 +278,22 @@ var action = {
     },
 
     //
-    deleteCase(id: string){
+    async deleteCase(id: string){
         console.log(id);
         //if(confirm("Do you really want to delete?")){
-            axios.delete("http://localhost:5000/cases/"+id)
-            .catch(error => {
-                console.log(error);
-            })
+        return axios.delete("http://localhost:5000/cases/"+id)
+        .catch(error => {
+            console.log(error);
+        })
         //}
         //location.reload();
         //this.refreshData();
     },
 
     //
-    editCase(c: any){
+    async editCase(c: any){
 
-        axios.put("http://localhost:5000/cases/"+c.id, {
+        return axios.put("http://localhost:5000/cases/"+c.id, {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
             location: c.location,
