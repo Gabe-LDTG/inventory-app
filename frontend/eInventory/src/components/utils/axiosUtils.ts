@@ -19,7 +19,7 @@ var action = {
         });
     },
 
-    async validatePassword(u){
+    async validatePassword(u: any){
         //console.log(this.product);
         return axios.post("http://localhost:5000/users/validate", {
             username: u.username,
@@ -123,6 +123,18 @@ var action = {
             price_2022: p.price_2022,
             price_2023: p.price_2023,
             process_time_per_unit_sec: p.process_time_per_unit_sec,
+            products_needed_a: p.products_needed_a,
+            qty_1: p.qty_1,
+            products_needed_b: p.products_needed_b,
+            qty_2: p.qty_2,
+            products_needed_c: p.products_needed_c,
+            qty_3: p.qty_3,
+            products_needed_d: p.products_needed_d,
+            qty_4: p.qty_4,
+            products_needed_e: p.products_needed_e,
+            qty_5: p.qty_5,
+            products_needed_f: p.products_needed_f,
+            qty_6: p.qty_6,
             total_cost: p.total_cost,
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,
@@ -138,6 +150,7 @@ var action = {
                 //this.refreshData();
             }).catch(error => {
                 console.log(error);
+                throw error;
             });
     },
 
@@ -163,11 +176,12 @@ var action = {
     //Updates an already existing product in the database using API
     async editProduct(p: any){
 
-        console.log(p.name);
+        console.log("PRODUCT NAME ", p.name);
         /* console.log(value.asin);
         console.log(value.fnsku);
         console.log(value.upc);
         console.log(value.notes); */
+        console.log("PRODUCTS NEEDED A ",p.products_needed_a);
         return axios.put("http://localhost:5000/products/"+p.id, {
             name: p.name,
             asin: p.asin,
@@ -196,6 +210,18 @@ var action = {
             price_2022: p.price_2022,
             price_2023: p.price_2023,
             process_time_per_unit_sec: p.process_time_per_unit_sec,
+            products_needed_a: p.products_needed_a,
+            qty_1: p.qty_1,
+            products_needed_b: p.products_needed_b,
+            qty_2: p.qty_2,
+            products_needed_c: p.products_needed_c,
+            qty_3: p.qty_3,
+            products_needed_d: p.products_needed_d,
+            qty_4: p.qty_4,
+            products_needed_e: p.products_needed_e,
+            qty_5: p.qty_5,
+            products_needed_f: p.products_needed_f,
+            qty_6: p.qty_6,
             total_cost: p.total_cost,
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,

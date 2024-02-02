@@ -190,6 +190,97 @@
                 <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
                 <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
             </div>
+
+            <div class="field">
+                <label for="products_needed_a">Products needed A</label>
+                <Dropdown v-model="product.products_needed_a" 
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_1">Quantity #1</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_1" showButtons :class="{'p-invalid': submitted && !product.products_needed_a}"/>
+                <small class="p-error" v-if="submitted && product.qty_1 && !product.products_needed_a">Please select a product.</small>
+            </div>
+
+            <div class="field">
+                <label for="products_needed_a">Products needed B</label>
+                <Dropdown v-model="product.products_needed_b" 
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_2">Quantity #2</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_2" showButtons/>
+            </div>
+
+            <div class="field">
+                <label for="products_needed_c">Products needed C</label>
+                <Dropdown v-model="product.products_needed_c" 
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_3">Quantity #3</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_3" showButtons/>
+            </div>
+
+            <div class="field">
+                <label for="products_needed_d">Products needed D</label>
+                <Dropdown v-model="product.products_needed_d"
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_4">Quantity #4</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_4" showButtons/>
+            </div>
+
+            <div class="field">
+                <label for="products_needed_e">Products needed E</label>
+                <Dropdown v-model="product.products_needed_e" 
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_5">Quantity #5</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_5" showButtons/>
+            </div>
+
+            <div class="field">
+                <label for="products_needed_f">Products needed F</label>
+                <Dropdown v-model="product.products_needed_f"  
+                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                :options="products"
+                optionLabel="name"
+                optionValue="id" />
+            </div>
+
+            <div class="field">
+                <label for="qty_1">Quantity #6</label>
+                <InputNumber inputId="stacked-buttons"
+                v-model="product.qty_6" showButtons/>
+            </div>
             
             <div class="field">
                 <label for="total_cost">Total Cost</label>
@@ -299,6 +390,12 @@ export default {
             { field: 'in_shipping_cost', header: 'In-shipping Cost' },
             { field: 'item_cost', header: 'Item Cost'},
             { field: 'item_num', header: 'Item Number'},
+            { field: 'item_num_1', header: 'Item Number 1'},
+            { field: 'item_num_2', header: 'Item Number 2'},
+            { field: 'item_num_3', header: 'Item Number 3'},
+            { field: 'item_num_4', header: 'Item Number 4'},
+            { field: 'item_num_5', header: 'Item Number 5'},
+            { field: 'item_num_6', header: 'Item Number 6'},
             { field: 'labor_cost', header: 'Labor Cost' },
             { field: 'map', header: 'Map' },
             { field: 'meltable', header: 'Meltable?' },
@@ -308,6 +405,18 @@ export default {
             { field: 'price_2022', header: 'Price 2022' },
             { field: 'price_2023', header: 'Price 2023' },
             { field: 'process_time_per_unit_sec', header: 'Process Time per Unit Sec' },
+            { field: 'products_needed_a', header: 'Products needed A'},
+            { field: 'products_needed_b', header: 'Products needed B'},
+            { field: 'products_needed_c', header: 'Products needed C'},
+            { field: 'products_needed_d', header: 'Products needed D'},
+            { field: 'products_needed_e', header: 'Products needed E'},
+            { field: 'products_needed_f', header: 'Products needed F'},
+            { field: 'qty_1', header: 'Quantity #1'},
+            { field: 'qty_2', header: 'Quantity #2'},
+            { field: 'qty_3', header: 'Quantity #3'},
+            { field: 'qty_4', header: 'Quantity #4'},
+            { field: 'qty_5', header: 'Quantity #5'},
+            { field: 'qty_6', header: 'Quantity #6'},
             { field: 'total_cost', header: 'Total Cost'},
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
             { field: 'vendor', header: 'Vendor' },
@@ -410,6 +519,11 @@ export default {
                 this.products.push(this.product);
                 let addedProduct = await action.addProduct(this.product);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
+
+                //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
+
+                this.getProducts();
+
                 return addedProduct;
             } catch (err) {
                 console.log(err);
@@ -496,10 +610,47 @@ export default {
                 //preview: 10,
                 complete: function( results: any ){
                     //console.log(results.data.splice(0,2))
-                    let keys = results.data.splice(0,2);
-                    console.log(keys);
-                    keys.splice(0,1);
-                    console.log(keys);
+                    //let keys = results.data.splice(0,2);
+                    let keys = results.data[1];
+                    //console.log(keys);
+                    //keys.splice(0,1);
+                    console.log("Keys: ",keys);
+
+                    //console.log(keys[1]);
+
+                    let countA = 1;
+                    let countB = 1;
+
+                    for (let i = 0; i<keys.length; i++){
+                        console.log(keys[i]);
+
+                        if(keys[i]=='<-Quantity'){
+                            //console.log(keys[0][i]);
+                            keys[i] = 'Quantity #'+countA;
+                            countA++;
+                        }
+                        else if(keys[i]=='Item #'){
+                            keys[i] = 'Item #'+countB;
+                            countB++;
+                        }
+
+                    }
+
+                    console.log("Cleaned up keys ",keys);
+                    
+                    let myMap = new Map();
+                    let content = [];
+
+                    for(let i = 0; i<5; i++){
+                        for(let j = 0; j<results.data[i].length; j++){
+                            //console.log(j);
+                            myMap.set(keys[j], results.data[i][j]);
+                            //console.log(myMap);
+                        }
+                        content.push(myMap);
+                    }
+
+                    console.log(content);
                     console.log(results);
                 }.bind(this)
             });
@@ -553,23 +704,6 @@ export default {
                     return null;
             }
         },
-        /* validateDelete(product: any){
-            let valErr = false;
-
-            //WORKS WHEN MOUNTED, ASK MICHAEL WHY WON'T WORK IN FUNCTION
-            //this.getCases();
-            console.log("CASE",this.cases);
-            console.log(this.product);
-            for (let i = 0; i < this.cases.length; i++){
-                //console.log(this.cases[i].product_id);
-                if(product.id == this.cases[i].product_id){
-                    console.log("Product Id is being used in the following case: ",this.cases[i]);
-                    this.$toast.add({severity:'error', summary: 'Error', detail: product.name+' used in box '+this.cases[i].id, life: 3000});
-                    valErr=true;
-                }
-            }
-            return valErr;
-        }, */
         //Checks all available products to make sure the fnsku being entered has not already been used
         validateFnsku(){
                 let isVal = true;
