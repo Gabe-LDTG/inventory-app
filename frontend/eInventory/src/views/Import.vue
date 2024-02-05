@@ -1,5 +1,9 @@
 <template lang="">
-    <div>
+    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
+    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Raw Product Key" chooseLabel="Import Raw Product Key" class="mr-2 inline-block" @uploader="rawProductKeyUpload"/>
+    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product List" chooseLabel="Import Processed Product List" class="mr-2 inline-block" @uploader="processProductListUpload"/>
+    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Unprocessed Product List" chooseLabel="Import Unprocessed Product List" class="mr-2 inline-block" @uploader="unprocessedProductListUpload"/>
+    <!-- <div>
         <form enctype="multipart/form-data">
             <input type="file" accept=".csv" @change="handleFileUpload( $event )"/>
 
@@ -25,11 +29,12 @@
                     </td>
             </tr>
         </tbody>
-    </table>
+    </table> -->
 </template>
 <script lang="ts">
 import Papa from "papaparse";
 import axios from "axios";
+import importAction from "../components/utils/importUtils";
 
 export default {
     data() {
@@ -44,6 +49,19 @@ export default {
         }
     },
     methods: {
+
+        procProductKeyUpload(event: any) {
+            importAction.onUpload(event, 'Processed Product Key');
+        },
+        rawProductKeyUpload(event: any) {
+            importAction.onUpload(event, 'Raw Product Key');
+        },
+        processProductListUpload(event: any){
+            importAction.onUpload(event, 'Processed Product List');
+        },
+        unprocessedProductListUpload(event: any){
+            importAction.onUpload(event, 'Unprocessed Product List');
+        },
         /* onFileChange(e) {
             var files = e.target.files || e.dataTransfer.files;
             if (!files.length) return;
@@ -100,14 +118,14 @@ export default {
             console.log(d.data);
         }, */
 
-        handleFileUpload( event: any ){
+        /* handleFileUpload( event: any ){
             this.file = event.target.files[0];
             console.log(event.target.files[0]);
             let d: 'd';
             console.log(cleaning.foo());
             this.parseFile();
             //this.formatFile();
-        },
+        }, */
         /* parseFile(){
             this.loading = true;
             Papa.parse( this.file, {
@@ -125,7 +143,7 @@ export default {
                 }.bind(this)
             } );
         }, */
-        parseFile(){
+        /* parseFile(){
             this.loading = true;
             Papa.parse( this.file, {
                 header: false,
@@ -141,7 +159,7 @@ export default {
                         /* for (let j = 0; j < keys.length; j++)
                         {
                             myMap.set(keys[j], results.data[i][j]);
-                        }  */
+                        }  
                         let arrMap = {
                         1: results.data[i][0],
                         2: results.data[i][1],
@@ -185,7 +203,7 @@ export default {
                 });
                 alert('Form successfully submitted.')
                 //setInterval(this.refreshData, 1000);
-        },
+        }, */
 
     }
 }

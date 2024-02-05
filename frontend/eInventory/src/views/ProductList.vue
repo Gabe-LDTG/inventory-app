@@ -343,6 +343,7 @@
 <script lang="ts">
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
+import importAction from "../components/utils/importUtils";
 import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
@@ -386,16 +387,17 @@ export default {
             { field: 'box_type', header: 'Box Type' },
             { field: 'date_added', header: 'Date Added' },
             { field: 'do_we_carry', header: 'Do We Carry?' },
+            { field: 'default_units_per_case', header: 'Default Units per Case'},
             { field: 'holiday_storage_cost', header: 'Holiday Storage Cost' },
             { field: 'in_shipping_cost', header: 'In-shipping Cost' },
             { field: 'item_cost', header: 'Item Cost'},
             { field: 'item_num', header: 'Item Number'},
-            { field: 'item_num_1', header: 'Item Number 1'},
-            { field: 'item_num_2', header: 'Item Number 2'},
-            { field: 'item_num_3', header: 'Item Number 3'},
-            { field: 'item_num_4', header: 'Item Number 4'},
-            { field: 'item_num_5', header: 'Item Number 5'},
-            { field: 'item_num_6', header: 'Item Number 6'},
+            { field: 'item_num_1', header: 'Item Number #1'},
+            { field: 'item_num_2', header: 'Item Number #2'},
+            { field: 'item_num_3', header: 'Item Number #3'},
+            { field: 'item_num_4', header: 'Item Number #4'},
+            { field: 'item_num_5', header: 'Item Number #5'},
+            { field: 'item_num_6', header: 'Item Number #6'},
             { field: 'labor_cost', header: 'Labor Cost' },
             { field: 'map', header: 'Map' },
             { field: 'meltable', header: 'Meltable?' },
@@ -431,7 +433,7 @@ export default {
         //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
 
-        console.log(this.products);
+        //console.log(this.products);
     },
     methods: {
         /* getProducts(){
@@ -537,7 +539,7 @@ export default {
         displayProductInfo(product: any){
             this.product = {...product};
             console.log(this.product);
-            console.log("Keys", Object.keys(this.product));
+            //console.log("Keys", Object.keys(this.product));
 
             let keys = Object.keys(this.product);
             let map = {};
@@ -599,62 +601,9 @@ export default {
         },
         //https://codesandbox.io/p/sandbox/primevue-fileuploader-custom-q2dqhh?file=%2Fsrc%2FFileUploadDemo.vue%3A42%2C7-42%2C27
         onUpload(event) {
-            console.log("Uploaded");
-            const fileUp = event.files[0];
-
-            console.log(fileUp);
-
-            Papa.parse( fileUp, {
-                header: false,
-                skipEmptyLines: true,
-                //preview: 10,
-                complete: function( results: any ){
-                    //console.log(results.data.splice(0,2))
-                    //let keys = results.data.splice(0,2);
-                    let keys = results.data[1];
-                    //console.log(keys);
-                    //keys.splice(0,1);
-                    console.log("Keys: ",keys);
-
-                    //console.log(keys[1]);
-
-                    let countA = 1;
-                    let countB = 1;
-
-                    for (let i = 0; i<keys.length; i++){
-                        console.log(keys[i]);
-
-                        if(keys[i]=='<-Quantity'){
-                            //console.log(keys[0][i]);
-                            keys[i] = 'Quantity #'+countA;
-                            countA++;
-                        }
-                        else if(keys[i]=='Item #'){
-                            keys[i] = 'Item #'+countB;
-                            countB++;
-                        }
-
-                    }
-
-                    console.log("Cleaned up keys ",keys);
-                    
-                    let myMap = new Map();
-                    let content = [];
-
-                    for(let i = 0; i<5; i++){
-                        for(let j = 0; j<results.data[i].length; j++){
-                            //console.log(j);
-                            myMap.set(keys[j], results.data[i][j]);
-                            //console.log(myMap);
-                        }
-                        content.push(myMap);
-                    }
-
-                    console.log(content);
-                    console.log(results);
-                }.bind(this)
-            });
-
+            importAction.onUpload(event, 'Processed Product Key');
+            
+            
         },
         exportCSV() {
             this.$refs.dt.exportCSV();

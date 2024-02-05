@@ -46,8 +46,8 @@ var action = {
             //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
             //this.displayProducts = this.products;
 
-            console.log("Product List Recieved\n",products);
-            console.log("Keys", Object.keys(products[1]));
+            //console.log("Product List Recieved\n",products);
+            //console.log("Keys", Object.keys(products[1]));
 
             return products;
         })
