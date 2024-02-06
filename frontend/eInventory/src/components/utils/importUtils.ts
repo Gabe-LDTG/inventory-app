@@ -88,23 +88,64 @@ var importAction = {
             header: true,
             complete: function( results: any){
                 console.log(results);
+                
+                console.log(results.data[0]);
 
-                const keys = Object.keys(results.data[0]);
+                let unusedFields=[];
+                let content = [];
 
-                console.log(keys);
+                //objectLength = Object.keys(exampleObject).length
+                console.log(Object.keys(results.data[0]))
+                let mapLength = Object.keys(results.data[0]).length; 
 
-                keys.forEach((key: any) => {
-                    if (key==this.columns[k].header){
+                let keys = Object.keys(results.data[0])
 
-                    //console.log(this.columns[k].field);
-                    myMap[this.columns[k].field] = map[key];
-                    contentCount++
-                    //console.log(count++);
+                
+                //results.data.length
+                for (let dataIdx = 0; dataIdx<10; dataIdx++){
+                    //console.log(results.data[0][this.columns[k].header]);
+                    //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
+                    let map = [];
+
+                    map['name'] = results.data[dataIdx]['Name'];
+                    map['date_added'] = results.data[dataIdx]['Date Added'];
+
+                    
+
+                    /* for (let colIdx = 0; colIdx<this.columns.length; colIdx++){
+                        if(results.data[dataIdx][this.columns[colIdx].header] || results.data[dataIdx][this.columns[colIdx].header] == ""){
+                            map[this.columns[colIdx].field] = results.data[dataIdx][this.columns[colIdx].header];
+                        }
+                        //map[this.columns[i].field] = results.data[0][this.columns[i].header];
+                        else{
+                            //console.log([this.columns[i].header]);
+                            //console.log(Object.keys(results.data[0][this.columns[i].header]));
+                            if(unusedFields.length == 0){
+                                unusedFields.push(this.columns[colIdx].header);
+                            }
+                        }
+                        //console.log(`Mapping Column: data:${dataIdx}, col:${colIdx}; field: ${this.columns[colIdx].field}, header: ${this.columns[colIdx].header}; data:`, results.data[dataIdx][this.columns[colIdx].header], 'current map:', JSON.stringify(map, null, 2), 'map:', map)
                     }
-                    else{
-                    //missingKeys.push(key);
-                    }
-                });
+                     */
+                    //console.log(map.name);
+                    content.push(map); 
+                    //console.log(content);
+                    /*keys.forEach((key: any, index: any) => {
+                        if(results.data[0][this.columns[index].header] || results.data[0][this.columns[index].header] == ""){
+                            map[this.columns[index].field] = results.data[0][this.columns[index].header];
+                        }
+                        else{
+                            console.log(key);
+                            unusedFields.push(key);
+                        }
+                    }) */
+                }
+
+                console.log(unusedFields);
+                console.log("RESULTS: ", results);
+                //console.log(map);
+                //console.log(Object.keys(map).length)
+                console.log("CONTENT: ", content);
 
             }.bind(this)
         });
