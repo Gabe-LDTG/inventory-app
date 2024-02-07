@@ -24,10 +24,13 @@ var action = {
         return axios.post("http://localhost:5000/users/validate", {
             username: u.username,
             password: u.password
-        }).then((res) => {
+        },{
+            withCredentials: true, // Now this is was the missing piece in the client side 
+          }).then((res) => {
             //location.reload();
             //this.refreshData();
             console.log(res);
+            return res.data;
 
         }).catch(error => {
             console.log(error);
@@ -39,7 +42,9 @@ var action = {
     async getProducts(){
         let products;
             
-        return axios.get("http://localhost:5000/products").then(res => {
+        return axios.get("http://localhost:5000/products",{
+            withCredentials: true, // Now this is was the missing piece in the client side 
+          }).then(res => {
             products = res.data;
 
             //this.columns = Object.keys(this.products[0]);
@@ -139,6 +144,37 @@ var action = {
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,
             weight_lbs: p.weight_lbs
+
+            }).then((res) => {
+                //location.reload();
+                //setInterval(this.refreshData, 1000);
+
+                // if ANY fail validation
+                //this.displayCreate = false;
+                //alert('Form successfully submitted.')
+                //this.refreshData();
+            }).catch(error => {
+                console.log(error);
+                throw error;
+            });
+    },
+
+    //Posts a newly added product into the database using API
+    async addRawProductKey(p: any){
+            
+        //console.log("UPC ______ ", this.upc);
+        //console.log(this.fnsku);
+            return axios.post("http://localhost:5000/products/create", {
+                vendor: p.vendor,
+                name: p.name,
+                item_num: p.item_num,
+                price_2023: p.price_2023,
+                price_2022: p.price_2022,
+                price_2021: p.price_2021,
+                default_units_per_case: p.default_units_per_case,
+                map: p.map,
+                notes: p.notes,
+                upc: p.upc,
 
             }).then((res) => {
                 //location.reload();

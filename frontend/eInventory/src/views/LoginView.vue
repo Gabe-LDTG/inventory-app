@@ -31,7 +31,7 @@ return{
 }
 },
 methods:{
-login(){
+async login(){
   //make sure username OR password are not empty
   /* if(this.input.username != "" || this.input.password != ""){
     console.log("authenticated")
@@ -40,7 +40,9 @@ login(){
     console.log("Username and Password can not be empty")
   } */
 
-  action.validatePassword(this.input);
+  const sessionId = await action.validatePassword(this.input);
+
+  //document.cookie = sessionId;
 },
 onSignUp(){
   console.log(this.input);

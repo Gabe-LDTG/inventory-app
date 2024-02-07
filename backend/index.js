@@ -23,18 +23,27 @@ const port = 5000;
 app.use(express.json());
 
 //use cors
-app.use(cors());
+app.use(cors(
+    {
+        credentials: true,
+        origin: 'http://localhost:5173',
+    }
+));
 
 app.use(session({
     secret: 'Tiny Cactus',
-    store: sessionStore,
+    //store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    cook: {
+    cookie: {
         sameSite: false,
-        maxAge: 1000,
-    }
+        //maxAge: 1000,
+    },
+    name: 'Cat Cookie',
 }));
+
+sessionStore.onReady().then(() => console.log('READY'));
+//sessionStore.addListener('');
 
 //use router
 app.use(Router);

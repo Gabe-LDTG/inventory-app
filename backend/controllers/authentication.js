@@ -72,7 +72,8 @@ export async function validate(req, res){
                     }
                 })
             });
-            res.sendStatus(204);
+            //res.sendStatus(204);
+            res.send(req.session.sessionID);
         }
         else{
             console.log("FAILURE");
