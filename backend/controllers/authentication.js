@@ -49,36 +49,53 @@ export async function validate(req, res){
     try {
         const data=req.body;
         const user = await getUserFromUsername(data.username);
+        console.log("USER: ", user);
 
-        console.log(user.salt);
+        if(user){
+            console.log(user.salt);
 
-        const hashedPass = await hash(user.salt, data.password);
-        data.password = hashedPass;
-
-        console.log("TRY :", data.password);
-        console.log("CHECK :", user.password);
-                
-        if(data.password == user.password){
-            console.log("SUCCESS");
-            await new Promise((ret, rej) => {
-                req.session.regenerate(err => {
-                    if(err) rej(err)
-                    else {
-                        req.session.user = user
-                        req.session.save(err => {
-                            if(err) rej(err)
-                            else ret();
-                        })
-                    }
-                })
-            });
-            //res.sendStatus(204);
-            res.send(req.session.sessionID);
+            const hashedPass = await hash(user.salt, data.password);
+            data.password = hashedPass;
+    
+            console.log("TRY :", data.password);
+            console.log("CHECK :", user.password);
+                    
+            if(data.password == user.password){
+                console.log("SUCCESS");
+                await new Promise((ret, rej) => {
+                    req.session.regenerate(err => {
+                        if(err) rej(err)
+                        else {
+                            req.session.user = user
+                            req.session.save(err => {
+                                if(err) rej(err)
+                                else ret();
+                            })
+                        }
+                    })
+                });
+                //res.sendStatus(204);
+                res.send(req.session.user);
+                console.log("COOKIE: ",req.session.cookie);
+                console.log("SESSION: ",req.session.user.id);
+            }
+    
+            else if (data.password != user.password){
+                console.log("INVALID PASSWORD");
+                throw new Error('Incorrect password');
+            }    
+    
+            else{
+                console.log("FAILURE");
+                res.sendStatus(401);
+            }
         }
-        else{
-            console.log("FAILURE");
-            res.sendStatus(401);
+
+        else if(!user){
+            console.log("INVALID USERNAME");
+            throw new Error('Username not found');
         }
+        
     } catch (err) {
         console.error(err);
         res.status(500).send(err.message);

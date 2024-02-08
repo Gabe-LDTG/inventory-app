@@ -32,11 +32,12 @@ app.use(cors(
 
 app.use(session({
     secret: 'Tiny Cactus',
-    //store: sessionStore,
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
         sameSite: false,
+        httpOnly: false,
         //maxAge: 1000,
     },
     name: 'Cat Cookie',

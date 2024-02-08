@@ -17,6 +17,7 @@ export async function showProducts(req,res){
     try {
         const products = await getProducts();
         res.json(products);
+        //console.log("SESSION ID: ",req.session.cookie);
     } catch (err) {
         console.error(err);
         res.sendStatus(500);

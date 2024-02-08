@@ -6,6 +6,8 @@ import ProductList from '../views/ProductList.vue'
 import Import from '../views/Import.vue'
 import Login from '../views/LoginView.vue'
 
+import axios from "axios";
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -49,5 +51,17 @@ const router = createRouter({
     }
   ]
 })
+
+/* router.beforeEach((to, from, next) => {
+  axios.get('http://localhost:5000/checklogin')
+    .then(res => {
+      if (to.path === '/') next('/home')
+      else next();
+    })
+    .catch(err => {
+      if (to.path === '/') next()
+        else next('/');
+    });
+}); */
 
 export default router
