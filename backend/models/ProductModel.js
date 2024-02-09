@@ -25,7 +25,50 @@ export async function getProductById(id){
 
 //insert product to database
 export async function insertProduct(data){
-    let info = [data.name, data.asin, data.fnsku, data.upc, data.notes, data['30_day_storage_cost'], data.amz_fees_cost, data.amz_fulfilment_cost, data.bag_cost, data.bag_size, data.box_cost, data.box_type, data.date_added, data.do_we_carry, data.holiday_storage_cost, data.in_shipping_cost, data.item_cost, data.item_num, data.labor_cost, data.map, data.meltable, data.misc_cost, data.out_shipping_cost, data.price_2021, data.price_2022, data.price_2023, data.process_time_per_unit_sec, data.products_needed_a, data.qty_1, data.products_needed_b, data.qty_2, data.products_needed_c, data.qty_3, data.products_needed_d, data.qty_4, data.products_needed_e, data.qty_5, data.products_needed_f, data.qty_6, data.total_cost, data.total_holiday_cost, data.vendor, data.weight_lbs];
+    let info = [
+        data.name, 
+        data.asin, 
+        data.fnsku, 
+        data.upc, 
+        data.notes, 
+        data['30_day_storage_cost'], 
+        data.amz_fees_cost,
+        data.amz_fulfilment_cost,
+        data.bag_cost,
+        data.bag_size, 
+        data.box_cost, 
+        data.box_type, 
+        data.date_added, 
+        data.do_we_carry, 
+        data.holiday_storage_cost, 
+        data.in_shipping_cost, 
+        data.item_cost, 
+        data.item_num, 
+        data.labor_cost, 
+        data.map, 
+        data.meltable, 
+        data.misc_cost, 
+        data.out_shipping_cost, 
+        data.price_2021, 
+        data.price_2022, 
+        data.price_2023, 
+        data.process_time_per_unit_sec, 
+        data.products_needed_a, 
+        data.qty_1, 
+        data.products_needed_b, 
+        data.qty_2, 
+        data.products_needed_c, 
+        data.qty_3, 
+        data.products_needed_d, 
+        data.qty_4, 
+        data.products_needed_e, 
+        data.qty_5, 
+        data.products_needed_f, 
+        data.qty_6, 
+        data.total_cost, 
+        data.total_holiday_cost, 
+        data.vendor, 
+        data.weight_lbs];
     return db.query("INSERT INTO products "+prodToInsert+" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", info).then(([results, fields])=>results);
 }
 

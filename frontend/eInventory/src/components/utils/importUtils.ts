@@ -275,7 +275,7 @@ var importAction = {
                     map['notes' as any] = results.data[dataIdx]['Notes'];
                     map['upc' as any] = results.data[dataIdx]['UPC'];
 
-                    await action.addProduct(map);
+                    //await action.addProduct(map);
 
                     content.push(map); 
                 }

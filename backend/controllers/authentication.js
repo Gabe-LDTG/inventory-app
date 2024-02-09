@@ -75,7 +75,10 @@ export async function validate(req, res){
                     })
                 });
                 //res.sendStatus(204);
-                res.send(req.session.user);
+                let sessionUser = {};
+                sessionUser['id'] = req.session.user.id;
+                sessionUser['username'] = req.session.user.username;
+                res.send(sessionUser);
                 console.log("COOKIE: ",req.session.cookie);
                 console.log("SESSION: ",req.session.user.id);
             }
