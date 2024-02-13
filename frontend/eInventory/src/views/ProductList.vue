@@ -14,7 +14,7 @@
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="id"
+            <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="product_id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
@@ -197,7 +197,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -213,7 +213,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -228,7 +228,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -243,7 +243,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -258,7 +258,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -273,7 +273,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id" />
+                optionValue="product_id" />
             </div>
 
             <div class="field">
@@ -483,7 +483,7 @@ export default {
             //this.submitted = true;
 
 			if (this.product.name.trim()) {
-                if (this.product.id) {
+                if (this.product.product_id) {
                     await this.confirmEdit();
                 }
                 else {
@@ -500,8 +500,8 @@ export default {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
 
                 //Promise.resolve(action.editProduct(this.product));
-                this.products[this.findIndexById(this.product.id)] = this.product;
-                console.log(this.products[this.findIndexById(this.product.id)]);
+                this.products[this.findIndexById(this.product.product_id)] = this.product;
+                console.log(this.products[this.findIndexById(this.product.product_id)]);
 
                 console.log("PRODUCT BEFORE AWAIT",this.product);
 
@@ -567,9 +567,9 @@ export default {
                 //console.log(stop);
                 this.deleteProductDialog = false;
 
-                const deletedProduct = await action.deleteProduct(this.product.id);
+                const deletedProduct = await action.deleteProduct(this.product.product_id);
                 
-                this.products = this.products.filter(val => val.id !== this.product.id);
+                this.products = this.products.filter(val => val.product_id !== this.product.product_id);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
 
                 this.product = {};
@@ -583,7 +583,7 @@ export default {
         findIndexById(id: number) {
             let index = -1;
             for (let i = 0; i < this.products.length; i++) {
-                if (this.products[i].id === id) {
+                if (this.products[i].product_id === id) {
                     index = i;
                     break;
                 }
@@ -618,7 +618,7 @@ export default {
                 for(let i=0; i<this.selectedProducts.length; i++){
                     //stop = this.validateDelete(this.selectedProducts[i]);
 
-                    await action.deleteProduct(this.selectedProducts[i].id);
+                    await action.deleteProduct(this.selectedProducts[i].product_id);
                     this.products = this.products.filter(val => !this.selectedProducts.includes(val));
                     this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
                 }
@@ -663,7 +663,7 @@ export default {
                 if (this.product.fnsku) {
                     for (let i = 0; i < this.products.length; i++) {
                         //console.log(this.products[i].fnsku);
-                        if (this.products[i].fnsku == this.product.fnsku && this.products[i].id != this.product.id){
+                        if (this.products[i].fnsku == this.product.fnsku && this.products[i].product_id != this.product.product_id){
                             console.log("PRODUCT ALREADY HAS THIS FNSKU: ",this.products[i]);
                             isVal = false;
                             //this.validFnsku = false;

@@ -1,8 +1,11 @@
 <template lang="">
-    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
+    <div v-show="loading"><Message :closable="false" icon="pi pi-spin pi-spinner" iconPos="right">Deleting {{percentage}}% complete </Message></div>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Raw Product Key" chooseLabel="Import Raw Product Key" class="mr-2 inline-block" @uploader="rawProductKeyUpload"/>
+    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product List" chooseLabel="Import Processed Product List" class="mr-2 inline-block" @uploader="processProductListUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Unprocessed Product List" chooseLabel="Import Unprocessed Product List" class="mr-2 inline-block" @uploader="unprocessedProductListUpload"/>
+    <Button label="Purge Products" text @click="purgeProducts"/>
+    <Button label="Purge Cases" text @click="purgeCases"/>
     <!-- <div>
         <form enctype="multipart/form-data">
             <input type="file" accept=".csv" @change="handleFileUpload( $event )"/>
@@ -35,6 +38,7 @@
 import Papa from "papaparse";
 import axios from "axios";
 import importAction from "../components/utils/importUtils";
+import action from "@/components/utils/axiosUtils";
 
 export default {
     data() {
@@ -46,165 +50,83 @@ export default {
             parsed: false,
             lines: '',
             loading: false,
+            count: 0,
+            total: 0,
+            percentage: 0,
         }
     },
     methods: {
 
-        procProductKeyUpload(event: any) {
-            importAction.onUpload(event, 'Processed Product Key');
-        },
-        rawProductKeyUpload(event: any) {
-            importAction.onUpload(event, 'Raw Product Key');
-        },
-        processProductListUpload(event: any){
-            importAction.onUpload(event, 'Processed Product List');
-        },
-        unprocessedProductListUpload(event: any){
-            importAction.onUpload(event, 'Unprocessed Product List');
-        },
-        /* onFileChange(e) {
-            var files = e.target.files || e.dataTransfer.files;
-            if (!files.length) return;
-            this.createInput(files[0]);
-        },
-        createInput(file) {
-            let promise = new Promise((resolve, reject) => {
-                var reader = new FileReader();
-                var vm = this;
-                reader.onload = e => {
-                resolve((vm.fileinput = reader.result));
-                };
-                reader.readAsText(file);
-            });
-
-            promise.then(
-                result => {
-                // handle a successful result 
-                //console.log(this.fileinput);
-                this.lines = this.fileinput;
-                this.lines = this.lines.substring(this.lines.indexOf("\n") + 1);
-                // cut the first line:
-                //console.log("NEW STUFF--------------------------")
-                //console.log( this.lines );
-
-                this.parseFile();
-
-                },
-                error => {
-                //handle an error
+        async procProductKeyUpload(event: any) {
+            try {
+                this.loading = true;
+                await importAction.onUpload(event, 'Processed Product Key');
+                this.loading = false;
+            } catch (error) {
                 console.log(error);
-                }
-            );
-        }, */
-/*         dataCleaning(d){
-            console.log("CLEANING __________________________________________")
-            console.log(d);
-            console.log(d.data);
-            let loopCount = d.data.length;
-            console.log("LOOP COUNT");
-            console.log(loopCount);
-
-            for (let i = 0; i < loopCount; i++) {
-                console.log("IN FOR LOOP");
-                //console.log(d.data[i].Title);
-                if(d.data[i].Title = '' || !d.data[i].Title){
-                    console.log(i);
-                    d.data.splice(i,1);
-                }
-                //console.log(v);
             }
-            //d.data.splice(1,1);
-            console.log("DATA AFTER LOOP");
-            console.log(d.data);
-        }, */
-
-        /* handleFileUpload( event: any ){
-            this.file = event.target.files[0];
-            console.log(event.target.files[0]);
-            let d: 'd';
-            console.log(cleaning.foo());
-            this.parseFile();
-            //this.formatFile();
-        }, */
-        /* parseFile(){
-            this.loading = true;
-            Papa.parse( this.file, {
-                header: true,
-                skipEmptyLines: true,
-                //preview: 10,
-                complete: function( results ){
-                    //console.log(results);
-                    this.content = results;
-                    console.log(this.content);
-                    //this.dataCleaning(this.content);
-                    this.parsed = true;
-                    this.loading = false;
-                    return results;
-                }.bind(this)
-            } );
-        }, */
-        /* parseFile(){
-            this.loading = true;
-            Papa.parse( this.file, {
-                header: false,
-                skipEmptyLines: true,
-                //preview: 10,
-                complete: function( results: any ){
-                    let keys = results.data[1];
-                    let myMap = new Map();
-                    console.log(keys);
-                    for (let i = 2; i < results.data.length; i++) { // Notice that i changed i to 2, so that we skip the line 0 and 1.
-                        /* if (!results.data[i][2])
-                          continue; */
-                        /* for (let j = 0; j < keys.length; j++)
-                        {
-                            myMap.set(keys[j], results.data[i][j]);
-                        }  
-                        let arrMap = {
-                        1: results.data[i][0],
-                        2: results.data[i][1],
-                        3: results.data[i][2],
-                        fnsku: results.data[i][3],
-                        5: results.data[i][4],
-                        6: results.data[i][5],
-                        7: results.data[i][6],
-                        8: results.data[i][7],
-                        9: results.data[i][8],
-                        10: results.data[i][9],
-                        };
-                        this.content.push(myMap);
-                    }
-                    //console.log("Parsed map: ", myMap);
-                    console.log("Parsed: k", results.data);
-                    console.log(results.data[1]);
-
-                    console.log("THIS CONTENT " ,this.content);
-
-                    this.loading = false;
-                    this.parsed = true;
-                }.bind(this)
-            } );
         },
-        unparseFile(){
-            this.uContent = Papa.unparse( this.content);
-            this.uContent = this.uContent.substring(this.uContent.indexOf("\n") + 1);
-            console.log(this.uContent);
-            this.parseFile();
+        async rawProductKeyUpload(event: any) {
+            try {
+                this.loading = true;
+                await importAction.onUpload(event, 'Raw Product Key');
+                this.loading = false;
+            } catch (error) {
+                console.log(error);
+            }
         },
-        addProduct(){
-                axios.post("http://localhost:5000/products/create", {
-                data: this.content
+        async processProductListUpload(event: any){
+            try {
+                
+            } catch (error) {
+                console.log(error);
+            }
+            this.loading = true;
+            await importAction.onUpload(event, 'Processed Product List');
+            this.loading = false;
+        },
+        async unprocessedProductListUpload(event: any){
+            try {
+                
+            } catch (error) {
+                console.log(error);
+            }
+            this.loading = true;
+            await importAction.onUpload(event, 'Unprocessed Product List');
+            this.loading = false;
+        },
+        async purgeProducts(){
+            try {
+                this.loading = true;
+                let products = await action.getProducts();
+                console.log(products);
+                console.log(products.length);
+                this.total = products.length;
 
-                }).then((res) => {
-                    //location.reload();
-                    //setInterval(this.refreshData, 1000);
-                }).catch(error => {
-                    console.log(error);
-                });
-                alert('Form successfully submitted.')
-                //setInterval(this.refreshData, 1000);
-        }, */
+                for(let i=0; i<products.length; i++){
+                    let nuf = (i/this.total)*100;
+                    this.percentage = nuf.toFixed(2);
+                    await action.deleteProduct(products[i].product_id);
+                }
+                this.loading = false;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        async purgeCases(event: any){
+            try {
+                this.loading = true;
+                let cases = await action.getCasesIds();
+                console.log(cases);
 
+                for(let i=0; i<cases.length; i++){
+                    await action.deleteCase(cases[i].case_id);
+                }
+                this.loading = false;
+            } catch (error) {
+                console.log(error);
+            }
+        },
     }
 }
 </script>

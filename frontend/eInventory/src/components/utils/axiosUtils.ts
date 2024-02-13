@@ -107,7 +107,7 @@ var action = {
             fnsku: p.fnsku,
             upc: p.upc,
             notes: p.notes,
-            '30_day_storage_cost': p['30_day_storage_cost'],
+            storage_cost_30_day: p.storage_cost_30_day,
             amz_fees_cost: p.amz_fees_cost,
             amz_fulfilment_cost: p.amz_fulfilment_cost,
             bag_cost: p.bag_cost,
@@ -116,6 +116,7 @@ var action = {
             box_type: p.box_type,
             date_added: p.date_added,
             do_we_carry: p.do_we_carry,
+            default_units_per_case: p.default_units_per_case,
             holiday_storage_cost: p.holiday_storage_cost,
             in_shipping_cost: p.in_shipping_cost,
             item_cost: p.item_cost,
@@ -225,7 +226,7 @@ var action = {
             fnsku: p.fnsku,
             upc: p.upc,
             notes: p.notes,
-            '30_day_storage_cost': p['30_day_storage_cost'],
+            'storage_cost_30_day': p['storage_cost_30_day'],
             amz_fees_cost: p.amz_fees_cost,
             amz_fulfilment_cost: p.amz_fulfilment_cost,
             bag_cost: p.bag_cost,
@@ -293,6 +294,22 @@ var action = {
         })
     },
     
+    getCasesIds(){
+        let cases;
+        console.log("IN GET CASES");
+
+        return axios.get("http://localhost:5000/cases/id").then(res => {
+            cases = res.data;
+
+            console.log('TESTING-------------------')
+            console.log("Case List Recieved\n",cases);
+            console.log("Keys", Object.keys(cases[1]));
+            //console.log(this.cases.date_recieved.getMonth());
+
+            return cases;
+        })
+    },
+
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //
@@ -301,9 +318,12 @@ var action = {
 
         return axios.get("http://localhost:5000/cases/processed").then(res => {
             cases = res.data;
-            console.log(cases);
 
-            console.log(cases[0].date_recieved);
+            if(cases){
+                console.log(cases);
+
+                console.log(cases[0].date_recieved);
+            }
 
             console.log('TESTING-------------------')
             //console.log(this.cases.date_recieved.getMonth());

@@ -2,7 +2,7 @@ import Papa from "papaparse";
 import action from "./axiosUtils";
 
 var importAction = {
-    products: [] as any[],
+    //products: [] as any[],
 
     async onUpload(event: any, fileType: any) {
         console.log("Uploaded");
@@ -11,10 +11,10 @@ var importAction = {
 
         let fileData = [];
 
-        this.products = await action.getProducts();
+        let products = await action.getProducts();
 
         if (fileType == 'Processed Product Key'){
-            fileData = await this.processedProductKeyParse(fileUp);
+            fileData = await this.processedProductKeyParse(fileUp, products);
         }
 
         else if(fileType == 'Raw Product Key'){
@@ -30,16 +30,16 @@ var importAction = {
         }
 
         console.log("FILE DATA: ", fileData);
-        console.log("PRODUCTS: ", this.products);
+        console.log("PRODUCTS: ", products);
 
         
     },
 
-    async processedProductKeyParse(file: any){
+    async processedProductKeyParse(file: any, products: any){
         console.log(file);
         return Papa.parse(file, {
             header: true,
-            complete: function( results: any){
+            complete: async function( results: any){
                 console.log(results);
                 
                 console.log(results.data[0]);
@@ -60,7 +60,7 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
 
-                    map['name' as any] = "";
+                    /* map['name' as any] = "";
                     map['item_num' as any] = "";
                     map['vendor' as any] = "";	
                     map['weight_lbs' as any] = "";
@@ -103,7 +103,7 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = "";
+                    map['default_units_per_case' as any] = ""; */
 
                     map['name' as any] = results.data[dataIdx]['Name'];
                     map['date_added' as any] = results.data[dataIdx]['Date Added'];
@@ -118,24 +118,50 @@ var importAction = {
                     map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
                     map['process_time_per_unit_sec' as any] = results.data[dataIdx]['Process Time per Unit Sec'];
                     map['meltable' as any] = results.data[dataIdx]['Meltable?'];
-                    map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'];
+
+                    if(results.data[dataIdx]['Products needed A'] != ''){
+                        map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'];
+                    }
+                    
                     map['item_num_1' as any] = results.data[dataIdx]['Item Number #1'];
                     map['qty_1' as any] = results.data[dataIdx]['Quantity #1'];
-                    map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'];
+
+                    if(results.data[dataIdx]['Products needed B'] != '' && results.data[dataIdx]['Products needed B'] != results.data[dataIdx]['Products needed A']){
+                        map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'];
+                    }
+
                     map['item_num_2' as any] = results.data[dataIdx]['Item Number #2'];
                     map['qty_2' as any] = results.data[dataIdx]['Quantity #2'];
-                    map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'];
+
+
+                    if(results.data[dataIdx]['Products needed C'] != ''){
+                        map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'];
+                    }
                     map['item_num_3' as any] = results.data[dataIdx]['Item Number #3'];
                     map['qty_3' as any] = results.data[dataIdx]['Quantity #3'];
-                    map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'];
+
+
+                    if(results.data[dataIdx]['Products needed D'] != ''){
+                        map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'];
+                    }
                     map['item_num_4' as any] = results.data[dataIdx]['Item Number #4'];
                     map['qty_4' as any] = results.data[dataIdx]['Quantity #4'];
-                    map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'];
+
+
+                    if(results.data[dataIdx]['Products needed E'] != ''){
+                        map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'];
+                    }
                     map['item_num_5' as any] = results.data[dataIdx]['Item Number #5'];
                     map['qty_5' as any] = results.data[dataIdx]['Quantity #5'];
-                    map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'];
+
+
+                    if(results.data[dataIdx]['Products needed F'] != ''){
+                        map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'];
+                    }
                     map['item_num_6' as any] = results.data[dataIdx]['Item Number #6'];
                     map['qty_6' as any] = results.data[dataIdx]['Quantity #6'];
+
+
                     map['bag_cost' as any] = results.data[dataIdx]['Bag Cost'];
                     map['in_shipping_cost' as any] = results.data[dataIdx]['In-shipping Cost'];
                     map['out_shipping_cost' as any] = results.data[dataIdx]['Out-shipping Cost'];
@@ -150,40 +176,76 @@ var importAction = {
                     map['total_holiday_cost' as any] = results.data[dataIdx]['Total Holiday Cost'];
                     map['notes' as any] = results.data[dataIdx]['Notes'];
 
-                    for (let productIdx = 0; productIdx<this.products.length; productIdx++){
-                        if (this.products[productIdx].name == map['products_needed_a' as any] && this.products[productIdx].item_num == map['item_num_1']){
-                            console.log("MATCH A ", this.products[productIdx].id);
-                            map['products_needed_a' as any] = this.products[productIdx].id;
+                    //console.log(map);
+
+                    for (let productIdx = 0; productIdx<products.length; productIdx++){
+                        
+                        if (products[productIdx].name == map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1']){
+                            // console.log("MATCH A ", products[productIdx].product_id);
+                            // console.log(products[productIdx].name);
+                            // console.log(products[productIdx].item_num);
+                            map['products_needed_a' as any] = products[productIdx].product_id;
+                            // console.log(map['products_needed_a' as any]);
+
                         }
-                        else if (this.products[productIdx].name == map['products_needed_b' as any] && this.products[productIdx].item_num == map['item_num_2']){
-                            console.log("MATCH B ", this.products[productIdx].id)
-                            map['products_needed_b' as any] = this.products[productIdx].id;
+                        else if (products[productIdx].name == map['products_needed_b' as any] && products[productIdx].item_num == map['item_num_2']){
+                            // console.log("MATCH B ", products[productIdx].product_id)
+                            // console.log(products[productIdx].name);
+                            // console.log(products[productIdx].item_num);
+                            map['products_needed_b' as any] = products[productIdx].product_id;
+                            // console.log(map['products_needed_b' as any]);
                         }
-                        else if (this.products[productIdx].name == map['products_needed_c' as any] && this.products[productIdx].item_num == map['item_num_3']){
-                            console.log("MATCH C ", this.products[productIdx].id)
-                            map['products_needed_c' as any] = this.products[productIdx].id;
+                        else if (products[productIdx].name == map['products_needed_c' as any] && products[productIdx].item_num == map['item_num_3']){
+                            // console.log("MATCH C ", products[productIdx].product_id)
+                            // console.log(products[productIdx].name);
+                            // console.log(products[productIdx].item_num);
+                            map['products_needed_c' as any] = products[productIdx].product_id;
+                            // console.log(map['products_needed_c' as any]);
                         }
-                        else if (this.products[productIdx].name == map['products_needed_d' as any] && this.products[productIdx].item_num == map['item_num_4']){
-                            console.log("MATCH D ", this.products[productIdx].id)
-                            map['products_needed_d' as any] = this.products[productIdx].id;
+                        else if (products[productIdx].name == map['products_needed_d' as any] && products[productIdx].item_num == map['item_num_4']){
+                            // console.log("MATCH D ", products[productIdx].product_id)
+                            // console.log(products[productIdx].name);
+                            // console.log(products[productIdx].item_num);
+                            map['products_needed_d' as any] = products[productIdx].product_id;
+                            //console.log(map['products_needed_d' as any]);
                         }
-                        else if (this.products[productIdx].name == map['products_needed_e' as any] && this.products[productIdx].item_num == map['item_num_5']){
-                            console.log("MATCH E ", this.products[productIdx].id)
-                            map['products_needed_e' as any] = this.products[productIdx].id;
+                        else if (products[productIdx].name == map['products_needed_e' as any] && products[productIdx].item_num == map['item_num_5']){
+                            //console.log("MATCH E ", products[productIdx].product_id)
+                            //console.log(products[productIdx].name);
+                            //console.log(products[productIdx].item_num);
+                            map['products_needed_e' as any] = products[productIdx].product_id;
+                            //console.log(map['products_needed_e' as any]);
                         }
-                        else if (this.products[productIdx].name == map['products_needed_f' as any] && this.products[productIdx].item_num == map['item_num_6']){
-                            console.log("MATCH F ", this.products[productIdx].id)
-                            map['products_needed_f' as any] = this.products[productIdx].id;
+                        else if (products[productIdx].name == map['products_needed_f' as any] && products[productIdx].item_num == map['item_num_6']){
+                            //console.log("MATCH F ", products[productIdx].product_id)
+                            //console.log(products[productIdx].name);
+                            //console.log(products[productIdx].item_num);
+                            map['products_needed_f' as any] = products[productIdx].product_id;
+                            //console.log(map['products_needed_f' as any]);
+                        }
+                        else if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
+                            //console.log("MATCH A ", products[productIdx].product_id);
+                            console.log("PRODUCT NAME: ", products[productIdx].name);
+                            console.log("PRODUCT ITEM NUMBER: ", products[productIdx].item_num);
+                            //map['products_needed_a' as any] = products[productIdx].product_id;
+                            console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]);
+
                         }
                     }
                     
+                    await action.addProduct(map);
+
                     //console.log(map.name);
                     content.push(map); 
                 }
 
+                for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
+                    
+                }
+
                 console.log("RESULTS: ", results);
                 console.log("RESULTS LENGTH: ", results.data.length);
-                console.log(Object.keys(content[0]).length)
+                //console.log(Object.keys(content[0]).length)
                 console.log("CONTENT: ", content);
                 //console.log("TESTING: ", content[0].testing)
                 console.log("CONTENT LENGTH:", content.length);
@@ -219,7 +281,7 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
 
-                    map['name' as any] = "";
+                    /* map['name' as any] = "";
                     map['item_num' as any] = "";
                     map['vendor' as any] = "";	
                     map['weight_lbs' as any] = "";
@@ -262,7 +324,7 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = "";
+                    map['default_units_per_case' as any] = ""; */
 
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['name' as any] = results.data[dataIdx]['Product Name'];
@@ -275,7 +337,7 @@ var importAction = {
                     map['notes' as any] = results.data[dataIdx]['Notes'];
                     map['upc' as any] = results.data[dataIdx]['UPC'];
 
-                    //await action.addProduct(map);
+                    await action.addProduct(map);
 
                     content.push(map); 
                 }
@@ -317,7 +379,7 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [] as any[];
 
-                    map['name' as any] = "";
+                    /* map['name' as any] = "";
                     map['item_num' as any] = "";
                     map['vendor' as any] = "";	
                     map['weight_lbs' as any] = "";
@@ -360,14 +422,14 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = "";
+                    map['default_units_per_case' as any] = ""; */
 
                     map['status' as any] = results.data[dataIdx]['Status'];
                     map['location' as any] = results.data[dataIdx]['Location'];
-                    map['space' as any] = results.data[dataIdx]['Space'];
+                    //map['space' as any] = results.data[dataIdx]['Space'];
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['asin' as any] = results.data[dataIdx]['ASIN'];
-                    map['item' as any] = results.data[dataIdx]['Item'];
+                    map['name' as any] = results.data[dataIdx]['Description'];
                     map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
                     map['notes' as any] = results.data[dataIdx]['Notes'];
                     map['default_units_per_case' as any] = results.data[dataIdx]['Units per case'];
@@ -423,7 +485,7 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [] as any[];
 
-                    map['name' as any] = "";
+                    /* map['name' as any] = "";
                     map['item_num' as any] = "";
                     map['vendor' as any] = "";	
                     map['weight_lbs' as any] = "";
@@ -466,7 +528,7 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = "";
+                    map['default_units_per_case' as any] = ""; */
 
                     map['status' as any] = results.data[dataIdx]['Status'];
                     map['location' as any] = results.data[dataIdx]['Location'];

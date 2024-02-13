@@ -14,7 +14,7 @@
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="id"
+            <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="case_id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
@@ -56,7 +56,7 @@
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
-                optionValue="id"
+                optionValue="product_id"
                 :class="{'p-invalid': submitted && !eCase.product_id}" />
                 <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
             </div>
@@ -80,7 +80,7 @@
                 <InputText id="notes" v-model="eCase.notes" rows="3" cols="20" />
             </div>
 
-            <div v-show="!eCase.id" class="field">
+            <div v-show="!eCase.case_id" class="field">
                 <label for="amount">How Many Recieved?</label>
                 <InputNumber inputId="stacked-buttons" required="true" 
                 v-model="amount" showButtons/>
@@ -242,7 +242,7 @@ export default {
             }
 
 			if (this.eCase.product_id) {
-                if (this.eCase.id) {
+                if (this.eCase.case_id) {
                     await this.confirmEdit();
                 }
                 else {
@@ -260,7 +260,7 @@ export default {
             try {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
 
-                const idx = this.cases.findIndex(c => c.id === this.eCase.id)
+                const idx = this.cases.findIndex(c => c.case_id === this.eCase.case_id)
                 if(idx >= 0)
                     this.cases[idx] = this.eCase;
                 else
@@ -315,8 +315,8 @@ export default {
         },
         async deleteCase() {
             try {
-                this.cases = this.cases.filter(val => val.id !== this.eCase.id);
-                await action.deleteCase(this.eCase.id);
+                this.cases = this.cases.filter(val => val.case_id !== this.eCase.case_id);
+                await action.deleteCase(this.eCase.case_id);
                 this.deleteCaseDialog = false;
                 this.product = {};
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
@@ -327,7 +327,7 @@ export default {
         findIndexById(id) {
             let index = -1;
             for (let i = 0; i < this.products.length; i++) {
-                if (this.products[i].id === id) {
+                if (this.products[i].product_id === id) {
                     index = i;
                     break;
                 }
@@ -357,7 +357,7 @@ export default {
                 this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
             
                 for(let i = 0; i < this.selectedCases.length; i++){
-                   await action.deleteCase(this.selectedCases[i].id);
+                   await action.deleteCase(this.selectedCases[i].case_id);
                 }
                 this.deleteCasesDialog = false;
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Cases Deleted', life: 3000});

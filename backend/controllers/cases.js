@@ -1,6 +1,7 @@
 //import functions from Cases model class
 import{
     getCases,
+    getCasesById,
     getCasesByType,
     insertCase,
     updateCaseById,
@@ -17,6 +18,16 @@ export async function showCases(req,res){
         res.sendStatus(500);
     }
 };
+
+export async function showCasesIds(req,res){
+    try {
+        const cases = await getCasesById();
+        res.json(cases);
+    } catch (error) {
+        console.error(error);
+        res.sendStatus(500);
+    }
+}
 
 //get processed cases
 export async function showProcCases(req,res){

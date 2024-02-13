@@ -14,6 +14,7 @@ import {
 
 import {
     showCases, 
+    showCasesIds,
     showProcCases, 
     showUnprocCases,
     createCase,
@@ -40,6 +41,9 @@ router.post('/users/create', createUser);
 //validates a password
 router.post('/users/validate', validate)
 
+//IMPORT PRODUCTS
+
+
 //PRODUCTS---------------------------------------------------------------------------
 //get all product
 router.get("/products",showProducts);
@@ -65,6 +69,8 @@ router.delete('/products/:id', deleteProduct);
 //CASES---------------------------------------------------------------------------
 //Get All Cases
 router.get("/cases",showCases);
+
+router.get("/cases/id", showCasesIds);
 
 //Get Processed Cases
 router.get("/cases/processed",showProcCases);
