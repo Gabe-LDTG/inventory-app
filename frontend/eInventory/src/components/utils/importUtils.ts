@@ -119,44 +119,45 @@ var importAction = {
                     map['process_time_per_unit_sec' as any] = results.data[dataIdx]['Process Time per Unit Sec'];
                     map['meltable' as any] = results.data[dataIdx]['Meltable?'];
 
-                    if(results.data[dataIdx]['Products needed A'] != ''){
-                        map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'];
+                    if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
+                        console.log(results.data[dataIdx]['Products needed A']);
+                        map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
                     }
                     
                     map['item_num_1' as any] = results.data[dataIdx]['Item Number #1'];
                     map['qty_1' as any] = results.data[dataIdx]['Quantity #1'];
 
-                    if(results.data[dataIdx]['Products needed B'] != '' && results.data[dataIdx]['Products needed B'] != results.data[dataIdx]['Products needed A']){
-                        map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'];
+                    if(results.data[dataIdx]['Products needed B'] != ''&& results.data[dataIdx]['Products needed B']){
+                        map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'].toLowerCase();
                     }
 
                     map['item_num_2' as any] = results.data[dataIdx]['Item Number #2'];
                     map['qty_2' as any] = results.data[dataIdx]['Quantity #2'];
 
 
-                    if(results.data[dataIdx]['Products needed C'] != ''){
-                        map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'];
+                    if(results.data[dataIdx]['Products needed C'] != ''&& results.data[dataIdx]['Products needed C']){
+                        map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'].toLowerCase();
                     }
                     map['item_num_3' as any] = results.data[dataIdx]['Item Number #3'];
                     map['qty_3' as any] = results.data[dataIdx]['Quantity #3'];
 
 
-                    if(results.data[dataIdx]['Products needed D'] != ''){
-                        map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'];
+                    if(results.data[dataIdx]['Products needed D'] != ''&& results.data[dataIdx]['Products needed D']){
+                        map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'].toLowerCase();
                     }
                     map['item_num_4' as any] = results.data[dataIdx]['Item Number #4'];
                     map['qty_4' as any] = results.data[dataIdx]['Quantity #4'];
 
 
-                    if(results.data[dataIdx]['Products needed E'] != ''){
-                        map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'];
+                    if(results.data[dataIdx]['Products needed E'] != ''&& results.data[dataIdx]['Products needed E']){
+                        map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'].toLowerCase();
                     }
                     map['item_num_5' as any] = results.data[dataIdx]['Item Number #5'];
                     map['qty_5' as any] = results.data[dataIdx]['Quantity #5'];
 
 
-                    if(results.data[dataIdx]['Products needed F'] != ''){
-                        map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'];
+                    if(results.data[dataIdx]['Products needed F'] != ''&& results.data[dataIdx]['Products needed F']){
+                        map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'].toLowerCase();
                     }
                     map['item_num_6' as any] = results.data[dataIdx]['Item Number #6'];
                     map['qty_6' as any] = results.data[dataIdx]['Quantity #6'];
@@ -177,10 +178,15 @@ var importAction = {
                     map['notes' as any] = results.data[dataIdx]['Notes'];
 
                     //console.log(map);
+                    //console.log(map['products_needed_a' as any]);
+                    //console.log(map['products_needed_a' as any].toLowerCase());
 
+                    //products.length
                     for (let productIdx = 0; productIdx<products.length; productIdx++){
+                        //products[productIdx].name.toLowerCase();
+                        //console.log(products[productIdx].name);
                         
-                        if (products[productIdx].name == map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1']){
+                        if (map['products_needed_a' as any] && products[productIdx].name.toLowerCase() == map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1']){
                             // console.log("MATCH A ", products[productIdx].product_id);
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
@@ -188,47 +194,50 @@ var importAction = {
                             // console.log(map['products_needed_a' as any]);
 
                         }
-                        else if (products[productIdx].name == map['products_needed_b' as any] && products[productIdx].item_num == map['item_num_2']){
-                            // console.log("MATCH B ", products[productIdx].product_id)
-                            // console.log(products[productIdx].name);
-                            // console.log(products[productIdx].item_num);
-                            map['products_needed_b' as any] = products[productIdx].product_id;
-                            // console.log(map['products_needed_b' as any]);
+                        if(map['products_needed_b' as any]){
+                            //console.log(map['products_needed_b' as any]);
+                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map['item_num_2']){
+                                // console.log("MATCH B ", products[productIdx].product_id)
+                                // console.log(products[productIdx].name);
+                                // console.log(products[productIdx].item_num);
+                                map['products_needed_b' as any] = products[productIdx].product_id;
+                                // console.log(map['products_needed_b' as any]);
+                            }
                         }
-                        else if (products[productIdx].name == map['products_needed_c' as any] && products[productIdx].item_num == map['item_num_3']){
+                        if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map['item_num_3']){
                             // console.log("MATCH C ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
                             map['products_needed_c' as any] = products[productIdx].product_id;
                             // console.log(map['products_needed_c' as any]);
                         }
-                        else if (products[productIdx].name == map['products_needed_d' as any] && products[productIdx].item_num == map['item_num_4']){
+                        if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map['item_num_4']){
                             // console.log("MATCH D ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
                             map['products_needed_d' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_d' as any]);
                         }
-                        else if (products[productIdx].name == map['products_needed_e' as any] && products[productIdx].item_num == map['item_num_5']){
+                        if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map['item_num_5']){
                             //console.log("MATCH E ", products[productIdx].product_id)
-                            //console.log(products[productIdx].name);
+                            console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
                             map['products_needed_e' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_e' as any]);
                         }
-                        else if (products[productIdx].name == map['products_needed_f' as any] && products[productIdx].item_num == map['item_num_6']){
+                        if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map['item_num_6']){
                             //console.log("MATCH F ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
                             map['products_needed_f' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_f' as any]);
                         }
-                        else if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
+                        if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
                             //console.log("MATCH A ", products[productIdx].product_id);
                             console.log("PRODUCT NAME: ", products[productIdx].name);
                             console.log("PRODUCT ITEM NUMBER: ", products[productIdx].item_num);
                             //map['products_needed_a' as any] = products[productIdx].product_id;
-                            console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]);
+                            console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]); 
 
                         }
                     }

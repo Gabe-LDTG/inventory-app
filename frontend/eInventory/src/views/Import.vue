@@ -105,7 +105,7 @@ export default {
 
                 for(let i=0; i<products.length; i++){
                     let nuf = (i/this.total)*100;
-                    this.percentage = nuf.toFixed(2);
+                    this.percentage = nuf.toFixed(1);
                     await action.deleteProduct(products[i].product_id);
                 }
                 this.loading = false;
