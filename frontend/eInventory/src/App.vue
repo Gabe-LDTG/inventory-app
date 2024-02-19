@@ -2,11 +2,36 @@
 import { RouterLink, RouterView } from 'vue-router'
 </script>
 
+<script lang="ts">
+import action from "./components/utils/axiosUtils";
+export default {
+  data(){
+    return{
+      sessionUser: "",
+    }
+  },
+  created(){
+    this.getSessionUser();
+  },
+  methods:{
+    async getSessionUser(){
+      try {
+       console.log("GET SESSION USER");
+       this.sessionUser = await action.getSessionUser();
+       console.log(this.sessionUser);
+      } catch (error) {
+        console.log(error);
+      }
+    },
+  },
+}
+</script>
+
 <template>
   <header>
     <img alt="Vue logo" class="logo" src="@/assets/echapps rgb.png" width="200" height="50" />
 
-      <nav>    
+      <nav v-show="sessionUser">    
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
         <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>

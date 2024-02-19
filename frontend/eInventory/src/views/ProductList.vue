@@ -402,6 +402,7 @@ export default {
             { field: 'map', header: 'Map' },
             { field: 'meltable', header: 'Meltable?' },
             { field: 'misc_cost', header: 'Misc Cost' },
+            { field: 'unit_box_cost', header: 'Unit Box Cost'},
             { field: 'out_shipping_cost', header: 'Out-shipping Cost' },
             { field: 'price_2021', header: 'Price 2021' },
             { field: 'price_2022', header: 'Price 2022' },

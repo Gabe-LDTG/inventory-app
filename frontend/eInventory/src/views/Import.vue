@@ -116,10 +116,14 @@ export default {
         async purgeCases(event: any){
             try {
                 this.loading = true;
-                let cases = await action.getCasesIds();
+                let cases = await action.getCases();
                 console.log(cases);
 
+                this.total = cases.length;
+
                 for(let i=0; i<cases.length; i++){
+                    let nuf = (i/this.total)*100;
+                    this.percentage = nuf.toFixed(1);
                     await action.deleteCase(cases[i].case_id);
                 }
                 this.loading = false;

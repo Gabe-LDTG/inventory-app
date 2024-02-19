@@ -3,6 +3,7 @@ import{
     getUsers,
     getUserFromUsername,
     insertUser,
+    getSessionUser,
 } from "../models/AuthModel.js";
 
 import { pbkdf2, randomBytes } from 'crypto';
@@ -49,16 +50,16 @@ export async function validate(req, res){
     try {
         const data=req.body;
         const user = await getUserFromUsername(data.username);
-        console.log("USER: ", user);
+        //console.log("USER: ", user);
 
         if(user){
-            console.log(user.salt);
+            //console.log(user.salt);
 
             const hashedPass = await hash(user.salt, data.password);
             data.password = hashedPass;
     
-            console.log("TRY :", data.password);
-            console.log("CHECK :", user.password);
+            //console.log("TRY :", data.password);
+            //console.log("CHECK :", user.password);
                     
             if(data.password == user.password){
                 console.log("SUCCESS");
@@ -75,12 +76,16 @@ export async function validate(req, res){
                     })
                 });
                 //res.sendStatus(204);
-                let sessionUser = {};
-                sessionUser['id'] = req.session.user.id;
-                sessionUser['username'] = req.session.user.username;
-                res.send(sessionUser);
-                console.log("COOKIE: ",req.session.cookie);
-                console.log("SESSION: ",req.session.user.id);
+                console.log("SESSION USER ID: ", req.session.user.user_id);
+                console.log("COOKIE: ", req.session.cookie);
+                //let sessionUser = await getSessonUser();
+                //sessionUser['id'] = req.session.user.user_idid;
+                //sessionUser['username'] = req.session.user.username;
+                //res.send(sessionUser);
+                //console.log("SESSION: ",req.session.user.id);
+                if(req.session){
+                    await checkSessionUser();
+                }
             }
     
             else if (data.password != user.password){
@@ -106,6 +111,25 @@ export async function validate(req, res){
     }
 };
 
+export async function checkSessionUser(req, res) {
+    try {
+        console.log("SESSION USER ID: ", req.session.user.user_id);
+      if(!req.session)
+        throw new Error('Tried to get user but no session.')
+  
+      const user = await getSessionUser(req.session.user.user_id);
+      if(!user)
+        throw new Error('Tried to get user from session but they don\'t exist!');
+
+      console.log("SESSION USER IN FUNCTION",user);
+      res.json(user);
+  
+    } catch(err) {
+      console.error('Error getting user:', err);
+      res.status(403).send('Not logged in');
+    }
+  }
+
 export function getSalt(){
     return randomBytes(128).toString('hex');
 };
@@ -119,5 +143,9 @@ export async function hash(salt, password) {
           return res(data.toString('hex'));
       });
     });
+  };
+
+  export async function endSession(){
+
   };
 

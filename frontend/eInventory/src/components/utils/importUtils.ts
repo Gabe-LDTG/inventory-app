@@ -22,11 +22,11 @@ var importAction = {
         }
 
         else if(fileType == 'Processed Product List'){
-            fileData = await this.ProcessedProductListParse(fileUp);
+            fileData = await this.ProcessedProductListParse(fileUp, products);
         }
 
         else if(fileType == 'Unprocessed Product List'){
-            fileData = await this.UnprocessedProductListParse(fileUp);
+            fileData = await this.UnprocessedProductListParse(fileUp, products);
         }
 
         console.log("FILE DATA: ", fileData);
@@ -120,7 +120,7 @@ var importAction = {
                     map['meltable' as any] = results.data[dataIdx]['Meltable?'];
 
                     if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
-                        console.log(results.data[dataIdx]['Products needed A']);
+                        //console.log(results.data[dataIdx]['Products needed A']);
                         map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
                     }
                     
@@ -176,6 +176,7 @@ var importAction = {
                     map['total_cost' as any] = results.data[dataIdx]['Total Cost'];
                     map['total_holiday_cost' as any] = results.data[dataIdx]['Total Holiday Cost'];
                     map['notes' as any] = results.data[dataIdx]['Notes'];
+                    map['unit_box_cost' as any] = results.data[dataIdx]['Unit Box Cost'];
 
                     //console.log(map);
                     //console.log(map['products_needed_a' as any]);
@@ -220,7 +221,7 @@ var importAction = {
                         }
                         if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map['item_num_5']){
                             //console.log("MATCH E ", products[productIdx].product_id)
-                            console.log(products[productIdx].name);
+                            //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
                             map['products_needed_e' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_e' as any]);
@@ -234,15 +235,17 @@ var importAction = {
                         }
                         if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
                             //console.log("MATCH A ", products[productIdx].product_id);
-                            console.log("PRODUCT NAME: ", products[productIdx].name);
-                            console.log("PRODUCT ITEM NUMBER: ", products[productIdx].item_num);
+                            //console.log("PRODUCT NAME: ", products[productIdx].name);
+                            //console.log("PRODUCT ITEM NUMBER: ", products[productIdx].item_num);
                             //map['products_needed_a' as any] = products[productIdx].product_id;
-                            console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]); 
+                            //console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]); 
 
                         }
                     }
                     
-                    await action.addProduct(map);
+                    if (map['name' as any]){
+                        await action.addProduct(map);
+                    }
 
                     //console.log(map.name);
                     content.push(map); 
@@ -363,11 +366,11 @@ var importAction = {
         });
     },
 
-    async ProcessedProductListParse(file: any){
+    async ProcessedProductListParse(file: any, products: any){
         console.log(file);
         return Papa.parse(file, {
             header: true,
-            complete: function( results: any){
+            complete: async function( results: any){
                 console.log(results);
                 
                 console.log(results.data[0]);
@@ -381,57 +384,14 @@ var importAction = {
 
                 let keys = Object.keys(results.data[0])
 
+                let totalCount = 0;
+
                 
                 //results.data.length
                 for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [] as any[];
-
-                    /* map['name' as any] = "";
-                    map['item_num' as any] = "";
-                    map['vendor' as any] = "";	
-                    map['weight_lbs' as any] = "";
-                    map['box_type' as any] = "";
-                    map['box_cost' as any] = "";
-                    map['bag_size' as any] = "";
-                    map['bag_cost' as any] = "";
-                    map['price_2021' as any] = "";
-                    map['price_2022' as any] = "";
-                    map['price_2023' as any] = "";
-                    map['notes' as any] = "";
-                    map['date_added' as any] = "";
-                    map['upc' as any] = "";
-                    map['fnsku' as any] = "";
-                    map['asin' as any] = "";
-                    map['do_we_carry' as any] = "";
-                    map['process_time_per_unit_sec' as any] = "";
-                    map['meltable' as any] = "";
-                    map['map' as any] = "";
-                    map['in_shipping_cost' as any] = "";
-                    map['out_shipping_cost' as any] = "";
-                    map['labor_cost' as any] = "";
-                    map['item_cost' as any] = "";
-                    map['misc_cost' as any] = "";
-                    map['amz_fees_cost' as any] = "";
-                    map['amz_fulfilment_cost' as any] = "";
-                    map['30_day_storage_cost' as any] = "";
-                    map['holiday_storage_cost' as any] = "";
-                    map['total_cost' as any] = "";
-                    map['total_holiday_cost' as any] = "";
-                    map['products_needed_a' as any] = "";
-                    map['qty_1' as any] = "";
-                    map['products_needed_b' as any] = "";
-                    map['qty_2' as any] = "";
-                    map['products_needed_c' as any] = "";
-                    map['qty_3' as any] = "";
-                    map['products_needed_d' as any] = "";
-                    map['qty_4' as any] = "";
-                    map['products_needed_e' as any] = "";
-                    map['qty_5' as any] = "";
-                    map['products_needed_f' as any] = "";
-                    map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; */
 
                     map['status' as any] = results.data[dataIdx]['Status'];
                     map['location' as any] = results.data[dataIdx]['Location'];
@@ -441,39 +401,58 @@ var importAction = {
                     map['name' as any] = results.data[dataIdx]['Description'];
                     map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
                     map['notes' as any] = results.data[dataIdx]['Notes'];
-                    map['default_units_per_case' as any] = results.data[dataIdx]['Units per case'];
-                    map['number_of_case' as any] = results.data[dataIdx]['Number of cases'];
+                    map['units_per_case' as any] = results.data[dataIdx]['Units per case'];
+                    map['number_of_cases' as any] = results.data[dataIdx]['Number of cases'];
                     map['total_units' as any] = results.data[dataIdx]['Total Units'];
                     map['cost' as any] = results.data[dataIdx]['Cost'];
                     map['total' as any] = results.data[dataIdx]['Total'];
                     map['weight_lbs' as any] = results.data[dataIdx]['Weight (lbs)'];
                     map['box_type' as any] = results.data[dataIdx]['Box type'];
                     map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
+
+                    //console.log(map['number_of_cases']);
+
+                    //totalCount += map['number_of_cases'];
         
                     for(let caseIdx = 0; caseIdx<map['number_of_cases']; caseIdx++){
-                        
+                        content.push(map); 
                     }
-                    
-                    content.push(map); 
                 }
 
                 console.log("RESULTS: ", results);
                 console.log("RESULTS LENGTH: ", results.data.length);
-                console.log(Object.keys(content[0]).length)
+                //console.log(Object.keys(content[0]).length)
                 console.log("CONTENT: ", content);
                 console.log("CONTENT LENGTH:", content.length);
+                //console.log("TOTAL COUNT: ", totalCount);
 
+                let importContent = [];
+
+                for (let contentIdx = 0; contentIdx < content.length; contentIdx++) {
+                    //console.log(content[contentIdx].name);
+
+                    for (let productIdx = 0; productIdx<products.length; productIdx++){
+                        if (products[productIdx].fnsku == content[contentIdx].fnsku){
+                            //console.log(products[productIdx].name);
+                            content[contentIdx]['product_id'] = products[productIdx].product_id;
+                            await action.addCase(content[contentIdx]);
+                            break;
+                        }
+                    }       
+                }
+
+                console.log("CONTENT AFTER LOOP: ", content);
                 console.log("DATA IMPORTED");
                 return content;
             }.bind(this)
         });
     },
 
-    async UnprocessedProductListParse(file: any){
+    async UnprocessedProductListParse(file: any, products: any){
         console.log(file);
         return Papa.parse(file, {
             header: true,
-            complete: function( results: any){
+            complete: async function( results: any){
                 console.log(results);
                 
                 console.log(results.data[0]);
@@ -494,76 +473,47 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [] as any[];
 
-                    /* map['name' as any] = "";
-                    map['item_num' as any] = "";
-                    map['vendor' as any] = "";	
-                    map['weight_lbs' as any] = "";
-                    map['box_type' as any] = "";
-                    map['box_cost' as any] = "";
-                    map['bag_size' as any] = "";
-                    map['bag_cost' as any] = "";
-                    map['price_2021' as any] = "";
-                    map['price_2022' as any] = "";
-                    map['price_2023' as any] = "";
-                    map['notes' as any] = "";
-                    map['date_added' as any] = "";
-                    map['upc' as any] = "";
-                    map['fnsku' as any] = "";
-                    map['asin' as any] = "";
-                    map['do_we_carry' as any] = "";
-                    map['process_time_per_unit_sec' as any] = "";
-                    map['meltable' as any] = "";
-                    map['map' as any] = "";
-                    map['in_shipping_cost' as any] = "";
-                    map['out_shipping_cost' as any] = "";
-                    map['labor_cost' as any] = "";
-                    map['item_cost' as any] = "";
-                    map['misc_cost' as any] = "";
-                    map['amz_fees_cost' as any] = "";
-                    map['amz_fulfilment_cost' as any] = "";
-                    map['30_day_storage_cost' as any] = "";
-                    map['holiday_storage_cost' as any] = "";
-                    map['total_cost' as any] = "";
-                    map['total_holiday_cost' as any] = "";
-                    map['products_needed_a' as any] = "";
-                    map['qty_1' as any] = "";
-                    map['products_needed_b' as any] = "";
-                    map['qty_2' as any] = "";
-                    map['products_needed_c' as any] = "";
-                    map['qty_3' as any] = "";
-                    map['products_needed_d' as any] = "";
-                    map['qty_4' as any] = "";
-                    map['products_needed_e' as any] = "";
-                    map['qty_5' as any] = "";
-                    map['products_needed_f' as any] = "";
-                    map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; */
-
                     map['status' as any] = results.data[dataIdx]['Status'];
                     map['location' as any] = results.data[dataIdx]['Location'];
                     map['space' as any] = results.data[dataIdx]['Space'];
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['description' as any] = results.data[dataIdx]['Description'];
                     map['notes' as any] = results.data[dataIdx]['Notes'];
-                    map['default_units_per_case' as any] = results.data[dataIdx]['Units Per Case'];
-                    map['number_of_cases' as any] = results.data[dataIdx]['Number of Cases'];
+                    map['units_per_case' as any] = results.data[dataIdx]['Units Per Case'];
+                    map['number_of_cases' as any] = results.data[dataIdx]['Number of cases'];
                     map['total_units' as any] = results.data[dataIdx]['Total Units'];
                     map['cost' as any] = results.data[dataIdx]['Cost'];
                     map['total' as any] = results.data[dataIdx]['Total'];
+
+                    console.log(map['number_of_cases']);
                     
                     for(let caseIdx = 0; caseIdx<map['number_of_cases']; caseIdx++){
-                        
+                        content.push(map); 
                     }
-
-                    content.push(map);
-                    
                 }
 
                 console.log("RESULTS: ", results);
                 console.log("RESULTS LENGTH: ", results.data.length);
-                console.log(Object.keys(content[0]).length)
+                //console.log(Object.keys(content[0]).length)
                 console.log("CONTENT: ", content);
                 console.log("CONTENT LENGTH:", content.length);
+
+                for (let contentIdx = 0; contentIdx < content.length; contentIdx++) {
+                    //console.log(content[contentIdx].name);
+
+                    for (let productIdx = 0; productIdx<products.length; productIdx++){
+                        if (products[productIdx].name.toLowerCase() == content[contentIdx].description.toLowerCase()){
+                            //console.log(products[productIdx].name);
+                            content[contentIdx]['product_id'] = products[productIdx].product_id;
+                            await action.addCase(content[contentIdx]);
+                            break;
+                        }
+                        
+                    }  
+                    if (!content[contentIdx]['product_id']){
+                        console.log("PRODUCT WITHOUT ID: ",content[contentIdx].description);
+                    }     
+                }
 
                 console.log("DATA IMPORTED")
 

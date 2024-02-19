@@ -34,6 +34,7 @@
                 </template>
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                <Column field="status" header="Status" sortable></Column>
                 <Column field="name" header="Name" sortable></Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="location" header="Location" sortable></Column>
@@ -89,6 +90,11 @@
             <div class="field">
                 <label for="date_revieved"> Date Recieved: </label>
                 <Calendar id="date_revieved" dateFormat="yy/mm/dd" v-model="eCase.date_recieved"/>
+            </div>
+
+            <div class="field">
+                <label></label>
+                <InputText id="status" v-model="eCase.status" rows="3" cols="20" />
             </div>
 
             <template #footer>

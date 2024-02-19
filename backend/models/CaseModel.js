@@ -23,7 +23,7 @@ export async function getCasesById(){
 //get all processed cases (All processed cases should have a fnsku or asin and should not have a upc)
 export async function getCasesByType(processed){
     //DATE_FORMAT(cases.date_recieved, "%m %d %Y")
-    return db.query("SELECT cases.case_id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, cases.location, products.name FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc)).then(([results, fields])=>results);
+    return db.query("SELECT cases.case_id, cases.units_per_case, cases.date_recieved, cases.notes, cases.product_id, cases.location, cases.status, products.name FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc)).then(([results, fields])=>results);
 }
 
 /* //get all unprocessed cases (all unprocessed cases should have UPC (or maybe item num))
@@ -35,14 +35,14 @@ export async function getUnprocCases(){
 export async function insertCase(data){
     //console.log(data);
     //console.log(data.product_id);
-    return db.query("INSERT INTO cases (product_id, units_per_case, location, notes, date_recieved) VALUES (?, ?, ?, ?, ?)",[data.product_id, data.units_per_case, data.location, data.notes, data.date_recieved]).then(([results, fields])=>results);
+    return db.query("INSERT INTO cases (product_id, units_per_case, location, notes, date_recieved, status) VALUES (?, ?, ?, ?, ?, ?)",[data.product_id, data.units_per_case, data.location, data.notes, data.date_recieved, data.status]).then(([results, fields])=>results);
 }
 
 // Update Case to Database
 export async function updateCaseById(data, id){
     //console.log("_________________________________________________")
     //console.log(data);
-    return db.query("UPDATE cases SET product_id = ?, units_per_case = ?, location = ?, notes = ?, date_recieved = ? WHERE case_id = ?",[data.product_id, data.units_per_case, data.location, data.notes, data.date_recieved, id]).then(([results, fields])=>results);
+    return db.query("UPDATE cases SET product_id = ?, units_per_case = ?, location = ?, notes = ?, date_recieved = ?, status = ? WHERE case_id = ?",[data.product_id, data.units_per_case, data.location, data.notes, data.date_recieved, data.status, id]).then(([results, fields])=>results);
 }
 
 //Delete Case from Database

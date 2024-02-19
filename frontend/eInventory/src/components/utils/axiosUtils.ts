@@ -38,6 +38,22 @@ var action = {
         });
     },
 
+    async getSessionUser(){
+        let sessionUser;
+            
+        return axios.get("http://localhost:5000/sessionUser",{
+            withCredentials: true, // Now this is was the missing piece in the client side 
+          }).then(res => {
+            console.log(res.data);
+            sessionUser = res.data;
+            //console.log(sessionUser);
+            return sessionUser;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
@@ -145,7 +161,8 @@ var action = {
             total_cost: p.total_cost,
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,
-            weight_lbs: p.weight_lbs
+            weight_lbs: p.weight_lbs,
+            unit_box_cost: p.unit_box_cost,
 
             }).then((res) => {
                 //location.reload();
@@ -263,7 +280,8 @@ var action = {
             total_cost: p.total_cost,
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,
-            weight_lbs: p.weight_lbs
+            weight_lbs: p.weight_lbs,
+            unit_box_cost: p.unit_box_cost,
 
         }).then((res) => {
             //location.reload();
@@ -351,6 +369,7 @@ var action = {
             location: c.location,
             notes: c.notes,
             date_recieved: c.date_recieved,
+            status: c.status,
         }).then((res) => {
             //location.reload();
             //this.refreshData();
@@ -362,7 +381,7 @@ var action = {
 
     //
     async deleteCase(id: string){
-        console.log(id);
+        //console.log(id);
         //if(confirm("Do you really want to delete?")){
         return axios.delete("http://localhost:5000/cases/"+id)
         .catch(error => {
@@ -382,6 +401,7 @@ var action = {
             location: c.location,
             notes: c.notes,
             date_recieved: c.date_recieved,
+            status: c.status,
 
         }).then((res) => {
             //console.log(product_id);

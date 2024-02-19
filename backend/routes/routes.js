@@ -26,6 +26,7 @@ import {
     showUsers,
     createUser,
     validate,
+    checkSessionUser,
 } from "../controllers/authentication.js";
 
 //init express router
@@ -39,7 +40,10 @@ router.get("/users",showUsers);
 router.post('/users/create', createUser);
 
 //validates a password
-router.post('/users/validate', validate)
+router.post('/users/validate', validate);
+
+//get the user with the Session Id
+router.get('/sessionUser', checkSessionUser);
 
 //IMPORT PRODUCTS
 
