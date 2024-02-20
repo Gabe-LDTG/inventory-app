@@ -14,6 +14,7 @@ import '/node_modules/primeflex/primeflex.css';
 
 import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
+import Card from 'primevue/card';
 import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
 import DataTable from 'primevue/datatable';
@@ -48,6 +49,7 @@ axios.defaults.withCredentials = true;
 //PRIME VUE COMPONENTS
 app.component('Button', Button);
 app.component('Calendar', Calendar);
+app.component('Card', Card);
 app.component('Column', Column);
 app.component('ColumnGroup', ColumnGroup);
 app.component('DataTable', DataTable);

@@ -41,13 +41,21 @@ var action = {
     async getSessionUser(){
         let sessionUser;
             
-        return axios.get("http://localhost:5000/sessionUser",{
-            withCredentials: true, // Now this is was the missing piece in the client side 
-          }).then(res => {
+        return axios.get("http://localhost:5000/sessionUser").then(res => {
             console.log(res.data);
             sessionUser = res.data;
             //console.log(sessionUser);
             return sessionUser;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    async logOut(){
+        return axios.post("http://localhost:5000/logout").then(res => {
+            console.log(res);
+            return res;
         }).catch(error => {
             console.log(error);
             throw error;
@@ -237,7 +245,7 @@ var action = {
         console.log(value.upc);
         console.log(value.notes); */
         console.log("PRODUCTS NEEDED A ",p.products_needed_a);
-        return axios.put("http://localhost:5000/products/"+p.id, {
+        return axios.put("http://localhost:5000/products/"+p.product_id, {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -340,7 +348,7 @@ var action = {
             if(cases){
                 console.log(cases);
 
-                console.log(cases[0].date_recieved);
+                //console.log(cases[0].date_recieved);
             }
 
             console.log('TESTING-------------------')
@@ -395,7 +403,7 @@ var action = {
     //
     async editCase(c: any){
 
-        return axios.put("http://localhost:5000/cases/"+c.id, {
+        return axios.put("http://localhost:5000/cases/"+c.case_id, {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
             location: c.location,

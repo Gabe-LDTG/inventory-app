@@ -84,7 +84,9 @@ export async function validate(req, res){
                 //res.send(sessionUser);
                 //console.log("SESSION: ",req.session.user.id);
                 if(req.session){
-                    await checkSessionUser();
+                    //await checkSessionUser();
+                    res.sendStatus(200);
+                    console.log("SESSION EXISTS");
                 }
             }
     
@@ -113,7 +115,7 @@ export async function validate(req, res){
 
 export async function checkSessionUser(req, res) {
     try {
-        console.log("SESSION USER ID: ", req.session.user.user_id);
+        console.log("SESSION USER ID: ", req.session.user);
       if(!req.session)
         throw new Error('Tried to get user but no session.')
   
@@ -145,7 +147,22 @@ export async function hash(salt, password) {
     });
   };
 
-  export async function endSession(){
+export async function endSession(req, res, next){
+    // logout logic
 
-  };
+  // clear the user from the session object and save.
+  // this will ensure that re-using the old session id
+  // does not have a logged in user
+  req.session.user = null
+  req.session.save(function (err) {
+    if (err) next(err)
+
+    // regenerate the session, which is good practice to help
+    // guard against forms of session fixation
+    req.session.regenerate(function (err) {
+      if (err) next(err)
+      return res;
+    })
+  })
+};
 

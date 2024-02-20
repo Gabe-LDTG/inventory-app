@@ -18,7 +18,7 @@ export async function getPasswordFromUsername(username){
 
 //get the user based on the session user id
 export async function getSessionUser(userId){
-    return db.query("SELECT * FROM users WHERE user_id = ? LIMIT 1",[userId]).then(([results, fields])=>results[0]);
+    return db.query("SELECT username, user_id FROM users WHERE user_id = ? LIMIT 1",[userId]).then(([results, fields])=>results[0]);
 }
 
 //insert user to database

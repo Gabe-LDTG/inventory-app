@@ -27,6 +27,7 @@ import {
     createUser,
     validate,
     checkSessionUser,
+    endSession,
 } from "../controllers/authentication.js";
 
 //init express router
@@ -44,6 +45,9 @@ router.post('/users/validate', validate);
 
 //get the user with the Session Id
 router.get('/sessionUser', checkSessionUser);
+
+//log out the user
+router.post('/logout', endSession);
 
 //IMPORT PRODUCTS
 

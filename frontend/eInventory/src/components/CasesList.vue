@@ -19,6 +19,7 @@
                 :selectAll="false"
                 removableSort
                 showGridlines
+                :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
@@ -54,11 +55,38 @@
             <div class="field">
                 <label for="name">Name:</label>
                 <Dropdown v-model="eCase.product_id" required="true" 
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
+                placeholder="Select a Product" class="md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
+                filter
                 optionValue="product_id"
-                :class="{'p-invalid': submitted && !eCase.product_id}" />
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                :class="{'p-invalid': submitted && !eCase.product_id}" 
+                :pt="{
+                    root: { class: 'w-full max-width: 120rem' },
+                    item: ({ props, state, context }) => ({
+                        class: context.selected ? 'bg-primary' : context.focused ? 'bg-blue-100' : undefined
+                    })
+                }"
+                >
+
+                <template #value="slotProps">
+                        <div v-if="slotProps.value" class="flex align-items-center">
+                            <div>{{ slotProps.value.product_id }}</div>
+                        </div>
+                        <span v-else>
+                            {{ slotProps.placeholder }}
+                        </span>
+                    </template>
+                    <template #option="slotProps">
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                        </div>
+                        <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                        </div>
+                    </template>
+                </Dropdown>
                 <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
             </div>
 
@@ -93,7 +121,7 @@
             </div>
 
             <div class="field">
-                <label></label>
+                <label>Status:</label>
                 <InputText id="status" v-model="eCase.status" rows="3" cols="20" />
             </div>
 
@@ -136,6 +164,7 @@ import action from "../components/utils/axiosUtils";
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
+
 export default {
     props: {
         displayValue: String,
@@ -164,7 +193,8 @@ export default {
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
-            ]
+            ],
+            //displayLabel: this.products.name + '' + this.products.fnsku,
         }
     },
     created() {

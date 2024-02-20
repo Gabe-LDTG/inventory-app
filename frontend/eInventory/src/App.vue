@@ -19,8 +19,15 @@ export default {
        console.log("GET SESSION USER");
        this.sessionUser = await action.getSessionUser();
        console.log(this.sessionUser);
+       if(this.sessionUser){
+        this.$router.push('/Home');
+       }
+       else if(!this.sessionUser){
+        this.$router.push('/');
+       }
       } catch (error) {
         console.log(error);
+        this.$router.push('/');
       }
     },
   },

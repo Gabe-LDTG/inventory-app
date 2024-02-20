@@ -20,7 +20,7 @@
                 removableSort
                 showGridlines
                 stripedRows
-                
+                :virtualScrollerOptions="{ itemSize: 46 }"
                 :rowStyle="rowStyle"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -196,6 +196,8 @@
                 <Dropdown v-model="product.products_needed_a" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
                 optionValue="product_id" />
             </div>
@@ -212,6 +214,8 @@
                 <Dropdown v-model="product.products_needed_b" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
                 optionValue="product_id" />
             </div>
@@ -227,6 +231,8 @@
                 <Dropdown v-model="product.products_needed_c" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
                 optionValue="product_id" />
             </div>
@@ -242,6 +248,8 @@
                 <Dropdown v-model="product.products_needed_d"
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
                 optionValue="product_id" />
             </div>
@@ -257,6 +265,8 @@
                 <Dropdown v-model="product.products_needed_e" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
                 :options="products"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
                 optionValue="product_id" />
             </div>
@@ -271,9 +281,26 @@
                 <label for="products_needed_f">Products needed F</label>
                 <Dropdown v-model="product.products_needed_f"  
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
-                optionValue="product_id" />
+                optionValue="product_id" > 
+
+                <template #value="slotProps">
+                        <div v-if="slotProps.value" class="flex align-items-center">
+                            <div>{{ slotProps.value.product_id }}</div>
+                        </div>
+                        <span v-else>
+                            {{ slotProps.placeholder }}
+                        </span>
+                    </template>
+                    <template #option="slotProps">
+                        <div v-if="!slotProps.option.fnsku || !slotProps.option.asin" class="flex align-items-center">
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                        </div>
+                    </template>
+                </Dropdown>
             </div>
 
             <div class="field">
@@ -310,6 +337,7 @@
         </Dialog>
 
         <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
+            <Button label="Toggle Filter" @click="filtered = !filtered;"/>
             <div v-for="(item, index) in product">
                 <label>{{ index }}: </label><br>
                 {{ item }} <br><br>
@@ -373,6 +401,10 @@ export default {
             working: false,
             loading: false,
 
+            filtered: false,
+
+            unprocProducts: [],
+
         }
     },
     created() {
@@ -431,6 +463,7 @@ export default {
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
         this.getProducts();
+        this.getUnprocessedProducts();
         //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
 
@@ -446,6 +479,14 @@ export default {
         async getProducts(){
             try {
                 this.products = await action.getProducts();
+            } catch (err) {
+                console.log(err);
+            }
+        },
+
+        async getUnprocessedProducts(){
+            try {
+                this.unprocProducts = await action.getUnprocProducts();
             } catch (err) {
                 console.log(err);
             }
@@ -545,7 +586,8 @@ export default {
             let keys = Object.keys(this.product);
             let map = {};
 
-            keys.forEach((key) => {
+            if(this.filtered == false){
+                keys.forEach((key) => {
                 //console.log(`${key}: ${this.product[key]}`);
                 for (let j = 0; j<this.columns.length; j++){
                     if (key==this.columns[j].field){
@@ -554,6 +596,20 @@ export default {
                     }
                 }
             });
+            }
+
+            else if(this.filtered == true){
+                keys.forEach((key) => {
+                //console.log(`${key}: ${this.product[key]}`);
+                for (let j = 0; j<this.columns.length; j++){
+                    if (key==this.columns[j].field && this.product[key]){
+                        //console.log(this.columns[j].header);
+                        map[this.columns[j].header] = this.product[key];
+                    }
+                }
+            });
+            }
+            
             console.log(map);
             this.product = map;
             this.productInfoDialog = true;
