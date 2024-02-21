@@ -20,7 +20,7 @@
                 removableSort
                 showGridlines
                 :virtualScrollerOptions="{ itemSize: 46 }"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -317,7 +317,7 @@ export default {
                 console.log("NEW CASE", this.eCase);
 
                 for(let i = 0; i < this.amount; i++){
-                    action.addCase(this.eCase);
+                    await action.addCase(this.eCase);
                     console.log("LOOP CASE ",this.eCase);
                 }
                 //Had to regrab the list of cases because of weird formatting.

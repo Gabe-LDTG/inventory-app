@@ -15,14 +15,14 @@
             </Toolbar>
 
             <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="product_id"
-                :paginator="true" :rows="10" :filters="filters"
+                :paginator="true" :rows="100" :filters="filters"
                 :selectAll="false"
                 removableSort
                 showGridlines
                 stripedRows
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 :rowStyle="rowStyle"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25]"
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -195,7 +195,7 @@
                 <label for="products_needed_a">Products needed A</label>
                 <Dropdown v-model="product.products_needed_a" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
@@ -213,7 +213,7 @@
                 <label for="products_needed_a">Products needed B</label>
                 <Dropdown v-model="product.products_needed_b" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
@@ -230,7 +230,7 @@
                 <label for="products_needed_c">Products needed C</label>
                 <Dropdown v-model="product.products_needed_c" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
@@ -247,7 +247,7 @@
                 <label for="products_needed_d">Products needed D</label>
                 <Dropdown v-model="product.products_needed_d"
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"
@@ -264,7 +264,7 @@
                 <label for="products_needed_e">Products needed E</label>
                 <Dropdown v-model="product.products_needed_e" 
                 placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="products"
+                :options="unprocProducts"
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="name"

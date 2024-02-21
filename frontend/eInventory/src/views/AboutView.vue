@@ -1,4 +1,5 @@
 <template>
+  <Toast />
     <Card class="flex justify-content-center w-16rem m-3 border-round">
         <template #title>Logout or Add User</template>
         <template #content>
@@ -68,11 +69,11 @@ methods:{
             if(this.input.username && this.input.password && this.input.retypePassword && this.input.password == this.input.retypePassword){
                 console.log(this.input);
 
-                //action.addUser(this.input);
+                action.addUser(this.input);
                 this.input.password = "";
                 this.input.username = "";
                 this.input.retypePassword = "";
-
+                this.$toast.add({severity:'success', summary: 'User Added!', life: 3000});
                 this.showDialog = false;
                 this.submitted = false;
             }
