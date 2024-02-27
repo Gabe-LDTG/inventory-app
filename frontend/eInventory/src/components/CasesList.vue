@@ -19,6 +19,9 @@
                 :selectAll="false"
                 removableSort
                 showGridlines
+                stripedRows
+                sortMode="single" sortField="name"
+                rowGroupMode="subheader" groupRowsBy="name"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -32,6 +35,14 @@
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
                         </span>
 					</div>
+                </template>
+
+                <template #groupheader="slotProps">
+                    <div class="flex align-items-center gap-2" style="background-color:#ddd;">
+                        <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                        <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
+                        <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
+                    </div>
                 </template>
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
@@ -177,6 +188,7 @@ export default {
             deleteCasesDialog: false,
             eCase: {} as any,
             selectedCases: null,
+            expandedRowGroups: [] as any,
 
             products: [] as any[],
             //productDialog: false,
@@ -422,7 +434,35 @@ export default {
                 default:
                     return null;
             }
-        }
+        },
+        calculateBoxTotal(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total++;
+                    }
+                }
+            }
+
+            return total;
+        },
+        calculateTotalQTY(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total += c.units_per_case;
+                        //console.log(c.units_per_case);
+                        //console.log(total + c.units_per_case);
+                    }
+                }
+            }
+
+            return total;
+        },
     }
 }
 </script>
