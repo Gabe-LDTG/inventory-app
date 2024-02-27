@@ -20,6 +20,8 @@
                 removableSort
                 showGridlines
                 stripedRows
+                :loading="loading"
+                :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 :rowStyle="rowStyle"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
@@ -34,7 +36,47 @@
 					</div>
                 </template>
 
+                <template #loading> Loading product data. Please wait. </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+
+                <Column expander style="width: 5rem" @click="console.log('TESTING')"/>
+
+                <template #expansion="slotProps">
+                    <div class="p-3">
+                        <h3>Recipe for {{ slotProps.data.name }}</h3>
+                        <div v-if="slotProps.data.fnsku || slotProps.data.asin">
+                            PROCESSED
+                            <div v-show="slotProps.data.products_needed_a">
+                                <h4 class="font-bold">Product(s) Needed A: </h4> <h4>{{ findProductName(slotProps.data.products_needed_a) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_1 }}</p><br>
+                            </div>
+                            <div v-show="slotProps.data.products_needed_b">
+                                <h4 class="font-bold">Product(s) Needed B: </h4> <h4>{{ findProductName(slotProps.data.products_needed_b) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_2 }}</p><br>
+                            </div>
+                            <div v-show="slotProps.data.products_needed_c">
+                                <h4 class="font-bold">Product(s) Needed C: </h4> <h4>{{ findProductName(slotProps.data.products_needed_c) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_3 }}</p><br>
+                            </div>
+                            <div v-show="slotProps.data.products_needed_d">
+                                <h4 class="font-bold">Product(s) Needed D: </h4> <h4>{{ findProductName(slotProps.data.products_needed_d) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_4 }}</p><br>
+                            </div>
+                            <div v-show="slotProps.data.products_needed_e">
+                                <h4 class="font-bold">Product(s) Needed E: </h4> <h4>{{ findProductName(slotProps.data.products_needed_e) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_5 }}</p><br>
+                            </div>
+                            <div v-show="slotProps.data.products_needed_f">
+                                <h4 class="font-bold">Product(s) Needed F: </h4> <h4>{{ findProductName(slotProps.data.products_needed_f) }}</h4>
+                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_6 }}</p>
+                            </div>
+                        </div>
+                        <div v-else-if="!slotProps.data.fnsku && !slotProps.data.asin">
+                            This item is raw and has no recipe.
+                        </div>
+                    </div>
+                </template>
+
                 <Column field="name" header="Name" sortable></Column>
                 <Column field="asin" header="ASIN" sortable></Column>
                 <Column field="fnsku" header="FNSKU" sortable></Column>
@@ -404,6 +446,8 @@ export default {
             filtered: false,
 
             unprocProducts: [],
+            expandedRows: [],
+            recipeProducts:[],
 
         }
     },
@@ -440,7 +484,7 @@ export default {
             { field: 'price_2022', header: 'Price 2022' },
             { field: 'price_2023', header: 'Price 2023' },
             { field: 'process_time_per_unit_sec', header: 'Process Time per Unit Sec' },
-            { field: 'products_needed_a', header: 'Products needed A'},
+            /* { field: 'products_needed_a', header: 'Products needed A'},
             { field: 'products_needed_b', header: 'Products needed B'},
             { field: 'products_needed_c', header: 'Products needed C'},
             { field: 'products_needed_d', header: 'Products needed D'},
@@ -451,7 +495,7 @@ export default {
             { field: 'qty_3', header: 'Quantity #3'},
             { field: 'qty_4', header: 'Quantity #4'},
             { field: 'qty_5', header: 'Quantity #5'},
-            { field: 'qty_6', header: 'Quantity #6'},
+            { field: 'qty_6', header: 'Quantity #6'}, */
             { field: 'total_cost', header: 'Total Cost'},
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
             { field: 'vendor', header: 'Vendor' },
@@ -478,7 +522,9 @@ export default {
 
         async getProducts(){
             try {
+                this.loading = true;
                 this.products = await action.getProducts();
+                this.loading = false;
             } catch (err) {
                 console.log(err);
             }
@@ -741,6 +787,35 @@ export default {
         },
         parseFile(){
             this.loading = true;
+        },
+        onRowExpand(event) {
+            this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
+            
+            let map = [] as any[];
+            let recipe = [] as any[];
+            this.recipeProducts = [];
+
+            for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
+                if(event.data.products_needed_a == this.products[prodIdx].product_id){
+                    map['product_needed'] = this.products[prodIdx].name;
+                    map['qty'] = event.data.qty_1;
+                    this.recipeProducts.push(map);
+                    recipe.push(map);
+                }
+
+            }
+
+            return recipe;
+        },
+        findProductName(id: number){
+            let name = "";
+            for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
+                if(id == this.products[prodIdx].product_id){
+                    name = this.products[prodIdx].name;
+                    break;
+                }
+            }
+            return name;
         },
     }
 }

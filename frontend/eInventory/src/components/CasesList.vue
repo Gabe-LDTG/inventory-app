@@ -19,6 +19,13 @@
                 :selectAll="false"
                 removableSort
                 showGridlines
+                stripedRows
+                :loading="loading"
+                @rowgroup-expand="onRowGroupExpand"
+                :expandedRows="expandedRows"
+                sortMode="single" sortField="name"
+                
+                rowGroupMode="subheader" groupRowsBy="name"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -34,9 +41,20 @@
 					</div>
                 </template>
 
+                <template #loading> Loading product data. Please wait. </template>
+
+                <template #groupheader="slotProps">
+                    <div class="flex align-items-center gap-2" style="background-color:#ddd;">
+                        <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                        <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
+                        <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
+                    </div>
+                </template>
+
+                <Column field="name" header="Name" sortable></Column>
+
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
                 <Column field="status" header="Status" sortable></Column>
-                <Column field="name" header="Name" sortable></Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="location" header="Location" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
@@ -177,6 +195,9 @@ export default {
             deleteCasesDialog: false,
             eCase: {} as any,
             selectedCases: null,
+            //expandedRowGroups: [] as any,
+            expandedRowGroups: null,
+            expandedRows: [],
 
             products: [] as any[],
             //productDialog: false,
@@ -187,6 +208,8 @@ export default {
 
             amount: 1,
 
+            loading: false,
+
             filters: {} as any,
             submitted: false,
             statuses: [
@@ -194,6 +217,15 @@ export default {
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
             ],
+
+            /* filters: {
+                global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+                name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+                'country.name': { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+                representative: { value: null, matchMode: FilterMatchMode.IN },
+                status: { value: null, matchMode: FilterMatchMode.EQUALS },
+                verified: { value: null, matchMode: FilterMatchMode.EQUALS }
+            }, */
             //displayLabel: this.products.name + '' + this.products.fnsku,
         }
     },
@@ -209,43 +241,62 @@ export default {
         //console.log("CASES",this.cases);
     },
     methods: {
-        displayController(value: string){
+        async displayController(value: string){
+            this.loading = true;
             if(value == 'processed'){
                 console.log('Processed');
-                this.getProcProducts();
-                this.getProcCases();
+                await this.getProcProducts();
+                await this.getProcCases();
 
             }
             else if(value == 'unprocessed'){
                 console.log('Unprocessed');
-                this.getUnprocProducts();
-                this.getUnprocCases();
+                await this.getUnprocProducts();
+                await this.getUnprocCases();
             }
+            this.loading = false;
+            console.log(this.loading);
         },
 
         //Pulls all the products from the database using API
-        getProcProducts(){
-            action.getProcProducts().then(data => {
-                this.products = data;
-            });
+        async getProcProducts(){
+            try {
+                this.loading = true;
+                this.products = await action.getProcProducts();
+                this.loading = false;
+            } catch (err) {
+                console.log(err);
+            }
         },
 
-        getProcCases(){
-            action.getProcCases().then(data => {
-                this.cases = data;
-            });
+        async getProcCases(){
+            try {
+                this.loading = true;
+                this.cases = await action.getProcCases();
+                this.loading = false;
+            } catch (err) {
+                console.log(err);
+            }
         },
 
-        getUnprocProducts(){
-            action.getUnprocProducts().then(data => {
-                this.products = data;
-            });
+        async getUnprocProducts(){
+            try {
+                this.loading = true;
+                this.products = await action.getUnprocProducts();
+                this.loading = false;
+            } catch (err) {
+                console.log(err);
+            }
         },
 
-        getUnprocCases(){
-            action.getUnprocCases().then(data => {
-                this.cases = data;
-            });
+        async getUnprocCases(){
+            try {
+                this.loading = true;
+                this.cases = await action.getUnprocCases();
+                this.loading = false;
+            } catch (err) {
+                console.log(err);
+            }
         },
 
         formatCurrency(value: any) {
@@ -422,7 +473,38 @@ export default {
                 default:
                     return null;
             }
-        }
+        },
+        calculateBoxTotal(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total++;
+                    }
+                }
+            }
+
+            return total;
+        },
+        calculateTotalQTY(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total += c.units_per_case;
+                        //console.log(c.units_per_case);
+                        //console.log(total + c.units_per_case);
+                    }
+                }
+            }
+
+            return total;
+        },
+        onRowGroupExpand(event) {
+            this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
+        },
     }
 }
 </script>
