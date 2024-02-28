@@ -28,7 +28,7 @@
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">Manage Products</h4>
+                        <h4 class="m-0">Manage Products Terstiga</h4>
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
