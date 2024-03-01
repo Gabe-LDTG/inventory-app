@@ -5,15 +5,16 @@
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" />
+                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
                 </template>
 
                 <template #end>
                     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
-                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)"  />
+                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
             </Toolbar>
 
+            <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="product_id"
                 :paginator="true" :rows="100" :filters="filters"
                 :selectAll="false"
@@ -23,12 +24,11 @@
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 :virtualScrollerOptions="{ itemSize: 46 }"
-                :rowStyle="rowStyle"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">Manage Products Terstiga</h4>
+                        <h4 class="m-0">Manage Products</h4>
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -414,7 +414,7 @@
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
-import Papa from "papaparse";
+//import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -429,8 +429,10 @@ export default {
             deleteProductDialog: false,
             deleteProductsDialog: false,
             product: {} as any,
-            selectedProducts: null,
-            filters: {},
+            selectedProducts: [] as any[],
+            filters: {
+                global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+            },
             submitted: false,
             statuses: [
 				{label: 'INSTOCK', value: 'instock'},
@@ -447,7 +449,7 @@ export default {
 
             unprocProducts: [],
             expandedRows: [],
-            recipeProducts:[],
+            recipeProducts:[] as any[],
 
         }
     },
@@ -630,7 +632,7 @@ export default {
             //console.log("Keys", Object.keys(this.product));
 
             let keys = Object.keys(this.product);
-            let map = {};
+            let map = {} as any;
 
             if(this.filtered == false){
                 keys.forEach((key) => {
@@ -703,13 +705,14 @@ export default {
             return id;
         },
         //https://codesandbox.io/p/sandbox/primevue-fileuploader-custom-q2dqhh?file=%2Fsrc%2FFileUploadDemo.vue%3A42%2C7-42%2C27
-        onUpload(event) {
+        onUpload(event: any) {
             importAction.onUpload(event, 'Processed Product Key');
             
             
         },
         exportCSV() {
-            this.$refs.dt.exportCSV();
+            //this.$refs.dt.exportCSV();
+            console.log("Functionality not finished");
         },
         confirmDeleteSelected() {
             this.deleteProductsDialog = true;
@@ -718,7 +721,8 @@ export default {
             try {
                 //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
                 //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
-                for(let i=0; i<this.selectedProducts.length; i++){
+                if(this.selectedProducts){
+                    for(let i=0; i<this.selectedProducts.length; i++){
                     //stop = this.validateDelete(this.selectedProducts[i]);
 
                     await action.deleteProduct(this.selectedProducts[i].product_id);
@@ -726,13 +730,14 @@ export default {
                     this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
                 }
                 this.deleteProductsDialog = false;
+                }
                 
                 //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
             } catch (err) {
                 console.log(err);
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             } finally {
-                this.selectedProducts = null;
+                this.selectedProducts = [];
             }
             
         },
@@ -741,7 +746,7 @@ export default {
                 'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
             }
         },
-        getStatusLabel(status) {
+        getStatusLabel(status: any) {
             switch (status) {
                 case 'INSTOCK':
                     return 'success';
@@ -777,18 +782,18 @@ export default {
                 console.log("NO ERROR RESULT: ",isVal);
                 return isVal;
             },
-            rowStyle(data) {
-            /* if (data.fnsku === '' && data.asin === '') {
+        /* rowStyle(data: any) {
+            if (data.fnsku === '' && data.asin === '') {
                 return { background: 'red' };
             }
             else {
                 return { background: 'green'}
-            }  */
-        },
+            }  
+        }, */
         parseFile(){
             this.loading = true;
         },
-        onRowExpand(event) {
+        onRowExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
             
             let map = [] as any[];
@@ -797,8 +802,8 @@ export default {
 
             for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
                 if(event.data.products_needed_a == this.products[prodIdx].product_id){
-                    map['product_needed'] = this.products[prodIdx].name;
-                    map['qty'] = event.data.qty_1;
+                    map[<any>'product_needed'] = this.products[prodIdx].name;
+                    map[<any>'qty'] = event.data.qty_1;
                     this.recipeProducts.push(map);
                     recipe.push(map);
                 }

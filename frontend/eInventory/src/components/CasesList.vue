@@ -5,12 +5,12 @@
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases || !selectedCases.length" />
+                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" />
                 </template>
 
                 <template #end>
-                    <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload(event)" />
-                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)"  />
+                    <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" />
+                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
             </Toolbar>
 
@@ -194,7 +194,7 @@ export default {
             deleteCaseDialog: false,
             deleteCasesDialog: false,
             eCase: {} as any,
-            selectedCases: null,
+            selectedCases: [] as any[],
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
             expandedRows: [],
@@ -235,7 +235,7 @@ export default {
     mounted() {
         console.log('Mounted');
 
-        this.displayController(this.displayValue);
+        this.displayController(this.displayValue as string);
 
         //console.log("PRODUCTS",this.products);
         //console.log("CASES",this.cases);
@@ -383,7 +383,7 @@ export default {
                     this.getUnprocCases();
                 }
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
-            } catch (err) {
+            } catch (err: any) {
                 console.log(err);
                 console.log("CREATE CATCH")
                 this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
@@ -407,11 +407,11 @@ export default {
                 this.deleteCaseDialog = false;
                 this.product = {};
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
-            } catch (err) {
+            } catch (err: any) {
                 console.log(err);
             }
         },
-        findIndexById(id) {
+        findIndexById(id: any) {
             let index = -1;
             for (let i = 0; i < this.products.length; i++) {
                 if (this.products[i].product_id === id) {
@@ -430,28 +430,32 @@ export default {
             }
             return id;
         },
-        onUpload(event: File) {
+        onUpload(event: any) {
             console.log(event);
         },
         exportCSV() {
-            this.$refs.dt.exportCSV();
+            //this.$refs.dt.exportCSV();
+            console.log("Functionality not finished");
         },
         confirmDeleteSelected() {
             this.deleteCasesDialog = true;
         },
         async deleteSelectedCases() {
             try {
-                this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
+                if(this.selectedCases){
+                    this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
             
                 for(let i = 0; i < this.selectedCases.length; i++){
                    await action.deleteCase(this.selectedCases[i].case_id);
                 }
                 this.deleteCasesDialog = false;
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Cases Deleted', life: 3000});
-            } catch (err) {
+            
+                }
+                } catch (err) {
                 console.log(err);
             } finally {
-                this.selectedCases = null;
+                this.selectedCases = [];
             }
         },
         initFilters() {
@@ -502,7 +506,7 @@ export default {
 
             return total;
         },
-        onRowGroupExpand(event) {
+        onRowGroupExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
         },
     }

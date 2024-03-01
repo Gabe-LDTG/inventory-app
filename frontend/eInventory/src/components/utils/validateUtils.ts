@@ -32,6 +32,7 @@ var validate = {
     //Checks all available products to make sure the fnsku being entered has not already been used
     validateFnskuCreate(inputFnsku: string, products: any){
             let isVal = true;
+            let isErr = 0;
 
             /* if (inputFnsku != '') {
                 for (let i = 0; i < this.products.length; i++) {
