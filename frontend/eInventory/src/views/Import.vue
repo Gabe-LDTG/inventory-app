@@ -52,7 +52,7 @@ export default {
             loading: false,
             count: 0,
             total: 0,
-            percentage: 0,
+            percentage: "",
         }
     },
     methods: {

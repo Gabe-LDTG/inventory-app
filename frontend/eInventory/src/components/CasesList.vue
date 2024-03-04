@@ -80,13 +80,13 @@
                 optionValue="product_id"
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 :class="{'p-invalid': submitted && !eCase.product_id}" 
-                :pt="{
+                >
+                <!-- :pt="{
                     root: { class: 'w-full max-width: 120rem' },
-                    item: ({ props, state, context }) => ({
+                    item: ({ context }) => ({
                         class: context.selected ? 'bg-primary' : context.focused ? 'bg-blue-100' : undefined
                     })
-                }"
-                >
+                }" -->
 
                 <template #value="slotProps">
                         <div v-if="slotProps.value" class="flex align-items-center">
@@ -209,6 +209,8 @@ export default {
             amount: 1,
 
             loading: false,
+
+            context: {} as any,
 
             filters: {} as any,
             submitted: false,

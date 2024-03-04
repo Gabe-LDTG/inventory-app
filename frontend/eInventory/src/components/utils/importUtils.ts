@@ -1,6 +1,11 @@
 import Papa from "papaparse";
 import action from "./axiosUtils";
 
+interface test {
+    fnsku: any;
+    [key:string]: string;
+};
+
 var importAction = {
     //products: [] as any[],
 
@@ -35,9 +40,10 @@ var importAction = {
         
     },
 
-    async processedProductKeyParse(file: any, products: any){
+    async processedProductKeyParse(file: any, products: any):Promise<any[]>{
         console.log(file);
-        return Papa.parse(file, {
+        return file;
+        /* return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -59,51 +65,6 @@ var importAction = {
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
-
-                    /* map['name' as any] = "";
-                    map['item_num' as any] = "";
-                    map['vendor' as any] = "";	
-                    map['weight_lbs' as any] = "";
-                    map['box_type' as any] = "";
-                    map['box_cost' as any] = "";
-                    map['bag_size' as any] = "";
-                    map['bag_cost' as any] = "";
-                    map['price_2021' as any] = "";
-                    map['price_2022' as any] = "";
-                    map['price_2023' as any] = "";
-                    map['notes' as any] = "";
-                    map['date_added' as any] = "";
-                    map['upc' as any] = "";
-                    map['fnsku' as any] = "";
-                    map['asin' as any] = "";
-                    map['do_we_carry' as any] = "";
-                    map['process_time_per_unit_sec' as any] = "";
-                    map['meltable' as any] = "";
-                    map['map' as any] = "";
-                    map['in_shipping_cost' as any] = "";
-                    map['out_shipping_cost' as any] = "";
-                    map['labor_cost' as any] = "";
-                    map['item_cost' as any] = "";
-                    map['misc_cost' as any] = "";
-                    map['amz_fees_cost' as any] = "";
-                    map['amz_fulfilment_cost' as any] = "";
-                    map['30_day_storage_cost' as any] = "";
-                    map['holiday_storage_cost' as any] = "";
-                    map['total_cost' as any] = "";
-                    map['total_holiday_cost' as any] = "";
-                    map['products_needed_a' as any] = "";
-                    map['qty_1' as any] = "";
-                    map['products_needed_b' as any] = "";
-                    map['qty_2' as any] = "";
-                    map['products_needed_c' as any] = "";
-                    map['qty_3' as any] = "";
-                    map['products_needed_d' as any] = "";
-                    map['qty_4' as any] = "";
-                    map['products_needed_e' as any] = "";
-                    map['qty_5' as any] = "";
-                    map['products_needed_f' as any] = "";
-                    map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; */
 
                     map['name' as any] = results.data[dataIdx]['Name'];
                     map['date_added' as any] = results.data[dataIdx]['Date Added'];
@@ -187,7 +148,7 @@ var importAction = {
                         //products[productIdx].name.toLowerCase();
                         //console.log(products[productIdx].name);
                         
-                        if (map['products_needed_a' as any] && products[productIdx].name.toLowerCase() == map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1']){
+                        if (map['products_needed_a' as any] && products[productIdx].name.toLowerCase() == map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1']){
                             // console.log("MATCH A ", products[productIdx].product_id);
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
@@ -197,7 +158,7 @@ var importAction = {
                         }
                         if(map['products_needed_b' as any]){
                             //console.log(map['products_needed_b' as any]);
-                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map['item_num_2']){
+                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map[<any>'item_num_2']){
                                 // console.log("MATCH B ", products[productIdx].product_id)
                                 // console.log(products[productIdx].name);
                                 // console.log(products[productIdx].item_num);
@@ -205,35 +166,35 @@ var importAction = {
                                 // console.log(map['products_needed_b' as any]);
                             }
                         }
-                        if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map['item_num_3']){
+                        if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map[<any>'item_num_3']){
                             // console.log("MATCH C ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
                             map['products_needed_c' as any] = products[productIdx].product_id;
                             // console.log(map['products_needed_c' as any]);
                         }
-                        if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map['item_num_4']){
+                        if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map[<any>'item_num_4']){
                             // console.log("MATCH D ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
                             map['products_needed_d' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_d' as any]);
                         }
-                        if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map['item_num_5']){
+                        if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map[<any>'item_num_5']){
                             //console.log("MATCH E ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
                             map['products_needed_e' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_e' as any]);
                         }
-                        if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map['item_num_6']){
+                        if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map[<any>'item_num_6']){
                             //console.log("MATCH F ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
                             map['products_needed_f' as any] = products[productIdx].product_id;
                             //console.log(map['products_needed_f' as any]);
                         }
-                        if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map['item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
+                        if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
                             //console.log("MATCH A ", products[productIdx].product_id);
                             //console.log("PRODUCT NAME: ", products[productIdx].name);
                             //console.log("PRODUCT ITEM NUMBER: ", products[productIdx].item_num);
@@ -264,13 +225,14 @@ var importAction = {
 
                 console.log("DATA IMPORTED")
                 return content;
-            }.bind(this)
-        });
+            },
+        }); */
     },
 
-    async rawProductKeyParse(file: any){
+    async rawProductKeyParse(file: any):Promise<any[]>{
         console.log(file);
-        return Papa.parse(file, {
+        return file;
+        /* return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -336,7 +298,7 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; */
+                    map['default_units_per_case' as any] = ""; /
 
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['name' as any] = results.data[dataIdx]['Product Name'];
@@ -363,12 +325,13 @@ var importAction = {
                 console.log("DATA IMPORTED")
                 return content;
             }.bind(this)
-        });
+        }); */
     },
 
-    async ProcessedProductListParse(file: any, products: any){
+    async ProcessedProductListParse(file: any, products: any):Promise<any[]>{
         console.log(file);
-        return Papa.parse(file, {
+        return file;
+        /* return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -376,7 +339,7 @@ var importAction = {
                 console.log(results.data[0]);
 
                 let unusedFields=[];
-                let content = [];
+                let content: test[][] = [];
 
                 //objectLength = Object.keys(exampleObject).length
                 console.log(Object.keys(results.data[0]))
@@ -414,7 +377,7 @@ var importAction = {
 
                     //totalCount += map['number_of_cases'];
         
-                    for(let caseIdx = 0; caseIdx<map['number_of_cases']; caseIdx++){
+                    for(let caseIdx = 0; caseIdx<map[<any>'number_of_cases']; caseIdx++){
                         content.push(map); 
                     }
                 }
@@ -432,9 +395,9 @@ var importAction = {
                     //console.log(content[contentIdx].name);
 
                     for (let productIdx = 0; productIdx<products.length; productIdx++){
-                        if (products[productIdx].fnsku == content[contentIdx].fnsku){
+                        if (products[productIdx].fnsku == content[contentIdx][<any>'fnsku']){
                             //console.log(products[productIdx].name);
-                            content[contentIdx]['product_id'] = products[productIdx].product_id;
+                            content[contentIdx][<any>'product_id'] = products[productIdx].product_id;
                             await action.addCase(content[contentIdx]);
                             break;
                         }
@@ -445,14 +408,15 @@ var importAction = {
                 console.log("DATA IMPORTED");
                 return content;
             }.bind(this)
-        });
+        }); */
     },
 
-    async UnprocessedProductListParse(file: any, products: any){
+    async UnprocessedProductListParse(file: any, products: any):Promise<any[]>{
         console.log(file);
-        return Papa.parse(file, {
+        return file;
+        /* return Papa.parse(file, {
             header: true,
-            complete: async function( results: any){
+            complete: async function( results: any):Promise<any[]>{
                 console.log(results);
                 
                 console.log(results.data[0]);
@@ -485,9 +449,9 @@ var importAction = {
                     map['cost' as any] = results.data[dataIdx]['Cost'];
                     map['total' as any] = results.data[dataIdx]['Total'];
 
-                    console.log(map['number_of_cases']);
+                    console.log(map[<any>'number_of_cases']);
                     
-                    for(let caseIdx = 0; caseIdx<map['number_of_cases']; caseIdx++){
+                    for(let caseIdx = 0; caseIdx<map[<any>'number_of_cases']; caseIdx++){
                         content.push(map); 
                     }
                 }
@@ -502,24 +466,24 @@ var importAction = {
                     //console.log(content[contentIdx].name);
 
                     for (let productIdx = 0; productIdx<products.length; productIdx++){
-                        if (products[productIdx].name.toLowerCase() == content[contentIdx].description.toLowerCase()){
+                        if (products[productIdx].name.toLowerCase() == content[contentIdx][<any>'description'].toLowerCase()){
                             //console.log(products[productIdx].name);
-                            content[contentIdx]['product_id'] = products[productIdx].product_id;
+                            content[contentIdx][<any>'product_id'] = products[productIdx].product_id;
                             await action.addCase(content[contentIdx]);
                             break;
                         }
                         
                     }  
-                    if (!content[contentIdx]['product_id']){
-                        console.log("PRODUCT WITHOUT ID: ",content[contentIdx].description);
+                    if (!content[contentIdx][<any>'product_id']){
+                        console.log("PRODUCT WITHOUT ID: ",content[contentIdx][<any>'description']);
                     }     
                 }
 
                 console.log("DATA IMPORTED")
 
                 return content;
-            }.bind(this)
-        });
+            }
+        }); */
     }
 
 }
