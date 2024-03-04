@@ -19,31 +19,31 @@ var importAction = {
         let products = await action.getProducts();
 
         if (fileType == 'Processed Product Key'){
-            fileData = await this.processedProductKeyParse(fileUp, products);
+            await this.processedProductKeyParse(fileUp, products);
         }
 
         else if(fileType == 'Raw Product Key'){
-            fileData = await this.rawProductKeyParse(fileUp);
+            await this.rawProductKeyParse(fileUp);
         }
 
         else if(fileType == 'Processed Product List'){
-            fileData = await this.ProcessedProductListParse(fileUp, products);
+            await this.ProcessedProductListParse(fileUp, products);
         }
 
         else if(fileType == 'Unprocessed Product List'){
-            fileData = await this.UnprocessedProductListParse(fileUp, products);
+            await this.UnprocessedProductListParse(fileUp, products);
         }
 
-        console.log("FILE DATA: ", fileData);
+        //console.log("FILE DATA: ", fileData);
         console.log("PRODUCTS: ", products);
 
-        
+        return 0;
     },
 
-    async processedProductKeyParse(file: any, products: any):Promise<any[]>{
+    async processedProductKeyParse(file: any, products: any){
         console.log(file);
-        return file;
-        /* return Papa.parse(file, {
+        //return file;
+        return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -226,13 +226,13 @@ var importAction = {
                 console.log("DATA IMPORTED")
                 return content;
             },
-        }); */
+        }); 
     },
 
-    async rawProductKeyParse(file: any):Promise<any[]>{
+    async rawProductKeyParse(file: any){
         console.log(file);
-        return file;
-        /* return Papa.parse(file, {
+        //return file;
+        return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -298,7 +298,7 @@ var importAction = {
                     map['qty_5' as any] = "";
                     map['products_needed_f' as any] = "";
                     map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; /
+                    map['default_units_per_case' as any] = ""; */
 
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['name' as any] = results.data[dataIdx]['Product Name'];
@@ -325,13 +325,13 @@ var importAction = {
                 console.log("DATA IMPORTED")
                 return content;
             }.bind(this)
-        }); */
+        }); 
     },
 
-    async ProcessedProductListParse(file: any, products: any):Promise<any[]>{
+    async ProcessedProductListParse(file: any, products: any){
         console.log(file);
-        return file;
-        /* return Papa.parse(file, {
+        //return file;
+        return Papa.parse(file, {
             header: true,
             complete: async function( results: any){
                 console.log(results);
@@ -408,13 +408,13 @@ var importAction = {
                 console.log("DATA IMPORTED");
                 return content;
             }.bind(this)
-        }); */
+        }); 
     },
 
-    async UnprocessedProductListParse(file: any, products: any):Promise<any[]>{
+    async UnprocessedProductListParse(file: any, products: any){
         console.log(file);
-        return file;
-        /* return Papa.parse(file, {
+        //return file;
+        return Papa.parse(file, {
             header: true,
             complete: async function( results: any):Promise<any[]>{
                 console.log(results);
@@ -483,7 +483,7 @@ var importAction = {
 
                 return content;
             }
-        }); */
+        }); 
     }
 
 }
