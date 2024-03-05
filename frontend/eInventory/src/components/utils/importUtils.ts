@@ -66,78 +66,186 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
 
-                    map['name' as any] = results.data[dataIdx]['Name'];
-                    map['date_added' as any] = results.data[dataIdx]['Date Added'];
-                    map['do_we_carry' as any] = results.data[dataIdx]['Do We Carry?'];
-                    map['vendor' as any] = results.data[dataIdx]['Vendor'];
-                    map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
-                    map['asin' as any] = results.data[dataIdx]['ASIN'];
-                    map['default_units_per_case' as any] = results.data[dataIdx]['Default Units per Case'];
-                    map['weight_lbs' as any] = results.data[dataIdx]['Weight (Lbs)'];
-                    map['box_type' as any] = results.data[dataIdx]['Box Type'];
-                    map['box_cost' as any] = results.data[dataIdx]['Box Cost'];
-                    map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
-                    map['process_time_per_unit_sec' as any] = results.data[dataIdx]['Process Time per Unit Sec'];
-                    map['meltable' as any] = results.data[dataIdx]['Meltable?'];
+                    if (results.data[dataIdx]['Name']) {
+                        map['name' as any] = results.data[dataIdx]['Name'];
+                    }
+                    
+                    if (results.data[dataIdx]['Date Added']) {
+                        map['date_added' as any] = results.data[dataIdx]['Date Added'];
+                    }
+                    
+                    if (results.data[dataIdx]['Do We Carry?']) {
+                        map['do_we_carry' as any] = results.data[dataIdx]['Do We Carry?'];
+                    }
+                    
+                    if (results.data[dataIdx]['Vendor']) {
+                        map['vendor' as any] = results.data[dataIdx]['Vendor'];
+                    }
+                    
+                    if (results.data[dataIdx]['FNSKU']) {
+                        map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
+                    }
+                    
+                    if (results.data[dataIdx]['ASIN']) {
+                        map['asin' as any] = results.data[dataIdx]['ASIN'];
+                    }
+                    
+                    if (results.data[dataIdx]['Default Units per Case']) {
+                        map['default_units_per_case' as any] = results.data[dataIdx]['Default Units per Case']; 
+                    }
+                    
+                    if (results.data[dataIdx]['Weight (Lbs)']) {
+                        map['weight_lbs' as any] = results.data[dataIdx]['Weight (Lbs)'];
+                    }
+                    
+                    if (results.data[dataIdx]['Box Type']) {
+                        map['box_type' as any] = results.data[dataIdx]['Box Type'];
+                    }
+                    
+                    if (results.data[dataIdx]['Box Cost']) {
+                        map['box_cost' as any] = results.data[dataIdx]['Box Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Bag Size']) {
+                        map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
+                    }
+                    
+                    if (results.data[dataIdx]['Process Time per Unit Sec']) {
+                        map['process_time_per_unit_sec' as any] = results.data[dataIdx]['Process Time per Unit Sec'];
+                    }
+                    
+                    if (results.data[dataIdx]['Meltable?']) {
+                        map['meltable' as any] = results.data[dataIdx]['Meltable?'];
+                    }
 
                     if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
                         //console.log(results.data[dataIdx]['Products needed A']);
                         map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
                     }
+
+                    if (results.data[dataIdx]['Item Number #1']) {
+                        map['item_num_1' as any] = results.data[dataIdx]['Item Number #1'];
+                    }
                     
-                    map['item_num_1' as any] = results.data[dataIdx]['Item Number #1'];
-                    map['qty_1' as any] = results.data[dataIdx]['Quantity #1'];
+                    if (results.data[dataIdx]['Quantity #1']) {
+                        map['qty_1' as any] = results.data[dataIdx]['Quantity #1'];
+                    }
 
                     if(results.data[dataIdx]['Products needed B'] != ''&& results.data[dataIdx]['Products needed B']){
                         map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'].toLowerCase();
                     }
 
-                    map['item_num_2' as any] = results.data[dataIdx]['Item Number #2'];
-                    map['qty_2' as any] = results.data[dataIdx]['Quantity #2'];
-
+                    if (results.data[dataIdx]['Item Number #2']) {
+                        map['item_num_2' as any] = results.data[dataIdx]['Item Number #2'];
+                    }
+                    
+                    if (results.data[dataIdx]['Quantity #2']) {
+                        map['qty_2' as any] = results.data[dataIdx]['Quantity #2'];
+                    }
 
                     if(results.data[dataIdx]['Products needed C'] != ''&& results.data[dataIdx]['Products needed C']){
                         map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'].toLowerCase();
                     }
-                    map['item_num_3' as any] = results.data[dataIdx]['Item Number #3'];
-                    map['qty_3' as any] = results.data[dataIdx]['Quantity #3'];
 
-
+                    if (results.data[dataIdx]['Item Number #3']) {
+                        map['item_num_3' as any] = results.data[dataIdx]['Item Number #3'];
+                    }
+                    
+                    if (results.data[dataIdx]['Quantity #3']) {
+                        map['qty_3' as any] = results.data[dataIdx]['Quantity #3'];
+                    }
+                    
                     if(results.data[dataIdx]['Products needed D'] != ''&& results.data[dataIdx]['Products needed D']){
                         map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'].toLowerCase();
                     }
-                    map['item_num_4' as any] = results.data[dataIdx]['Item Number #4'];
-                    map['qty_4' as any] = results.data[dataIdx]['Quantity #4'];
 
-
+                    if (results.data[dataIdx]['Item Number #4']) {
+                        map['item_num_4' as any] = results.data[dataIdx]['Item Number #4'];
+                    }
+                    
+                    if (results.data[dataIdx]['Quantity #4']) {
+                        map['qty_4' as any] = results.data[dataIdx]['Quantity #4'];
+                    }
+                    
                     if(results.data[dataIdx]['Products needed E'] != ''&& results.data[dataIdx]['Products needed E']){
                         map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'].toLowerCase();
                     }
-                    map['item_num_5' as any] = results.data[dataIdx]['Item Number #5'];
-                    map['qty_5' as any] = results.data[dataIdx]['Quantity #5'];
 
+                    if (results.data[dataIdx]['Item Number #5']) {
+                        map['item_num_5' as any] = results.data[dataIdx]['Item Number #5'];
+                    }
+                    
+                    if (results.data[dataIdx]['Quantity #5']) {
+                        map['qty_5' as any] = results.data[dataIdx]['Quantity #5'];
+                    }
 
                     if(results.data[dataIdx]['Products needed F'] != ''&& results.data[dataIdx]['Products needed F']){
                         map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'].toLowerCase();
                     }
-                    map['item_num_6' as any] = results.data[dataIdx]['Item Number #6'];
-                    map['qty_6' as any] = results.data[dataIdx]['Quantity #6'];
+                    if (results.data[dataIdx]['Item Number #6']) {
+                        map['item_num_6' as any] = results.data[dataIdx]['Item Number #6'];
+                    }
+                    
+                    if (results.data[dataIdx]['Quantity #6']) {
+                        map['qty_6' as any] = results.data[dataIdx]['Quantity #6'];
+                    }
 
-
-                    map['bag_cost' as any] = results.data[dataIdx]['Bag Cost'];
-                    map['in_shipping_cost' as any] = results.data[dataIdx]['In-shipping Cost'];
-                    map['out_shipping_cost' as any] = results.data[dataIdx]['Out-shipping Cost'];
-                    map['labor_cost' as any] = results.data[dataIdx]['Labor Cost'];
-                    map['item_cost' as any] = results.data[dataIdx]['Item Cost'];
-                    map['misc_cost' as any] = results.data[dataIdx]['Misc Cost'];
-                    map['amz_fees_cost' as any] = results.data[dataIdx]['Amz Fees Cost'];
-                    map['amz_fulfiment_cost' as any] = results.data[dataIdx]['Amz Fulfilment Cost'];
-                    map['30_day_storage_cost' as any] = results.data[dataIdx]['30 Day Storage Cost'];
-                    map['holiday_storage_cost' as any] = results.data[dataIdx]['Holiday Storage Cost'];
-                    map['total_cost' as any] = results.data[dataIdx]['Total Cost'];
-                    map['total_holiday_cost' as any] = results.data[dataIdx]['Total Holiday Cost'];
-                    map['notes' as any] = results.data[dataIdx]['Notes'];
-                    map['unit_box_cost' as any] = results.data[dataIdx]['Unit Box Cost'];
+                    if (results.data[dataIdx]['Bag Cost']) {
+                        map['bag_cost' as any] = results.data[dataIdx]['Bag Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['In-shipping Cost']) {
+                        map['in_shipping_cost' as any] = results.data[dataIdx]['In-shipping Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Out-shipping Cost']) {
+                        map['out_shipping_cost' as any] = results.data[dataIdx]['Out-shipping Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Labor Cost']) {
+                        map['labor_cost' as any] = results.data[dataIdx]['Labor Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Item Cost']) {
+                        map['item_cost' as any] = results.data[dataIdx]['Item Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Misc Cost']) {
+                        map['misc_cost' as any] = results.data[dataIdx]['Misc Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Amz Fees Cost']) {
+                        map['amz_fees_cost' as any] = results.data[dataIdx]['Amz Fees Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Amz Fulfilment Cost']) {
+                        map['amz_fulfiment_cost' as any] = results.data[dataIdx]['Amz Fulfilment Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['30 Day Storage Cost']) {
+                        map['30_day_storage_cost' as any] = results.data[dataIdx]['30 Day Storage Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Holiday Storage Cost']) {
+                        map['holiday_storage_cost' as any] = results.data[dataIdx]['Holiday Storage Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Total Cost']) {
+                        map['total_cost' as any] = results.data[dataIdx]['Total Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Total Holiday Cost']) {
+                        map['total_holiday_cost' as any] = results.data[dataIdx]['Total Holiday Cost'];
+                    }
+                    
+                    if (results.data[dataIdx]['Notes']) {
+                        map['notes' as any] = results.data[dataIdx]['Notes'];
+                    }
+                    
+                    if (results.data[dataIdx]['Unit Box Cost']) {
+                        map['unit_box_cost' as any] = results.data[dataIdx]['Unit Box Cost'];
+                    }
+                    
 
                     //console.log(map);
                     //console.log(map['products_needed_a' as any]);
@@ -255,63 +363,48 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
 
-                    /* map['name' as any] = "";
-                    map['item_num' as any] = "";
-                    map['vendor' as any] = "";	
-                    map['weight_lbs' as any] = "";
-                    map['box_type' as any] = "";
-                    map['box_cost' as any] = "";
-                    map['bag_size' as any] = "";
-                    map['bag_cost' as any] = "";
-                    map['price_2021' as any] = "";
-                    map['price_2022' as any] = "";
-                    map['price_2023' as any] = "";
-                    map['notes' as any] = "";
-                    map['date_added' as any] = "";
-                    map['upc' as any] = "";
-                    map['fnsku' as any] = "";
-                    map['asin' as any] = "";
-                    map['do_we_carry' as any] = "";
-                    map['process_time_per_unit_sec' as any] = "";
-                    map['meltable' as any] = "";
-                    map['map' as any] = "";
-                    map['in_shipping_cost' as any] = "";
-                    map['out_shipping_cost' as any] = "";
-                    map['labor_cost' as any] = "";
-                    map['item_cost' as any] = "";
-                    map['misc_cost' as any] = "";
-                    map['amz_fees_cost' as any] = "";
-                    map['amz_fulfilment_cost' as any] = "";
-                    map['30_day_storage_cost' as any] = "";
-                    map['holiday_storage_cost' as any] = "";
-                    map['total_cost' as any] = "";
-                    map['total_holiday_cost' as any] = "";
-                    map['products_needed_a' as any] = "";
-                    map['qty_1' as any] = "";
-                    map['products_needed_b' as any] = "";
-                    map['qty_2' as any] = "";
-                    map['products_needed_c' as any] = "";
-                    map['qty_3' as any] = "";
-                    map['products_needed_d' as any] = "";
-                    map['qty_4' as any] = "";
-                    map['products_needed_e' as any] = "";
-                    map['qty_5' as any] = "";
-                    map['products_needed_f' as any] = "";
-                    map['qty_6' as any] = "";
-                    map['default_units_per_case' as any] = ""; */
+                    if(results.data[dataIdx]['Vendor']){
+                        map['vendor' as any] = results.data[dataIdx]['Vendor'];
+                    }
+                    
+                    if(results.data[dataIdx]['Product Name']){
+                        map['name' as any] = results.data[dataIdx]['Product Name'];
+                    }
+                    
+                    if(results.data[dataIdx]['item #']){
+                        map['item_num' as any] = results.data[dataIdx]['item #'];
+                    }
+                    
+                    if(results.data[dataIdx]['2023 Price']){
+                        map['price_2023' as any] = results.data[dataIdx]['2023 Price'];
+                    }
+                    
+                    if(results.data[dataIdx]['2022 AUG Price']){
+                        map['price_2022' as any] = results.data[dataIdx]['2022 AUG Price'];
+                    }
+                    
+                    if(results.data[dataIdx]['2021 Price']){
+                        map['price_2021' as any] = results.data[dataIdx]['2021 Price'];
+                    }
+                    
+                    if(results.data[dataIdx]['Units Per Case']){
+                        map['default_units_per_case' as any] = results.data[dataIdx]['Units Per Case'];
+                    }
+                    
+                    if(results.data[dataIdx]['MAP']){
+                        map['map' as any] = results.data[dataIdx]['MAP'];
+                    }
+                    if(results.data[dataIdx]['Notes']){
+                        map['notes' as any] = results.data[dataIdx]['Notes'];
+                    }
+                    if(results.data[dataIdx]['UPC']){
+                        map['upc' as any] = results.data[dataIdx]['UPC'];
+                    }
 
-                    map['vendor' as any] = results.data[dataIdx]['Vendor'];
-                    map['name' as any] = results.data[dataIdx]['Product Name'];
-                    map['item_num' as any] = results.data[dataIdx]['item #'];
-                    map['price_2023' as any] = results.data[dataIdx]['2023 Price'];
-                    map['price_2022' as any] = results.data[dataIdx]['2022 AUG Price'];
-                    map['price_2021' as any] = results.data[dataIdx]['2021 Price'];
-                    map['default_units_per_case' as any] = results.data[dataIdx]['Units Per Case'];
-                    map['map' as any] = results.data[dataIdx]['MAP'];
-                    map['notes' as any] = results.data[dataIdx]['Notes'];
-                    map['upc' as any] = results.data[dataIdx]['UPC'];
-
-                    await action.addProduct(map);
+                    if(results.data[dataIdx]['Product Name']){
+                        await action.addProduct(map);
+                    }
+                    
 
                     content.push(map); 
                 }

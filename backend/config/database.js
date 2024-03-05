@@ -3,10 +3,10 @@ import { Sequelize } from 'sequelize';
 
 //create the connection to database
 const db= await mysql.createConnection({
-    host:"localhost",
+    host:"127.0.0.1",
     user:"root",
-    password:"",
-    database:"einventory"
+    password:"MySQL_cats111!",
+    database:"eInventory",
 });
 
 // Option 3: Passing parameters separately (other dialects)
