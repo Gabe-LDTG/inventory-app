@@ -26,7 +26,9 @@ app.use(express.json());
 app.use(cors(
     {
         credentials: true,
-        origin: 'http://localhost:5173',
+        origin: ['http://localhost:5173',
+        'https://main--mellifluous-mooncake-f17d48.netlify.app/',
+    ],
     }
 ));
 
