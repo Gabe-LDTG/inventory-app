@@ -9,6 +9,7 @@
                 </template>
 
                 <template #end>
+                    <Button label="Bulk Insert" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  />
                     <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" />
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
@@ -170,6 +171,24 @@
                 <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedCases" />
             </template>
         </Dialog>
+
+        <Dialog v-model:visible="bulkInsertDialog" :style="{width: '450px'}" header="Bulk Cases" :modal="true">
+            <template v-for="(bCase, counter) in bulkCases">
+                <InputGroup>
+                    <InputText placeholder="Testing" v-model="bCase.name"/>
+                </InputGroup>
+
+                <InputGroup>
+                    <InputNumber placeholder="Price" />
+                </InputGroup>
+
+            </template>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
+                <Button label="Save" icon="pi pi-check" text @click="bulkSave" />
+            </template>
+        </Dialog>
 	</div>
 </template>
 
@@ -198,6 +217,9 @@ export default {
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
             expandedRows: [],
+
+            bulkInsertDialog: false,
+            bulkCases: [] as any[],
 
             products: [] as any[],
             //productDialog: false,
@@ -307,15 +329,21 @@ export default {
 			return;
         },
         openNew() {
-            //this.product = [];
             this.eCase = [];
             this.submitted = false;
             this.amount = 1;
-            //this.productDialog = true;
+            
             this.caseDialog = true;
         },
+        openBulk() {
+            this.bulkCases = [];
+            this.submitted = false;
+            this.amount = 1;
+            
+            this.bulkInsertDialog = true;
+        },
         hideDialog() {
-            //this.productDialog = false;
+            this.bulkInsertDialog = false;
             this.caseDialog = false;
             this.submitted = false;
         },
@@ -343,6 +371,13 @@ export default {
                 this.product = {};
                 this.eCase = {};
                 this.amount = 1;
+            }
+        },
+        async bulkSave(){
+            try {
+                console.log(this.bulkCases);
+            } catch (error) {
+                
             }
         },
         async confirmEdit(){

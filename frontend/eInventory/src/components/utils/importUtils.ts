@@ -402,11 +402,11 @@ var importAction = {
                     }
 
                     if(results.data[dataIdx]['Product Name']){
-                        //await action.addProduct(map);
+                        await action.addProduct(map);
                     }
                     
 
-                    content.push(map); 
+                    content.push(JSON.stringify(map)); 
                 }
 
                 console.log("RESULTS: ", results);
@@ -414,7 +414,7 @@ var importAction = {
                 console.log(Object.keys(content[0]).length)
                 console.log("CONTENT: ", content);
 
-                await action.batchInsertProduct(content);
+                //await action.batchInsertProduct(content);
 
                 console.log("CONTENT LENGTH:", content.length);
 

@@ -7,6 +7,7 @@ import{
     updateProductById,
     deleteProductById,
     batchInsertProduct,
+    batchDeleteProduct,
 } from "../models/ProductModel.js";
 
 import{
@@ -110,18 +111,42 @@ export async function deleteProduct(req, res){
 //Batch insert products
 export async function batchInsert(req, res){
     try {
-        console.log(req.body);
+        console.log("REQ BODY", req.body);
 
         const data=req.body;
 
         console.log(data);
 
-        let insertedProduct = await batchInsertProduct(data);
+        const insertedProduct = await batchInsertProduct(data);
         
         res.json(insertedProduct);
 
     } catch (error) {
         console.error(error);
         res.status(500).send(error.message);
+    }
+}
+
+//Delete Product
+export async function batchDelete(req, res){
+    try {
+        console.log("BATCH DELETE")
+        console.log("REQ PARAMS",req.body)
+        const id = req.body;
+        
+        const cases = await getCases();
+
+        for(let i = 0; i<cases.length; i++){
+
+            if(cases[i].product_id == id){
+                throw new Error('Product is in use');
+            }
+        }
+
+        const deletedProduct = await batchDeleteProduct(id);
+        res.json(deletedProduct);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send(err.message);
     }
 }

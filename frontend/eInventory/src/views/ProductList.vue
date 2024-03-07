@@ -379,7 +379,7 @@
         </Dialog>
 
         <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
-            <Button label="Toggle Filter" @click="filtered = !filtered;"/>
+            <Button label="Toggle Filter" @click="toggleFilter()"/>
             <div v-for="(item, index) in product">
                 <label>{{ index }}: </label><br>
                 {{ item }} <br><br>
@@ -450,6 +450,8 @@ export default {
             unprocProducts: [],
             expandedRows: [],
             recipeProducts:[] as any[],
+
+            toggleProduct: {} as any,
 
         }
     },
@@ -628,7 +630,8 @@ export default {
         },
         displayProductInfo(product: any){
             this.product = {...product};
-            console.log(this.product);
+            this.toggleProduct = this.product;
+            console.log("DISPLAY PRODUCT INFO ",this.product);
             //console.log("Keys", Object.keys(this.product));
 
             let keys = Object.keys(this.product);
@@ -658,7 +661,7 @@ export default {
             });
             }
             
-            console.log(map);
+            console.log("MAP ",map);
             this.product = map;
             this.productInfoDialog = true;
         },
@@ -821,6 +824,20 @@ export default {
                 }
             }
             return name;
+        },
+        toggleFilter(){
+
+            //this.productInfoDialog = false;
+
+            this.filtered = !this.filtered;
+
+            this.displayProductInfo(this.toggleProduct);
+            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Filter Toggled', life: 3000});
+
+            //this.productInfoDialog = true;
+
+            console.log("TOGGLE");
+
         },
     }
 }

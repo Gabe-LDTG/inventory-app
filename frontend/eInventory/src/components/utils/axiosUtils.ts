@@ -305,9 +305,11 @@ var action = {
     //Batch insert products
     async batchInsertProduct(p: any){
         console.log("BATCH PRODUCT ", p)
-        return axios.post("http://localhost:5000/products/batchInsert", {
-            p
-        }).then((res) => {
+
+        //let convertedP = JSON.stringify(p);
+
+        //console.log("CONVERTED", convertedP);
+        return axios.post("http://localhost:5000/products/batchInsert", p).then((res) => {
             //location.reload();
             //setInterval(this.refreshData, 1000);
 
@@ -320,6 +322,29 @@ var action = {
             throw error;
         });
     },
+
+    //Batch delete products
+    async batchDeleteProduct(p: any){
+        //console.log(id);
+        //if(confirm("Do you really want to delete?")){
+
+            console.log(p);
+
+            return axios.post("http://localhost:5000/products/batchDelete", p)
+            .then(res => {
+                //location.reload();
+                //this.refreshData();
+            })
+            .catch(error => {
+                console.log(error.response.data);
+                console.log(error.request.data);
+                console.log(error);
+                //console.log("########################AXIOS ERROR##############################")
+                throw error.response.data;
+            })
+        //}
+    },
+    
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
     //Get all cases

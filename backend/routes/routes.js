@@ -11,6 +11,7 @@ import {
     updateProduct,
     deleteProduct,
     batchInsert,
+    batchDelete,
 } from "../controllers/products.js";
 
 import {
@@ -77,6 +78,9 @@ router.delete('/products/:id', deleteProduct);
 
 //Batch Insert
 router.post('/products/batchInsert', batchInsert);
+
+//Batch Delete
+router.post('/products/batchDelete', batchDelete);
 
 //CASES---------------------------------------------------------------------------
 //Get All Cases

@@ -1,5 +1,5 @@
 <template lang="">
-    <div v-show="loading"><Message :closable="false" icon="pi pi-spin pi-spinner" iconPos="right">Deleting {{percentage}}% complete </Message></div>
+    <div v-show="loading"><Message :closable="false" icon="pi pi-spin pi-spinner" iconPos="right"> {{actionMSG}} </Message></div>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Raw Product Key" chooseLabel="Import Raw Product Key" class="mr-2 inline-block" @uploader="rawProductKeyUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product List" chooseLabel="Import Processed Product List" class="mr-2 inline-block" @uploader="processProductListUpload"/>
@@ -53,6 +53,7 @@ export default {
             count: 0,
             total: 0,
             percentage: "",
+            actionMSG: "",
         }
     },
     methods: {
@@ -69,8 +70,12 @@ export default {
         async rawProductKeyUpload(event: any) {
             try {
                 this.loading = true;
+                this.actionMSG = "Uploading";
                 await importAction.onUpload(event, 'Raw Product Key');
+
                 this.loading = false;
+                this.actionMSG = "";
+                
             } catch (error) {
                 console.log(error);
             }
@@ -97,18 +102,30 @@ export default {
         },
         async purgeProducts(){
             try {
+                let content = [];
+                this.actionMSG = "Deleting "+this.percentage+"% complete"
                 this.loading = true;
                 let products = await action.getProducts();
                 console.log(products);
                 console.log(products.length);
                 this.total = products.length;
 
+                console.log(products.product_id)
+
+                //await action.batchDeleteProduct(products.product_id)
+
                 for(let i=0; i<products.length; i++){
                     let nuf = (i/this.total)*100;
                     this.percentage = nuf.toFixed(1);
-                    await action.deleteProduct(products[i].product_id);
-                }
+                    content.push(products[i].product_id);
+                    //await action.deleteProduct(products[i].product_id);
+                } 
+                console.log("CONTENT ",content);
+
+                await action.batchDeleteProduct(content);
+
                 this.loading = false;
+                this.actionMSG = "";
             } catch (error) {
                 console.log(error);
             }
