@@ -87,3 +87,11 @@ export async function updateProductById (data, id){
 export async function deleteProductById(id){
     return db.query("DELETE FROM products WHERE product_id = ?", [id]).then(([results, fields])=>results);
 }
+
+//Batch insert product to the database
+export async function batchInsertProduct(values){
+    let fields = "name, asin, fnsku, upc, notes, storage_cost_30_day, amz_fees_cost, amz_fulfilment_cost, bag_cost, bag_size, box_cost, box_type, date_added, default_units_per_case, do_we_carry, holiday_storage_cost, in_shipping_cost, item_cost, item_num, labor_cost, map, meltable, misc_cost, out_shipping_cost, price_2021, price_2022, price_2023, process_time_per_unit_sec, products_needed_a, qty_1, products_needed_b, qty_2, products_needed_c, qty_3, products_needed_d, qty_4, products_needed_e, qty_5, products_needed_f, qty_6, total_cost, total_holiday_cost, vendor, weight_lbs, unit_box_cost"
+    let sql = "INSERT INTO products ("+fields+") VALUES ?"
+    //return db.query(sql, [values]).then(([results, fields])=>results);
+    return db.query("INSERT INTO products (name, asin, fnsku, upc, notes, storage_cost_30_day, amz_fees_cost, amz_fulfilment_cost, bag_cost, bag_size, box_cost, box_type, date_added, default_units_per_case, do_we_carry, holiday_storage_cost, in_shipping_cost, item_cost, item_num, labor_cost, map, meltable, misc_cost, out_shipping_cost, price_2021, price_2022, price_2023, process_time_per_unit_sec, products_needed_a, qty_1, products_needed_b, qty_2, products_needed_c, qty_3, products_needed_d, qty_4, products_needed_e, qty_5, products_needed_f, qty_6, total_cost, total_holiday_cost, vendor, weight_lbs, unit_box_cost) VALUES ?", [values]).then(([results, fields])=>results);
+}

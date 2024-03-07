@@ -302,9 +302,28 @@ var action = {
         });
     },
 
+    //Batch insert products
+    async batchInsertProduct(p: any){
+        console.log("BATCH PRODUCT ", p)
+        return axios.post("http://localhost:5000/products/batchInsert", {
+            p
+        }).then((res) => {
+            //location.reload();
+            //setInterval(this.refreshData, 1000);
+
+            // if ANY fail validation
+            //this.displayCreate = false;
+            //alert('Form successfully submitted.')
+            //this.refreshData();
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
     //CASE COMMANDS-----------------------------------------------------------------------------------------
     //Get all cases
-    getCases(){
+    async getCases(){
         let cases;
         console.log("IN GET CASES");
 
@@ -320,7 +339,7 @@ var action = {
         })
     },
     
-    getCasesIds(){
+    async getCasesIds(){
         let cases;
         console.log("IN GET CASES");
 

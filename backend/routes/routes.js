@@ -10,6 +10,7 @@ import {
     createProduct,
     updateProduct,
     deleteProduct,
+    batchInsert,
 } from "../controllers/products.js";
 
 import {
@@ -73,6 +74,9 @@ router.put('/products/:id', updateProduct);
 
 //Delete Product
 router.delete('/products/:id', deleteProduct);
+
+//Batch Insert
+router.post('/products/batchInsert', batchInsert);
 
 //CASES---------------------------------------------------------------------------
 //Get All Cases

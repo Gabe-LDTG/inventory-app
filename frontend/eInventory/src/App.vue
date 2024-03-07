@@ -17,9 +17,10 @@ export default {
     async getSessionUser(){
       try {
        console.log("GET SESSION USER");
+       console.log("CURRENT ROUTE ", this.$router.currentRoute.value);
        this.sessionUser = await action.getSessionUser();
        console.log(this.sessionUser);
-       if(this.sessionUser){
+       if(this.sessionUser && this.$router.currentRoute.value.name == "Login"){
         this.$router.push('/Home');
        }
        else if(!this.sessionUser){
