@@ -4,12 +4,13 @@
             <Toast />
             <Toolbar class="mb-4">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" />
+                    <Button label=" New" icon="pi pi-plus" severity="success" class="mr-2 inline-block" @click="openNew" />
+                    <Button label=" Delete" icon="pi pi-trash" class="mr-2 inline-block" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" />
+                    <Button label=" New Purchase Order" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  />
                 </template>
 
                 <template #end>
-                    <Button label="Bulk Insert" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  />
+                    
                     <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" />
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
@@ -135,8 +136,8 @@
             </div>
 
             <div class="field">
-                <label for="date_revieved"> Date Recieved: </label>
-                <Calendar id="date_revieved" dateFormat="yy/mm/dd" v-model="eCase.date_recieved"/>
+                <label for="date_recieved"> Date Recieved: </label>
+                <Calendar id="date_recieved" dateFormat="yy-mm-dd" v-model="eCase.date_recieved"/>
             </div>
 
             <div class="field">
@@ -172,18 +173,81 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="bulkInsertDialog" :style="{width: '450px'}" header="Bulk Cases" :modal="true">
+        <Dialog v-model:visible="bulkInsertDialog" :style="{width: '450px'}" header="Purchase Order" :modal="true">
+            <div class="field">
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Number:</h3>
+                <InputText id="purchaseOrder" v-model="purchaseOrder" rows="3" cols="20" />
+            </div>
+            
             <template v-for="(bCase, counter) in bulkCases">
-                <InputGroup>
-                    <InputText placeholder="Testing" v-model="bCase.name"/>
-                </InputGroup>
 
-                <InputGroup>
-                    <InputNumber placeholder="Price" />
-                </InputGroup>
+                <span @click="deleteBulkLine(counter)">x</span>
+                <h3 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h3><br>
+                <div class="field">
+                    <label for="name">Name:</label>
+                    <Dropdown v-model="bCase.product_id" required="true" 
+                    placeholder="Select a Product" class="md:w-14rem" editable
+                    :options="products"
+                    optionLabel="name"
+                    filter
+                    optionValue="product_id"
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    :class="{'p-invalid': submitted && !bCase.product_id}" 
+                    >
 
+                    <template #value="slotProps">
+                            <div v-if="slotProps.value" class="flex align-items-center">
+                                <div>{{ slotProps.value.product_id }}</div>
+                            </div>
+                            <span v-else>
+                                {{ slotProps.placeholder }}
+                            </span>
+                        </template>
+                        <template #option="slotProps">
+                            <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                                <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                            </div>
+                            <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                                <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                            </div>
+                        </template>
+                    </Dropdown>
+                    <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
+                </div><br>
+
+                <div class="field">
+                    <label for="qty">QTY:</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    :class="{'p-invalid': submitted && !bCase.units_per_case}"
+                    v-model="bCase.units_per_case" showButtons/>
+                    <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
+                </div>
+
+                <div class="field">
+                    <label for="location">Location:</label>
+                    <InputText id="location" v-model="bCase.location" rows="3" cols="20" />
+                </div>
+
+                <div class="field">
+                    <label for="notes">Notes:</label>
+                    <InputText id="notes" v-model="bCase.notes" rows="3" cols="20" />
+                </div>
+
+                <div v-show="!bCase.case_id" class="field">
+                    <label for="amount">How Many Recieved?</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    v-model="amount" showButtons/>
+                </div>
+
+                <div class="field">
+                    <label>Status:</label>
+                    <InputText id="status" v-model="bCase.status" rows="3" cols="20" />
+                </div>
+_____________________________________________________________
+                <br><br>
             </template>
 
+            <Button label="Add another product" text @click="addBulkLine"/>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="bulkSave" />
@@ -220,6 +284,8 @@ export default {
 
             bulkInsertDialog: false,
             bulkCases: [] as any[],
+            bulkAmount: 3,
+            purchaseOrder: "",
 
             products: [] as any[],
             //productDialog: false,
@@ -231,6 +297,8 @@ export default {
             amount: 1,
 
             loading: false,
+
+            today: "",
 
             context: {} as any,
 
@@ -258,8 +326,11 @@ export default {
     },
     mounted() {
         console.log('Mounted');
+        console.log(this.selectedCases)
 
         this.displayController(this.displayValue as string);
+
+        this.getDate();
 
         //console.log("PRODUCTS",this.products);
         //console.log("CASES",this.cases);
@@ -323,6 +394,12 @@ export default {
             }
         },
 
+        getDate(){
+            const date = new Date();
+            this.today = date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
+            console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -332,6 +409,7 @@ export default {
             this.eCase = [];
             this.submitted = false;
             this.amount = 1;
+            this.eCase.date_recieved = this.today;
             
             this.caseDialog = true;
         },
@@ -340,7 +418,20 @@ export default {
             this.submitted = false;
             this.amount = 1;
             
+            for(let idx = 0; idx < this.bulkAmount; idx++){
+                this.addBulkLine();
+            }
             this.bulkInsertDialog = true;
+        },
+        addBulkLine(){
+            this.bulkCases.push(
+                    {
+                    name: '',
+                    }
+                )
+        },
+        deleteBulkLine(counter: any){
+            this.bulkCases.splice(counter,1);
         },
         hideDialog() {
             this.bulkInsertDialog = false;
@@ -353,29 +444,31 @@ export default {
             this.submitted = true;
 
             try {
-                
+                if (this.eCase.product_id) {
+                    if (this.eCase.case_id) {
+                        await this.confirmEdit();
+                    }
+                    else {
+                        await this.confirmCreate();
+                    }
+
+                    //this.productDialog = false;
+                    this.caseDialog = false;
+                    this.product = {};
+                    this.eCase = {};
+                    this.amount = 1;
+                }
             } catch (error) {
-                
+                console.log(error);
             }
 
-			if (this.eCase.product_id) {
-                if (this.eCase.case_id) {
-                    await this.confirmEdit();
-                }
-                else {
-                    await this.confirmCreate();
-                }
-
-                //this.productDialog = false;
-                this.caseDialog = false;
-                this.product = {};
-                this.eCase = {};
-                this.amount = 1;
-            }
         },
         async bulkSave(){
             try {
+                this.submitted = true;
                 console.log(this.bulkCases);
+
+                
             } catch (error) {
                 
             }
