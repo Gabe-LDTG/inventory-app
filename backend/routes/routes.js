@@ -32,6 +32,13 @@ import {
     endSession,
 } from "../controllers/authentication.js";
 
+import {
+    showPurchaseOrders,
+    createPurchaseOrder,
+    deletePurchaseOrder,
+    updatePurchaseOrder,
+} from "../controllers/purchase_orders.js";
+
 //init express router
 const router=express.Router();
 
@@ -102,6 +109,19 @@ router.put('/cases/:id', updateCase);
 
 //Delete Cases
 router.delete('/cases/:id',deleteCase);
+
+//PURCHASE ORDERS-----------------------------------------------------------------
+//Get Purchase orders
+router.get("/purchaseOrders", showPurchaseOrders);
+
+//Create a Purchase order
+router.post("/purchaseOrders/create", createPurchaseOrder);
+
+//Edit a Purchase order
+router.put("/purchaseOrders/:id", updatePurchaseOrder);
+
+//Delete a Purchase order
+router.delete("purchaseOrders/:id", deletePurchaseOrder);
 
 //ROUTER--------------------------------------------------------------------------
 //export default router

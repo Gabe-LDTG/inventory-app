@@ -41,9 +41,12 @@ export default {
 
       <nav v-show="sessionUser">    
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
-        <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
-        <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
         <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
+        <RouterLink :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink>
+        <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
+        <!-- SPOT FOR WORK ORDERS -->
+        <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
+        <!-- SPOT FOR SHIPPING LOGS -->
         <RouterLink :to="{ name: 'Import' }">Import</RouterLink>
         <RouterLink to="/about">About</RouterLink> 
       </nav>

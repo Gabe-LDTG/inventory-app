@@ -5,6 +5,7 @@ import UnprocessedCases from '../views/UnprocessedCases.vue'
 import ProductList from '../views/ProductList.vue'
 import Import from '../views/Import.vue'
 import Login from '../views/LoginView.vue'
+import PurchaseOrder from '../views/PurchaseOrderView.vue'
 
 import axios from "axios";
 
@@ -48,6 +49,11 @@ const router = createRouter({
       path: '/',
       name: 'Login',
       component: Login
+    },
+    {
+      path: '/purchaseorders',
+      name: 'PurchaseOrders',
+      component: PurchaseOrder
     },
   ]
 })

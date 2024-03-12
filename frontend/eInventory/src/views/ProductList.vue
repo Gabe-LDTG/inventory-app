@@ -16,7 +16,7 @@
 
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="product_id"
-                :paginator="true" :rows="100" :filters="filters"
+                :paginator="true" :rows="25" :filters="filters"
                 :selectAll="false"
                 removableSort
                 showGridlines
@@ -39,7 +39,7 @@
                 <template #loading> Loading product data. Please wait. </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
 
-                <Column expander style="width: 5rem" @click="console.log('TESTING')"/>
+                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')"/>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
@@ -158,7 +158,7 @@
 
             <div class="field">
                 <label for="date_added">Date Added</label>
-                <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_recieved"/>
+                <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
             </div>
 
             <!-- MAKE DROPDOWN -->
@@ -522,6 +522,13 @@ export default {
             action.getProducts().then(data => {
                 this.products = data;
             });
+        }, */
+        /* decodeFilterRequest(){
+            String globalFilter = params.get(clientId + UINamingContainer.getSeparatorChar(context) + "globalFilter");
+            boolean hasGlobalFilter = !isValueBlank(globalFilter);
+            if(hasGlobalFilter) {
+                filters.put("globalFilter", globalFilter);
+            }
         }, */
 
         async getProducts(){

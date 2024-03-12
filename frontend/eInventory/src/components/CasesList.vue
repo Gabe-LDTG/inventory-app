@@ -60,7 +60,7 @@
                 <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="location" header="Location" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
-                <Column field="date_recieved" header="Date Recieved" sortable></Column>
+                <Column field="date_received" header="Date received" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
@@ -79,6 +79,7 @@
                 :options="products"
                 optionLabel="name"
                 filter
+                @change="onProductSelection(eCase.product_id)"
                 optionValue="product_id"
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 :class="{'p-invalid': submitted && !eCase.product_id}" 
@@ -130,14 +131,14 @@
             </div>
 
             <div v-show="!eCase.case_id" class="field">
-                <label for="amount">How Many Recieved?</label>
+                <label for="amount">How Many received?</label>
                 <InputNumber inputId="stacked-buttons" required="true" 
                 v-model="amount" showButtons/>
             </div>
 
             <div class="field">
-                <label for="date_recieved"> Date Recieved: </label>
-                <Calendar id="date_recieved" dateFormat="yy-mm-dd" v-model="eCase.date_recieved"/>
+                <label for="date_received"> Date received: </label>
+                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="eCase.date_received"/>
             </div>
 
             <div class="field">
@@ -234,7 +235,7 @@
                 </div>
 
                 <div v-show="!bCase.case_id" class="field">
-                    <label for="amount">How Many Recieved?</label>
+                    <label for="amount">How Many received?</label>
                     <InputNumber inputId="stacked-buttons" required="true" 
                     v-model="amount" showButtons/>
                 </div>
@@ -400,6 +401,17 @@ export default {
             console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
         },
 
+        onProductSelection(productId: any){
+            console.log("PRODUCT ID", productId);
+
+            for (let idx = 0; idx < this.products.length; idx++) {
+                if (this.products[idx].product_id == productId) {
+                    console.log("PRODUCT NAME: ", this.products[idx].name);
+                    this.eCase.units_per_case = this.products[idx].default_units_per_case;
+                }
+            }
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -409,7 +421,7 @@ export default {
             this.eCase = [];
             this.submitted = false;
             this.amount = 1;
-            this.eCase.date_recieved = this.today;
+            this.eCase.date_received = this.today;
             
             this.caseDialog = true;
         },

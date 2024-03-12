@@ -16,8 +16,8 @@
                                 <option v-for="p in this.products" :value="p.id">{{p.name}} - {{ p.upc }}</option>
                             </select><br>
 
-                            <label for="type">Date Recieved: </label><br>
-                            <input type="date" class="form-control" v-model="daterecieved"/><br>
+                            <label for="type">Date received: </label><br>
+                            <input type="date" class="form-control" v-model="datereceived"/><br>
 
                             <label for="type">Notes: </label><br>
                             <input class="form-control" placeholder="Notes" v-model="note"/><br>
@@ -41,7 +41,7 @@
                         <tr>
                             <th>Product Name</th>
                             <th>Units Per Box</th>
-                            <th>Date Recieved</th>
+                            <th>Date received</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -51,7 +51,7 @@
                                 <template v-if="!c.EDIT">
                                     <td>{{ c.name }}</td>
                                     <td>{{ c.units_per_case }}</td>
-                                    <td>{{ c.date_recieved }}</td>
+                                    <td>{{ c.date_received }}</td>
                                     <td>{{ c.notes }}</td>
 
                                     <td><button @click="c.EDIT = true; console.log(c.name)">Edit</button></td>
@@ -66,12 +66,12 @@
 
                                     <td><input type="number" class="form-control" v-model="this.displayCases[index].units_per_case"/><br></td>
 
-                                    <td><input type="date" class="form-control" v-model="this.displayCases[index].date_recieved"/><br></td>
+                                    <td><input type="date" class="form-control" v-model="this.displayCases[index].date_received"/><br></td>
 
                                     <td><input class="form-control" v-model="this.displayCases[index].notes"/><br></td>
 
                                     <td><button type="button" @click="c.EDIT = false">Cancel</button></td>
-                                    <td><button type="button" @click="editCase(c.id, this.displayCases[index].product_id, this.displayCases[index].units_per_case, this.displayCases[index].notes, this.displayCases[index].date_recieved)">Submit</button></td>
+                                    <td><button type="button" @click="editCase(c.id, this.displayCases[index].product_id, this.displayCases[index].units_per_case, this.displayCases[index].notes, this.displayCases[index].date_received)">Submit</button></td>
                                 </template>
                             </tr>   
                         </template>
@@ -105,7 +105,7 @@ export default {
             product: "",
             unitspc: "",
             note: "",
-            daterecieved: new Date(),
+            datereceived: new Date(),
             id: "",
 
 
@@ -144,7 +144,7 @@ export default {
                 product_id: this.product,
                 units_per_case: this.unitspc,
                 notes: this.note,
-                date_recieved: this.daterecieved,
+                date_received: this.datereceived,
             }).then((res) => {
                 location.reload();
             }).catch(error => {
@@ -161,13 +161,13 @@ export default {
             }
             location.reload();
         },
-        editCase(id: string, product_id: string, units_per_case: string, notes: string, date_recieved: string){
+        editCase(id: string, product_id: string, units_per_case: string, notes: string, date_received: string){
 
             axios.put("http://localhost:5000/cases/"+id, {
                 product_id: product_id,
                 units_per_case: units_per_case,
                 notes: notes,
-                date_recieved: date_recieved,
+                date_received: date_received,
 
             }).then((res) => {
                 //console.log(product_id);

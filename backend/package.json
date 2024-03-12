@@ -22,5 +22,8 @@
     "env": {
       "DEBUG": "*"
     }
+  },
+  "devDependencies": {
+    "typescript": "^5.4.2"
   }
 }

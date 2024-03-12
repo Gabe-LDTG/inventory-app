@@ -1,12 +1,14 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 
+var BASE_URL = "http://localhost:5000"
+
 var action = {
     //AUTHENTICATION COMMANDS----------------------------------------------------------------------------------------
     //Add a user
     async addUser(u: any){
         //console.log(this.product);
-        return axios.post("http://localhost:5000/users/create", {
+        return axios.post(BASE_URL+"/users/create", {
             username: u.username,
             password: u.password
         }).then((res) => {
@@ -21,7 +23,7 @@ var action = {
 
     async validatePassword(u: any){
         //console.log(this.product);
-        return axios.post("http://localhost:5000/users/validate", {
+        return axios.post(BASE_URL+"/users/validate", {
             username: u.username,
             password: u.password
         },{
@@ -41,7 +43,7 @@ var action = {
     async getSessionUser(){
         let sessionUser;
             
-        return axios.get("http://localhost:5000/sessionUser").then(res => {
+        return axios.get(BASE_URL+"/sessionUser").then(res => {
             console.log(res.data);
             sessionUser = res.data;
             //console.log(sessionUser);
@@ -53,7 +55,7 @@ var action = {
     },
 
     async logOut(){
-        return axios.post("http://localhost:5000/logout").then(res => {
+        return axios.post(BASE_URL+"/logout").then(res => {
             console.log(res);
             return res;
         }).catch(error => {
@@ -67,7 +69,7 @@ var action = {
     async getProducts(){
         let products;
             
-        return axios.get("http://localhost:5000/products",{
+        return axios.get(BASE_URL+"/products",{
             withCredentials: true, // Now this is was the missing piece in the client side 
           }).then(res => {
             products = res.data;
@@ -76,7 +78,7 @@ var action = {
             //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
             //this.displayProducts = this.products;
 
-            //console.log("Product List Recieved\n",products);
+            //console.log("Product List received\n",products);
             //console.log("Keys", Object.keys(products[1]));
 
             return products;
@@ -86,7 +88,7 @@ var action = {
     async getProcProducts(){
         let products;
 
-        return axios.get("http://localhost:5000/products/processed").then(res => {
+        return axios.get(BASE_URL+"/products/processed").then(res => {
             products = res.data
             console.log(products);
             return products;
@@ -97,7 +99,7 @@ var action = {
     async getUnprocProducts(){
         let products;
 
-        return axios.get("http://localhost:5000/products/unprocessed").then(res => {
+        return axios.get(BASE_URL+"/products/unprocessed").then(res => {
             products = res.data
             console.log(products);
             return products;
@@ -108,7 +110,7 @@ var action = {
     async getProductById(id: string){
         let specificProduct;
         //console.log(id);
-        axios.get("http://localhost:5000/products/"+id)
+        axios.get(BASE_URL+"/products/"+id)
         .then(res => {
             specificProduct = res.data,
             console.log(specificProduct);
@@ -125,7 +127,7 @@ var action = {
             
         //console.log("UPC ______ ", this.upc);
         //console.log(this.fnsku);
-            return axios.post("http://localhost:5000/products/create", {
+            return axios.post(BASE_URL+"/products/create", {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -191,7 +193,7 @@ var action = {
             
         //console.log("UPC ______ ", this.upc);
         //console.log(this.fnsku);
-            return axios.post("http://localhost:5000/products/create", {
+            return axios.post(BASE_URL+"/products/create", {
                 vendor: p.vendor,
                 name: p.name,
                 item_num: p.item_num,
@@ -221,7 +223,7 @@ var action = {
     async deleteProduct(id: string){
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
-            return axios.delete("http://localhost:5000/products/"+id)
+            return axios.delete(BASE_URL+"/products/"+id)
             .then(res => {
                 //location.reload();
                 //this.refreshData();
@@ -245,7 +247,7 @@ var action = {
         console.log(value.upc);
         console.log(value.notes); */
         console.log("PRODUCTS NEEDED A ",p.products_needed_a);
-        return axios.put("http://localhost:5000/products/"+p.product_id, {
+        return axios.put(BASE_URL+"/products/"+p.product_id, {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -309,7 +311,7 @@ var action = {
         //let convertedP = JSON.stringify(p);
 
         //console.log("CONVERTED", convertedP);
-        return axios.post("http://localhost:5000/products/batchInsert", p).then((res) => {
+        return axios.post(BASE_URL+"/products/batchInsert", p).then((res) => {
             //location.reload();
             //setInterval(this.refreshData, 1000);
 
@@ -330,7 +332,7 @@ var action = {
 
             console.log(p);
 
-            return axios.post("http://localhost:5000/products/batchDelete", p)
+            return axios.post(BASE_URL+"/products/batchDelete", p)
             .then(res => {
                 //location.reload();
                 //this.refreshData();
@@ -352,13 +354,13 @@ var action = {
         let cases;
         console.log("IN GET CASES");
 
-        return axios.get("http://localhost:5000/cases").then(res => {
+        return axios.get(BASE_URL+"/cases").then(res => {
             cases = res.data;
 
             console.log('TESTING-------------------')
-            console.log("Case List Recieved\n",cases);
+            console.log("Case List received\n",cases);
             console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_recieved.getMonth());
+            //console.log(this.cases.date_received.getMonth());
 
             return cases;
         })
@@ -368,13 +370,13 @@ var action = {
         let cases;
         console.log("IN GET CASES");
 
-        return axios.get("http://localhost:5000/cases/id").then(res => {
+        return axios.get(BASE_URL+"/cases/id").then(res => {
             cases = res.data;
 
             console.log('TESTING-------------------')
-            console.log("Case List Recieved\n",cases);
+            console.log("Case List received\n",cases);
             console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_recieved.getMonth());
+            //console.log(this.cases.date_received.getMonth());
 
             return cases;
         })
@@ -386,17 +388,17 @@ var action = {
     async getProcCases(){
         let cases;
 
-        return axios.get("http://localhost:5000/cases/processed").then(res => {
+        return axios.get(BASE_URL+"/cases/processed").then(res => {
             cases = res.data;
 
             if(cases){
                 console.log(cases);
 
-                //console.log(cases[0].date_recieved);
+                //console.log(cases[0].date_received);
             }
 
             console.log('TESTING-------------------')
-            //console.log(this.cases.date_recieved.getMonth());
+            //console.log(this.cases.date_received.getMonth());
 
             return cases;
         })
@@ -405,7 +407,7 @@ var action = {
     async getUnprocCases(){
         let cases;
             
-        return axios.get("http://localhost:5000/cases/unprocessed").then(res => {
+        return axios.get(BASE_URL+"/cases/unprocessed").then(res => {
             cases = res.data;
             console.log(cases);
             return cases;
@@ -415,12 +417,12 @@ var action = {
     //
     async addCase(c: any){
         //console.log(this.product);
-        return axios.post("http://localhost:5000/cases/create", {
+        return axios.post(BASE_URL+"/cases/create", {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
             location: c.location,
             notes: c.notes,
-            date_recieved: c.date_recieved,
+            date_received: c.date_received,
             status: c.status,
         }).then((res) => {
             //location.reload();
@@ -435,7 +437,7 @@ var action = {
     async deleteCase(id: string){
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
-        return axios.delete("http://localhost:5000/cases/"+id)
+        return axios.delete(BASE_URL+"/cases/"+id)
         .catch(error => {
             console.log(error);
         })
@@ -447,12 +449,12 @@ var action = {
     //
     async editCase(c: any){
 
-        return axios.put("http://localhost:5000/cases/"+c.case_id, {
+        return axios.put(BASE_URL+"/cases/"+c.case_id, {
             product_id: c.product_id,
             units_per_case: c.units_per_case,
             location: c.location,
             notes: c.notes,
-            date_recieved: c.date_recieved,
+            date_received: c.date_received,
             status: c.status,
 
         }).then((res) => {
@@ -465,7 +467,73 @@ var action = {
         });
     },
 
-    //
+    //PURCHASE ORDERS
+    //Gets purchase orders
+    async getPurchaseOrders(){
+        let purchaseOrders;
+            console.log("IN GET PURCHASE ORDERS");
+
+            return axios.get(BASE_URL+"/purchaseOrders").then(res => {
+                purchaseOrders = res.data;
+
+                console.log('TESTING-------------------')
+                console.log("Purchase Order List received\n",purchaseOrders);
+                //console.log("Keys", Object.keys(purchaseOrders[1]));
+                //console.log(this.cases.date_received.getMonth());
+
+                return purchaseOrders;
+            })
+    },
+
+    //Create a purchase order
+    async addPurchaseOrder(purchaseOrder: any){
+        //console.log(this.product);
+        return axios.post(BASE_URL+"/purchaseOrders/create", {
+            purchase_order_name: purchaseOrder.purchase_order_name,
+            status: purchaseOrder.status,
+            notes: purchaseOrder.notes,
+            date_ordered: purchaseOrder.date_ordered,
+            date_received: purchaseOrder.date_received,
+            vendor: purchaseOrder.vendor,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Edit a purchase order
+    async editPurchaseOrder(purchaseOrder: any){
+        return axios.put(BASE_URL+"/purchaseOrders/"+purchaseOrder.purchase_order_id, {
+            purchase_order_name: purchaseOrder.purchase_order_name,
+            status: purchaseOrder.status,
+            notes: purchaseOrder.notes,
+            date_ordered: purchaseOrder.date_ordered,
+            date_received: purchaseOrder.date_received,
+            vendor: purchaseOrder.vendor,
+        }).then((res) => {
+            //console.log(product_id);
+            //location.reload();
+            //this.refreshData();
+            //this.editId = '';
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Delete a purchase order
+    async deletePurchaseOrder(id: any){
+        return axios.delete(BASE_URL+"/purchaseOrders/"+id)
+        .catch(error => {
+            console.log(error);
+        })
+
+    }
+
 }
 
 export default action;
