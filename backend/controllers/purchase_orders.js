@@ -22,6 +22,8 @@ export async function createPurchaseOrder (req,res){
     try {
         const data=req.body;
         let insertedPurchaseOrder = await insertPurchaseOrder(data);
+
+        console.log("INSERTED PURCHASE ORDER ", insertedPurchaseOrder)
         
         res.json(insertedPurchaseOrder);
     } catch (err) {

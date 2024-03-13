@@ -15,7 +15,7 @@
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
-            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedProducts" dataKey="product_id"
+            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" dataKey="purchase_order_id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
@@ -42,6 +42,8 @@
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
 
+                <Column expander style="width: 5rem" />
+
                 <Column field="purchase_order_name" header="Purchase Order" sortable></Column>
 
                 <Column field="vendor" header="Vendor" sortable></Column>
@@ -60,6 +62,16 @@
                         <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
                 </Column>
+
+                <template #expansion="slotProps">
+                    <div class="p-3">
+                        <h5>Products in Purchase Order {{ slotProps.data.purchase_order_name }}</h5>
+                        <DataTable :value="slotProps.data.orders" >
+                        
+                        </DataTable>
+                    </div>
+                </template>
+
             </DataTable>
         </div>
 
@@ -115,7 +127,7 @@
                             :options="products"
                             optionLabel="name"
                             filter
-                            @change="bCase.units_per_case = onProductSelection(bCase.product_id)"
+                            @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
                             optionValue="product_id"
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !bCase.product_id}" 
@@ -140,7 +152,8 @@
                             <label for="qty">QTY:</label>
                             <InputNumber inputId="stacked-buttons" required="true" 
                             :class="{'p-invalid': submitted && !bCase.units_per_case}"
-                            v-model="bCase.units_per_case" showButtons/>
+                            v-model="bCase.units_per_case" showButtons
+                            @input="bCase.total = bCase.amount*bCase.units_per_case"/>
                             <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
                         </div>
 
@@ -152,7 +165,15 @@
                         <div v-show="!bCase.case_id" class="field">
                             <label for="amount">How Many Boxes to Order?</label>
                             <InputNumber inputId="stacked-buttons" required="true" 
-                            v-model="bCase.amount" showButtons/>
+                            v-model="bCase.amount" showButtons
+                            @input="bCase.total = bCase.amount*bCase.units_per_case"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="total">Total</label>
+                            <InputNumber v-model="bCase.total" 
+                            inputId="stacked-buttons" showButtons
+                            @update="bCase.amount = bCase.total/bCase.units_per_case"/>
                         </div>
                     </div>
 
@@ -197,6 +218,7 @@ export default {
             purchaseOrders: [] as any[],
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
+            selectedPurchaseOrder: [] as any[],
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -204,6 +226,7 @@ export default {
             selectedProducts: [] as any[],
 
             //CASE VARIABLES
+            cases: [] as any[],
             bulkCases: [] as any[],
             amount: 1,
 
@@ -212,7 +235,6 @@ export default {
 
             //STUFF FROM THE PRODUCT VIEW THAT ISN'T USED
 
-            cases: [] as any[],
             productDialog: false,
             productInfoDialog: false,
             deleteProductDialog: false,
@@ -246,6 +268,7 @@ export default {
         console.log('Mounted');
         this.getPurchaseOrders();
         this.getUnprocessedProducts();
+        this.getUnprocessedBoxes();
         this.getDate();
     },
     methods: {
@@ -264,6 +287,14 @@ export default {
                 this.products = await action.getUnprocProducts();
             } catch (err) {
                 console.log(err);
+            }
+        },
+
+        async getUnprocessedBoxes(){
+            try {
+                this.cases = await action.getUnprocCases();
+            } catch (error) {
+                console.log(error);
             }
         },
 
@@ -361,21 +392,25 @@ export default {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
 
+
                 try {
                     console.log(this.bulkCases);
                     for(let caseIdx = 0; caseIdx < this.bulkCases.length; caseIdx++){
                         //console.log(this.bulkCases[caseIdx].case_id);
                         if(this.bulkCases[caseIdx].product_id){
-                            this.bulkCases[caseIdx].purchase_order_id = addedPurchaseOrderId;
+                            console.log("LAST INSERT ID", addedPurchaseOrderId);
+                            this.bulkCases[caseIdx].purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
                             this.bulkCases[caseIdx].status = 'Ordered';
 
-                            console.log(this.bulkCases[caseIdx].amount);
+                            console.log(this.bulkCases[caseIdx]);
 
                             for(let amountIdx = 0; amountIdx < this.bulkCases[caseIdx].amount; amountIdx++){
+                                console.log("CASE ADDED ", this.bulkCases[caseIdx]);
                                 await action.addCase(this.bulkCases[caseIdx]);
                             }
                         }
                     }
+                    await action.getCases();
 
                 } catch (error) {
                     this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
@@ -385,7 +420,7 @@ export default {
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
                 console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
-                this.getPurchaseOrders();
+                await this.getPurchaseOrders();
 
                 return addedPurchaseOrderId;
             } catch (err) {
@@ -396,6 +431,27 @@ export default {
         editPurchaseOrder(purchaseOrder: any) {
             this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
             this.purchaseOrderDialog = true;
+        },
+        onRowExpand(event: any) {
+            this.$toast.add({ severity: 'info', summary: 'Purchase Order Expanded', detail: event.data.purchase_order_name, life: 3000 });
+            
+            console.log(event.data);
+
+            let map = [] as any[];
+            let recipe = [] as any[];
+            this.recipeProducts = [];
+
+            console.log("EVENT ARRAY", event.data.purchase_order_id);
+            console.log("CASES", this.cases);
+
+
+            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                if(this.cases[caseIdx].purchase_order_id == event.data.purchase_order_id){
+                    console.log(this.cases[caseIdx].name);
+                }
+            }
+
+            return recipe;
         },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
@@ -530,25 +586,6 @@ export default {
         }, */
         parseFile(){
             this.loading = true;
-        },
-        onRowExpand(event: any) {
-            this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
-            
-            let map = [] as any[];
-            let recipe = [] as any[];
-            this.recipeProducts = [];
-
-            for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
-                if(event.data.products_needed_a == this.products[prodIdx].product_id){
-                    map[<any>'product_needed'] = this.products[prodIdx].name;
-                    map[<any>'qty'] = event.data.qty_1;
-                    this.recipeProducts.push(map);
-                    recipe.push(map);
-                }
-
-            }
-
-            return recipe;
         },
         findProductName(id: number){
             let name = "";

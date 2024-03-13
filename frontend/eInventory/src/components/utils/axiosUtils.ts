@@ -359,7 +359,7 @@ var action = {
 
             console.log('TESTING-------------------')
             console.log("Case List received\n",cases);
-            console.log("Keys", Object.keys(cases[1]));
+            //console.log("Keys", Object.keys(cases[1]));
             //console.log(this.cases.date_received.getMonth());
 
             return cases;
@@ -424,6 +424,7 @@ var action = {
             notes: c.notes,
             date_received: c.date_received,
             status: c.status,
+            purchase_order_id: c.purchase_order_id,
         }).then((res) => {
             //location.reload();
             //this.refreshData();
