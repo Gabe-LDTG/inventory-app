@@ -46,9 +46,15 @@
 
                 <Column field="purchase_order_name" header="Purchase Order" sortable></Column>
 
-                <Column field="vendor" header="Vendor" sortable></Column>
+                <Column field="status" header="Status" sortable>
+                    <template #body="slotProps">
+                        <div class="card flex flex-wrap  gap-2">
+                            <Tag :value="slotProps.data.status" :severity="getPOSeverity(slotProps.data)" :icon="getPOIcon(slotProps.data)" iconPos="right"/>
+                        </div>
+                    </template>
+                </Column>
 
-                <Column field="status" header="Status" sortable></Column>
+                <Column field="vendor" header="Vendor" sortable></Column>
 
                 <Column field="notes" header="Notes" sortable></Column>
 
@@ -58,16 +64,24 @@
 
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editPurchaseOrder(slotProps.data)" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button icon="pi pi-check" outlined rounded class="mr-2" @click="editPurchaseOrder(slotProps.data)" />
+                        <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
                 </Column>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
-                        <h5>Products in Purchase Order {{ slotProps.data.purchase_order_name }}</h5>
-                        <DataTable :value="slotProps.data.orders" >
-                        
+                        <h4>Products in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                        <DataTable :value="displayInfo(slotProps.data)" 
+                        rowGroupMode="subheader" groupRowsBy="name">
+                        <template #groupheader="slotProps">
+                            <div class="flex align-items-center gap-2">
+                                <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
+                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
+                            </div>
+                        </template>
+                            <Column field="name" header="Name"></Column>
                         </DataTable>
                     </div>
                 </template>
@@ -90,7 +104,7 @@
 
             <div class="field">
                 <label for="status">Status</label>
-                <InputText id="status" v-model="purchaseOrder.status" rows="3" cols="20" />
+                <Dropdown v-model="purchaseOrder.status" :options="statuses" />
             </div>
 
             <div class="field">
@@ -173,7 +187,7 @@
                             <label for="total">Total</label>
                             <InputNumber v-model="bCase.total" 
                             inputId="stacked-buttons" showButtons
-                            @update="bCase.amount = bCase.total/bCase.units_per_case"/>
+                            @update:model-value="bCase.amount = bCase.total/bCase.units_per_case"/>
                         </div>
                     </div>
 
@@ -241,9 +255,8 @@ export default {
             deleteProductsDialog: false,
             
             statuses: [
-				{label: 'INSTOCK', value: 'instock'},
-				{label: 'LOWSTOCK', value: 'lowstock'},
-				{label: 'OUTOFSTOCK', value: 'outofstock'}
+				'Ordered',
+				'Delivered',
             ],
             
             validFnsku: true,
@@ -308,6 +321,7 @@ export default {
             this.bulkCases = []
             this.amount = 1;
             this.purchaseOrder.date_ordered = this.today;
+            this.purchaseOrder.status = "Ordered";
             
             this.newBulkArray();
 
@@ -399,8 +413,8 @@ export default {
                         //console.log(this.bulkCases[caseIdx].case_id);
                         if(this.bulkCases[caseIdx].product_id){
                             console.log("LAST INSERT ID", addedPurchaseOrderId);
-                            this.bulkCases[caseIdx].purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
                             this.bulkCases[caseIdx].status = 'Ordered';
+                            this.bulkCases[caseIdx].purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
 
                             console.log(this.bulkCases[caseIdx]);
 
@@ -410,7 +424,7 @@ export default {
                             }
                         }
                     }
-                    await action.getCases();
+                    await action.getCases().then
 
                 } catch (error) {
                     this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
@@ -435,23 +449,110 @@ export default {
         onRowExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Purchase Order Expanded', detail: event.data.purchase_order_name, life: 3000 });
             
-            console.log(event.data);
+            console.log("EVENT DATA ",event.data);
+
+
 
             let map = [] as any[];
             let recipe = [] as any[];
             this.recipeProducts = [];
 
-            console.log("EVENT ARRAY", event.data.purchase_order_id);
-            console.log("CASES", this.cases);
+            //console.log("EVENT ARRAY", event.data.purchase_order_id);
+            //console.log("CASES", this.cases);
 
 
             for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
                 if(this.cases[caseIdx].purchase_order_id == event.data.purchase_order_id){
                     console.log(this.cases[caseIdx].name);
+                    
                 }
             }
 
             return recipe;
+        },
+        displayInfo(po: any){
+            console.log(po);
+            let linkedCases = [] as any[]; 
+            let total = 0;
+
+            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                if (this.cases[caseIdx].purchase_order_id == po.purchase_order_id){
+                    total+=this.cases[caseIdx].units_per_case;
+                    linkedCases.push(this.cases[caseIdx]);
+                }
+            }
+            console.log(total);
+
+            console.log("LINKED CASES ", linkedCases);
+
+            return linkedCases;
+        },
+        calculateBoxTotal(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total++;
+                    }
+                }
+            }
+
+            return total;
+        },
+        calculateTotalQTY(name: any){
+            let total = 0;
+
+            if (this.cases) {
+                for (let c of this.cases) {
+                    if (c.name === name) {
+                        total += c.units_per_case;
+                        //console.log(c.units_per_case);
+                        //console.log(total + c.units_per_case);
+                    }
+                }
+            }
+
+            return total;
+        },
+
+        getPOSeverity(po: any) {
+            switch (po.status) {
+                case 'Ready':
+                    return 'success';
+
+                case 'Canceled':
+                    return 'danger';
+
+                case 'BO':
+                    return 'warning';
+
+                case 'Ordered':
+                    return 'info';
+
+                default:
+                    //console.log("DEFAULT CASE ", c)
+                    return 'info';
+            }
+        },
+        getPOIcon(c: any){
+            switch (c.status) {
+                case 'Ready':
+                    return 'pi pi-check';
+
+                case 'Canceled':
+                    return 'pi pi-times';
+
+                case 'BO':
+                    return 'pi-hourglass';
+
+                case 'Ordered':
+                    return 'pi pi-truck';
+
+                default:
+                    console.log("DEFAULT CASE ", c)
+                    return 'pi pi-question-circle';
+            }
         },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------

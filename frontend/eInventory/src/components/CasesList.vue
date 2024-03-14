@@ -6,7 +6,7 @@
                 <template #start>
                     <Button label=" New" icon="pi pi-plus" severity="success" class="mr-2 inline-block" @click="openNew" />
                     <Button label=" Delete" icon="pi pi-trash" class="mr-2 inline-block" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" />
-                    <Button label=" New Purchase Order" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  />
+                    <!-- <Button label=" New Purchase Order" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  /> -->
                 </template>
 
                 <template #end>
@@ -56,7 +56,17 @@
                 <Column field="name" header="Name" sortable></Column>
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-                <Column field="status" header="Status" sortable></Column>
+                <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                    <Column field="purchase_order_name" header="PO" sortable></Column>
+                </div>
+                
+                <Column field="status" header="Status" sortable>
+                    <template #body="slotProps">
+                        <div class="card flex flex-wrap  gap-2">
+                            <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
+                        </div>
+                    </template>
+                </Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="location" header="Location" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
@@ -283,6 +293,8 @@ export default {
             expandedRowGroups: null,
             expandedRows: [],
 
+            purchase_orders: [] as any[],
+
             bulkInsertDialog: false,
             bulkCases: [] as any[],
             bulkAmount: 3,
@@ -389,6 +401,16 @@ export default {
             try {
                 this.loading = true;
                 this.cases = await action.getUnprocCases();
+                this.purchase_orders = await action.getPurchaseOrders();
+                for (let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                    for (let poIdx = 0; poIdx < this.purchase_orders.length; poIdx++){
+                        if (this.cases[caseIdx].purchase_order_id == this.purchase_orders[poIdx].purchase_order_id){
+                            this.cases[caseIdx].purchase_order_name = this.purchase_orders[poIdx].purchase_order_name;
+                            //console.log(this.cases[caseIdx]);
+                        }
+
+                    }
+                }
                 this.loading = false;
             } catch (err) {
                 console.log(err);
@@ -650,6 +672,45 @@ export default {
         },
         onRowGroupExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
+        },
+        getCaseSeverity(c: any) {
+            //console.log("CASE SEVERITY ", c.status);
+            switch (c.status) {
+                case 'Ready':
+                    return 'success';
+
+                case 'Canceled':
+                    return 'danger';
+
+                case 'BO':
+                    return 'warning';
+
+                case 'Ordered':
+                    return 'info';
+
+                default:
+                    console.log("DEFAULT CASE ", c)
+                    return 'info';
+            }
+        },
+        getCaseIcon(c: any){
+            switch (c.status) {
+                case 'Ready':
+                    return 'pi pi-check';
+
+                case 'Canceled':
+                    return 'pi pi-times';
+
+                case 'BO':
+                    return 'pi-hourglass';
+
+                case 'Ordered':
+                    return 'pi pi-truck';
+
+                default:
+                    console.log("DEFAULT CASE ", c)
+                    return 'pi pi-question-circle';
+            }
         },
     }
 }

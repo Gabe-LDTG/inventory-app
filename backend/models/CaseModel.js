@@ -23,7 +23,7 @@ export async function getCasesById(){
 //get all processed cases (All processed cases should have a fnsku or asin and should not have a upc)
 export async function getCasesByType(processed){
     //DATE_FORMAT(cases.date_received, "%m %d %Y")
-    return db.query("SELECT * FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc)).then(([results, fields])=>results);
+    return db.query("SELECT cases.case_id, cases.units_per_case, cases.date_received, cases.notes, cases.product_id, cases.location, cases.status, cases.purchase_order_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc)).then(([results, fields])=>results);
 }
 
 /* //get all unprocessed cases (all unprocessed cases should have UPC (or maybe item num))
