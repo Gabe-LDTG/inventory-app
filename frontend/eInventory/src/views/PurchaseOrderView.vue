@@ -64,8 +64,8 @@
 
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-check" outlined rounded class="mr-2" @click="editPurchaseOrder(slotProps.data)" />
-                        <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button icon="pi pi-check" outlined rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                        <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" />
                     </template>
                 </Column>
 
@@ -77,8 +77,8 @@
                         <template #groupheader="slotProps">
                             <div class="flex align-items-center gap-2">
                                 <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
-                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
-                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
+                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
                             </div>
                         </template>
                             <Column field="name" header="Name"></Column>
@@ -180,15 +180,20 @@
                             <label for="amount">How Many Boxes to Order?</label>
                             <InputNumber inputId="stacked-buttons" required="true" 
                             v-model="bCase.amount" showButtons
-                            @input="bCase.total = bCase.amount*bCase.units_per_case"/>
+                            @update:model-value="bCase.total = onTotalUpdate(bCase.amount, bCase.units_per_case)"/>
                         </div>
 
                         <div class="field">
-                            <label for="total">Total</label>
+                            <label for="total">Requested Total</label>
                             <InputNumber v-model="bCase.total" 
                             inputId="stacked-buttons" showButtons
-                            @update:model-value="bCase.amount = bCase.total/bCase.units_per_case"/>
+                            @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
                         </div>
+
+                    </div>
+                    
+                    <div v-show="bCase.total">
+                        <label class="flex justify-content-end font-bold w-full" for="actualTotal">Actual Total: {{ bCase.units_per_case * bCase.amount }}</label>
                     </div>
 
                 </div>
@@ -199,6 +204,17 @@
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="validate" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="cancelOrderDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                <span v-if="purchaseOrder">Are you sure you want to cancel purchase order <b>{{purchaseOrder.purchase_order_name}}</b>?</span>
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="cancelOrderDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" text @click="cancelOrder" />
             </template>
         </Dialog>
         
@@ -233,6 +249,7 @@ export default {
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
+            cancelOrderDialog: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -251,7 +268,6 @@ export default {
 
             productDialog: false,
             productInfoDialog: false,
-            deleteProductDialog: false,
             deleteProductsDialog: false,
             
             statuses: [
@@ -420,11 +436,12 @@ export default {
 
                             for(let amountIdx = 0; amountIdx < this.bulkCases[caseIdx].amount; amountIdx++){
                                 console.log("CASE ADDED ", this.bulkCases[caseIdx]);
+                                //this.cases.push(this.bulkCases[caseIdx]);
                                 await action.addCase(this.bulkCases[caseIdx]);
                             }
                         }
                     }
-                    await action.getCases().then
+                    this.getUnprocessedBoxes();
 
                 } catch (error) {
                     this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
@@ -442,7 +459,7 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
-        editPurchaseOrder(purchaseOrder: any) {
+        confirmOrderReceived(purchaseOrder: any) {
             this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
             this.purchaseOrderDialog = true;
         },
@@ -487,12 +504,12 @@ export default {
 
             return linkedCases;
         },
-        calculateBoxTotal(name: any){
+        calculateBoxTotal(name: any, purchase_order_id: any){
             let total = 0;
 
             if (this.cases) {
                 for (let c of this.cases) {
-                    if (c.name === name) {
+                    if (c.name == name && c.purchase_order_id == purchase_order_id) {
                         total++;
                     }
                 }
@@ -500,12 +517,12 @@ export default {
 
             return total;
         },
-        calculateTotalQTY(name: any){
+        calculateTotalQTY(name: any, purchase_order_id: any){
             let total = 0;
 
             if (this.cases) {
                 for (let c of this.cases) {
-                    if (c.name === name) {
+                    if (c.name == name && c.purchase_order_id == purchase_order_id) {
                         total += c.units_per_case;
                         //console.log(c.units_per_case);
                         //console.log(total + c.units_per_case);
@@ -550,36 +567,59 @@ export default {
                     return 'pi pi-truck';
 
                 default:
-                    console.log("DEFAULT CASE ", c)
+                    //console.log("DEFAULT CASE ", c)
                     return 'pi pi-question-circle';
             }
         },
-
-        //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
-
-        confirmDeleteProduct(product: any) {
-            this.product = product;
-            this.deleteProductDialog = true;
+        onTotalUpdate(total: any, units_per_case: any){
+            let qty = Math.ceil(total/units_per_case);
+            return qty;
         },
-        async deleteProduct() {
+        onQtyUpdate(qty: any, units_per_case: any){
+            let total = qty*units_per_case;
+            return total;
+        },
+        confirmCancelOrder(purchaseOrder: any) {
+            this.purchaseOrder = purchaseOrder;
+            this.cancelOrderDialog = true;
+        },
+        async cancelOrder() {
             try {
                 //let stop = this.validateDelete(this.product);
                 //console.log(stop);
-                this.deleteProductDialog = false;
+                this.cancelOrderDialog = false;
 
-                const deletedProduct = await action.deleteProduct(this.product.product_id);
+                this.purchaseOrder.status = 'Canceled';
+
+                //DATE FORMATTING IS BEING WEIRD I JUST WANT TO SEE IF THE CANCEL FUNCTION WORKS
+                this.purchaseOrder.date_ordered = null;
+
+                const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
+
+                for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                    if (this.cases[caseIdx].purchase_order_id == this.purchaseOrder.purchase_order_id){
+                        this.cases[caseIdx].status = "Canceled"
+
+                        action.editCase(this.cases[caseIdx]);
+                    }
+                }
                 
-                this.products = this.products.filter(val => val.product_id !== this.product.product_id);
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
+                this.getPurchaseOrders();
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Order Canceled', life: 3000});
 
-                this.product = {};
-                return deletedProduct;
+                this.purchaseOrder = {};
+                return editedPurchaseOrder;
             } catch (err) {
                 console.log(err);
 
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
+
+
+
+        //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
+
         findIndexById(id: number) {
             let index = -1;
             for (let i = 0; i < this.products.length; i++) {

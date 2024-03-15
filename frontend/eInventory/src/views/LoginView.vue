@@ -11,7 +11,7 @@
         </div>
       <div class="flex justify-content-center flex-wrap pb-2">
         <label for="password">Password: </label> <br>
-        <Password id="password" v-model="input.password" toggleMask :class="{'p-invalid': (submitted && passErr) || (submitted && !input.password)}"/>
+        <Password id="password" v-model="input.password" toggleMask v-on:keyup.enter="login()" :class="{'p-invalid': (submitted && passErr) || (submitted && !input.password)}"/>
         <small class="p-error" v-if="submitted && !input.password">Please enter password.</small>
         <small class="p-error" v-if="submitted && passErr && input.password">Incorrect password.</small>
       </div>

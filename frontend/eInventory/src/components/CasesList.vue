@@ -16,6 +16,8 @@
                 </template>
             </Toolbar>
 
+            <!-- sortMode="single" sortField="name"  WAS MAKING REMOVEABLE SORT BREAK-->
+            <!-- MIGHT HAVE BEEN TO ORGANIZE TTHE GROUPED ITEMS BY NAME. WILL WORK ON IF NEED BE -->
             <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="case_id"
                 :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
@@ -25,7 +27,6 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
-                sortMode="single" sortField="name"
                 
                 rowGroupMode="subheader" groupRowsBy="name"
                 :virtualScrollerOptions="{ itemSize: 46 }"
@@ -56,6 +57,7 @@
                 <Column field="name" header="Name" sortable></Column>
 
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                
                 <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
                     <Column field="purchase_order_name" header="PO" sortable></Column>
                 </div>
