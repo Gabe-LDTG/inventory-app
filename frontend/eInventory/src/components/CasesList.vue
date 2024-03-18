@@ -19,7 +19,7 @@
             <!-- sortMode="single" sortField="name"  WAS MAKING REMOVEABLE SORT BREAK-->
             <!-- MIGHT HAVE BEEN TO ORGANIZE TTHE GROUPED ITEMS BY NAME. WILL WORK ON IF NEED BE -->
             <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="case_id"
-                :paginator="true" :rows="10" :filters="filters"
+                :paginator="true" :rows="10" :filters="filters" 
                 :selectAll="false"
                 removableSort
                 showGridlines
@@ -27,7 +27,8 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
-                
+                sortField="name" :sortOrder="-1"
+                :globalFilterFields="['name', 'status']"
                 rowGroupMode="subheader" groupRowsBy="name"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
@@ -37,6 +38,9 @@
                         <h4 v-if="displayValue === 'processed'" class="m-0">Manage Cases</h4>
                         
                         <h4 v-else-if="displayValue === 'unprocessed'" class="m-0">Manage Boxes</h4>
+
+                        <!-- <Button type="button"  label="Display Ordered Cases" outlined @click="ordersFiltered = !ordersFiltered; onFilter()" /> -->
+
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -68,6 +72,13 @@
                             <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
                         </div>
                     </template>
+                    <!-- <template #filter="{ filterModel, filterCallback }">
+                        <Dropdown v-model="filterModel.value" @change="filterCallback()" :options="statuses" placeholder="Select One" class="p-column-filter" style="min-width: 12rem" :showClear="true">
+                            <template #option="slotProps">
+                                <Tag :value="slotProps.option" :severity="getCaseSeverity(slotProps.option)" />
+                            </template>
+                        </Dropdown>
+                    </template> -->
                 </Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
                 <Column field="location" header="Location" sortable></Column>
@@ -291,6 +302,8 @@ export default {
             deleteCasesDialog: false,
             eCase: {} as any,
             selectedCases: [] as any[],
+            filteredCases: [] as any[],
+            ordersFiltered: true,
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
             expandedRows: [],
@@ -317,7 +330,10 @@ export default {
 
             context: {} as any,
 
-            filters: {} as any,
+            filters: {
+                global: { value: "", matchMode: FilterMatchMode.CONTAINS },
+                status: { value: null, matchMode: FilterMatchMode.EQUALS },
+            } as any,
             submitted: false,
             statuses: [
 				{label: 'INSTOCK', value: 'instock'},
@@ -346,6 +362,7 @@ export default {
         this.displayController(this.displayValue as string);
 
         this.getDate();
+        //this.onFilter();
 
         //console.log("PRODUCTS",this.products);
         //console.log("CASES",this.cases);
@@ -405,6 +422,16 @@ export default {
                 this.cases = await action.getUnprocCases();
                 this.purchase_orders = await action.getPurchaseOrders();
                 for (let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                    //console.log("CASE ",this.cases[caseIdx]);
+                    if(this.cases[caseIdx].status == 'Canceled'){
+                        //console.log("Canceled product, don't display");
+                        this.cases.splice(caseIdx, 1);
+                        //Have to decrement the index because array length has been reduced by one
+                        caseIdx--;
+                    }
+                    if(this.cases[caseIdx].status != 'Ready'){
+                        this.filteredCases.push(this.cases[caseIdx]);
+                    }
                     for (let poIdx = 0; poIdx < this.purchase_orders.length; poIdx++){
                         if (this.cases[caseIdx].purchase_order_id == this.purchase_orders[poIdx].purchase_order_id){
                             this.cases[caseIdx].purchase_order_name = this.purchase_orders[poIdx].purchase_order_name;
@@ -713,6 +740,29 @@ export default {
                     console.log("DEFAULT CASE ", c)
                     return 'pi pi-question-circle';
             }
+        },
+        onFilter(){
+            console.log("FILTERED CASES", this.filteredCases);
+            if(this.ordersFiltered == true){
+                console.log("FILTERED")
+                for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                    for(let filterIdx = 0; filterIdx < this.filteredCases.length; filterIdx++){
+                        if (this.filteredCases[filterIdx].id == this.cases[caseIdx].id){
+                            this.cases.splice(caseIdx, 1);
+                            //Have to decrement the index because array length has been reduced by one
+                            caseIdx--;
+                            break;
+                        }
+                    }
+                }
+            } else if(this.ordersFiltered == false){
+                console.log("UNFILTERED")
+                for(let filterIdx = 0; filterIdx < this.filteredCases.length; filterIdx++){
+
+                    this.cases.push(this.filteredCases[filterIdx]);
+                }
+                console.log("UNFILTERED CASES", this.cases);
+            }; 
         },
     }
 }

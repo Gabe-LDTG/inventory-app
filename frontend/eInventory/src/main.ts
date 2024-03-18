@@ -34,6 +34,7 @@ import Password from 'primevue/password';
 import ProgressSpinner from 'primevue/progressspinner';
 import Row from 'primevue/row';                   // optional
 import Tag from 'primevue/tag';
+import TriStateCheckbox from 'primevue/tristatecheckbox';
 import Toast from 'primevue/toast';
 import ToastService from 'primevue/toastservice';
 import Toolbar from 'primevue/toolbar';
@@ -69,6 +70,7 @@ app.component('Password', Password);
 app.component('ProgressSpinner', ProgressSpinner);
 app.component('Row', Row);
 app.component('Tag', Tag);
+app.component('TriStateCheckbox', TriStateCheckbox);
 app.component('Toast', Toast);
 app.component('Toolbar', Toolbar);
 

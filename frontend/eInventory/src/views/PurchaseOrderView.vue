@@ -122,84 +122,176 @@
                 <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
             </div>
 
-            <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
+            <div v-if="purchaseOrder.purchase_order_id">
+                <!-- EDITING -->
+
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
+                </div>
+
+                <DataTable :value="bulkCases" rowGroupMode="subheader" groupRowsBy="name">
+              
+                    <template #groupheader="slotProps">
+                        <div class="flex align-items-center gap-2">
+                            <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
+                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                        </div>
+                    </template>
+  
+                </DataTable> <br>
+
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
+                </div>
+
+                <template class="caseCard" v-for="(bCase, counter) in bulkCases">
+
+                    <div class ="caseCard">
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(counter)"/>
+
+                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                        <div class="block-div">
+                            <div class="field">
+                                <label for="name">Name:</label>
+                                <Dropdown v-model="bCase.product_id" required="true" 
+                                placeholder="Select a Product" class="md:w-14rem" editable
+                                :options="products"
+                                optionLabel="name"
+                                filter
+                                @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
+                                optionValue="product_id"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :class="{'p-invalid': submitted && !bCase.product_id}" 
+                                >
+
+                                <template #value="slotProps">
+                                        <div v-if="slotProps.value" class="flex align-items-center">
+                                            <div>{{ slotProps.value.product_id }}</div>
+                                        </div>
+                                        <span v-else>
+                                            {{ slotProps.placeholder }}
+                                        </span>
+                                    </template>
+                                    <template #option="slotProps">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                    </template>
+                                </Dropdown>
+                                <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
+                            </div>
+
+                            <div class="field">
+                                <label for="qty">QTY:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                :class="{'p-invalid': submitted && !bCase.units_per_case}"
+                                v-model="bCase.units_per_case" showButtons
+                                @input="bCase.total = bCase.amount*bCase.units_per_case"/>
+                                <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
+                            </div>
+
+                            <div v-show="!bCase.case_id" class="field">
+                                <label for="amount">How Many Boxes Arrived?</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="bCase.amount" showButtons
+                                @update:model-value="bCase.total = onTotalUpdate(bCase.amount, bCase.units_per_case)"/>
+                            </div>
+
+                            <div class="field">
+                                <label for="total">Received Total</label>
+                                <InputNumber v-model="bCase.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
+                            </div>
+
+                        </div>
+
+                    </div>
+                    </template>
+
             </div>
 
-            
-            <template class="caseCard" v-for="(bCase, counter) in bulkCases">
-
-                <div class ="caseCard">
-                    <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(counter)"/>
-
-                    <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
-                    <div class="block-div">
-                        <div class="field">
-                            <label for="name">Name:</label>
-                            <Dropdown v-model="bCase.product_id" required="true" 
-                            placeholder="Select a Product" class="md:w-14rem" editable
-                            :options="products"
-                            optionLabel="name"
-                            filter
-                            @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
-                            optionValue="product_id"
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            :class="{'p-invalid': submitted && !bCase.product_id}" 
-                            >
-
-                            <template #value="slotProps">
-                                    <div v-if="slotProps.value" class="flex align-items-center">
-                                        <div>{{ slotProps.value.product_id }}</div>
-                                    </div>
-                                    <span v-else>
-                                        {{ slotProps.placeholder }}
-                                    </span>
-                                </template>
-                                <template #option="slotProps">
-                                    <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
-                                </template>
-                            </Dropdown>
-                            <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="qty">QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            :class="{'p-invalid': submitted && !bCase.units_per_case}"
-                            v-model="bCase.units_per_case" showButtons
-                            @input="bCase.total = bCase.amount*bCase.units_per_case"/>
-                            <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="notes">Notes:</label>
-                            <InputText id="notes" v-model="bCase.notes" rows="3" cols="20" />
-                        </div>
-
-                        <div v-show="!bCase.case_id" class="field">
-                            <label for="amount">How Many Boxes to Order?</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            v-model="bCase.amount" showButtons
-                            @update:model-value="bCase.total = onTotalUpdate(bCase.amount, bCase.units_per_case)"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="total">Requested Total</label>
-                            <InputNumber v-model="bCase.total" 
-                            inputId="stacked-buttons" showButtons
-                            @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
-                        </div>
-
-                    </div>
-                    
-                    <div v-show="bCase.total">
-                        <label class="flex justify-content-end font-bold w-full" for="actualTotal">Actual Total: {{ bCase.units_per_case * bCase.amount }}</label>
-                    </div>
-
+            <div v-else>
+                <!-- CREATING -->
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
                 </div>
-            </template>
 
-                <Button label="Add another product" text @click="addBulkLine"/>
+                <template class="caseCard" v-for="(bCase, counter) in bulkCases">
+
+                    <div class ="caseCard">
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(counter)"/>
+
+                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                        <div class="block-div">
+                            <div class="field">
+                                <label for="name">Name:</label>
+                                <Dropdown v-model="bCase.product_id" required="true" 
+                                placeholder="Select a Product" class="md:w-14rem" editable
+                                :options="products"
+                                optionLabel="name"
+                                filter
+                                @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
+                                optionValue="product_id"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :class="{'p-invalid': submitted && !bCase.product_id}" 
+                                >
+
+                                <template #value="slotProps">
+                                        <div v-if="slotProps.value" class="flex align-items-center">
+                                            <div>{{ slotProps.value.product_id }}</div>
+                                        </div>
+                                        <span v-else>
+                                            {{ slotProps.placeholder }}
+                                        </span>
+                                    </template>
+                                    <template #option="slotProps">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                    </template>
+                                </Dropdown>
+                                <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
+                            </div>
+
+                            <div class="field">
+                                <label for="qty">QTY:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                :class="{'p-invalid': submitted && !bCase.units_per_case}"
+                                v-model="bCase.units_per_case" showButtons
+                                @input="bCase.total = bCase.amount*bCase.units_per_case"/>
+                                <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
+                            </div>
+
+                            <div class="field">
+                                <label for="notes">Notes:</label>
+                                <InputText id="notes" v-model="bCase.notes" rows="3" cols="20" />
+                            </div>
+
+                            <div v-show="!bCase.case_id" class="field">
+                                <label for="amount">How Many Boxes to Order?</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="bCase.amount" showButtons
+                                @update:model-value="bCase.total = onTotalUpdate(bCase.amount, bCase.units_per_case)"/>
+                            </div>
+
+                            <div class="field">
+                                <label for="total">Requested Total</label>
+                                <InputNumber v-model="bCase.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
+                            </div>
+
+                        </div>
+                        
+                        <div v-show="bCase.total">
+                            <label class="flex justify-content-end font-bold w-full" for="actualTotal">Actual Total: {{ bCase.units_per_case * bCase.amount }}</label>
+                        </div>
+
+                    </div>
+                    </template>
+
+                    <Button label="Add another product" text @click="addBulkLine"/>
+            </div>
+            
+            
 
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
@@ -305,6 +397,7 @@ export default {
             try {
                 this.loading = true;
                 this.purchaseOrders = await action.getPurchaseOrders();
+                
                 this.loading = false;
             } catch (err) {
                 console.log(err);
@@ -338,6 +431,8 @@ export default {
             this.amount = 1;
             this.purchaseOrder.date_ordered = this.today;
             this.purchaseOrder.status = "Ordered";
+
+            //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
             
             this.newBulkArray();
 
@@ -404,17 +499,60 @@ export default {
                 this.purchaseOrders[this.findIndexById(this.purchaseOrder.purchase_order_id)] = this.purchaseOrder;
                 console.log(this.purchaseOrders[this.findIndexById(this.purchaseOrder.purchase_order_id)]);
 
-                console.log("PURCHASE ORDER BEFORE AWAIT",this.purchaseOrder);
+                console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
+
+                if (this.purchaseOrder.date_ordered) {
+                    this.purchaseOrder.date_ordered = this.purchaseOrders[0].date_ordered.split('T')[0];
+                }
+                if (this.purchaseOrder.date_received){
+                    this.purchaseOrder.date_received = this.purchaseOrders[0].date_received.split('T')[0];
+                }
+
+                await this.alocateBoxes();
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
-                console.log("PURCHASE ORDER AFTER AWAIT",this.purchaseOrder);
+                console.log("PURCHASE ORDER AFTER AWAIT ",this.purchaseOrder);
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Updated', life: 3000});
+                await this.getPurchaseOrders();
+
                 return editedPurchaseOrder;
-            } catch (err) {
-                console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+            } catch (error) {
+                console.log(error);
+                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+            }
+        },
+        async alocateBoxes(){
+            try {
+                console.log("BULK CASES IN ALOCATE ",this.bulkCases);
+                for(let bcIdx=0; bcIdx < this.bulkCases.length; bcIdx++){
+
+                    console.log(bcIdx);
+
+                    console.log(this.bulkCases[bcIdx]);
+                    let totalAmount = this.bulkCases[bcIdx].total;
+                    let qty = this.bulkCases[bcIdx].units_per_case;
+
+                    let boxAmount = totalAmount/qty;
+                    let wholeBoxAmount = Math.floor(boxAmount);
+                    let remainder = boxAmount - wholeBoxAmount;
+                    let partialBox = Math.round(remainder*qty);
+                    let backOrderBox = qty-partialBox;
+
+                    console.log("BOX AMOUNT", boxAmount);
+                    console.log("WHOLE BOX AMOUNT", wholeBoxAmount);
+                    console.log("REMAINDER", remainder);
+                    console.log("PARTIAL BOX", partialBox);
+                    console.log("BACK ORDER BOX", backOrderBox);
+
+                    /* for(let caseIdx=0; caseIdx < this.cases.length; caseIdx){
+                        
+                    } */
+                }
+            } catch (error) {
+                console.log(error);
+                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
         async confirmCreate(){
@@ -461,6 +599,35 @@ export default {
         },
         confirmOrderReceived(purchaseOrder: any) {
             this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
+            this.purchaseOrder.status = 'Delivered';
+            this.bulkCases = [];
+
+            let currentCase = [];
+
+            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                if (this.cases[caseIdx].purchase_order_id == this.purchaseOrder.purchase_order_id){
+                    console.log(this.cases[caseIdx])
+                    currentCase = this.cases[caseIdx];
+                    currentCase.total = this.cases[caseIdx].units_per_case;
+                    currentCase.duplicate = false;
+                    console.log('CURRENT CASE', currentCase);
+
+                    for(let bcIdx = 0; bcIdx < this.bulkCases.length; bcIdx++){
+                        if (this.bulkCases[bcIdx].name == currentCase.name){
+                            console.log("DUPLICATE CASE")
+                            this.bulkCases[bcIdx].total += currentCase.total;
+                            this.bulkCases[bcIdx].plannedTotal = this.bulkCases[bcIdx].total;
+                            currentCase.duplicate = true;
+                            console.log(currentCase);
+                        }
+                    }
+                    if(currentCase.duplicate == false){
+                        this.bulkCases.push(this.cases[caseIdx]);
+                    }
+                    
+                }
+            }
+
             this.purchaseOrderDialog = true;
         },
         onRowExpand(event: any) {
@@ -535,7 +702,7 @@ export default {
 
         getPOSeverity(po: any) {
             switch (po.status) {
-                case 'Ready':
+                case 'Delivered':
                     return 'success';
 
                 case 'Canceled':
@@ -554,7 +721,7 @@ export default {
         },
         getPOIcon(c: any){
             switch (c.status) {
-                case 'Ready':
+                case 'Delivered':
                     return 'pi pi-check';
 
                 case 'Canceled':
