@@ -93,7 +93,7 @@
 
             <div class="field">
                 <label for="purchase_order_name">Purchase Order</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted && !purchaseOrder.purchase_order_name}" />
+                <InputText id="name" disabled v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted && !purchaseOrder.purchase_order_name}" />
                 <small class="p-error" v-if="submitted && !purchaseOrder.purchase_order_name">Name is required.</small>
             </div>
 
@@ -150,15 +150,16 @@
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(counter)"/>
 
-                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                        <h4 class="flex justify-content-start font-bold w-full">{{ bCase.name }}</h4><br>
                         <div class="block-div">
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="name">Name:</label>
                                 <Dropdown v-model="bCase.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
                                 :options="products"
                                 optionLabel="name"
                                 filter
+                                disabled
                                 @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
@@ -178,7 +179,7 @@
                                     </template>
                                 </Dropdown>
                                 <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
-                            </div>
+                            </div> -->
 
                             <div class="field">
                                 <label for="qty">QTY:</label>
@@ -203,6 +204,12 @@
                                 @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
                             </div>
 
+                            <!-- MAKE DROPDOWN WHEN LOCATION TABLE IS SET UP -->
+                            <div class="field">
+                                <label for="total">Location</label>
+                                <InputText id="notes" v-model="bCase.location" rows="3" cols="20" />
+                            </div>
+
                         </div>
 
                     </div>
@@ -213,7 +220,7 @@
             <div v-else>
                 <!-- CREATING -->
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Product(s):</h3>
                 </div>
 
                 <template class="caseCard" v-for="(bCase, counter) in bulkCases">
@@ -516,6 +523,7 @@ export default {
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Updated', life: 3000});
                 await this.getPurchaseOrders();
+                await this.getUnprocessedBoxes();
 
                 return editedPurchaseOrder;
             } catch (error) {
@@ -525,6 +533,9 @@ export default {
         },
         async alocateBoxes(){
             try {
+                let relatedCases = this.displayInfo(this.purchaseOrder);
+                let rcLength = relatedCases.length;
+                console.log("LINKED CASES", relatedCases);
                 console.log("BULK CASES IN ALOCATE ",this.bulkCases);
                 for(let bcIdx=0; bcIdx < this.bulkCases.length; bcIdx++){
 
@@ -538,17 +549,59 @@ export default {
                     let wholeBoxAmount = Math.floor(boxAmount);
                     let remainder = boxAmount - wholeBoxAmount;
                     let partialBox = Math.round(remainder*qty);
-                    let backOrderBox = qty-partialBox;
+                    let backOrderBoxAmount = 0;
+                    if (partialBox>0){
+                        backOrderBoxAmount = qty-partialBox;
+                    }
 
                     console.log("BOX AMOUNT", boxAmount);
                     console.log("WHOLE BOX AMOUNT", wholeBoxAmount);
                     console.log("REMAINDER", remainder);
                     console.log("PARTIAL BOX", partialBox);
-                    console.log("BACK ORDER BOX", backOrderBox);
+                    console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
 
-                    /* for(let caseIdx=0; caseIdx < this.cases.length; caseIdx){
-                        
-                    } */
+                    for(let rcIdx = 0; rcIdx < rcLength; rcIdx++){
+                        if (relatedCases[rcIdx].product_id == this.bulkCases[bcIdx].product_id){
+                            if(wholeBoxAmount > 0){
+                                relatedCases[rcIdx].status = 'Ready';
+                                relatedCases[rcIdx].date_received = this.today;
+                                wholeBoxAmount--;
+                            } else if (wholeBoxAmount == 0 && partialBox > 0){
+                                //If a partial box arrives, update the last box amount to partial amount a create 
+                                // an additional box whose status is back ordered
+                                let boBox = [] as any[];
+                                boBox[<any>'name'] = relatedCases[rcIdx].name;
+                                boBox[<any>'product_id'] = relatedCases[rcIdx].product_id
+                                boBox[<any>'purchase_order_id'] = relatedCases[rcIdx].purchase_order_id
+
+                                relatedCases[rcIdx].units_per_case = partialBox;
+                                relatedCases[rcIdx].status = 'Ready';
+                                relatedCases[rcIdx].date_received = this.today;
+
+                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
+                                boBox[<any>'status'] = 'BO'
+                                relatedCases.push(boBox);
+
+                                partialBox = 0;
+
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            } else if (wholeBoxAmount == 0 && partialBox == 0) {
+                                //If no partial box arrives, update the remaining box amounts to backorder
+                                relatedCases[rcIdx].status = 'BO';
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            }
+                        }
+                    }
+
+                }
+                console.log(relatedCases);
+                for (let rcIdx = 0; rcIdx < relatedCases.length; rcIdx++){
+                    console.log("PRODUCT NAME: ", relatedCases[rcIdx].name, "BOX AMOUNT: ", relatedCases[rcIdx].units_per_case, "BOX STATUS: ", relatedCases[rcIdx].status)
+                    if (relatedCases[rcIdx].case_id){
+                        await action.editCase(relatedCases[rcIdx]);
+                    } else {
+                        await action.addCase(relatedCases[rcIdx]);
+                    }
                 }
             } catch (error) {
                 console.log(error);
@@ -654,7 +707,7 @@ export default {
 
             return recipe;
         },
-        displayInfo(po: any){
+        displayInfo(po: any): any[] {
             console.log(po);
             let linkedCases = [] as any[]; 
             let total = 0;
@@ -708,7 +761,7 @@ export default {
                 case 'Canceled':
                     return 'danger';
 
-                case 'BO':
+                case 'Partially Delivered':
                     return 'warning';
 
                 case 'Ordered':
@@ -727,8 +780,8 @@ export default {
                 case 'Canceled':
                     return 'pi pi-times';
 
-                case 'BO':
-                    return 'pi-hourglass';
+                case 'Partially Delivered':
+                    return 'pi pi-hourglass';
 
                 case 'Ordered':
                     return 'pi pi-truck';

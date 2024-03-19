@@ -731,7 +731,7 @@ export default {
                     return 'pi pi-times';
 
                 case 'BO':
-                    return 'pi-hourglass';
+                    return 'pi pi-hourglass';
 
                 case 'Ordered':
                     return 'pi pi-truck';
