@@ -422,37 +422,50 @@ import importAction from "../components/utils/importUtils";
 export default {
     data() {
         return {
+            //PRODUCT VARIABLES
             products: [] as any[],
-            cases: [] as any[],
             productDialog: false,
             productInfoDialog: false,
             deleteProductDialog: false,
             deleteProductsDialog: false,
             product: {} as any,
             selectedProducts: [] as any[],
+            unprocProducts: [],
+            recipeProducts:[] as any[],
+            toggleProduct: {} as any,
+
+            //CASE VARIABLES
+            cases: [] as any[],
+
+            //RECIPE VARIABLES
+            recipes: [] as any[],
+            organizedRecipes: [] as any[],
+            recipesToCreate: [] as any[],
+
+            //VALIDATE VARIABLES
+            validFnsku: true,
+
+            //MISC VARIABLES
             filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
             },
+            
+            filtered: false,
+
             submitted: false,
+
             statuses: [
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
             ],
             columns: [] as any[],
-            validFnsku: true,
 
             working: false,
+
             loading: false,
 
-            filtered: false,
-
-            unprocProducts: [],
             expandedRows: [],
-            recipeProducts:[] as any[],
-
-            toggleProduct: {} as any,
-
         }
     },
     created() {
@@ -618,7 +631,7 @@ export default {
         async confirmCreate(){
             try {
                 this.products.push(this.product);
-                let addedProduct = await action.addProduct(this.product);
+                let addedProduct = await action.addProduct(this.product, this.recipesToCreate);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST

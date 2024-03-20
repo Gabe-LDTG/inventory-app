@@ -20,7 +20,7 @@ export async function insertPurchaseOrder(data){
     ];
     let query = "INSERT INTO purchase_orders (purchase_order_name, status, notes, date_ordered, date_received, vendor) VALUES (?, ?, ?, ?, ?, ?);";
     db.query(query, info).then(([results, fields])=>results);
-    return db.query("SELECT LAST_INSERT_ID();").then(([results, fields])=>results);
+    return db.query("SELECT LAST_INSERT_ID()").then(([results, fields])=>results);
 }
 
 //delete purchase order from database

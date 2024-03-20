@@ -54,6 +54,7 @@ export default {
             total: 0,
             percentage: "",
             actionMSG: "",
+            recipes: [] as any[],
         }
     },
     methods: {

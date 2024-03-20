@@ -10,7 +10,6 @@ export async function showPurchaseOrders(req,res){
     try {
         const purchaseOrders = await getPurchaseOrders();
         res.json(purchaseOrders);
-        //console.log("SESSION ID: ",req.session.cookie);
     } catch (err) {
         console.error(err);
         res.sendStatus(500);

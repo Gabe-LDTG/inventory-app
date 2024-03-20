@@ -17,6 +17,7 @@
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" dataKey="purchase_order_id"
                 :paginator="true" :rows="10" :filters="filters"
+                selectionMode="single"
                 :selectAll="false"
                 removableSort
                 showGridlines
@@ -40,9 +41,9 @@
 
                 <template #empty> No purchase orders found. </template>
 
-                <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                <!-- <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column> -->
 
-                <Column expander style="width: 5rem" />
+                <Column expander header="Order Info" style="width: 5rem" />
 
                 <Column field="purchase_order_name" header="Purchase Order" sortable></Column>
 
@@ -65,7 +66,7 @@
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-check" outlined rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
-                        <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" />
+                        <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
                     </template>
                 </Column>
 

@@ -1,7 +1,7 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 
-var BASE_URL = "http://localhost:5000"
+const BASE_URL = "http://localhost:5000";
 
 var action = {
     //AUTHENTICATION COMMANDS----------------------------------------------------------------------------------------
@@ -123,11 +123,10 @@ var action = {
     },
 
     //Posts a newly added product into the database using API
-    async addProduct(p: any){
-            
+    async addProduct(p: any, r: any){            
         //console.log("UPC ______ ", this.upc);
         //console.log(this.fnsku);
-            return axios.post(BASE_URL+"/products/create", {
+        let addedProductId = await axios.post(BASE_URL+"/products/create", {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -156,36 +155,28 @@ var action = {
             price_2022: p.price_2022,
             price_2023: p.price_2023,
             process_time_per_unit_sec: p.process_time_per_unit_sec,
-            products_needed_a: p.products_needed_a,
-            qty_1: p.qty_1,
-            products_needed_b: p.products_needed_b,
-            qty_2: p.qty_2,
-            products_needed_c: p.products_needed_c,
-            qty_3: p.qty_3,
-            products_needed_d: p.products_needed_d,
-            qty_4: p.qty_4,
-            products_needed_e: p.products_needed_e,
-            qty_5: p.qty_5,
-            products_needed_f: p.products_needed_f,
-            qty_6: p.qty_6,
             total_cost: p.total_cost,
             total_holiday_cost: p.total_holiday_cost,
             vendor: p.vendor,
             weight_lbs: p.weight_lbs,
             unit_box_cost: p.unit_box_cost,
 
-            }).then((res) => {
-                //location.reload();
-                //setInterval(this.refreshData, 1000);
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
 
-                // if ANY fail validation
-                //this.displayCreate = false;
-                //alert('Form successfully submitted.')
-                //this.refreshData();
-            }).catch(error => {
-                console.log(error);
-                throw error;
-            });
+        console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
+        if(r){
+            for(let recIdx = 0; recIdx < r.length; recIdx++){
+                axios.post(BASE_URL+"/recipes/create",{
+                    product_needed: r[recIdx].product_needed,
+                    units_needed: r[recIdx].units_needed,
+                    product_made: addedProductId.data[0]['LAST_INSERT_ID()'],
+                })
+            }
+        }
+        return addedProductId.data[0]['LAST_INSERT_ID()'];
     },
 
     //Posts a newly added product into the database using API

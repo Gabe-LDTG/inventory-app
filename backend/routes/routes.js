@@ -39,6 +39,11 @@ import {
     updatePurchaseOrder,
 } from "../controllers/purchase_orders.js";
 
+import {
+    showRecipes,
+    createRecipe,
+} from "../controllers/recipes.js";
+
 //init express router
 const router=express.Router();
 
@@ -122,6 +127,16 @@ router.put("/purchaseOrders/:id", updatePurchaseOrder);
 
 //Delete a Purchase order
 router.delete("purchaseOrders/:id", deletePurchaseOrder);
+
+//RECIPES-------------------------------------------------------------------------
+//Get Recipes
+router.get("/recipes", showRecipes);
+
+//Create a Recipe
+router.post("/recipes/create", createRecipe);
+
+//VENDORS-------------------------------------------------------------------------
+
 
 //ROUTER--------------------------------------------------------------------------
 //export default router
