@@ -54,15 +54,18 @@ var importAction = {
                 let content = [];
                 let recipeContent = [] as any[];
 
+                let vendors = await action.getVendors();
+
                 //objectLength = Object.keys(exampleObject).length
                 console.log(Object.keys(results.data[0]))
-                let mapLength = Object.keys(results.data[0]).length; 
+                //let mapLength = Object.keys(results.data[0]).length; 
 
-                let keys = Object.keys(results.data[0])
+                //let keys = Object.keys(results.data[0])
 
                 
                 //results.data.length
                 for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
+                    console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
@@ -81,7 +84,21 @@ var importAction = {
                     }
                     
                     if (results.data[dataIdx]['Vendor']) {
-                        map['vendor' as any] = results.data[dataIdx]['Vendor'];
+                        for (let venIdx = 0; venIdx < vendors.length; venIdx++){
+                            if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
+                                map['vendor' as any] = vendors[venIdx].vendor_id;
+                            }
+                            else {
+                                let ven = [] as any[];
+                                ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
+                                vendors.push(ven);
+                                ven = await action.addVendor(results.data[dataIdx]['Vendor']);
+                                map['vendor' as any] = ven[0].vendor_id;
+
+                            }
+
+                        }
+                        
                     }
                     
                     if (results.data[dataIdx]['FNSKU']) {
@@ -258,7 +275,7 @@ var importAction = {
                         //products[productIdx].name.toLowerCase();
                         //console.log(products[productIdx].name);
                         
-                        if (map['products_needed_a' as any] && products[productIdx].name.toLowerCase() == map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1']){
+                        if (map['products_needed_a' as any] && products[productIdx].name.toLowerCase() == map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1'] && map['qty_1' as any]){
                             // console.log("MATCH A ", products[productIdx].product_id);
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
@@ -271,7 +288,7 @@ var importAction = {
                         }
                         if(map['products_needed_b' as any]){
                             //console.log(map['products_needed_b' as any]);
-                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map[<any>'item_num_2']){
+                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map[<any>'item_num_2'] && map['qty_2' as any]){
                                 // console.log("MATCH B ", products[productIdx].product_id)
                                 // console.log(products[productIdx].name);
                                 // console.log(products[productIdx].item_num);
@@ -281,7 +298,7 @@ var importAction = {
                                 recipeContent.push(recMap);
                             }
                         }
-                        if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map[<any>'item_num_3']){
+                        if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map[<any>'item_num_3'] && map['qty_3' as any]){
                             // console.log("MATCH C ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
@@ -290,7 +307,7 @@ var importAction = {
                             // console.log(map['products_needed_c' as any]);
                             recipeContent.push(recMap);
                         }
-                        if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map[<any>'item_num_4']){
+                        if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map[<any>'item_num_4'] && map['qty_4' as any]){
                             // console.log("MATCH D ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
@@ -299,7 +316,7 @@ var importAction = {
                             //console.log(map['products_needed_d' as any]);
                             recipeContent.push(recMap);
                         }
-                        if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map[<any>'item_num_5']){
+                        if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map[<any>'item_num_5'] && map['qty_5' as any]){
                             //console.log("MATCH E ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
@@ -308,7 +325,7 @@ var importAction = {
                             //console.log(map['products_needed_e' as any]);
                             recipeContent.push(recMap);
                         }
-                        if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map[<any>'item_num_6']){
+                        if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map[<any>'item_num_6'] && map['qty_6' as any]){
                             //console.log("MATCH F ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
@@ -326,18 +343,21 @@ var importAction = {
 
                         }
                     }
+
+                    console.log("RECIPE CONTENT ARRAY ", recipeContent);
                     
                     if (map['name' as any]){
                         await action.addProduct(map, recipeContent);
+                        recipeContent = [];
                     }
 
                     //console.log(map.name);
                     content.push(map); 
                 }
 
-                for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
+                /* for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
                     
-                }
+                } */
 
                 console.log("RESULTS: ", results);
                 console.log("RESULTS LENGTH: ", results.data.length);
@@ -371,15 +391,59 @@ var importAction = {
 
                 let keys = Object.keys(results.data[0])
 
+                let vendors = [];
+                vendors = await action.getVendors();
+
                 
                 //results.data.length
                 for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
+                    console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
 
                     if(results.data[dataIdx]['Vendor']){
-                        map['vendor' as any] = results.data[dataIdx]['Vendor'];
+
+                        console.log(results.data[dataIdx]['Vendor']);
+                        console.log(vendors.length);
+                        console.log(vendors);
+
+                        let vendorExists = false;
+                        
+                        if (vendors.length > 0){
+                            
+                            for (let venIdx = 0; venIdx < vendors.length; venIdx++){
+                                if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
+                                    console.log("VENDOR EXISTS");
+                                    //console.log(vendors[venIdx].vendor_id);
+                                    map['vendor' as any] = vendors[venIdx].vendor_id;
+                                    vendorExists = true;
+                                }    
+                            }
+                            if (vendorExists == false){
+                                console.log("NEW VENDOR");
+                                let ven = [] as any[];
+                                ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
+                                console.log("VEN BEFORE INSERT ", ven);
+                                
+                                let vendor = await action.addVendor(ven);
+                                vendors.push(ven);
+                                console.log("VEN AFTER INSERT ", vendor);
+                                map['vendor' as any] = vendor[0].vendor_id;
+                            }
+                        } else {
+                            console.log("NEW VENDOR");
+                            let ven = [] as any[];
+                            ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
+                            console.log("VEN BEFORE INSERT ", ven);
+                            
+                            let vendor = await action.addVendor(ven);
+                            vendors.push(ven);
+                            console.log("VEN AFTER INSERT ", vendor);
+                            map['vendor' as any] = vendor[0].vendor_id;
+                        }
+
+                        //console.log(map['vendor' as any]);
                     }
                     
                     if(results.data[dataIdx]['Product Name']){
@@ -417,6 +481,8 @@ var importAction = {
                     }
 
                     if(results.data[dataIdx]['Product Name']){
+                        //console.log(map);
+
                         await action.addProduct(map, '');
                     }
                     

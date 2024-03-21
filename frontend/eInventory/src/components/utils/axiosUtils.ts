@@ -166,7 +166,7 @@ var action = {
             throw error;
         });
 
-        console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
+        //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         if(r){
             for(let recIdx = 0; recIdx < r.length; recIdx++){
                 axios.post(BASE_URL+"/recipes/create",{
@@ -524,8 +524,89 @@ var action = {
             console.log(error);
         })
 
-    }
+    },
 
+    //VENDORS--------------------------------------------------------------------------------------------
+    //Get vendors
+    async getVendors(){
+        return axios.get(BASE_URL+"/vendors").then(res => {
+            let vendors = res.data;
+            console.log("VENDORS ", vendors)
+            return vendors;
+        })
+    },
+
+    //Add a vendor
+    async addVendor(vendor: any){
+        return axios.post(BASE_URL+"/vendors/create", {
+            vendor_name: vendor.vendor_name,
+            vendor_nickname: vendor.vendor_nickname,
+            contact_email: vendor.contact_email,
+            contact_name: vendor.contact_name
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Edit a vendor
+    async editVendor(vendor: any){
+        return axios.post(BASE_URL+"/vendors/"+vendor.vendor_id, {
+            vendor_name: vendor.vendor_name,
+            vendor_nickname: vendor.vendor_nickname,
+            contact_email: vendor.contact_email,
+            contact_name: vendor.contact_name
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //LOCATIONS------------------------------------------------------------------------------------------
+    //Get locations
+    async getLocations(){
+        return axios.get(BASE_URL+"/locations").then(res => {
+            let locations = res.data;
+            console.log("VENDORS ", locations)
+            return locations;
+        })
+    },
+
+    //Add a location
+    async addLocation(location: any){
+        return axios.post(BASE_URL+"/locations/create", {
+            name: location.name,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Edit a location
+    async editLocation(location: any){
+        return axios.post(BASE_URL+"/locations/"+location.location_id, {
+            name: location.name,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
 }
 
 export default action;

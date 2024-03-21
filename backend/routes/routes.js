@@ -44,6 +44,18 @@ import {
     createRecipe,
 } from "../controllers/recipes.js";
 
+import {
+    showVendors,
+    createVendor,
+    updateVendor
+} from "../controllers/vendors.js"
+
+import {
+    showLocations,
+    createLocation,
+    updateLocation
+} from "../controllers/locations.js"
+
 //init express router
 const router=express.Router();
 
@@ -136,6 +148,24 @@ router.get("/recipes", showRecipes);
 router.post("/recipes/create", createRecipe);
 
 //VENDORS-------------------------------------------------------------------------
+//Get Vendors
+router.get("/vendors", showVendors);
+
+//Create a Vendor
+router.post("/vendors/create", createVendor);
+
+//Update a Vendor
+router.put("/vendors/:id", updateVendor);
+
+//LOCATIONS-----------------------------------------------------------------------
+//Get Locations
+router.get("/locations", showLocations);
+
+//Create a Location
+router.post("/locations/create", createLocation);
+
+//Update a Location
+router.put("/locations/:id", updateLocation);
 
 
 //ROUTER--------------------------------------------------------------------------
