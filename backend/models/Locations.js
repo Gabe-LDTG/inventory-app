@@ -2,7 +2,7 @@
 import db from "../config/database.js";
 
 const getLoc = 'SELECT * FROM locations';
-const getId = 'SELECT LAST_INSERT_ID()';
+const getId = 'SELECT * FROM locations WHERE location_id = LAST_INSERT_ID()';
 
 //get all locations
 export async function getLocations(){
@@ -17,7 +17,7 @@ export async function insertLocation(loc){
     let queryinfo = [
         "name"
     ];
-    let query = 'INSERT INTO locations ('+queryinfo+') VALUES (?, ?, ?)';
+    let query = 'INSERT INTO locations ('+queryinfo+') VALUES (?)';
     
     db.query(query, info).then(([results, fields])=>results);
 

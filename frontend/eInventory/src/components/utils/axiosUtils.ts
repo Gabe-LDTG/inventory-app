@@ -570,12 +570,22 @@ var action = {
         });
     },
 
+    //RECIPES--------------------------------------------------------------------------------------------
+    //Get recipes
+    async getRecipes(){
+        return axios.get(BASE_URL+"/recipes").then(res => {
+            let recipes = res.data;
+            //console.log("LOCATIONS ", recipes)
+            return recipes;
+        })
+    },
+
     //LOCATIONS------------------------------------------------------------------------------------------
     //Get locations
     async getLocations(){
         return axios.get(BASE_URL+"/locations").then(res => {
             let locations = res.data;
-            console.log("VENDORS ", locations)
+            //console.log("LOCATIONS ", locations)
             return locations;
         })
     },

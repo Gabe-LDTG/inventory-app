@@ -46,6 +46,11 @@
                         <h3>Recipe for {{ slotProps.data.name }}</h3>
                         <div v-if="slotProps.data.fnsku || slotProps.data.asin">
                             PROCESSED
+
+                            <DataTable :value="displayRecipes(slotProps.data.product_id)">
+                                <Column field="product_needed" header="Name"></Column>
+                            </DataTable>
+
                             <div v-show="slotProps.data.products_needed_a">
                                 <h4 class="font-bold">Product(s) Needed A: </h4> <h4>{{ findProductName(slotProps.data.products_needed_a) }}</h4>
                                 <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_1 }}</p><br>
@@ -523,7 +528,8 @@ export default {
         console.log('Mounted');
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
-        this.getProducts();
+        this.initVariables()
+
         this.getUnprocessedProducts();
         //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
@@ -543,6 +549,45 @@ export default {
                 filters.put("globalFilter", globalFilter);
             }
         }, */
+
+        async initVariables(){
+            try {
+
+                await this.getProducts();
+                await this.getRecipes();
+                
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        async getRecipes(){
+            try {
+                this.loading = true;
+                this.recipes = await action.getRecipes();
+
+                console.log(this.recipes.length)
+                console.log(this.products.length)
+
+                /* for (let recIdx=0; recIdx < this.recipes.length; recIdx++ ){
+                    for (let prodIdx=0; prodIdx < this.products.length; prodIdx++ ){
+                        console.log("IN LOOP")
+                        if (this.recipes[recIdx].product_made==this.products[prodIdx].product_id){
+                            console.log("PRODUCT MADE", this.recipes[recIdx].product_made)
+                            this.recipes[recIdx].made_name = this.products[prodIdx].name;
+                        }
+                        if (this.recipes[recIdx].product_needed==this.products[prodIdx].product_id){
+                            this.recipes[recIdx].needed_name = this.products[prodIdx].name;
+                        }
+                    }
+                } */
+
+                console.log(this.recipes);
+                this.loading = false;
+            } catch (error) {
+                console.log(error);
+            }
+        },
 
         async getProducts(){
             try {
@@ -858,6 +903,19 @@ export default {
 
             console.log("TOGGLE");
 
+        },
+
+        displayRecipes(productId: number){
+            let productRecipes = [] as any[];
+
+            for (let recIdx = 0; recIdx < this.recipes.length; recIdx++){
+                if(this.recipes[recIdx].product_made == productId){
+                    productRecipes.push(this.recipes[recIdx]);
+                }
+            }
+
+            console.log("NEEDED RECIPE ", productRecipes);
+            return productRecipes;
         },
     }
 }

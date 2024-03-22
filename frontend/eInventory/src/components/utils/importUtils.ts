@@ -84,21 +84,46 @@ var importAction = {
                     }
                     
                     if (results.data[dataIdx]['Vendor']) {
-                        for (let venIdx = 0; venIdx < vendors.length; venIdx++){
-                            if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
-                                map['vendor' as any] = vendors[venIdx].vendor_id;
+                        console.log(results.data[dataIdx]['Vendor']);
+                        console.log(vendors.length);
+                        console.log(vendors);
+
+                        let vendorExists = false;
+                        
+                        if (vendors.length > 0){
+                            
+                            for (let venIdx = 0; venIdx < vendors.length; venIdx++){
+                                if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
+                                    console.log("VENDOR EXISTS");
+                                    //console.log(vendors[venIdx].vendor_id);
+                                    map['vendor' as any] = vendors[venIdx].vendor_id;
+                                    vendorExists = true;
+                                }    
                             }
-                            else {
+                            if (vendorExists == false){
+                                console.log("NEW VENDOR");
                                 let ven = [] as any[];
                                 ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
+                                console.log("VEN BEFORE INSERT ", ven);
+                                
+                                let vendor = await action.addVendor(ven);
                                 vendors.push(ven);
-                                ven = await action.addVendor(results.data[dataIdx]['Vendor']);
-                                map['vendor' as any] = ven[0].vendor_id;
-
+                                console.log("VEN AFTER INSERT ", vendor);
+                                map['vendor' as any] = vendor[0].vendor_id;
                             }
-
+                        } else {
+                            console.log("NEW VENDOR");
+                            let ven = [] as any[];
+                            ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
+                            console.log("VEN BEFORE INSERT ", ven);
+                            
+                            let vendor = await action.addVendor(ven);
+                            vendors.push(ven);
+                            console.log("VEN AFTER INSERT ", vendor);
+                            map['vendor' as any] = vendor[0].vendor_id;
                         }
-                        
+
+                        //console.log(map['vendor' as any]);
                     }
                     
                     if (results.data[dataIdx]['FNSKU']) {
@@ -524,6 +549,9 @@ var importAction = {
 
                 let keys = Object.keys(results.data[0])
 
+                let locations = [];
+                locations = await action.getLocations();
+
                 let totalCount = 0;
 
                 
@@ -534,7 +562,54 @@ var importAction = {
                     let map = [] as any[];
 
                     map['status' as any] = results.data[dataIdx]['Status'];
-                    map['location' as any] = results.data[dataIdx]['Location'];
+
+
+                    if(results.data[dataIdx]['Location']){
+
+                        console.log(results.data[dataIdx]['Location']);
+                        console.log(locations.length);
+                        console.log(locations);
+
+                        let locationExists = false;
+                        
+                        if (locations.length > 0){
+                            
+                            for (let locIdx = 0; locIdx < locations.length; locIdx++){
+                                if(results.data[dataIdx]['Location'] == locations[locIdx].name){
+                                    console.log("LOCATION EXISTS");
+                                    //console.log(locations[locIdx].location_id);
+                                    map['location' as any] = locations[locIdx].location_id;
+                                    locationExists = true;
+                                }    
+                            }
+                            if (locationExists == false){
+                                console.log("NEW LOCATION");
+                                let loc = [] as any[];
+                                loc['name' as any] = results.data[dataIdx]['Location']
+                                console.log("LOC BEFORE INSERT ", loc);
+                                
+                                let location = await action.addLocation(loc);
+                                locations.push(loc);
+                                console.log("LOC AFTER INSERT ", location);
+                                map['location' as any] = location[0].location_id;
+                            }
+                        } else {
+                            console.log("NEW LOCATION");
+                            let loc = [] as any[];
+                            loc['name' as any] = results.data[dataIdx]['Location']
+                            console.log("LOC BEFORE INSERT ", loc);
+                            
+                            let location = await action.addLocation(loc);
+                            locations.push(loc);
+                            console.log("LOC AFTER INSERT ", location);
+                            map['location' as any] = location[0].location_id;
+                        }
+
+                        //console.log(map['location' as any]);
+
+                    }
+                    
+
                     //map['space' as any] = results.data[dataIdx]['Space'];
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['asin' as any] = results.data[dataIdx]['ASIN'];
@@ -607,6 +682,9 @@ var importAction = {
 
                 let keys = Object.keys(results.data[0])
 
+                let locations = [];
+                locations = await action.getLocations();
+
                 
                 //results.data.length
                 for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
@@ -615,7 +693,52 @@ var importAction = {
                     let map = [] as any[];
 
                     map['status' as any] = results.data[dataIdx]['Status'];
-                    map['location' as any] = results.data[dataIdx]['Location'];
+
+                    if(results.data[dataIdx]['Location']){
+
+                        console.log(results.data[dataIdx]['Location']);
+                        console.log(locations.length);
+                        console.log(locations);
+
+                        let locationExists = false;
+                        
+                        if (locations.length > 0){
+                            
+                            for (let locIdx = 0; locIdx < locations.length; locIdx++){
+                                if(results.data[dataIdx]['Location'] == locations[locIdx].name){
+                                    console.log("LOCATION EXISTS");
+                                    //console.log(locations[locIdx].location_id);
+                                    map['location' as any] = locations[locIdx].location_id;
+                                    locationExists = true;
+                                }    
+                            }
+                            if (locationExists == false){
+                                console.log("NEW LOCATION");
+                                let loc = [] as any[];
+                                loc['name' as any] = results.data[dataIdx]['Location']
+                                console.log("LOC BEFORE INSERT ", loc);
+                                
+                                let location = await action.addLocation(loc);
+                                locations.push(loc);
+                                console.log("LOC AFTER INSERT ", location);
+                                map['location' as any] = location[0].location_id;
+                            }
+                        } else {
+                            console.log("NEW LOCATION");
+                            let loc = [] as any[];
+                            loc['name' as any] = results.data[dataIdx]['Location']
+                            console.log("LOC BEFORE INSERT ", loc);
+                            
+                            let location = await action.addLocation(loc);
+                            locations.push(loc);
+                            console.log("LOC AFTER INSERT ", location);
+                            map['location' as any] = location[0].location_id;
+                        }
+
+                        //console.log(map['location' as any]);
+
+                    }
+
                     map['space' as any] = results.data[dataIdx]['Space'];
                     map['vendor' as any] = results.data[dataIdx]['Vendor'];
                     map['description' as any] = results.data[dataIdx]['Description'];
