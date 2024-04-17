@@ -48,7 +48,8 @@
                             PROCESSED
 
                             <DataTable :value="displayRecipes(slotProps.data.product_id)">
-                                <Column field="product_needed" header="Name"></Column>
+                                <Column field="product.name" header="Product(s) Needed"></Column>
+                                <Column field="recipe.units_needed" header="Raw Unit(s) Needed Per Processed Unit"></Column>
                             </DataTable>
 
                             <div v-show="slotProps.data.products_needed_a">
@@ -464,6 +465,7 @@ export default {
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
             ],
+
             columns: [] as any[],
 
             working: false,
@@ -528,9 +530,8 @@ export default {
         console.log('Mounted');
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
-        this.initVariables()
+        this.initVariables();
 
-        this.getUnprocessedProducts();
         //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
 
@@ -555,6 +556,7 @@ export default {
 
                 await this.getProducts();
                 await this.getRecipes();
+                await this.getUnprocessedProducts();
                 
             } catch (error) {
                 console.log(error);
@@ -576,11 +578,12 @@ export default {
                             console.log("PRODUCT MADE", this.recipes[recIdx].product_made)
                             this.recipes[recIdx].made_name = this.products[prodIdx].name;
                         }
-                        if (this.recipes[recIdx].product_needed==this.products[prodIdx].product_id){
+                        else if (this.recipes[recIdx].product_needed==this.products[prodIdx].product_id){
+                            console.log("PRODUCT needed", this.recipes[recIdx].product_made)
                             this.recipes[recIdx].needed_name = this.products[prodIdx].name;
                         }
                     }
-                } */
+                }  */
 
                 console.log(this.recipes);
                 this.loading = false;
@@ -612,6 +615,23 @@ export default {
                 this.cases = data;
             });
         }, */
+
+        getRecipeNames(recipe: any){
+            let recipeMap = {};
+            let namedRecipes= [];
+            for (let prodIdx=0; prodIdx < this.products.length; prodIdx++ ){
+                console.log("IN LOOP")
+                if (recipe.product_made==this.products[prodIdx].product_id){
+                    console.log("PRODUCT MADE", recipe.product_made)
+                    recipe.made_name = this.products[prodIdx].name;
+                }
+                else if (recipe.product_needed==this.products[prodIdx].product_id){
+                    console.log("PRODUCT needed", recipe.product_needed)
+                    recipe.needed_name = this.products[prodIdx].name;
+                }
+            }
+            console.log(recipe);
+        },
 
         formatCurrency(value: any) {
             if(value)
@@ -907,6 +927,8 @@ export default {
 
         displayRecipes(productId: number){
             let productRecipes = [] as any[];
+            let displayedProducts = [] as any[];
+            let recipeMap = {} as any;
 
             for (let recIdx = 0; recIdx < this.recipes.length; recIdx++){
                 if(this.recipes[recIdx].product_made == productId){
@@ -914,8 +936,22 @@ export default {
                 }
             }
 
+            for (let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
+                for (let prodRecIdx = 0; prodRecIdx < productRecipes.length; prodRecIdx++){
+                    if(productRecipes[prodRecIdx].product_needed == this.products[prodIdx].product_id){
+                        recipeMap['recipe'] = productRecipes[prodRecIdx];
+                        recipeMap['product'] = this.products[prodIdx];
+
+                        displayedProducts.push(recipeMap);
+
+                        recipeMap = {};
+                    }
+                }
+            }
+
             console.log("NEEDED RECIPE ", productRecipes);
-            return productRecipes;
+            console.log("DISPLAYED PRODUCTS ", displayedProducts);
+            return displayedProducts;
         },
     }
 }

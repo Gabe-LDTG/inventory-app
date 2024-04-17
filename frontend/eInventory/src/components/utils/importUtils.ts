@@ -69,7 +69,7 @@ var importAction = {
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
-                    let recMap = [];
+                    let recMap = {} as any;
 
                     if (results.data[dataIdx]['Name']) {
                         map['name' as any] = results.data[dataIdx]['Name'];
@@ -84,9 +84,9 @@ var importAction = {
                     }
                     
                     if (results.data[dataIdx]['Vendor']) {
-                        console.log(results.data[dataIdx]['Vendor']);
-                        console.log(vendors.length);
-                        console.log(vendors);
+                        //console.log(results.data[dataIdx]['Vendor']);
+                        //console.log(vendors.length);
+                        //console.log(vendors);
 
                         let vendorExists = false;
                         
@@ -94,7 +94,7 @@ var importAction = {
                             
                             for (let venIdx = 0; venIdx < vendors.length; venIdx++){
                                 if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
-                                    console.log("VENDOR EXISTS");
+                                    //console.log("VENDOR EXISTS");
                                     //console.log(vendors[venIdx].vendor_id);
                                     map['vendor' as any] = vendors[venIdx].vendor_id;
                                     vendorExists = true;
@@ -163,7 +163,7 @@ var importAction = {
                     }
 
                     if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
-                        //console.log(results.data[dataIdx]['Products needed A']);
+                        console.log(results.data[dataIdx]['Products needed A']);
                         map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
                     }
 
@@ -176,6 +176,8 @@ var importAction = {
                     }
 
                     if(results.data[dataIdx]['Products needed B'] != ''&& results.data[dataIdx]['Products needed B']){
+                        console.log(results.data[dataIdx]['Products needed B']);
+
                         map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'].toLowerCase();
                     }
 
@@ -307,21 +309,29 @@ var importAction = {
                             recMap['product_needed' as any] = products[productIdx].product_id;
                             recMap['units_needed' as any] = map['qty_1' as any];
 
+                            console.log("REC MAP", recMap);
+
                             recipeContent.push(recMap);
+
+                            recMap = {};
                             // console.log(map['products_needed_a' as any]);
 
                         }
-                        if(map['products_needed_b' as any]){
+                        if (map['products_needed_b' as any] && products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map[<any>'item_num_2'] && map['qty_2' as any]){
                             //console.log(map['products_needed_b' as any]);
-                            if (products[productIdx].name.toLowerCase() == map['products_needed_b' as any] && products[productIdx].item_num == map[<any>'item_num_2'] && map['qty_2' as any]){
-                                // console.log("MATCH B ", products[productIdx].product_id)
-                                // console.log(products[productIdx].name);
-                                // console.log(products[productIdx].item_num);
-                                recMap['product_needed' as any] = products[productIdx].product_id;
-                                recMap['units_needed' as any] = map['qty_2' as any];
-                                // console.log(map['products_needed_b' as any]);
-                                recipeContent.push(recMap);
-                            }
+                            
+                            // console.log("MATCH B ", products[productIdx].product_id)
+                            // console.log(products[productIdx].name);
+                            // console.log(products[productIdx].item_num);
+                            recMap['product_needed' as any] = products[productIdx].product_id;
+                            recMap['units_needed' as any] = map['qty_2' as any];
+                            // console.log(map['products_needed_b' as any]);
+
+                            console.log("REC MAP", recMap);
+
+                            recipeContent.push(recMap);
+
+                            recMap = {};
                         }
                         if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map[<any>'item_num_3'] && map['qty_3' as any]){
                             // console.log("MATCH C ", products[productIdx].product_id)
@@ -330,7 +340,12 @@ var importAction = {
                             recMap['product_needed' as any] = products[productIdx].product_id;
                             recMap['units_needed' as any] = map['qty_3' as any];
                             // console.log(map['products_needed_c' as any]);
+
+                            console.log("REC MAP", recMap);
+
                             recipeContent.push(recMap);
+
+                            recMap = {};
                         }
                         if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map[<any>'item_num_4'] && map['qty_4' as any]){
                             // console.log("MATCH D ", products[productIdx].product_id)
@@ -339,7 +354,12 @@ var importAction = {
                             recMap['product_needed' as any] = products[productIdx].product_id;
                             recMap['units_needed' as any] = map['qty_4' as any];
                             //console.log(map['products_needed_d' as any]);
+
+                            console.log("REC MAP", recMap);
+
                             recipeContent.push(recMap);
+
+                            recMap = {};
                         }
                         if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map[<any>'item_num_5'] && map['qty_5' as any]){
                             //console.log("MATCH E ", products[productIdx].product_id)
@@ -348,7 +368,12 @@ var importAction = {
                             recMap['product_needed' as any] = products[productIdx].product_id;
                             recMap['units_needed' as any] = map['qty_5' as any];
                             //console.log(map['products_needed_e' as any]);
+
+                            console.log("REC MAP", recMap);
+
                             recipeContent.push(recMap);
+
+                            recMap = {};
                         }
                         if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map[<any>'item_num_6'] && map['qty_6' as any]){
                             //console.log("MATCH F ", products[productIdx].product_id)
@@ -357,7 +382,12 @@ var importAction = {
                             recMap['product_needed' as any] = products[productIdx].product_id;
                             recMap['units_needed' as any] = map['qty_6' as any];
                             //console.log(map['products_needed_f' as any]);
+
+                            console.log("REC MAP", recMap);
+
                             recipeContent.push(recMap);
+
+                            recMap = {};
                         }
                         if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
                             //console.log("MATCH A ", products[productIdx].product_id);
@@ -372,6 +402,8 @@ var importAction = {
                     console.log("RECIPE CONTENT ARRAY ", recipeContent);
                     
                     if (map['name' as any]){
+                        console.log("MAP: ", map, " AND RECIPE CONTENT: ", recipeContent);
+
                         await action.addProduct(map, recipeContent);
                         recipeContent = [];
                     }
@@ -429,9 +461,9 @@ var importAction = {
 
                     if(results.data[dataIdx]['Vendor']){
 
-                        console.log(results.data[dataIdx]['Vendor']);
-                        console.log(vendors.length);
-                        console.log(vendors);
+                        //console.log(results.data[dataIdx]['Vendor']);
+                        //console.log(vendors.length);
+                        //console.log(vendors);
 
                         let vendorExists = false;
                         
@@ -439,7 +471,7 @@ var importAction = {
                             
                             for (let venIdx = 0; venIdx < vendors.length; venIdx++){
                                 if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
-                                    console.log("VENDOR EXISTS");
+                                    //console.log("VENDOR EXISTS");
                                     //console.log(vendors[venIdx].vendor_id);
                                     map['vendor' as any] = vendors[venIdx].vendor_id;
                                     vendorExists = true;

@@ -580,6 +580,22 @@ var action = {
         })
     },
 
+    //Add a new recipe
+    async addRecipe(recipe: any){
+        return axios.post(BASE_URL+"/", {
+            product_needed: recipe.product_needed,
+            units_needed: recipe.units_needed,
+            product_made: recipe.product_made,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
     //LOCATIONS------------------------------------------------------------------------------------------
     //Get locations
     async getLocations(){
