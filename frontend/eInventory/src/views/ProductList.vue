@@ -47,35 +47,10 @@
                         <div v-if="slotProps.data.fnsku || slotProps.data.asin">
                             PROCESSED
 
-                            <DataTable :value="displayRecipes(slotProps.data.product_id)">
+                            <DataTable :value="getProductRecipes(slotProps.data.product_id)">
                                 <Column field="product.name" header="Product(s) Needed"></Column>
                                 <Column field="recipe.units_needed" header="Raw Unit(s) Needed Per Processed Unit"></Column>
                             </DataTable>
-
-                            <div v-show="slotProps.data.products_needed_a">
-                                <h4 class="font-bold">Product(s) Needed A: </h4> <h4>{{ findProductName(slotProps.data.products_needed_a) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_1 }}</p><br>
-                            </div>
-                            <div v-show="slotProps.data.products_needed_b">
-                                <h4 class="font-bold">Product(s) Needed B: </h4> <h4>{{ findProductName(slotProps.data.products_needed_b) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_2 }}</p><br>
-                            </div>
-                            <div v-show="slotProps.data.products_needed_c">
-                                <h4 class="font-bold">Product(s) Needed C: </h4> <h4>{{ findProductName(slotProps.data.products_needed_c) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_3 }}</p><br>
-                            </div>
-                            <div v-show="slotProps.data.products_needed_d">
-                                <h4 class="font-bold">Product(s) Needed D: </h4> <h4>{{ findProductName(slotProps.data.products_needed_d) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_4 }}</p><br>
-                            </div>
-                            <div v-show="slotProps.data.products_needed_e">
-                                <h4 class="font-bold">Product(s) Needed E: </h4> <h4>{{ findProductName(slotProps.data.products_needed_e) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_5 }}</p><br>
-                            </div>
-                            <div v-show="slotProps.data.products_needed_f">
-                                <h4 class="font-bold">Product(s) Needed F: </h4> <h4>{{ findProductName(slotProps.data.products_needed_f) }}</h4>
-                                <p class="font-bold">QTY: </p><p>{{ slotProps.data.qty_6 }}</p>
-                            </div>
                         </div>
                         <div v-else-if="!slotProps.data.fnsku && !slotProps.data.asin">
                             This item is raw and has no recipe.
@@ -167,10 +142,11 @@
                 <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
             </div>
 
-            <!-- MAKE DROPDOWN -->
             <div class="field">
                 <label for="do_we_carry">Do We Carry?</label>
-                <InputText id="do_we_carry" v-model="product.do_we_carry" rows="3" cols="20" />
+                <Dropdown v-model="product.do_we_carry"
+                placeholder="Do We Carry?" class="w-full md:w-14rem" editable
+                :options="binary"/>
             </div>
 
             <div class="field">
@@ -203,10 +179,11 @@
                 <InputNumber v-model="product.labor_cost" inputId="minmaxfraction" :minFractionDigits="2" />
             </div>
 
-            <!-- MAKE DROPDOWN -->
             <div class="field">
                 <label for="meltable">Meltable</label>
-                <InputText id="meltable" v-model="product.meltable" rows="3" cols="20" />
+                <Dropdown v-model="product.meltable"
+                placeholder="Meltable?" class="w-full md:w-14rem" editable
+                :options="binary"/>
             </div>
 
             <div class="field">
@@ -238,124 +215,6 @@
                 <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
                 <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
             </div>
-
-            <div class="field">
-                <label for="products_needed_a">Products needed A</label>
-                <Dropdown v-model="product.products_needed_a" 
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" />
-            </div>
-
-            <div class="field">
-                <label for="qty_1">Quantity #1</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_1" showButtons :class="{'p-invalid': submitted && !product.products_needed_a}"/>
-                <small class="p-error" v-if="submitted && product.qty_1 && !product.products_needed_a">Please select a product.</small>
-            </div>
-
-            <div class="field">
-                <label for="products_needed_a">Products needed B</label>
-                <Dropdown v-model="product.products_needed_b" 
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" />
-            </div>
-
-            <div class="field">
-                <label for="qty_2">Quantity #2</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_2" showButtons/>
-            </div>
-
-            <div class="field">
-                <label for="products_needed_c">Products needed C</label>
-                <Dropdown v-model="product.products_needed_c" 
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" />
-            </div>
-
-            <div class="field">
-                <label for="qty_3">Quantity #3</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_3" showButtons/>
-            </div>
-
-            <div class="field">
-                <label for="products_needed_d">Products needed D</label>
-                <Dropdown v-model="product.products_needed_d"
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" />
-            </div>
-
-            <div class="field">
-                <label for="qty_4">Quantity #4</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_4" showButtons/>
-            </div>
-
-            <div class="field">
-                <label for="products_needed_e">Products needed E</label>
-                <Dropdown v-model="product.products_needed_e" 
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" />
-            </div>
-
-            <div class="field">
-                <label for="qty_5">Quantity #5</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_5" showButtons/>
-            </div>
-
-            <div class="field">
-                <label for="products_needed_f">Products needed F</label>
-                <Dropdown v-model="product.products_needed_f"  
-                placeholder="Select a Product" class="w-full md:w-14rem" editable
-                :options="unprocProducts"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="product_id" > 
-
-                <template #value="slotProps">
-                        <div v-if="slotProps.value" class="flex align-items-center">
-                            <div>{{ slotProps.value.product_id }}</div>
-                        </div>
-                        <span v-else>
-                            {{ slotProps.placeholder }}
-                        </span>
-                    </template>
-                    <template #option="slotProps">
-                        <div v-if="!slotProps.option.fnsku || !slotProps.option.asin" class="flex align-items-center">
-                            <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
-                        </div>
-                    </template>
-                </Dropdown>
-            </div>
-
-            <div class="field">
-                <label for="qty_1">Quantity #6</label>
-                <InputNumber inputId="stacked-buttons"
-                v-model="product.qty_6" showButtons/>
-            </div>
             
             <div class="field">
                 <label for="total_cost">Total Cost</label>
@@ -367,15 +226,73 @@
                 <InputNumber v-model="product.total_holiday_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
-            <!-- MAKE DROPDOWN -->
             <div class="field">
                 <label for="vendor">Vendor</label>
-                <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" />
+                <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
+                <Dropdown v-model="product.vendor"
+                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                :options="vendors"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="vendor_name"
+                optionValue="vendor_id" />
             </div>
 
             <div class="field">
                 <label for="weight_lbs">Weight (lbs)</label>
                 <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+            </div>
+
+            <div class="field">
+                <label>Product(s) Needed</label>
+                <template class="caseCard" v-for="(ing, counter) in recipesInUse">
+
+                    <div class ="caseCard">
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
+
+                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                        <div class="block-div">
+                            <div class="field">
+                                <label for="name">Product Needed:</label>
+                                <Dropdown v-model="ing.product_needed" required="true" 
+                                placeholder="Select a Product" class="md:w-14rem" editable
+                                :options="unprocProducts"
+                                optionLabel="name"
+                                filter
+                                optionValue="product_id"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :class="{'p-invalid': submitted && !ing.product_needed}" 
+                                >
+
+                                <template #value="slotProps">
+                                        <div v-if="slotProps.value" class="flex align-items-center">
+                                            <div>{{ slotProps.value.product_id }}</div>
+                                        </div>
+                                        <span v-else>
+                                            {{ slotProps.placeholder }}
+                                        </span>
+                                    </template>
+                                    <template #option="slotProps">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                    </template>
+                                </Dropdown>
+                                <small class="p-error" v-if="submitted && !ing.product_needed">Product is required.</small>
+                            </div>
+
+                            <div class="field">
+                                <label for="qty">QTY:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                :class="{'p-invalid': submitted && !ing.units_needed}"
+                                v-model="ing.units_needed" showButtons/>
+                                <small class="p-error" v-if="submitted && !ing.units_needed">Amount is required.</small>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </template>
+
+                <Button label="Add another product" text @click="addIngredient"/>
             </div>
 
             <template #footer>
@@ -386,6 +303,9 @@
 
         <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
             <Button label="Toggle Filter" @click="toggleFilter()"/>
+            <div> <label>Vendor: </label><br>
+                {{ getVendorName(product.Vendor) }} <br><br>
+            </div>
             <div v-for="(item, index) in product">
                 <label>{{ index }}: </label><br>
                 {{ item }} <br><br>
@@ -446,7 +366,10 @@ export default {
             //RECIPE VARIABLES
             recipes: [] as any[],
             organizedRecipes: [] as any[],
-            recipesToCreate: [] as any[],
+            recipesInUse: [] as any[],
+
+            //VENDOR VARIABLES
+            vendors: [] as any[],
 
             //VALIDATE VARIABLES
             validFnsku: true,
@@ -464,6 +387,11 @@ export default {
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
+            ],
+
+            binary: [
+                'Yes',
+                'No'
             ],
 
             columns: [] as any[],
@@ -522,7 +450,6 @@ export default {
             { field: 'qty_6', header: 'Quantity #6'}, */
             { field: 'total_cost', header: 'Total Cost'},
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
-            { field: 'vendor', header: 'Vendor' },
             { field: 'weight_lbs', header: 'Weight (Lbs)' },
         ];
     },
@@ -557,6 +484,7 @@ export default {
                 await this.getProducts();
                 await this.getRecipes();
                 await this.getUnprocessedProducts();
+                await this.getVendors();
                 
             } catch (error) {
                 console.log(error);
@@ -568,8 +496,8 @@ export default {
                 this.loading = true;
                 this.recipes = await action.getRecipes();
 
-                console.log(this.recipes.length)
-                console.log(this.products.length)
+                //console.log(this.recipes.length)
+                //console.log(this.products.length)
 
                 /* for (let recIdx=0; recIdx < this.recipes.length; recIdx++ ){
                     for (let prodIdx=0; prodIdx < this.products.length; prodIdx++ ){
@@ -610,6 +538,23 @@ export default {
             }
         },
 
+        async getVendors(){
+            try {
+                this.vendors = await action.getVendors();
+            } catch (error) {
+                console.log(error);                
+            }
+        },
+
+        getVendorName(vendorId: any){
+            console.log("IN VENDOR", vendorId);
+            for(let venIdx = 0; venIdx < this.vendors.length; venIdx++){
+                if(vendorId == this.vendors[venIdx].vendor_id){
+                    return this.vendors[venIdx].vendor_name;
+                }
+            }
+        },
+
         /* getCases(){
             action.getCases().then(data => {
                 this.cases = data;
@@ -643,6 +588,24 @@ export default {
             this.submitted = false;
             this.productDialog = true;
             this.validFnsku = true;
+            this.recipesInUse = [];
+            this.newIngredients();
+        },
+        newIngredients(){
+            for(let idx = 0; idx < 1; idx++){
+                this.addIngredient();
+            }
+        },
+        addIngredient(){
+        this.recipesInUse.push(
+                {
+                name: '',
+                amount: 1,
+                }
+            )
+        },
+        deleteIngredient(counter: any){
+        this.recipesInUse.splice(counter,1);
         },
         hideDialog() {
             this.productDialog = false;
@@ -696,7 +659,7 @@ export default {
         async confirmCreate(){
             try {
                 this.products.push(this.product);
-                let addedProduct = await action.addProduct(this.product, this.recipesToCreate);
+                let addedProduct = await action.addProduct(this.product, this.recipesInUse);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
@@ -711,6 +674,7 @@ export default {
         },
         editProduct(product: any) {
             this.product = {...product}; //ASK MICHAEL
+            this.recipesInUse = this.getProductRecipes(this.product.product_id);
             this.productDialog = true;
         },
         displayProductInfo(product: any){
@@ -925,7 +889,7 @@ export default {
 
         },
 
-        displayRecipes(productId: number){
+        getProductRecipes(productId: number){
             let productRecipes = [] as any[];
             let displayedProducts = [] as any[];
             let recipeMap = {} as any;

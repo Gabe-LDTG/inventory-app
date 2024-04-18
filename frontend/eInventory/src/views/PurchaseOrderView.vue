@@ -294,9 +294,9 @@
                         </div>
 
                     </div>
-                    </template>
+                </template>
 
-                    <Button label="Add another product" text @click="addBulkLine"/>
+                <Button label="Add another product" text @click="addBulkLine"/>
             </div>
             
             
