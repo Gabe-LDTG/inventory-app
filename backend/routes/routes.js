@@ -42,6 +42,8 @@ import {
 import {
     showRecipes,
     createRecipe,
+    updateRecipe,
+    deleteRecipe,
 } from "../controllers/recipes.js";
 
 import {
@@ -146,6 +148,12 @@ router.get("/recipes", showRecipes);
 
 //Create a Recipe
 router.post("/recipes/create", createRecipe);
+
+//Edit a Recipe
+router.put("/recipes/:id", updateRecipe);
+
+//Delete a Recipe
+router.delete("/recipes/:id", deleteRecipe);
 
 //VENDORS-------------------------------------------------------------------------
 //Get Vendors

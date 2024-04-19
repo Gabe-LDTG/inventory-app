@@ -75,6 +75,18 @@
 
         <Dialog v-model:visible="productDialog" :style="{width: '450px'}" header="Product Details" :modal="true" class="p-fluid">
             <div class="field">
+                <label for="vendor">Vendor</label>
+                <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
+                <Dropdown v-model="product.vendor"
+                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                :options="vendors"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="vendor_name"
+                optionValue="vendor_id" />
+            </div>
+            
+            <div class="field">
                 <label for="name">Name</label>
                 <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                 <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
@@ -227,18 +239,6 @@
             </div>
 
             <div class="field">
-                <label for="vendor">Vendor</label>
-                <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
-                <Dropdown v-model="product.vendor"
-                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                :options="vendors"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="vendor_name"
-                optionValue="vendor_id" />
-            </div>
-
-            <div class="field">
                 <label for="weight_lbs">Weight (lbs)</label>
                 <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
             </div>
@@ -333,6 +333,23 @@
                 <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedProducts" />
             </template>
         </Dialog>
+
+        <!-- <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor" :modal="true">
+            <div class="field">
+                <!- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> ->
+                <Dropdown v-model="product.vendor"
+                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                :options="vendors"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="vendor_name"
+                optionValue="vendor_id" />
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="vendorDialog = false"/>
+                <Button label="Select" icon="pi pi-check" text @click="openNew" />
+            </template>
+        </Dialog> -->
 	</div>
 </template>
 
@@ -370,6 +387,7 @@ export default {
 
             //VENDOR VARIABLES
             vendors: [] as any[],
+            vendorDialog: false,
 
             //VALIDATE VARIABLES
             validFnsku: true,
@@ -641,11 +659,14 @@ export default {
 
                 //Promise.resolve(action.editProduct(this.product));
                 this.products[this.findIndexById(this.product.product_id)] = this.product;
+                
+                this.getRecipes();
+
                 console.log(this.products[this.findIndexById(this.product.product_id)]);
 
                 console.log("PRODUCT BEFORE AWAIT",this.product);
 
-                const editedProduct = await action.editProduct(this.product);
+                const editedProduct = await action.editProduct(this.product, this.recipesInUse);
                 
                 console.log("PRODUCT AFTER AWAIT",this.product);
                 //alert("Testing");
@@ -665,6 +686,7 @@ export default {
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
 
                 this.getProducts();
+                this.getRecipes();
 
                 return addedProduct;
             } catch (err) {
@@ -673,8 +695,28 @@ export default {
             }
         },
         editProduct(product: any) {
+            this.recipesInUse = [];
             this.product = {...product}; //ASK MICHAEL
-            this.recipesInUse = this.getProductRecipes(this.product.product_id);
+
+            let recipeMap = this.getProductRecipes(this.product.product_id);
+
+
+            if(this.product.fnsku){
+                console.log("PROCESSED")
+                for (let recIdx = 0; recIdx < recipeMap.length; recIdx++){
+                    let indRec = [] as any[];
+
+                    indRec[<any>'recipe_id'] = recipeMap[recIdx]['recipe']['recipe_id'];
+                    indRec[<any>'product_needed'] = recipeMap[recIdx]['recipe']['product_needed'];
+                    indRec[<any>'name'] = recipeMap[recIdx]['product']['name'];
+                    indRec[<any>'units_needed'] = recipeMap[recIdx]['recipe']['units_needed'];
+
+                    this.recipesInUse.push(indRec);
+                }
+            }
+
+            //this.recipesInUse = this.getProductRecipes(this.product.product_id);
+            console.log(this.recipesInUse);
             this.productDialog = true;
         },
         displayProductInfo(product: any){

@@ -27,3 +27,18 @@ export async function insertRecipe(rec){
 
     return db.query(getId).then(([results, fields])=>results);
 };
+
+//edit a recipe
+export async function updateRecipeById(data, id){
+    let info = [
+        data.product_needed,
+        data.units_needed,
+        id
+    ];
+    return db.query('UPDATE recipes SET product_needed = ?, units_needed = ? WHERE recipe_id = ?', info).then(([results, fields])=>results);
+};
+
+//delete a recipe
+export async function deleteRecipeById(id){
+    return db.query("DELETE FROM recipes WHERE recipe_id = ?", id).then(([results, fields])=>results);
+};

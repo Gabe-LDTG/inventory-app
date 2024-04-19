@@ -230,7 +230,7 @@ var action = {
     },
 
     //Updates an already existing product in the database using API
-    async editProduct(p: any){
+    async editProduct(p: any, r: any){
 
         console.log("PRODUCT NAME ", p.name);
         /* console.log(value.asin);
@@ -285,11 +285,16 @@ var action = {
             unit_box_cost: p.unit_box_cost,
 
         }).then((res) => {
-            //location.reload();
-            //this.refreshData();
-            //this.editId = '';
-            //alert("AHHH");
             console.log(res);
+
+            if(r){
+                for(let recIdx = 0; recIdx < r.length; recIdx++){
+                    axios.put(BASE_URL+"/recipes/" + r[recIdx].recipe_id,{
+                        product_needed: r[recIdx].product_needed,
+                        units_needed: r[recIdx].units_needed,
+                    })
+                }
+            }
         }).catch(error => {
             console.log(error);
         });
@@ -338,6 +343,25 @@ var action = {
         //}
     },
     
+    //RECIPE COMMANDS---------------------------------------------------------------------------------------
+    //Removes a product from the database using API
+    async deleteRecipe(id: string){
+        //console.log(id);
+        //if(confirm("Do you really want to delete?")){
+            return axios.delete(BASE_URL+"/recipes/"+id)
+            .then(res => {
+                //location.reload();
+                //this.refreshData();
+            })
+            .catch(error => {
+                console.log(error.response.data);
+                console.log(error.request.data);
+                console.log(error);
+                //console.log("########################AXIOS ERROR##############################")
+                throw error.response.data;
+            })
+        //}
+    },
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
     //Get all cases
