@@ -81,7 +81,7 @@
                     </template> -->
                 </Column>
                 <Column field="units_per_case" header="QTY" sortable></Column>
-                <Column field="location" header="Location" sortable></Column>
+                <Column field="location_name" header="Location" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
                 <Column field="date_received" header="Date received" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
@@ -142,10 +142,17 @@
                 <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
             </div>
 
-            <!-- MAKE DROPDOWN -->
             <div class="field">
                 <label for="location">Location:</label>
-                <InputText id="location" v-model="eCase.location" rows="3" cols="20" />
+                <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                <Dropdown v-model="eCase.location"
+                placeholder="Select a Location" class="w-full md:w-14rem" editable
+                :options="locations"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="name"
+                optionValue="location_id" />
+                <Button label="Add Location" icon="pi pi-plus" @click="newLocation()"  />
             </div>
 
             <div class="field">
@@ -277,6 +284,17 @@ _____________________________________________________________
                 <Button label="Save" icon="pi pi-check" text @click="bulkSave" />
             </template>
         </Dialog>
+
+        <Dialog v-model:visible="locationDialog" :style="{width: '450px'}" header="Add Location" :modal="true">
+            <div class="field">
+                <label>Location Name:</label>
+                <InputText id="location" v-model="locationToCreate.name" rows="3" cols="20" />
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="locationDialog = false;"/>
+                <Button label="Save" icon="pi pi-check" text @click="createLocation" />
+            </template>
+        </Dialog>
 	</div>
 </template>
 
@@ -285,6 +303,7 @@ _____________________________________________________________
 import axios from 'axios';
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
+import helper from "../components/utils/helperUtils";
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -296,6 +315,7 @@ export default {
     },
     data() {
         return {
+            //CASE VARIABLES
             cases: [] as any[],
             caseDialog: false,
             deleteCaseDialog: false,
@@ -303,6 +323,18 @@ export default {
             eCase: {} as any,
             selectedCases: [] as any[],
             filteredCases: [] as any[],
+            bulkCases: [] as any[],
+
+            //PRODUCT VARIABLES
+            products: [] as any[],
+            product: {} as any,
+
+            //LOCATION VARIABLES
+            locations: [] as any[],
+            locationToCreate: {} as any,
+            locationDialog: false,
+
+            //MISC VARIABLES
             ordersFiltered: true,
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
@@ -311,16 +343,9 @@ export default {
             purchase_orders: [] as any[],
 
             bulkInsertDialog: false,
-            bulkCases: [] as any[],
+            
             bulkAmount: 3,
             purchaseOrder: "",
-
-            products: [] as any[],
-            //productDialog: false,
-            //deleteProductDialog: false,
-            //deleteProductsDialog: false,
-            product: {} as any,
-            //selectedProducts: null,
 
             amount: 1,
 
@@ -361,7 +386,7 @@ export default {
 
         this.displayController(this.displayValue as string);
 
-        this.getDate();
+        //this.getDate();
         //this.onFilter();
 
         //console.log("PRODUCTS",this.products);
@@ -370,6 +395,11 @@ export default {
     methods: {
         async displayController(value: string){
             this.loading = true;
+
+            this.today = helper.getDate();
+            
+            await this.getLocations();
+
             if(value == 'processed'){
                 console.log('Processed');
                 await this.getProcProducts();
@@ -381,6 +411,21 @@ export default {
                 await this.getUnprocProducts();
                 await this.getUnprocCases();
             }
+            //Possibly try doing this for the product vendors when you have more time
+            //Seems more effecient than current trying for two for loops.
+            this.cases.forEach(c => {
+                if (c.date_received){ c.date_received = helper.formatDate(c.date_received)};
+
+                const location = this.locations.find(l => c['location'] == l['location_id']);
+
+                //console.log("CHECKING LOCATION")
+                if (location){
+                    //console.log("LOCATION", location);
+                    c['location_name'] = location['name'];
+                }
+            })
+
+            console.log(this.cases);
             this.loading = false;
             console.log(this.loading);
         },
@@ -446,11 +491,13 @@ export default {
             }
         },
 
-        getDate(){
-            const date = new Date();
-            this.today = date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
-            console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
-        },
+        async getLocations(){
+            try {
+                this.locations = await action.getLocations();
+            } catch (error) {
+                console.log(error);
+            }
+        }, 
 
         onProductSelection(productId: any){
             console.log("PRODUCT ID", productId);
@@ -468,6 +515,9 @@ export default {
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
 			return;
         },
+
+        //EVENTUALLY PUT THIS IN A NEW TS FILE (IE "helperFunctions.ts")
+
         openNew() {
             this.eCase = [];
             this.submitted = false;
@@ -475,6 +525,24 @@ export default {
             this.eCase.date_received = this.today;
             
             this.caseDialog = true;
+        },
+        newLocation(){
+            this.locationToCreate = {};
+
+            this.locationDialog = true;
+        },
+        async createLocation(){
+            try {
+                await action.addLocation(this.locationToCreate);
+
+                this.getLocations();
+
+                this.locationDialog = false;
+                this.locationToCreate = {};
+                
+            } catch (error) {
+                console.log(error);
+            }
         },
         openBulk() {
             this.bulkCases = [];
@@ -548,6 +616,9 @@ export default {
                 //alert("Testing");
 
                 console.log(this.eCase);
+
+                this.eCase.date_received = helper.formatDate(this.eCase.date_received);
+
                 action.editCase(this.eCase);
                 console.log(this.eCase);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
@@ -718,7 +789,7 @@ export default {
                     return 'info';
 
                 default:
-                    console.log("DEFAULT CASE ", c)
+                    //console.log("DEFAULT CASE ", c)
                     return 'info';
             }
         },
@@ -737,7 +808,7 @@ export default {
                     return 'pi pi-truck';
 
                 default:
-                    console.log("DEFAULT CASE ", c)
+                    //console.log("DEFAULT CASE ", c)
                     return 'pi pi-question-circle';
             }
         },

@@ -208,6 +208,7 @@
                 <InputNumber v-model="product.out_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
+            <!-- MAKE THE YEARLY PRICES A TABLE AT SOME POINT -->
             <div class="field">
                 <label for="price_2021">Price 2021</label>
                 <InputNumber v-model="product.price_2021" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
@@ -304,7 +305,8 @@
         <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
             <Button label="Toggle Filter" @click="toggleFilter()"/>
             <div> <label>Vendor: </label><br>
-                {{ getVendorName(product.Vendor) }} <br><br>
+                <!-- {{ getVendorName(product.Vendor) }} --> 
+                {{ product.vendor_name }}<br><br>
             </div>
             <div v-for="(item, index) in product">
                 <label>{{ index }}: </label><br>
@@ -503,6 +505,15 @@ export default {
                 await this.getRecipes();
                 await this.getUnprocessedProducts();
                 await this.getVendors();
+
+                this.products.forEach(p => {
+                    const vendor = this.vendors.find(v => p['vendor'] == v['vendor_id']);
+
+                    if (vendor){
+                        //console.log("LOCATION", location);
+                        p['vendor_name'] = vendor['vendor_name'];
+                    }
+                })
                 
             } catch (error) {
                 console.log(error);
@@ -710,7 +721,6 @@ export default {
                     indRec[<any>'product_needed'] = recipeMap[recIdx]['recipe']['product_needed'];
                     indRec[<any>'name'] = recipeMap[recIdx]['product']['name'];
                     indRec[<any>'units_needed'] = recipeMap[recIdx]['recipe']['units_needed'];
-
                     this.recipesInUse.push(indRec);
                 }
             }
@@ -723,7 +733,7 @@ export default {
             this.product = {...product};
             this.toggleProduct = this.product;
             console.log("DISPLAY PRODUCT INFO ",this.product);
-            //console.log("Keys", Object.keys(this.product));
+            console.log("Keys", Object.keys(this.product));
 
             let keys = Object.keys(this.product);
             let map = {} as any;

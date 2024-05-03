@@ -167,6 +167,7 @@ var action = {
         });
 
         //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
+        //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(r){
             for(let recIdx = 0; recIdx < r.length; recIdx++){
                 axios.post(BASE_URL+"/recipes/create",{
@@ -637,6 +638,8 @@ var action = {
         }).then((res) => {
             console.log(res);
             return res.data;
+
+            //return addedProductId.data[0]['LAST_INSERT_ID()'];
 
         }).catch(error => {
             console.log(error);
