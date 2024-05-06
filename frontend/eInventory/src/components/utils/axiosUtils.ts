@@ -511,7 +511,7 @@ var action = {
             notes: purchaseOrder.notes,
             date_ordered: purchaseOrder.date_ordered,
             date_received: purchaseOrder.date_received,
-            vendor: purchaseOrder.vendor,
+            vendor_id: purchaseOrder.vendor_id,
         }).then((res) => {
             console.log(res);
             return res.data;
@@ -530,7 +530,7 @@ var action = {
             notes: purchaseOrder.notes,
             date_ordered: purchaseOrder.date_ordered,
             date_received: purchaseOrder.date_received,
-            vendor: purchaseOrder.vendor,
+            vendor_id: purchaseOrder.vendor_id,
         }).then((res) => {
             //console.log(product_id);
             //location.reload();

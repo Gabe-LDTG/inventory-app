@@ -304,10 +304,7 @@
 
         <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
             <Button label="Toggle Filter" @click="toggleFilter()"/>
-            <div> <label>Vendor: </label><br>
-                <!-- {{ getVendorName(product.Vendor) }} --> 
-                {{ product.vendor_name }}<br><br>
-            </div>
+            
             <div v-for="(item, index) in product">
                 <label>{{ index }}: </label><br>
                 {{ item }} <br><br>
@@ -426,6 +423,7 @@ export default {
     created() {
         this.initFilters();
         this.columns = [
+            { field: 'vendor_name', header: 'Vendor'},
             { field: '30_day_storage_cost', header: '30 Day Storage Cost'},
             { field: 'amz_fees_cost', header: 'Amz Fees Cost'},
             { field: 'amz_fulfilment_cost', header: 'Amz Fulfilment Cost'},
@@ -456,18 +454,6 @@ export default {
             { field: 'price_2022', header: 'Price 2022' },
             { field: 'price_2023', header: 'Price 2023' },
             { field: 'process_time_per_unit_sec', header: 'Process Time per Unit Sec' },
-            /* { field: 'products_needed_a', header: 'Products needed A'},
-            { field: 'products_needed_b', header: 'Products needed B'},
-            { field: 'products_needed_c', header: 'Products needed C'},
-            { field: 'products_needed_d', header: 'Products needed D'},
-            { field: 'products_needed_e', header: 'Products needed E'},
-            { field: 'products_needed_f', header: 'Products needed F'},
-            { field: 'qty_1', header: 'Quantity #1'},
-            { field: 'qty_2', header: 'Quantity #2'},
-            { field: 'qty_3', header: 'Quantity #3'},
-            { field: 'qty_4', header: 'Quantity #4'},
-            { field: 'qty_5', header: 'Quantity #5'},
-            { field: 'qty_6', header: 'Quantity #6'}, */
             { field: 'total_cost', header: 'Total Cost'},
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
             { field: 'weight_lbs', header: 'Weight (Lbs)' },
@@ -512,6 +498,14 @@ export default {
                     if (vendor){
                         //console.log("LOCATION", location);
                         p['vendor_name'] = vendor['vendor_name'];
+                    }
+
+                    if (p['price_2021']){
+                        Number(p['price_2021']);
+                    }
+
+                    if (p['price_2023']){
+                        Number(p['price_2023']);
                     }
                 })
                 

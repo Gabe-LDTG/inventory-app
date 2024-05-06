@@ -16,9 +16,9 @@ export async function insertPurchaseOrder(data){
         data.notes, 
         data.date_ordered, 
         data.date_received, 
-        data.vendor, 
+        data.vendor_id, 
     ];
-    let query = "INSERT INTO purchase_orders (purchase_order_name, status, notes, date_ordered, date_received, vendor) VALUES (?, ?, ?, ?, ?, ?);";
+    let query = "INSERT INTO purchase_orders (purchase_order_name, status, notes, date_ordered, date_received, vendor_id) VALUES (?, ?, ?, ?, ?, ?);";
     db.query(query, info).then(([results, fields])=>results);
     return db.query("SELECT LAST_INSERT_ID()").then(([results, fields])=>results);
 }
@@ -39,8 +39,8 @@ export async function updatePurOrdById (data, id){
         data.notes, 
         data.date_ordered, 
         data.date_received, 
-        data.vendor, 
+        data.vendor_id, 
         id
     ];
-    return db.query("UPDATE purchase_orders SET purchase_order_name = ?, status = ?, notes = ?, date_ordered = ?, date_received = ?, vendor = ? WHERE purchase_order_id = ?", info).then(([results, fields])=>results);
+    return db.query("UPDATE purchase_orders SET purchase_order_name = ?, status = ?, notes = ?, date_ordered = ?, date_received = ?, vendor_id = ? WHERE purchase_order_id = ?", info).then(([results, fields])=>results);
 }

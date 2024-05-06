@@ -4,12 +4,12 @@
             <Toast />
             <Toolbar class="mb-4">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
+                    <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
+                    <!-- <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" /> -->
                 </template>
 
                 <template #end>
-                    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
+                    <!-- <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/> -->
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
             </Toolbar>
@@ -90,17 +90,40 @@
             </DataTable>
         </div>
 
+        <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true">
+            <div class="field">
+                <!-- <!- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -> -->
+                <Dropdown v-model="purchaseOrder.vendor_id"
+                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                :options="vendors"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="vendor_name"
+                optionValue="vendor_id" />
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="vendorDialog = false"/>
+                <Button label="Select" icon="pi pi-check" text @click="openNew" />
+            </template>
+        </Dialog>
+
         <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid">
 
             <div class="field">
                 <label for="purchase_order_name">Purchase Order</label>
-                <InputText id="name" disabled v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted && !purchaseOrder.purchase_order_name}" />
+                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted && !purchaseOrder.purchase_order_name}" />
                 <small class="p-error" v-if="submitted && !purchaseOrder.purchase_order_name">Name is required.</small>
             </div>
 
             <div class="field">
                 <label for="vendor">Vendor</label>
-                <InputText id="vendor" v-model="purchaseOrder.vendor" rows="3" cols="20" />
+                <Dropdown disabled v-model="purchaseOrder.vendor_id"
+                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                :options="vendors"
+                filter
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="vendor_name"
+                optionValue="vendor_id" />
             </div>
 
             <div class="field">
@@ -235,7 +258,7 @@
                                 <label for="name">Name:</label>
                                 <Dropdown v-model="bCase.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="products"
+                                :options="selectVendorProducts(purchaseOrder.vendor_id)"
                                 optionLabel="name"
                                 filter
                                 @change="bCase.units_per_case = onProductSelection(bCase.product_id); bCase.total = bCase.amount*bCase.units_per_case;"
@@ -361,8 +384,13 @@ export default {
             bulkCases: [] as any[],
             amount: 1,
 
+            //VENDOR VARIABLES
+            vendors: [] as any[],
+            vendorDialog: false,
+
             //MISC VARIABLES
             today: "",
+            loading: false,
 
             //STUFF FROM THE PRODUCT VIEW THAT ISN'T USED
 
@@ -378,7 +406,6 @@ export default {
             validFnsku: true,
 
             working: false,
-            loading: false,
 
             filtered: false,
 
@@ -395,12 +422,23 @@ export default {
     },
     mounted() {
         console.log('Mounted');
-        this.getPurchaseOrders();
-        this.getUnprocessedProducts();
-        this.getUnprocessedBoxes();
-        this.getDate();
+        this.initVariables();
     },
     methods: {
+        async initVariables(){
+            try {
+                await this.getPurchaseOrders();
+                await this.getUnprocessedProducts();
+                await this.getUnprocessedBoxes();
+                await this.getVendors();
+                await this.getDate();
+
+
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
         async getPurchaseOrders(){
             try {
                 this.loading = true;
@@ -428,13 +466,36 @@ export default {
             }
         },
 
+        async getVendors(){
+            try {
+                this.vendors = await action.getVendors();
+            } catch (error) {
+                console.log(error);                
+            }
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
 			return;
         },
-        openNew() {
+        vendorSelect(){
+            this.vendorDialog = true;
             this.purchaseOrder = {};
+        },
+        selectVendorProducts(poVendor: any){
+            let vendorProducts = [] as any[];
+            this.products.forEach(p => {
+                if(p['vendor'] == poVendor){
+                    vendorProducts.push(p);
+                }
+            })
+            return vendorProducts;
+        },
+
+        openNew() {
+
+            this.vendorDialog = false;
             this.bulkCases = []
             this.amount = 1;
             this.purchaseOrder.date_ordered = this.today;
