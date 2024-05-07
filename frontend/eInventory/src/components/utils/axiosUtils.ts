@@ -373,8 +373,8 @@ var action = {
         return axios.get(BASE_URL+"/cases").then(res => {
             cases = res.data;
 
-            console.log('TESTING-------------------')
-            console.log("Case List received\n",cases);
+            //console.log('TESTING-------------------')
+            //console.log("Case List received\n",cases);
             //console.log("Keys", Object.keys(cases[1]));
             //console.log(this.cases.date_received.getMonth());
 
@@ -407,13 +407,13 @@ var action = {
         return axios.get(BASE_URL+"/cases/processed").then(res => {
             cases = res.data;
 
-            if(cases){
+            /* if(cases){
                 console.log(cases);
 
                 //console.log(cases[0].date_received);
-            }
+            } */
 
-            console.log('TESTING-------------------')
+            //console.log('TESTING-------------------')
             //console.log(this.cases.date_received.getMonth());
 
             return cases;
@@ -425,7 +425,7 @@ var action = {
             
         return axios.get(BASE_URL+"/cases/unprocessed").then(res => {
             cases = res.data;
-            console.log(cases);
+            //console.log(cases);
             return cases;
         });
     },

@@ -147,7 +147,7 @@
             </div>
 
             <div v-if="purchaseOrder.purchase_order_id">
-                <!-- EDITING -->
+                <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
                 <div class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
@@ -242,9 +242,9 @@
             </div>
 
             <div v-else>
-                <!-- CREATING -->
+                <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Product(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
                 </div>
 
                 <template class="caseCard" v-for="(bCase, counter) in bulkCases">
@@ -276,7 +276,7 @@
                                         </span>
                                     </template>
                                     <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
                                     </template>
                                 </Dropdown>
                                 <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
@@ -286,14 +286,9 @@
                                 <label for="qty">QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 :class="{'p-invalid': submitted && !bCase.units_per_case}"
-                                v-model="bCase.units_per_case" showButtons
+                                v-model="bCase.units_per_case" disabled
                                 @input="bCase.total = bCase.amount*bCase.units_per_case"/>
                                 <small class="p-error" v-if="submitted && !bCase.units_per_case">Amount is required.</small>
-                            </div>
-
-                            <div class="field">
-                                <label for="notes">Notes:</label>
-                                <InputText id="notes" v-model="bCase.notes" rows="3" cols="20" />
                             </div>
 
                             <div v-show="!bCase.case_id" class="field">
@@ -304,16 +299,31 @@
                             </div>
 
                             <div class="field">
+                                <label for="notes">Notes:</label>
+                                <InputText id="notes" v-model="bCase.notes" rows="3" cols="20" />
+                            </div>
+
+                            <div class="field">
+                                <label class="flex justify-content-end font-bold w-full" for="total">Total:</label>
+                                <div v-if="bCase.units_per_case" class="flex justify-content-end font-bold w-full">{{ bCase.units_per_case * bCase.amount }}</div>
+                            </div>
+
+                            <!-- <div class="field">
                                 <label for="total">Requested Total</label>
                                 <InputNumber v-model="bCase.total" 
                                 inputId="stacked-buttons" showButtons
                                 @update:model-value="bCase.amount = onTotalUpdate(bCase.total, bCase.units_per_case)"/>
-                            </div>
+                            </div> -->
 
                         </div>
                         
-                        <div v-show="bCase.total">
-                            <label class="flex justify-content-end font-bold w-full" for="actualTotal">Actual Total: {{ bCase.units_per_case * bCase.amount }}</label>
+                        <!-- <div v-show="bCase.total">
+                            <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
+                        </div> -->
+                        <div v-if="bCase.units_per_case">
+                            <DataTable :value="selectRecipe(bCase.product_id)">
+                                <Column field="product.name" header="Purchase Order" sortable></Column>
+                            </DataTable>
                         </div>
 
                     </div>
@@ -376,11 +386,15 @@ export default {
 
             //PRODUCTS VARIABLES
             products: [] as any[],
+            unprocProducts: [] as any[],
+            procProducts: [] as any[],
             product: {} as any,
             selectedProducts: [] as any[],
 
             //CASE VARIABLES
             cases: [] as any[],
+            uBoxes: [] as any[],
+            pCases: [] as any[],
             bulkCases: [] as any[],
             amount: 1,
 
@@ -388,28 +402,27 @@ export default {
             vendors: [] as any[],
             vendorDialog: false,
 
+            //RECIPE VARIABLES
+            recipes: [] as any[],
+            detailedRecipes: [] as any[],
+
             //MISC VARIABLES
             today: "",
             loading: false,
+            statuses: [
+				'Ordered',
+				'Delivered',
+            ],
 
             //STUFF FROM THE PRODUCT VIEW THAT ISN'T USED
 
             productDialog: false,
             productInfoDialog: false,
             deleteProductsDialog: false,
-            
-            statuses: [
-				'Ordered',
-				'Delivered',
-            ],
-            
-            validFnsku: true,
 
             working: false,
 
             filtered: false,
-
-            unprocProducts: [],
             
             recipeProducts:[] as any[],
 
@@ -428,10 +441,10 @@ export default {
         async initVariables(){
             try {
                 await this.getPurchaseOrders();
-                await this.getUnprocessedProducts();
-                await this.getUnprocessedBoxes();
+                await this.getProducts();
+                await this.getBoxes();
                 await this.getVendors();
-                await this.getDate();
+                this.getDate();
 
 
             } catch (error) {
@@ -450,17 +463,34 @@ export default {
             }
         },
 
-        async getUnprocessedProducts(){
+        async getProducts(){
             try {
-                this.products = await action.getUnprocProducts();
+                //this.products = await action.getUnprocProducts();
+                this.products = await action.getProducts();
+
+                this.products.forEach(p => {
+                    if (p.fnsku || p.asin)
+                        this.procProducts.push(p);
+                    else
+                        this.unprocProducts.push(p);
+                });
+                //console.log("PROCESSED: ", this.procProducts);
+                //console.log("UNPROCESSED: ", this.unprocProducts);
             } catch (err) {
                 console.log(err);
             }
         },
 
-        async getUnprocessedBoxes(){
+        async getBoxes(){
             try {
-                this.cases = await action.getUnprocCases();
+                //this.cases = await action.getUnprocCases();
+                //this.cases = await action.getCases();
+                this.uBoxes = await action.getUnprocCases();
+                this.pCases = await action.getProcCases();
+
+                //console.log("CASES: ",this.cases);
+                console.log("BOXES: ", this.uBoxes);
+                console.log("CASES: ", this.pCases);
             } catch (error) {
                 console.log(error);
             }
@@ -474,6 +504,37 @@ export default {
             }
         },
 
+        async getRecipes(){
+            try {
+                this.recipes = await action.getRecipes();
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        selectRecipe(productId: any){
+            console.log("PRODUCT ID ", productId);
+            let usedProducts = [] as any[];
+            let productMap = {} as any;
+
+            this.recipes.forEach(r => {
+                if(r.product_made == productId){
+                    console.log("MATCH")
+                    //usedRecipes.push(r);
+                    this.products.forEach(p => {
+                        productMap = {};
+                        if(p.product_id == r.product_needed){
+                            productMap[<any>'product'] = p;
+                            productMap[<any>'recipe'] = r;
+                            usedProducts.push(productMap);
+                        }
+                    })
+                }
+            })
+            console.log("PRODUCTS USED", usedProducts);
+            return usedProducts;
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -485,7 +546,7 @@ export default {
         },
         selectVendorProducts(poVendor: any){
             let vendorProducts = [] as any[];
-            this.products.forEach(p => {
+            this.procProducts.forEach(p => {
                 if(p['vendor'] == poVendor){
                     vendorProducts.push(p);
                 }
@@ -585,7 +646,7 @@ export default {
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Updated', life: 3000});
                 await this.getPurchaseOrders();
-                await this.getUnprocessedBoxes();
+                await this.getBoxes();
 
                 return editedPurchaseOrder;
             } catch (error) {
@@ -694,7 +755,7 @@ export default {
                             }
                         }
                     }
-                    this.getUnprocessedBoxes();
+                    this.getBoxes();
 
                 } catch (error) {
                     this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
