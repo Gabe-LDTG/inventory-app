@@ -690,8 +690,8 @@ export default {
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
 
-                this.getProducts();
-                this.getRecipes();
+                await this.getProducts();
+                await this.getRecipes();
 
                 return addedProduct;
             } catch (err) {
