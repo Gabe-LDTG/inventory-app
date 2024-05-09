@@ -244,24 +244,25 @@
             <div v-else>
                 <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
                 </div>
 
+                <!-- PROC------------------------------------------------------------------------------------ -->
                 <template class="caseCard" v-for="(poCase, counter) in purchaseOrder.cases">
 
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(purchaseOrder.cases, counter)"/>
 
-                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                        <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
                         <div class="block-div">
                             <div class="field">
                                 <label for="name">Name:</label>
                                 <Dropdown v-model="poCase.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="selectVendorProducts(purchaseOrder.vendor_id)"
+                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'proc')"
                                 optionLabel="name"
                                 filter
-                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); poCase.total = poCase.amount*poCase.units_per_case;"
+                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); selectRecipe(poCase, counter); getRecipeTotal(1, counter); poCase.total = poCase.amount*poCase.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
                                 :class="{'p-invalid': submitted && !poCase.product_id}" 
@@ -283,7 +284,7 @@
                             </div>
 
                             <div class="field">
-                                <label for="qty">QTY:</label>
+                                <label for="qty">Normal Case QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 :class="{'p-invalid': submitted && !poCase.units_per_case}"
                                 v-model="poCase.units_per_case" disabled
@@ -292,10 +293,10 @@
                             </div>
 
                             <div v-show="!poCase.case_id" class="field">
-                                <label for="amount">How Many Boxes to Order?</label>
+                                <label for="amount">Cases Desired to Be Made</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="poCase.amount" showButtons
-                                @update:model-value="poCase.total = onTotalUpdate(poCase.amount, poCase.units_per_case)"/>
+                                @update:model-value="getRecipeTotal(poCase.amount, counter); poCase.total = onTotalUpdate(poCase.amount, poCase.units_per_case)"/>
                             </div>
 
                             <div class="field">
@@ -304,7 +305,7 @@
                             </div>
 
                             <div v-if="poCase.units_per_case" class="field">
-                                <label class="flex justify-content-end font-bold w-full" for="total">Total:</label>
+                                <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
                                 <div class="flex justify-content-end font-bold w-full">{{ poCase.units_per_case * poCase.amount }}</div>
                             </div>
 
@@ -321,10 +322,12 @@
                             <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
                         </div> -->
                         <div v-if="poCase.units_per_case">
-                            <DataTable :value="selectRecipe(poCase)">
+                            <DataTable :value="poCase.recInfo">
                                 <Column field="product.name" header="Product Name" />
                                 <Column field="product.default_units_per_case" header="Units per Box" />
-                                <Column field="recipe.units_needed" header="Unit(s) Needed" />
+                                <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
+                                <Column field="raw_total" header="Total Raw Units" />
+                                <Column field="raw_box_total" header="Raw Box Total" />
                             </DataTable>
                             <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
                         </div>
@@ -335,8 +338,93 @@
                 <Button label="Add another product" text @click="addBulkLine(purchaseOrder.cases)"/>
 
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Raw Box(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Box(s):</h3>
                 </div>
+
+                <!-- RAW ------------------------------------------------------------------------------------ -->
+                <template class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
+
+                    <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
+                    <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
+
+                    <div class ="caseCard">
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(purchaseOrder.raw, counter)"/>
+
+                        <h4 class="flex justify-content-start font-bold w-full">Raw Product #{{ counter + 1 }}</h4><br>
+                        <div class="block-div">
+                            <div class="field">
+                                <label for="name">Name:</label>
+                                <Dropdown v-model="rCase.product_id" required="true" 
+                                placeholder="Select a Product" class="md:w-14rem" editable
+                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
+                                optionLabel="name"
+                                filter
+                                @change="rCase.units_per_case = onProductSelection(rCase.product_id); rCase.total = rCase.amount*rCase.units_per_case;"
+                                optionValue="product_id"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :class="{'p-invalid': submitted && !rCase.product_id}" 
+                                >
+
+                                <template #value="slotProps">
+                                        <div v-if="slotProps.value" class="flex align-items-center">
+                                            <div>{{ slotProps.value.product_id }}</div>
+                                        </div>
+                                        <span v-else>
+                                            {{ slotProps.placeholder }}
+                                        </span>
+                                    </template>
+                                    <template #option="slotProps">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                    </template>
+                                </Dropdown>
+                                <small class="p-error" v-if="submitted && !rCase.product_id">Name is required.</small>
+                            </div>
+
+                            <div class="field">
+                                <label for="qty">QTY:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                :class="{'p-invalid': submitted && !rCase.units_per_case}"
+                                v-model="rCase.units_per_case" disabled
+                                @input="rCase.total = rCase.amount*rCase.units_per_case"/>
+                                <small class="p-error" v-if="submitted && !rCase.units_per_case">Amount is required.</small>
+                            </div>
+
+                            <div v-show="!rCase.case_id" class="field">
+                                <label for="amount">How Many Boxes to Order?</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="rCase.amount" showButtons
+                                @update:model-value="rCase.total = onTotalUpdate(rCase.amount, rCase.units_per_case)"/>
+                            </div>
+
+                            <div class="field">
+                                <label for="notes">Notes:</label>
+                                <InputText id="notes" v-model="rCase.notes" rows="3" cols="20" />
+                            </div>
+
+                            <div v-if="rCase.units_per_case" class="field">
+                                <label class="flex justify-content-end font-bold w-full" for="total">Total:</label>
+                                <div class="flex justify-content-end font-bold w-full">{{ rCase.units_per_case * rCase.amount }}</div>
+                            </div>
+
+                            <!-- <div class="field">
+                                <label for="total">Requested Total</label>
+                                <InputNumber v-model="poCase.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="poCase.amount = onTotalUpdate(poCase.total, poCase.units_per_case)"/>
+                            </div> -->
+
+                        </div>
+                        
+                        <!-- <div v-show="poCase.total">
+                            <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
+                        </div> -->
+
+
+                    </div>
+                    </template>
+
+                    <Button label="Add another product" text @click="addBulkLine(purchaseOrder.raw)"/>
+
             </div>
             
             
@@ -522,7 +610,7 @@ export default {
             }
         },
 
-        selectRecipe(productMade: any){
+        selectRecipe(productMade: any, counter: number){
             console.log("PRODUCT  ", productMade);
             let usedProducts = [] as any[];
             let productMap = {} as any;
@@ -545,7 +633,19 @@ export default {
                 }
             })
             console.log("PRODUCTS USED", usedProducts);
-            return usedProducts;
+            this.purchaseOrder.cases[counter].recInfo = usedProducts;
+            //return usedProducts;
+        },
+
+        getRecipeTotal(amount:number, counter: number){
+            let procTotal = this.purchaseOrder.cases[counter].units_per_case*amount;
+            //console.log(procTotal);
+            this.purchaseOrder.cases[counter].recInfo.forEach((ri: any) => {
+                let rawTotal = procTotal*ri.recipe.units_needed;
+                ri.raw_total = rawTotal;
+                ri.raw_box_total = rawTotal/ri.product.default_units_per_case;
+            })
+            console.log("RECIPE INFO: ", this.purchaseOrder.cases[counter].recInfo);
         },
 
         formatCurrency(value: any) {
@@ -557,13 +657,24 @@ export default {
             this.vendorDialog = true;
             this.purchaseOrder = {};
         },
-        selectVendorProducts(poVendor: any){
+        selectVendorProducts(poVendor: any, status: any){
             let vendorProducts = [] as any[];
-            this.procProducts.forEach(p => {
-                if(p['vendor'] == poVendor){
-                    vendorProducts.push(p);
-                }
-            })
+            
+            if(status == 'proc'){
+                this.procProducts.forEach(p => {
+                    if(p['vendor'] == poVendor){
+                        vendorProducts.push(p);
+                    }
+                })
+            }
+
+            else if (status == 'raw'){
+                this.unprocProducts.forEach(p => {
+                    if(p['vendor'] == poVendor){
+                        vendorProducts.push(p);
+                    }
+                })
+            }
             return vendorProducts;
         },
 
@@ -626,7 +737,8 @@ export default {
             }
         },
         validate() {
-            this.savePurchaseOrder();
+            console.log("PO", this.purchaseOrder);
+            //this.savePurchaseOrder();
         },
         async savePurchaseOrder() {
             //this.submitted = true;
