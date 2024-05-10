@@ -146,6 +146,14 @@
                 <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
             </div>
 
+            <div class="field">
+                <label for="total_units">Total Units</label>
+            </div>
+
+            <div class="field">
+                <label for="total_price">Total</label>
+            </div>
+
             <div v-if="purchaseOrder.purchase_order_id">
                 <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
@@ -243,11 +251,11 @@
 
             <div v-else>
                 <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
+                <!-- PROC------------------------------------------------------------------------------------ -->
                 <div class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
                 </div>
 
-                <!-- PROC------------------------------------------------------------------------------------ -->
                 <template class="caseCard" v-for="(poCase, counter) in purchaseOrder.cases">
 
                     <div class ="caseCard">
@@ -326,8 +334,19 @@
                                 <Column field="product.name" header="Product Name" />
                                 <Column field="product.default_units_per_case" header="Units per Box" />
                                 <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
-                                <Column field="raw_total" header="Total Raw Units" />
+                                <Column field="used_total" header="Total Units Needed" />
+                                <Column field="raw_total" header="Total Units Ordered" />
                                 <Column field="raw_box_total" header="Raw Box Total" />
+                                <Column field="product.price_2023" header="Unit Price" >
+                                    <template #body="slotProps">
+                                        ${{ formatCurrency(slotProps.data.product.price_2023) }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Price" >
+                                    <template #body="slotProps">
+                                        {{ formatCurrency(slotProps.data.product.price_2023*slotProps.data.raw_box_total) }}
+                                    </template>
+                                </Column>
                             </DataTable>
                             <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
                         </div>
@@ -337,12 +356,22 @@
 
                 <Button label="Add another product" text @click="addBulkLine(purchaseOrder.cases)"/>
 
+
+                <!-- RAW ----------------------------------------------------------------------------------- -->
                 <div class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Box(s):</h3>
                 </div>
 
-                <!-- RAW ------------------------------------------------------------------------------------ -->
-                <template class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
+                <div class="field">
+                    <h4 for="purchaseOrder" class="flex justify-content-start w-full">How would you like to order the raw product?</h4>
+
+                    <div v-for="type in rawOrderType" class="flex align-items-center">
+                        <RadioButton v-model="selectedOrderType" name="dynamic" :value="type"/>
+                        <label :for="type">{{ type }}</label>
+                    </div>
+                </div>
+
+                <template v-show="selectedOrderType" class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
 
                     <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
                     <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
@@ -389,11 +418,16 @@
                                 <small class="p-error" v-if="submitted && !rCase.units_per_case">Amount is required.</small>
                             </div>
 
-                            <div v-show="!rCase.case_id" class="field">
+                            <div v-if="selectedOrderType === 'By Box'" v-show="!rCase.case_id" class="field">
                                 <label for="amount">How Many Boxes to Order?</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="rCase.amount" showButtons
-                                @update:model-value="rCase.total = onTotalUpdate(rCase.amount, rCase.units_per_case)"/>
+                                v-model="rCase.amount" showButtons/>
+                            </div>
+
+                            <div v-else-if="selectedOrderType === 'By Unit'" v-show="!rCase.case_id" class="field">
+                                <label for="amount">REQUESTED Units to Order:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="rCase.amount" showButtons/>
                             </div>
 
                             <div class="field">
@@ -401,9 +435,19 @@
                                 <InputText id="notes" v-model="rCase.notes" rows="3" cols="20" />
                             </div>
 
-                            <div v-if="rCase.units_per_case" class="field">
-                                <label class="flex justify-content-end font-bold w-full" for="total">Total:</label>
-                                <div class="flex justify-content-end font-bold w-full">{{ rCase.units_per_case * rCase.amount }}</div>
+                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Box'" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ rCase.units_per_case * rCase.amount }}</div>
+                            </div>
+
+                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Unit'" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(rCase.amount/rCase.units_per_case)*rCase.units_per_case }}</div>
+                            </div>
+
+                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Unit'" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(rCase.amount/rCase.units_per_case) }}</div>
                             </div>
 
                             <!-- <div class="field">
@@ -478,6 +522,8 @@ export default {
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
+            rawOrderType: ['By Box', 'By Unit'],
+            selectedOrderType: {} as any,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -637,13 +683,20 @@ export default {
             //return usedProducts;
         },
 
+        //Calculates various totals of raw product based on the current processed case being inputted
+        //from the purchase order
         getRecipeTotal(amount:number, counter: number){
+            //The total amount of units for the current processed case in the array
             let procTotal = this.purchaseOrder.cases[counter].units_per_case*amount;
             //console.log(procTotal);
+            //Goes through each raw product used per processed bundle to calculate various totals
             this.purchaseOrder.cases[counter].recInfo.forEach((ri: any) => {
-                let rawTotal = procTotal*ri.recipe.units_needed;
-                ri.raw_total = rawTotal;
-                ri.raw_box_total = rawTotal/ri.product.default_units_per_case;
+                let usedTotal = procTotal*ri.recipe.units_needed;
+                ri.used_total = usedTotal;
+
+                //Rounds up to the nearest who box to order
+                ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
+                ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
             })
             console.log("RECIPE INFO: ", this.purchaseOrder.cases[counter].recInfo);
         },

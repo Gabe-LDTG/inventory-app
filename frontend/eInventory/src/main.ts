@@ -32,6 +32,7 @@ import Message from 'primevue/message';
 import OrderList from 'primevue/orderlist';
 import Password from 'primevue/password';
 import ProgressSpinner from 'primevue/progressspinner';
+import RadioButton from 'primevue/radiobutton';
 import Row from 'primevue/row';                   // optional
 import Tag from 'primevue/tag';
 import TriStateCheckbox from 'primevue/tristatecheckbox';
@@ -68,6 +69,7 @@ app.component('Message', Message);
 app.component('OrderList', OrderList);
 app.component('Password', Password);
 app.component('ProgressSpinner', ProgressSpinner);
+app.component('RadioButton', RadioButton);
 app.component('Row', Row);
 app.component('Tag', Tag);
 app.component('TriStateCheckbox', TriStateCheckbox);
