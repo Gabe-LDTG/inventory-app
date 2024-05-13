@@ -303,7 +303,7 @@
                             <div v-show="!poCase.case_id" class="field">
                                 <label for="amount">Cases Desired to Be Made</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="poCase.amount" showButtons
+                                v-model="poCase.amount" showButtons :min="1"
                                 @update:model-value="getRecipeTotal(poCase.amount, counter); poCase.total = onTotalUpdate(poCase.amount, poCase.units_per_case)"/>
                             </div>
 
@@ -363,7 +363,7 @@
                 </div>
 
                 <div class="field">
-                    <h4 for="purchaseOrder" class="flex justify-content-start w-full">How would you like to order the raw product?</h4>
+                    <h4 for="purchaseOrder" class="flex justify-content-start font-bold w-full">How would you like to order the raw product?</h4>
 
                     <div v-for="type in rawOrderType" class="flex align-items-center">
                         <RadioButton v-model="selectedOrderType" name="dynamic" :value="type"/>
@@ -371,7 +371,7 @@
                     </div>
                 </div>
 
-                <template v-show="selectedOrderType" class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
+                <template v-if="selectedOrderType" class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
 
                     <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
                     <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
@@ -420,13 +420,13 @@
 
                             <div v-if="selectedOrderType === 'By Box'" v-show="!rCase.case_id" class="field">
                                 <label for="amount">How Many Boxes to Order?</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
                                 v-model="rCase.amount" showButtons/>
                             </div>
 
                             <div v-else-if="selectedOrderType === 'By Unit'" v-show="!rCase.case_id" class="field">
                                 <label for="amount">REQUESTED Units to Order:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
                                 v-model="rCase.amount" showButtons/>
                             </div>
 
@@ -523,7 +523,7 @@ export default {
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
             rawOrderType: ['By Box', 'By Unit'],
-            selectedOrderType: {} as any,
+            selectedOrderType: "",
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -633,8 +633,8 @@ export default {
                 this.pCases = await action.getProcCases();
 
                 //console.log("CASES: ",this.cases);
-                console.log("BOXES: ", this.uBoxes);
-                console.log("CASES: ", this.pCases);
+                //console.log("BOXES: ", this.uBoxes);
+                //console.log("CASES: ", this.pCases);
             } catch (error) {
                 console.log(error);
             }
@@ -736,6 +736,7 @@ export default {
             this.vendorDialog = false;
             this.poBoxes = [];
             this.poCases = [];
+            this.selectedOrderType = "";
             this.amount = 1;
 
             this.purchaseOrder.date_ordered = this.today;
@@ -746,6 +747,7 @@ export default {
 
             //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
             console.log(this.purchaseOrder)
+            //console.log(this.selectedOrderType);
             
             this.newBulkArray(this.purchaseOrder);
 
@@ -789,9 +791,39 @@ export default {
                 }
             }
         },
+
+        //Validates a purchase order before creation/editing.
+        //Currently checks:
+        //1) All desired cases have an amount of 1 or greater
+        //2) All desired raw boxes have an amount of 1 or greater
         validate() {
+            this.submitted == true;
+
+            let errAmount = 0;
             console.log("PO", this.purchaseOrder);
-            //this.savePurchaseOrder();
+            //console.log("NOT FLATTENED", this.purchaseOrder.cases);
+            //console.log("FLATTENED PO ONE LEVEL", this.purchaseOrder.cases.flat());
+            //console.log("FLATTENED PO TWO LEVELS", this.purchaseOrder.cases.flat(2));
+
+            this.purchaseOrder.cases.forEach((c: any) => {
+                if (c.amount < 1)
+                    errAmount++;
+            })
+
+            this.purchaseOrder.cases.forEach((r: any) => {
+                if (r.amount < 1)
+                    errAmount++;
+            })
+
+            if (errAmount == 0){
+                //this.savePurchaseOrder();
+            }
+            else{
+                if(errAmount > 1)
+                    this.$toast.add({severity:'error', summary: 'Error', detail: "There are "+errAmount+" total errors", life: 3000});
+                else
+                    this.$toast.add({severity:'error', summary: 'Error', detail: "There is "+errAmount+" error", life: 3000});
+            }
         },
         async savePurchaseOrder() {
             //this.submitted = true;
@@ -921,6 +953,25 @@ export default {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
 
+                this.purchaseOrder.cases.forEach(async (c: any) => {
+                    if (c.product_id){
+                        c.status = 'Ordered';
+                        c.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+
+                        for(let amountIdx = 0; amountIdx < c.amount; amountIdx++){
+                            await action.addCase(c)
+
+                            c.recInfo.forEach(async (rawProduct: any) => {
+                                //CHANGE THE STATUS AND ADD THE PRODUCT ID AND UNIT COUNT FOR EACH RAW PRODUCT
+                                
+                            })
+                        }
+                    }
+                });
+
+                this.purchaseOrder.raw.forEach((r: any) => {
+
+                });
 
                 try {
                     console.log(this.poCases);
