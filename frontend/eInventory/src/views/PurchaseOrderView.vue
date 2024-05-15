@@ -111,8 +111,8 @@
 
             <div class="field">
                 <label for="purchase_order_name">Purchase Order</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted && !purchaseOrder.purchase_order_name}" />
-                <small class="p-error" v-if="submitted && !purchaseOrder.purchase_order_name">Name is required.</small>
+                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" />
+                <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
             </div>
 
             <div class="field">
@@ -450,6 +450,10 @@
                                 <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(rCase.amount/rCase.units_per_case) }}</div>
                             </div>
 
+                            <div class="field"></div>
+
+                            <div class="field"></div>
+
                             <!-- <div class="field">
                                 <label for="total">Requested Total</label>
                                 <InputNumber v-model="poCase.total" 
@@ -553,7 +557,10 @@ export default {
             today: "",
             loading: false,
             statuses: [
+                'Draft',
+                'Submitted',
 				'Ordered',
+                'Indbound',
 				'Delivered',
             ],
 
@@ -657,7 +664,7 @@ export default {
         },
 
         selectRecipe(productMade: any, counter: number){
-            console.log("PRODUCT  ", productMade);
+            //console.log("PRODUCT  ", productMade);
             let usedProducts = [] as any[];
             let productMap = {} as any;
 
@@ -678,7 +685,7 @@ export default {
                     })
                 }
             })
-            console.log("PRODUCTS USED", usedProducts);
+            //console.log("PRODUCTS USED", usedProducts);
             this.purchaseOrder.cases[counter].recInfo = usedProducts;
             //return usedProducts;
         },
@@ -698,7 +705,7 @@ export default {
                 ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
                 ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
             })
-            console.log("RECIPE INFO: ", this.purchaseOrder.cases[counter].recInfo);
+            //console.log("RECIPE INFO: ", this.purchaseOrder.cases[counter].recInfo);
         },
 
         formatCurrency(value: any) {
@@ -740,7 +747,7 @@ export default {
             this.amount = 1;
 
             this.purchaseOrder.date_ordered = this.today;
-            this.purchaseOrder.status = "Ordered";
+            this.purchaseOrder.status = "Draft";
             this.purchaseOrder.raw = this.poBoxes;
             this.purchaseOrder.cases = this.poCases
 
@@ -782,7 +789,7 @@ export default {
             console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
         },
         onProductSelection(productId: any){
-            console.log("PRODUCT ID", productId);
+            //console.log("PRODUCT ID", productId);
 
             for (let idx = 0; idx < this.products.length; idx++) {
                 if (this.products[idx].product_id == productId) {
@@ -794,8 +801,9 @@ export default {
 
         //Validates a purchase order before creation/editing.
         //Currently checks:
-        //1) All desired cases have an amount of 1 or greater
-        //2) All desired raw boxes have an amount of 1 or greater
+        //1) The PO has a name
+        //2) All desired cases have an amount of 1 or greater
+        //3) All desired raw boxes have an amount of 1 or greater
         validate() {
             this.submitted == true;
 
@@ -804,6 +812,10 @@ export default {
             //console.log("NOT FLATTENED", this.purchaseOrder.cases);
             //console.log("FLATTENED PO ONE LEVEL", this.purchaseOrder.cases.flat());
             //console.log("FLATTENED PO TWO LEVELS", this.purchaseOrder.cases.flat(2));
+
+            if(!this.purchaseOrder.purchase_order_name){
+                errAmount++;
+            }
 
             this.purchaseOrder.cases.forEach((c: any) => {
                 if (c.amount < 1)
@@ -816,13 +828,13 @@ export default {
             })
 
             if (errAmount == 0){
-                //this.savePurchaseOrder();
+                this.savePurchaseOrder();
             }
             else{
                 if(errAmount > 1)
-                    this.$toast.add({severity:'error', summary: 'Error', detail: "There are "+errAmount+" total errors", life: 3000});
+                    this.$toast.add({severity:'error', summary: 'Error', detail: "There are "+errAmount+" total errors"});
                 else
-                    this.$toast.add({severity:'error', summary: 'Error', detail: "There is "+errAmount+" error", life: 3000});
+                    this.$toast.add({severity:'error', summary: 'Error', detail: "There is "+errAmount+" error"});
             }
         },
         async savePurchaseOrder() {
@@ -953,24 +965,42 @@ export default {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
 
-                this.purchaseOrder.cases.forEach(async (c: any) => {
-                    if (c.product_id){
-                        c.status = 'Ordered';
-                        c.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+                this.purchaseOrder.cases.forEach(async (indivCase: any) => {
+                    if (indivCase.product_id){
 
-                        for(let amountIdx = 0; amountIdx < c.amount; amountIdx++){
-                            await action.addCase(c)
+                        indivCase.status = 'Ordered';
 
-                            c.recInfo.forEach(async (rawProduct: any) => {
-                                //CHANGE THE STATUS AND ADD THE PRODUCT ID AND UNIT COUNT FOR EACH RAW PRODUCT
+                        indivCase.units_per_case = indivCase.default_units_per_case;
+
+                        indivCase.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+
+                        for(let amountIdx = 0; amountIdx < indivCase.amount; amountIdx++){
+                            console.log("INDIVCASE: ", indivCase);
+                            await action.addCase(indivCase)
+
+                            indivCase.recInfo.forEach(async (indivRawProd: any) => {
                                 
+                                indivRawProd.product.status = 'Ordered';
+
+                                indivRawProd.product.units_per_case = indivRawProd.product.default_units_per_case;
+
+                                indivRawProd.product.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+
+                                for(let prodIdx = 0; prodIdx < indivRawProd.raw_box_total; prodIdx++){
+                                    console.log("INDIVRAWPROD: ", indivRawProd);
+                                    await action.addCase(indivRawProd.product);
+                                }
                             })
                         }
                     }
                 });
 
-                this.purchaseOrder.raw.forEach((r: any) => {
-
+                this.purchaseOrder.raw.forEach(async (rawProduct: any) => {
+                    rawProduct.units_per_case = rawProduct.default_units_per_case;
+                    for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
+                        console.log("RAWPRODUCT: ", rawProduct);
+                        await action.addCase(rawProduct);
+                    }
                 });
 
                 try {
