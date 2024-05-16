@@ -177,10 +177,10 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
                 </div>
 
-                <template class="caseCard" v-for="(poCase, counter) in purchaseOrder.cases">
+                <template class="caseCard" v-for="(poCase, counter) in poCases">
 
                     <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(purchaseOrder.cases, counter)"/>
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
 
                         <h4 class="flex justify-content-start font-bold w-full">{{ poCase.name }}</h4><br>
                         <div class="block-div">
@@ -256,10 +256,10 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
                 </div>
 
-                <template class="caseCard" v-for="(poCase, counter) in purchaseOrder.cases">
+                <template class="caseCard" v-for="(poCase, counter) in poCases">
 
                     <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(purchaseOrder.cases, counter)"/>
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
 
                         <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
                         <div class="block-div">
@@ -354,7 +354,7 @@
                     </div>
                 </template>
 
-                <Button label="Add another product" text @click="addBulkLine(purchaseOrder.cases)"/>
+                <Button label="Add another product" text @click="addBulkLine(poCases)"/>
 
 
                 <!-- RAW ----------------------------------------------------------------------------------- -->
@@ -371,13 +371,13 @@
                     </div>
                 </div>
 
-                <template v-if="selectedOrderType" class="caseCard" v-for="(rCase, counter) in purchaseOrder.raw">
+                <template v-if="selectedOrderType" class="caseCard" v-for="(rCase, counter) in poBoxes">
 
                     <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
                     <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
 
                     <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(purchaseOrder.raw, counter)"/>
+                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poBoxes, counter)"/>
 
                         <h4 class="flex justify-content-start font-bold w-full">Raw Product #{{ counter + 1 }}</h4><br>
                         <div class="block-div">
@@ -471,7 +471,7 @@
                     </div>
                     </template>
 
-                    <Button label="Add another product" text @click="addBulkLine(purchaseOrder.raw)"/>
+                    <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
 
             </div>
             
@@ -686,7 +686,7 @@ export default {
                 }
             })
             //console.log("PRODUCTS USED", usedProducts);
-            this.purchaseOrder.cases[counter].recInfo = usedProducts;
+            this.poCases[counter].recInfo = usedProducts;
             //return usedProducts;
         },
 
@@ -694,10 +694,10 @@ export default {
         //from the purchase order
         getRecipeTotal(amount:number, counter: number){
             //The total amount of units for the current processed case in the array
-            let procTotal = this.purchaseOrder.cases[counter].units_per_case*amount;
+            let procTotal = this.poCases[counter].units_per_case*amount;
             //console.log(procTotal);
             //Goes through each raw product used per processed bundle to calculate various totals
-            this.purchaseOrder.cases[counter].recInfo.forEach((ri: any) => {
+            this.poCases[counter].recInfo.forEach((ri: any) => {
                 let usedTotal = procTotal*ri.recipe.units_needed;
                 ri.used_total = usedTotal;
 
@@ -705,7 +705,7 @@ export default {
                 ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
                 ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
             })
-            //console.log("RECIPE INFO: ", this.purchaseOrder.cases[counter].recInfo);
+            //console.log("RECIPE INFO: ", this.poCases[counter].recInfo);
         },
 
         formatCurrency(value: any) {
@@ -714,6 +714,7 @@ export default {
 			return;
         },
         vendorSelect(){
+            //WHEN BABY PAPER IS SELECTED, JUST CREATE ONE BOX WITH THE DESIRED AMOUNT TO ORDER
             this.vendorDialog = true;
             this.purchaseOrder = {};
         },
@@ -748,24 +749,24 @@ export default {
 
             this.purchaseOrder.date_ordered = this.today;
             this.purchaseOrder.status = "Draft";
-            this.purchaseOrder.raw = this.poBoxes;
-            this.purchaseOrder.cases = this.poCases
+            //this.purchaseOrder.raw = this.poBoxes;
+            //this.purchaseOrder.cases = this.poCases
 
 
             //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
             console.log(this.purchaseOrder)
             //console.log(this.selectedOrderType);
             
-            this.newBulkArray(this.purchaseOrder);
+            this.newBulkArray();
 
             this.submitted = false;
             this.purchaseOrderDialog = true;
         },
-        newBulkArray(po: any){
+        newBulkArray(){
 
             for(let idx = 0; idx < 3; idx++){
-                this.addBulkLine(po.raw);
-                this.addBulkLine(po.cases);
+                this.addBulkLine(this.poCases);
+                this.addBulkLine(this.poBoxes);
             }
         },
         addBulkLine(poArray: any){
@@ -809,6 +810,8 @@ export default {
 
             let errAmount = 0;
             console.log("PO", this.purchaseOrder);
+            console.log("PO CASES: ", this.poCases);
+            console.log("PO BOXES: ", this.poBoxes);
             //console.log("NOT FLATTENED", this.purchaseOrder.cases);
             //console.log("FLATTENED PO ONE LEVEL", this.purchaseOrder.cases.flat());
             //console.log("FLATTENED PO TWO LEVELS", this.purchaseOrder.cases.flat(2));
@@ -817,18 +820,18 @@ export default {
                 errAmount++;
             }
 
-            this.purchaseOrder.cases.forEach((c: any) => {
+            this.poCases.forEach((c: any) => {
                 if (c.amount < 1)
                     errAmount++;
             })
 
-            this.purchaseOrder.cases.forEach((r: any) => {
+            this.poCases.forEach((r: any) => {
                 if (r.amount < 1)
                     errAmount++;
             })
 
             if (errAmount == 0){
-                this.savePurchaseOrder();
+                //this.savePurchaseOrder();
             }
             else{
                 if(errAmount > 1)
@@ -965,7 +968,7 @@ export default {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
 
-                this.purchaseOrder.cases.forEach(async (indivCase: any) => {
+                this.poCases.forEach(async (indivCase: any) => {
                     if (indivCase.product_id){
 
                         indivCase.status = 'Ordered';
@@ -995,7 +998,7 @@ export default {
                     }
                 });
 
-                this.purchaseOrder.raw.forEach(async (rawProduct: any) => {
+                this.poBoxes.forEach(async (rawProduct: any) => {
                     rawProduct.units_per_case = rawProduct.default_units_per_case;
                     for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
                         console.log("RAWPRODUCT: ", rawProduct);
