@@ -4,6 +4,7 @@ import{
     getCasesById,
     getCasesByType,
     insertCase,
+    bulkInsertCases,
     updateCaseById,
     deleteCaseById,
 } from "../models/CaseModel.js";
@@ -60,6 +61,19 @@ export async function createCase(req,res){
         res.json(createdCase);
     } catch (err) {
         console.error(err);
+        res.sendStatus(500);
+    }
+};
+
+//create new cases in bulk
+export async function bulkCreateCase(req,res){
+    try {
+        const data=req.body;
+        const createdCases = await bulkInsertCases(data);
+
+        res.json(createdCases);
+    } catch (error) {
+        console.error(error);
         res.sendStatus(500);
     }
 };

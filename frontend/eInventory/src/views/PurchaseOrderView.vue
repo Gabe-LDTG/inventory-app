@@ -664,13 +664,16 @@ export default {
         },
 
         selectRecipe(productMade: any, counter: number){
+
+            console.log("TESTING MAPS: ", this.recipes.filter(r => r.product_needed === productMade.product_id ||  r.product_made === productMade.product_id));
+            
             //console.log("PRODUCT  ", productMade);
             let usedProducts = [] as any[];
             let productMap = {} as any;
 
             //console.log(this.recipes);
 
-            this.recipes.forEach(r => {
+            /*this.recipes.forEach(r => {
                 //console.log("PRODUCT MADE", r.product_made);
                 if(r.product_made == productMade.product_id){
                     //console.log("MATCH")
@@ -684,10 +687,10 @@ export default {
                         }
                     })
                 }
-            })
+            })*/
             //console.log("PRODUCTS USED", usedProducts);
-            this.poCases[counter].recInfo = usedProducts;
-            //return usedProducts;
+            //this.poCases[counter].recInfo = usedProducts;
+            return usedProducts;
         },
 
         //Calculates various totals of raw product based on the current processed case being inputted

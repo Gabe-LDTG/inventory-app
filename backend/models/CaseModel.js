@@ -38,6 +38,10 @@ export async function insertCase(data){
     return db.query("INSERT INTO cases (product_id, units_per_case, location, notes, date_received, status, purchase_order_id) VALUES (?, ?, ?, ?, ?, ?, ?)",[data.product_id, data.units_per_case, data.location, data.notes, data.date_received, data.status, data.purchase_order_id]).then(([results, fields])=>results);
 }
 
+export async function bulkInsertCases(data){
+    return db.query("INSERT INTO cases (product_id, units_per_case, location, notes, date_received, status, purchase_order_id) VALUES ?",[data]).then(([results, fields])=>results);
+}
+
 // Update Case to Database
 export async function updateCaseById(data, id){
     //console.log("_________________________________________________")
