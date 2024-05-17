@@ -270,7 +270,7 @@
                                 :options="selectVendorProducts(purchaseOrder.vendor_id, 'proc')"
                                 optionLabel="name"
                                 filter
-                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); selectRecipe(poCase, counter); getRecipeTotal(1, counter); poCase.total = poCase.amount*poCase.units_per_case;"
+                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); selectRecipe(poCase, counter); poCase.total = poCase.amount*poCase.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
                                 :class="{'p-invalid': submitted && !poCase.product_id}" 
@@ -304,7 +304,7 @@
                                 <label for="amount">Cases Desired to Be Made</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="poCase.amount" showButtons :min="1"
-                                @update:model-value="getRecipeTotal(poCase.amount, counter); poCase.total = onTotalUpdate(poCase.amount, poCase.units_per_case)"/>
+                                @update:model-value=""/>
                             </div>
 
                             <div class="field">
@@ -330,8 +330,11 @@
                             <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
                         </div> -->
                         <div v-if="poCase.units_per_case">
-                            <DataTable :value="poCase.recInfo">
-                                <Column field="product.name" header="Product Name" />
+                            <DataTable :value="selectRecipe(poCase, counter)">
+
+                                <Column field="product_needed" header="Testing"/>
+
+                                <!-- <Column field="product.name" header="Product Name" />
                                 <Column field="product.default_units_per_case" header="Units per Box" />
                                 <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
                                 <Column field="used_total" header="Total Units Needed" />
@@ -346,7 +349,7 @@
                                     <template #body="slotProps">
                                         {{ formatCurrency(slotProps.data.product.price_2023*slotProps.data.raw_box_total) }}
                                     </template>
-                                </Column>
+                                </Column> -->
                             </DataTable>
                             <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
                         </div>
@@ -795,12 +798,16 @@ export default {
         onProductSelection(productId: any){
             //console.log("PRODUCT ID", productId);
 
-            for (let idx = 0; idx < this.products.length; idx++) {
+            let product = this.products.find(p => p.product_id === productId);
+
+            return product.default_units_per_case;
+
+            /*for (let idx = 0; idx < this.products.length; idx++) {
                 if (this.products[idx].product_id == productId) {
                     console.log("PRODUCT NAME: ", this.products[idx].name);
                     return this.products[idx].default_units_per_case;
                 }
-            }
+            }*/
         },
 
         //Validates a purchase order before creation/editing.
