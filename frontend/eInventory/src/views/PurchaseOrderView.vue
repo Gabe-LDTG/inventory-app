@@ -270,7 +270,7 @@
                                 :options="selectVendorProducts(purchaseOrder.vendor_id, 'proc')"
                                 optionLabel="name"
                                 filter
-                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); selectRecipe(poCase, counter); poCase.total = poCase.amount*poCase.units_per_case;"
+                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); /* selectRecipe(poCase, counter);*/ poCase.total = poCase.amount*poCase.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
                                 :class="{'p-invalid': submitted && !poCase.product_id}" 
@@ -296,7 +296,7 @@
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 :class="{'p-invalid': submitted && !poCase.units_per_case}"
                                 v-model="poCase.units_per_case" disabled
-                                @input="poCase.total = poCase.amount*poCase.units_per_case"/>
+                                />
                                 <small class="p-error" v-if="submitted && !poCase.units_per_case">Amount is required.</small>
                             </div>
 
@@ -331,16 +331,13 @@
                         </div> -->
                         <div v-if="poCase.units_per_case">
                             <DataTable :value="selectRecipe(poCase, counter)">
-
-                                <Column field="product_needed" header="Testing"/>
-
-                                <!-- <Column field="product.name" header="Product Name" />
-                                <Column field="product.default_units_per_case" header="Units per Box" />
-                                <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
+                                <Column field="name" header="Product Name" />
+                                <Column field="default_units_per_case" header="Units per Box" />
+                                <!-- <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
                                 <Column field="used_total" header="Total Units Needed" />
                                 <Column field="raw_total" header="Total Units Ordered" />
-                                <Column field="raw_box_total" header="Raw Box Total" />
-                                <Column field="product.price_2023" header="Unit Price" >
+                                <Column field="raw_box_total" header="Raw Box Total" /> -->
+                                <!-- <Column field="price_2023" header="Unit Price" >
                                     <template #body="slotProps">
                                         ${{ formatCurrency(slotProps.data.product.price_2023) }}
                                     </template>
@@ -668,38 +665,28 @@ export default {
 
         selectRecipe(productMade: any, counter: number){
 
-            console.log("TESTING MAPS: ", this.recipes.filter(r => r.product_needed === productMade.product_id ||  r.product_made === productMade.product_id));
+            //console.log("TESTING MAPS: ", this.recipes.filter(r => r.product_made === productMade.product_id));
             
             //console.log("PRODUCT  ", productMade);
             let usedProducts = [] as any[];
             let productMap = {} as any;
 
-            //console.log(this.recipes);
+            let usedRecipes = this.recipes.filter(r => r.product_made === productMade.product_id);
+            
+            usedProducts = usedRecipes.flatMap(r => this.products.filter(p => p.product_id === r.product_needed));
 
-            /*this.recipes.forEach(r => {
-                //console.log("PRODUCT MADE", r.product_made);
-                if(r.product_made == productMade.product_id){
-                    //console.log("MATCH")
-                    //usedRecipes.push(r);
-                    this.products.forEach(p => {
-                        productMap = {};
-                        if(p.product_id == r.product_needed){
-                            productMap[<any>'product'] = p;
-                            productMap[<any>'recipe'] = r;
-                            usedProducts.push(productMap);
-                        }
-                    })
-                }
-            })*/
-            //console.log("PRODUCTS USED", usedProducts);
+            usedProducts.forEach(p => usedRecipes.find(r => p.product_id === r.product_needed))
+
+            console.log("RECIPES USED ", usedRecipes);
+            console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
             return usedProducts;
         },
 
         //Calculates various totals of raw product based on the current processed case being inputted
         //from the purchase order
-        getRecipeTotal(amount:number, counter: number){
-            //The total amount of units for the current processed case in the array
+        getRecipeTotal(amount:number){
+            /*//The total amount of units for the current processed case in the array
             let procTotal = this.poCases[counter].units_per_case*amount;
             //console.log(procTotal);
             //Goes through each raw product used per processed bundle to calculate various totals
@@ -710,8 +697,10 @@ export default {
                 //Rounds up to the nearest who box to order
                 ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
                 ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
-            })
+            })*/
             //console.log("RECIPE INFO: ", this.poCases[counter].recInfo);
+
+
         },
 
         formatCurrency(value: any) {
@@ -819,6 +808,7 @@ export default {
             this.submitted == true;
 
             let errAmount = 0;
+            let errText = [];
             console.log("PO", this.purchaseOrder);
             console.log("PO CASES: ", this.poCases);
             console.log("PO BOXES: ", this.poBoxes);
@@ -828,6 +818,7 @@ export default {
 
             if(!this.purchaseOrder.purchase_order_name){
                 errAmount++;
+                errText.push("No PO name entered");
             }
 
             this.poCases.forEach((c: any) => {
@@ -845,9 +836,9 @@ export default {
             }
             else{
                 if(errAmount > 1)
-                    this.$toast.add({severity:'error', summary: 'Error', detail: "There are "+errAmount+" total errors"});
+                    this.$toast.add({severity:'error', summary: "There are "+errAmount+" total errors", detail: errText.join("/n")});
                 else
-                    this.$toast.add({severity:'error', summary: 'Error', detail: "There is "+errAmount+" error"});
+                    this.$toast.add({severity:'error', summary: "There is "+errAmount+" error", detail: errText.join("/n")});
             }
         },
         async savePurchaseOrder() {
