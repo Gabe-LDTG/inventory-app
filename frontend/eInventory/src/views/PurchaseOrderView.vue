@@ -333,20 +333,36 @@
                             <DataTable :value="selectRecipe(poCase, counter)">
                                 <Column field="name" header="Product Name" />
                                 <Column field="default_units_per_case" header="Units per Box" />
-                                <!-- <Column field="recipe.units_needed" header="Unit(s) per Bundle" />
-                                <Column field="used_total" header="Total Units Needed" />
-                                <Column field="raw_total" header="Total Units Ordered" />
-                                <Column field="raw_box_total" header="Raw Box Total" /> -->
-                                <!-- <Column field="price_2023" header="Unit Price" >
+                                <Column header="Unit(s) per Bundle" >
                                     <template #body="slotProps">
-                                        ${{ formatCurrency(slotProps.data.product.price_2023) }}
+                                        {{ getBundleUnits(slotProps.data.product_id, poCase.product_id) }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Units Needed">
+                                    <template #body="slotProps">
+                                        {{ getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount)  }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Units Ordered" >
+                                    <template #body="slotProps">
+                                        {{ (Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case)*slotProps.data.default_units_per_case  }}
+                                    </template>
+                                </Column>
+                                <Column header="Raw Box Total" >
+                                    <template #body="slotProps">
+                                        {{ Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case  }}
+                                    </template>
+                                </Column>
+                                <Column header="Unit Price" >
+                                    <template #body="slotProps">
+                                        ${{ formatCurrency(slotProps.data.price_2023) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Price" >
                                     <template #body="slotProps">
-                                        {{ formatCurrency(slotProps.data.product.price_2023*slotProps.data.raw_box_total) }}
+                                        {{ formatCurrency(slotProps.data.price_2023*((Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case)*slotProps.data.default_units_per_case)) }}
                                     </template>
-                                </Column> -->
+                                </Column>
                             </DataTable>
                             <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
                         </div>
@@ -683,6 +699,14 @@ export default {
             return usedProducts;
         },
 
+        getBundleUnits(productNeeded: number, productMade: number){
+            console.log("PRODUCT NEEDED ", productNeeded);
+            console.log("PRODUCT MADE, ", productMade);
+            let recipe = [] as any[];
+            recipe = this.recipes.find(r => r.product_needed === productNeeded && r.product_made === productMade);
+            return recipe[<any>'units_needed'];
+        },
+
         //Calculates various totals of raw product based on the current processed case being inputted
         //from the purchase order
         getRecipeTotal(amount:number){
@@ -694,7 +718,7 @@ export default {
                 let usedTotal = procTotal*ri.recipe.units_needed;
                 ri.used_total = usedTotal;
 
-                //Rounds up to the nearest who box to order
+                //Rounds up to the nearest whole box to order
                 ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
                 ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
             })*/
