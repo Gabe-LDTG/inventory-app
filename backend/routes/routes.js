@@ -20,6 +20,7 @@ import {
     showProcCases, 
     showUnprocCases,
     createCase,
+    bulkCreateCase,
     updateCase,
     deleteCase,
 } from "../controllers/cases.js";
@@ -122,6 +123,9 @@ router.get("/cases/unprocessed",showUnprocCases);
 
 //Create Processed Cases
 router.post("/cases/create", createCase);
+
+//Create Bulk Cases
+router.post("/cases/bulk", bulkCreateCase);
 
 //Update Case
 router.put('/cases/:id', updateCase);

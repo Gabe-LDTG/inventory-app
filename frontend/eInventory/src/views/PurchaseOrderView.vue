@@ -334,23 +334,23 @@
                                 <Column field="name" header="Product Name" />
                                 <Column field="default_units_per_case" header="Units per Box" />
                                 <Column header="Unit(s) per Bundle" >
-                                    <template #body="slotProps">
-                                        {{ getBundleUnits(slotProps.data.product_id, poCase.product_id) }}
+                                    <template #body="{data}">
+                                        {{ getBundleUnits(data.product_id, poCase.product_id) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Units Needed">
-                                    <template #body="slotProps">
-                                        {{ getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount)  }}
+                                    <template #body="{data}">
+                                        {{  getTotalUnitsNeeded(data, poCase) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Units Ordered" >
-                                    <template #body="slotProps">
-                                        {{ (Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case)*slotProps.data.default_units_per_case  }}
+                                    <template #body="{data}">
+                                        {{ getTotalUnitsOrdered(data, poCase) }}
                                     </template>
                                 </Column>
                                 <Column header="Raw Box Total" >
-                                    <template #body="slotProps">
-                                        {{ Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case  }}
+                                    <template #body="{data}">
+                                        {{ getRawBoxTotal(data, poCase) }}
                                     </template>
                                 </Column>
                                 <Column header="Unit Price" >
@@ -693,18 +693,30 @@ export default {
 
             usedProducts.forEach(p => usedRecipes.find(r => p.product_id === r.product_needed))
 
-            console.log("RECIPES USED ", usedRecipes);
-            console.log("PRODUCTS USED ", usedProducts);
+            //console.log("RECIPES USED ", usedRecipes);
+            //console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
             return usedProducts;
         },
 
         getBundleUnits(productNeeded: number, productMade: number){
-            console.log("PRODUCT NEEDED ", productNeeded);
-            console.log("PRODUCT MADE, ", productMade);
+            //console.log("PRODUCT NEEDED ", productNeeded);
+            //console.log("PRODUCT MADE, ", productMade);
             let recipe = [] as any[];
             recipe = this.recipes.find(r => r.product_needed === productNeeded && r.product_made === productMade);
             return recipe[<any>'units_needed'];
+        },
+
+        getTotalUnitsNeeded(data: any, poCase: any){
+            return this.getBundleUnits(data.product_id, poCase.product_id)*(poCase.units_per_case * poCase.amount);
+        },
+
+        getTotalUnitsOrdered(data: any, poCase: any){
+            return this.getRawBoxTotal(data, poCase) * data.default_units_per_case;
+        },
+
+        getRawBoxTotal(data: any, poCase: any){
+            return Math.ceil(this.getTotalUnitsNeeded(data, poCase) / data.default_units_per_case);
         },
 
         //Calculates various totals of raw product based on the current processed case being inputted
@@ -856,7 +868,7 @@ export default {
             })
 
             if (errAmount == 0){
-                //this.savePurchaseOrder();
+                this.savePurchaseOrder();
             }
             else{
                 if(errAmount > 1)
@@ -993,45 +1005,87 @@ export default {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
 
-                this.poCases.forEach(async (indivCase: any) => {
+                let casesToInsert = [] as any[];
+
+                //this.poCases = this.poCases.filter(c => c.product_id);
+
+                console.log("PO CASES", this.poCases);
+
+                this.poCases.filter(c => c.product_id).forEach(async (indivCase: any) => {
                     if (indivCase.product_id){
+
+                        let indivProcKey = this.products.find(p => p.product_id === indivCase.product_id);
 
                         indivCase.status = 'Ordered';
 
-                        indivCase.units_per_case = indivCase.default_units_per_case;
+                        indivCase.units_per_case = indivProcKey.default_units_per_case;
 
                         indivCase.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
 
                         for(let amountIdx = 0; amountIdx < indivCase.amount; amountIdx++){
                             console.log("INDIVCASE: ", indivCase);
-                            await action.addCase(indivCase)
+                            //await action.addCase(indivCase)
+                            casesToInsert.push(indivCase);
 
-                            indivCase.recInfo.forEach(async (indivRawProd: any) => {
+                            let recipesUsed = this.recipes.filter(r => r.product_made === indivCase.product_id);
+
+                            console.log("RECIPES USED",recipesUsed);
+
+                            recipesUsed.forEach(async (recRawProd: any) => {
+                                let indivRawKey = this.products.find(p => p.product_id === recRawProd.product_needed);
                                 
-                                indivRawProd.product.status = 'Ordered';
+                                let indivRawProd = {} as any;
 
-                                indivRawProd.product.units_per_case = indivRawProd.product.default_units_per_case;
+                                indivRawProd.product_id = indivRawKey.product_id;
+                                indivRawProd.status = 'Ordered';
+                                if(indivCase.notes)
+                                    indivRawProd.notes = indivCase.notes;
+                                indivRawProd.units_per_case = indivRawKey.default_units_per_case;
+                                indivRawProd.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
 
-                                indivRawProd.product.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+                                let loopAmount = this.getRawBoxTotal(indivRawKey, indivCase);
 
-                                for(let prodIdx = 0; prodIdx < indivRawProd.raw_box_total; prodIdx++){
+                                console.log("LOOP AMOUNT", loopAmount);
+
+                                for(let prodIdx = 0; prodIdx < loopAmount; prodIdx++){
                                     console.log("INDIVRAWPROD: ", indivRawProd);
-                                    await action.addCase(indivRawProd.product);
+                                    //await action.addCase(recRawProd.product);
+                                    casesToInsert.push(indivRawProd);
+
                                 }
                             })
                         }
+
+                        let finalCaseArray = [] as any[];
+                        casesToInsert.forEach(c =>{
+                            if(!c.location)
+                                c.location = null;
+                            if(!c.notes)
+                                c.notes = null;
+                            if(!c.date_received)
+                                c.date_received = null;
+                            let tempArray = [c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id]
+                            finalCaseArray.push(tempArray);
+                        })
+                        console.log("FINAL ARRAY", finalCaseArray);
+                        await action.bulkAddCases(finalCaseArray);
                     }
                 });
 
-                this.poBoxes.forEach(async (rawProduct: any) => {
+                //this.poBoxes = this.poBoxes.filter(b => b.product_id);
+
+                this.poBoxes.filter(b => b.product_id).forEach(async (rawProduct: any) => {
                     rawProduct.units_per_case = rawProduct.default_units_per_case;
                     for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
                         console.log("RAWPRODUCT: ", rawProduct);
-                        await action.addCase(rawProduct);
+                        //await action.addCase(rawProduct);
+                        casesToInsert.push(rawProduct);
                     }
                 });
 
-                try {
+                console.log("CASES TO INSERT: ", casesToInsert);
+
+                /*try {
                     console.log(this.poCases);
                     for(let caseIdx = 0; caseIdx < this.poCases.length; caseIdx++){
                         //console.log(this.poCases[caseIdx].case_id);
@@ -1053,7 +1107,7 @@ export default {
 
                 } catch (error) {
                     this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
-                }
+                }*/
 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
 

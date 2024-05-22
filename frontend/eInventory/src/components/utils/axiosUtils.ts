@@ -450,6 +450,13 @@ var action = {
         });
     },
 
+    //Add multiple cases at the same time
+    async bulkAddCases(c: any){
+        return axios.post(BASE_URL+"/cases/bulk",c).catch(error => {
+            console.log(error);
+        });
+    },
+
     //
     async deleteCase(id: string){
         //console.log(id);

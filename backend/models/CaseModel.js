@@ -39,6 +39,7 @@ export async function insertCase(data){
 }
 
 export async function bulkInsertCases(data){
+    console.log(data)
     return db.query("INSERT INTO cases (product_id, units_per_case, location, notes, date_received, status, purchase_order_id) VALUES ?",[data]).then(([results, fields])=>results);
 }
 
