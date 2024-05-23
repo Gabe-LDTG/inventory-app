@@ -71,8 +71,27 @@
                 </Column>
 
                 <template #expansion="slotProps">
-                    <div class="p-3">
-                        <h4>Products in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                <ButtonGroup class="flex justify-content-center">
+                    <Button label="Processed" @click="displayStatus = 'Processed'"/>
+                    <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
+                </ButtonGroup>
+                    <div class="p-3" v-if="displayStatus === 'Processed'">
+                        <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                        <DataTable :value="displayInfo(slotProps.data)" 
+                        rowGroupMode="subheader" groupRowsBy="name">
+                        <template #groupheader="slotProps">
+                            <div class="flex align-items-center gap-2">
+                                <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                            </div>
+                        </template>
+                            <Column field="name" header="Name"></Column>
+                        </DataTable>
+                    </div>
+
+                    <div class="p-3" v-if="displayStatus === 'Unprocessed'">
+                        <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
                         <DataTable :value="displayInfo(slotProps.data)" 
                         rowGroupMode="subheader" groupRowsBy="name">
                         <template #groupheader="slotProps">
@@ -559,6 +578,7 @@ export default {
             poCases: [] as any[],
             poBoxes: [] as any[],
             amount: 1,
+            displayStatus: "",
 
             //VENDOR VARIABLES
             vendors: [] as any[],
@@ -576,7 +596,7 @@ export default {
                 'Draft',
                 'Submitted',
 				'Ordered',
-                'Indbound',
+                'Inbound',
 				'Delivered',
             ],
 
@@ -1016,10 +1036,9 @@ export default {
 
                         let indivProcKey = this.products.find(p => p.product_id === indivCase.product_id);
 
-                        indivCase.status = 'Ordered';
-
+                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                            indivCase.status = this.purchaseOrder.status;
                         indivCase.units_per_case = indivProcKey.default_units_per_case;
-
                         indivCase.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
 
                         for(let amountIdx = 0; amountIdx < indivCase.amount; amountIdx++){
@@ -1036,8 +1055,10 @@ export default {
                                 
                                 let indivRawProd = {} as any;
 
+                                if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                                    indivRawProd.status = this.purchaseOrder.status;
+
                                 indivRawProd.product_id = indivRawKey.product_id;
-                                indivRawProd.status = 'Ordered';
                                 if(indivCase.notes)
                                     indivRawProd.notes = indivCase.notes;
                                 indivRawProd.units_per_case = indivRawKey.default_units_per_case;
@@ -1055,27 +1076,20 @@ export default {
                                 }
                             })
                         }
-
-                        let finalCaseArray = [] as any[];
-                        casesToInsert.forEach(c =>{
-                            if(!c.location)
-                                c.location = null;
-                            if(!c.notes)
-                                c.notes = null;
-                            if(!c.date_received)
-                                c.date_received = null;
-                            let tempArray = [c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id]
-                            finalCaseArray.push(tempArray);
-                        })
-                        console.log("FINAL ARRAY", finalCaseArray);
-                        await action.bulkAddCases(finalCaseArray);
                     }
                 });
 
                 //this.poBoxes = this.poBoxes.filter(b => b.product_id);
 
                 this.poBoxes.filter(b => b.product_id).forEach(async (rawProduct: any) => {
-                    rawProduct.units_per_case = rawProduct.default_units_per_case;
+                    let rawKey = this.products.find(p => p.product_id === rawProduct.product_id);
+
+                    if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                        rawProduct.status = this.purchaseOrder.status;
+
+                    rawProduct.units_per_case = rawKey.default_units_per_case;
+                    rawProduct.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+
                     for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
                         console.log("RAWPRODUCT: ", rawProduct);
                         //await action.addCase(rawProduct);
@@ -1085,35 +1099,25 @@ export default {
 
                 console.log("CASES TO INSERT: ", casesToInsert);
 
-                /*try {
-                    console.log(this.poCases);
-                    for(let caseIdx = 0; caseIdx < this.poCases.length; caseIdx++){
-                        //console.log(this.poCases[caseIdx].case_id);
-                        if(this.poCases[caseIdx].product_id){
-                            console.log("LAST INSERT ID", addedPurchaseOrderId);
-                            this.poCases[caseIdx].status = 'Ordered';
-                            this.poCases[caseIdx].purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
-
-                            console.log(this.poCases[caseIdx]);
-
-                            for(let amountIdx = 0; amountIdx < this.poCases[caseIdx].amount; amountIdx++){
-                                console.log("CASE ADDED ", this.poCases[caseIdx]);
-                                //this.cases.push(this.poCases[caseIdx]);
-                                await action.addCase(this.poCases[caseIdx]);
-                            }
-                        }
-                    }
-                    this.getBoxes();
-
-                } catch (error) {
-                    this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
-                }*/
-
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
-
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
                 console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
                 await this.getPurchaseOrders();
+
+                let finalCaseArray = [] as any[];
+                    casesToInsert.forEach(c =>{
+                        if(!c.location)
+                            c.location = null;
+                        if(!c.notes)
+                            c.notes = null;
+                        if(!c.date_received)
+                            c.date_received = null;
+                        let tempArray = [c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id]
+                        finalCaseArray.push(tempArray);
+                    })
+                console.log("FINAL ARRAY", finalCaseArray);
+                await action.bulkAddCases(finalCaseArray);
+
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
 
                 return addedPurchaseOrderId;
             } catch (err) {
@@ -1159,41 +1163,30 @@ export default {
             
             console.log("EVENT DATA ",event.data);
 
-
-
-            let map = [] as any[];
-            let recipe = [] as any[];
-            this.recipeProducts = [];
-
-            //console.log("EVENT ARRAY", event.data.purchase_order_id);
-            //console.log("CASES", this.cases);
-
-
-            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
-                if(this.cases[caseIdx].purchase_order_id == event.data.purchase_order_id){
-                    console.log(this.cases[caseIdx].name);
-                    
-                }
-            }
-
-            return recipe;
+            this.displayStatus = "";
         },
-        displayInfo(po: any): any[] {
+        displayInfo(po: any){
             console.log(po);
+            console.log(this.cases);
+            let displayArray = [] as any[];
             let linkedCases = [] as any[]; 
+            let linkedBoxes = [] as any[];
             let total = 0;
 
-            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
-                if (this.cases[caseIdx].purchase_order_id == po.purchase_order_id){
-                    total+=this.cases[caseIdx].units_per_case;
-                    linkedCases.push(this.cases[caseIdx]);
-                }
-            }
+            linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
+            linkedBoxes = this.uBoxes.filter(c => c.purchase_order_id === po.purchase_order_id);
             console.log(total);
 
-            console.log("LINKED CASES ", linkedCases);
+            console.log("LINKED CASES: ", linkedCases);
+            console.log("LINKED BOXES: ", linkedBoxes);
 
-            return linkedCases;
+            if(this.displayStatus === "Processed"){
+                displayArray = linkedCases;
+            } else if (this.displayStatus === ""){
+                displayArray = linkedBoxes;
+            }
+
+            return displayArray;
         },
         calculateBoxTotal(name: any, purchase_order_id: any){
             let total = 0;
