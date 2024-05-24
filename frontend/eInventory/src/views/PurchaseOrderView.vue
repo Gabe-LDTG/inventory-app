@@ -71,39 +71,54 @@
                 </Column>
 
                 <template #expansion="slotProps">
-                <ButtonGroup class="flex justify-content-center">
-                    <Button label="Processed" @click="displayStatus = 'Processed'"/>
-                    <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
-                </ButtonGroup>
-                    <div class="p-3" v-if="displayStatus === 'Processed'">
-                        <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                        <DataTable :value="displayInfo(slotProps.data)" 
-                        rowGroupMode="subheader" groupRowsBy="name">
-                        <template #groupheader="slotProps">
-                            <div class="flex align-items-center gap-2">
-                                <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
-                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                            </div>
-                        </template>
-                            <Column field="name" header="Name"></Column>
-                        </DataTable>
-                    </div>
+                    <ButtonGroup class="flex justify-content-center">
+                        <Button label="Processed" @click="displayStatus = 'Processed'"/>
+                        <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
+                    </ButtonGroup>
+                        <div class="p-3" v-if="displayStatus === 'Processed'">
+                            <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <DataTable :value="displayInfo(slotProps.data)" 
+                            :expandedRows="expandedRows">
+                            <!-- <template #groupheader="slotProps">
+                                <div class="flex align-items-center gap-2">
+                                    <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                                    <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                    <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                </div>
+                            </template> -->
+                                <Column expander header="Raw Product Info" style="width: 5rem" />
+                                <Column field="name" header="Name" />
+                                <Column field="units_per_case" header="Units per Case" />
+                                <Column field="amount" header="Total # of Cases" />
+                                <Column header="Total # of Units">
+                                    <template #body = {data}>
+                                        {{ data.units_per_case * data.amount }}
+                                    </template>
+                                </Column>
+                                <Column field="status" header="Status" />
+                                <template #expansion="{data}">
+                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" >
 
-                    <div class="p-3" v-if="displayStatus === 'Unprocessed'">
-                        <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                        <DataTable :value="displayInfo(slotProps.data)" 
-                        rowGroupMode="subheader" groupRowsBy="name">
-                        <template #groupheader="slotProps">
-                            <div class="flex align-items-center gap-2">
-                                <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
-                                <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                                <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                            </div>
-                        </template>
-                            <Column field="name" header="Name"></Column>
-                        </DataTable>
-                    </div>
+                                    </DataTable>
+                                </template>
+
+                            </DataTable>
+                        </div>
+
+                        <div class="p-3" v-if="displayStatus === 'Unprocessed'">
+                            <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <DataTable :value="displayInfo(slotProps.data)" 
+                            rowGroupMode="subheader" groupRowsBy="name">
+                            <template #groupheader="slotProps">
+                                <div class="flex align-items-center gap-2">
+                                    <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
+                                    <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                    <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                                </div>
+                            </template>
+                                <Column field="name" header="Name"></Column>
+                            </DataTable>
+                        </div>
                 </template>
 
             </DataTable>
@@ -915,8 +930,8 @@ export default {
         },
         async confirmEdit(){
             try {
-                this.purchaseOrders[this.findIndexById(this.purchaseOrder.purchase_order_id)] = this.purchaseOrder;
-                console.log(this.purchaseOrders[this.findIndexById(this.purchaseOrder.purchase_order_id)]);
+                this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                console.log(this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
                 console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
 
@@ -1099,10 +1114,6 @@ export default {
 
                 console.log("CASES TO INSERT: ", casesToInsert);
 
-                //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
-                console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
-                await this.getPurchaseOrders();
-
                 let finalCaseArray = [] as any[];
                     casesToInsert.forEach(c =>{
                         if(!c.location)
@@ -1116,6 +1127,11 @@ export default {
                     })
                 console.log("FINAL ARRAY", finalCaseArray);
                 await action.bulkAddCases(finalCaseArray);
+
+                //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
+                console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
+                await this.getPurchaseOrders();
+                await this.getBoxes();
 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
 
@@ -1174,19 +1190,63 @@ export default {
             let total = 0;
 
             linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
-            linkedBoxes = this.uBoxes.filter(c => c.purchase_order_id === po.purchase_order_id);
+            linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
             console.log(total);
 
             console.log("LINKED CASES: ", linkedCases);
             console.log("LINKED BOXES: ", linkedBoxes);
 
+            //NOTE: NEED TO FIND A WAY TO SEPARATE THE OBJECTS BY STATUS. THAT WAY, IF SOME BOXES WERE
+            //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
+
+            //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(this.displayStatus === "Processed"){
-                displayArray = linkedCases;
-            } else if (this.displayStatus === ""){
-                displayArray = linkedBoxes;
+                displayArray = Object.values(linkedCases.reduce((value, object) => {
+                    if (value[object.product_id]) {
+                        //value[object.product_id].amount += object.amount; 
+                        value[object.product_id].amount++;
+
+                    } else {
+                        value[object.product_id] = { ...object , amount : 1
+                        };
+                    }
+                    return value;
+                    }, {}));;
+            } 
+            //DISPLAYING RAW BOXES---------------------------------------------------------------------------
+            else if (this.displayStatus === "Unprocessed"){
+                displayArray = Object.values(linkedBoxes.reduce((value, object) => {
+                    if (value[object.product_id] && value[object.status]) {
+                        //value[object.product_id].amount += object.amount; 
+                        value[object.product_id].amount++;
+
+                    } else {
+                        value[object.product_id] = { ...object , amount : 1
+                        };
+                    }
+                    return value;
+                    }, {}));;
             }
 
+            console.log("DISPLAY ARRAY", displayArray);
             return displayArray;
+        },
+        //Displays the raw product info that pertains to each processed case in the PO
+        displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
+            let linkedRecs = this.recipes.filter(r => r.product_made === product_id);
+            let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
+            console.log(linkedRecs);
+            console.log(linkedBoxes);
+            return linkedBoxes;
+        },
+        getUnitCost(product_id: number){
+            console.log("PRODUCT ID: ", product_id);
+            let prod = this.products.filter(p => product_id === p.product_id);
+
+            console.log(prod);
+            //NEED TO MAKE ANOTHER TABLE FOR PRICES
+            let price = prod[<any>'price_2023'];
+            return price;
         },
         calculateBoxTotal(name: any, purchase_order_id: any){
             let total = 0;
@@ -1304,25 +1364,6 @@ export default {
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
 
-        findIndexById(id: number) {
-            let index = -1;
-            for (let i = 0; i < this.products.length; i++) {
-                if (this.products[i].product_id === id) {
-                    index = i;
-                    break;
-                }
-            }
-
-            return index;
-        },
-        createId() {
-            let id = '';
-            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            for ( var i = 0; i < 5; i++ ) {
-                id += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return id;
-        },
         //https://codesandbox.io/p/sandbox/primevue-fileuploader-custom-q2dqhh?file=%2Fsrc%2FFileUploadDemo.vue%3A42%2C7-42%2C27
         onUpload(event: any) {
             importAction.onUpload(event, 'Processed Product Key');
@@ -1332,9 +1373,6 @@ export default {
         exportCSV() {
             //this.$refs.dt.exportCSV();
             console.log("Functionality not finished");
-        },
-        confirmDeleteSelected() {
-            this.deleteProductsDialog = true;
         },
         async deleteSelectedProducts() {
             try {
@@ -1380,27 +1418,6 @@ export default {
                     return null;
             }
         },
-        //Checks all available products to make sure the fnsku being entered has not already been used
-        validateFnsku(){
-                let isVal = true;
-                console.log("IN VALIDATE")
-
-                console.log("THIS PRODUCT: ",this.product);
-
-                if (this.product.fnsku) {
-                    for (let i = 0; i < this.products.length; i++) {
-                        //console.log(this.products[i].fnsku);
-                        if (this.products[i].fnsku == this.product.fnsku && this.products[i].product_id != this.product.product_id){
-                            console.log("PRODUCT ALREADY HAS THIS FNSKU: ",this.products[i]);
-                            isVal = false;
-                            //this.validFnsku = false;
-                        }
-                    }
-                } 
-
-                console.log("NO ERROR RESULT: ",isVal);
-                return isVal;
-            },
         /* rowStyle(data: any) {
             if (data.fnsku === '' && data.asin === '') {
                 return { background: 'red' };
@@ -1411,16 +1428,6 @@ export default {
         }, */
         parseFile(){
             this.loading = true;
-        },
-        findProductName(id: number){
-            let name = "";
-            for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
-                if(id == this.products[prodIdx].product_id){
-                    name = this.products[prodIdx].name;
-                    break;
-                }
-            }
-            return name;
         },
     }
 }
