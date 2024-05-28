@@ -71,10 +71,10 @@
                 </Column>
 
                 <template #expansion="slotProps">
-                    <ButtonGroup class="flex justify-content-center">
+                    <!--<ButtonGroup class="flex justify-content-center">-->
                         <Button label="Processed" @click="displayStatus = 'Processed'"/>
                         <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
-                    </ButtonGroup>
+                    <!--</ButtonGroup>-->
                         <div class="p-3" v-if="displayStatus === 'Processed'">
                             <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
                             <DataTable :value="displayInfo(slotProps.data)" 
@@ -88,6 +88,11 @@
                             </template> -->
                                 <Column expander header="Raw Product Info" style="width: 5rem" />
                                 <Column field="name" header="Name" />
+                                <Column header="FNSKU">
+                                    <template #body = {data}>
+                                        {{ getFNSKU(data.product_id) }}
+                                    </template>
+                                </Column>
                                 <Column field="units_per_case" header="Units per Case" />
                                 <Column field="amount" header="Total # of Cases" />
                                 <Column header="Total # of Units">
@@ -96,9 +101,28 @@
                                     </template>
                                 </Column>
                                 <Column field="status" header="Status" />
-                                <template #expansion="{data}">
-                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" >
-
+                                <template #expansion="{data}" style="background-color: '#16a085'">
+                                    <h4>Raw Product(s) required for {{ data.name }}</h4>
+                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)">
+                                        <Column field="name" header="Name"/>
+                                        <Column header="UPC">
+                                            <template #body = {data}>
+                                                {{ getUPC(data.product_id) }}
+                                            </template>
+                                        </Column>
+                                        <Column field="units_per_case" header="Units per Box"/>
+                                        <Column field="amount" header="Total # of Boxes"/>
+                                        <Column field="" header="Total # of Units">
+                                            <template #body = {data}>
+                                                {{ data.units_per_case * data.amount }}
+                                            </template>
+                                        </Column>
+                                        <Column header="Total Price" class="font-bold">
+                                            <template #body = {data}>
+                                                {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
+                                            </template>
+                                        </Column>
+                                        <Column field="status" header="Status"/>
                                     </DataTable>
                                 </template>
 
@@ -1216,7 +1240,7 @@ export default {
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (this.displayStatus === "Unprocessed"){
                 displayArray = Object.values(linkedBoxes.reduce((value, object) => {
-                    if (value[object.product_id] && value[object.status]) {
+                    if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
                         value[object.product_id].amount++;
 
@@ -1235,18 +1259,61 @@ export default {
         displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
             let linkedRecs = this.recipes.filter(r => r.product_made === product_id);
             let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
+            
+            let displayArray = Object.values(linkedBoxes.reduce((value, object) => {
+                    if (value[object.product_id]) {
+                        //value[object.product_id].amount += object.amount; 
+                        value[object.product_id].amount++;
+
+                    } else {
+                        value[object.product_id] = { ...object , amount : 1
+                        };
+                    }
+                    return value;
+                    }, {}));;
+
+            displayArray = displayArray.filter((raw: any) => this.recipes.find(rec => rec.product_needed === raw.product_id && rec.product_made === product_id));
             console.log(linkedRecs);
             console.log(linkedBoxes);
-            return linkedBoxes;
-        },
-        getUnitCost(product_id: number){
-            console.log("PRODUCT ID: ", product_id);
-            let prod = this.products.filter(p => product_id === p.product_id);
+            console.log(displayArray);
 
-            console.log(prod);
+            return displayArray;
+        },
+        //Description: Gets the unit cost for a specific product
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 5-28-2024
+        getUnitCost(product_id: number){
+            //RUNS TWICE FOR SOME REASON, ASK MICHAEL AT SOME POINT
+            //console.log("PRODUCT ID: ", product_id);
+            let prod = this.products.find(p => product_id === p.product_id);
+
+            console.log(prod.price_2023);
             //NEED TO MAKE ANOTHER TABLE FOR PRICES
-            let price = prod[<any>'price_2023'];
-            return price;
+            return prod.price_2023;
+        },
+        //Description: Gets the fnksu for a specific product
+        //Created by: Gabe de la Torre
+        //Date Created: 5-28-2024
+        //Date Last Edited: 5-28-2024
+        getFNSKU(product_id: number){
+            //console.log("PRODUCT ID: ", product_id);
+            let prod = this.products.find(p => product_id === p.product_id);
+
+            console.log(prod.fnsku);
+            return prod.fnsku;
+        },
+
+        //Description: Gets the upc for a specific product
+        //Created by: Gabe de la Torre
+        //Date Created: 5-28-2024
+        //Date Last Edited: 5-28-2024
+        getUPC(product_id: number){
+            //console.log("PRODUCT ID: ", product_id);
+            let prod = this.products.find(p => product_id === p.product_id);
+
+            console.log(prod.upc);
+            return prod.upc;
         },
         calculateBoxTotal(name: any, purchase_order_id: any){
             let total = 0;
