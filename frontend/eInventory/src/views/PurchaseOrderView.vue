@@ -55,7 +55,11 @@
                     </template>
                 </Column>
 
-                <Column field="vendor" header="Vendor" sortable></Column>
+                <Column header="Vendor" sortable>
+                    <template #body={data}>
+                        {{ getVendor(data.vendor_id) }}
+                    </template>
+                </Column>
 
                 <Column field="notes" header="Notes" sortable></Column>
 
@@ -72,8 +76,10 @@
 
                 <template #expansion="slotProps">
                     <!--<ButtonGroup class="flex justify-content-center">-->
+                    <div class="flex justify-content-center">
                         <Button label="Processed" @click="displayStatus = 'Processed'"/>
                         <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
+                    </div>
                     <!--</ButtonGroup>-->
                         <div class="p-3" v-if="displayStatus === 'Processed'">
                             <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
@@ -89,7 +95,7 @@
                                 <Column expander header="Raw Product Info" style="width: 5rem" />
                                 <Column field="name" header="Name" />
                                 <Column header="FNSKU">
-                                    <template #body = {data}>
+                                    <template #body="{data}">
                                         {{ getFNSKU(data.product_id) }}
                                     </template>
                                 </Column>
@@ -186,7 +192,7 @@
 
             <div class="field">
                 <label for="status">Status</label>
-                <Dropdown v-model="purchaseOrder.status" :options="statuses" />
+                <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
             </div>
 
             <div class="field">
@@ -209,7 +215,8 @@
             </div>
 
             <div class="field">
-                <label for="total_price">Total</label>
+                <label for="total_price">Total Cost</label>
+                <inputNumber v-model="purchaseOrder.totalCost"/>
             </div>
 
             <div v-if="purchaseOrder.purchase_order_id">
@@ -362,7 +369,7 @@
                                 <label for="amount">Cases Desired to Be Made</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="poCase.amount" showButtons :min="1"
-                                @update:model-value=""/>
+                                @update="calculatePoCostTotal()"/>
                             </div>
 
                             <div class="field">
@@ -417,8 +424,8 @@
                                     </template>
                                 </Column>
                                 <Column header="Total Price" >
-                                    <template #body="slotProps">
-                                        {{ formatCurrency(slotProps.data.price_2023*((Math.ceil(getBundleUnits(slotProps.data.product_id, poCase.product_id) * (poCase.units_per_case * poCase.amount))/slotProps.data.default_units_per_case)*slotProps.data.default_units_per_case)) }}
+                                    <template #body="{data}">
+                                        {{ formatCurrency(getTotalCost(data, poCase)) }}
                                     </template>
                                 </Column>
                             </DataTable>
@@ -636,6 +643,7 @@ export default {
                 'Submitted',
 				'Ordered',
                 'Inbound',
+                'Partially Delivered',
 				'Delivered',
             ],
 
@@ -665,10 +673,10 @@ export default {
     methods: {
         async initVariables(){
             try {
+                await this.getVendors();
                 await this.getPurchaseOrders();
                 await this.getProducts();
                 await this.getBoxes();
-                await this.getVendors();
                 await this.getRecipes();
                 this.getDate();
 
@@ -682,6 +690,15 @@ export default {
             try {
                 this.loading = true;
                 this.purchaseOrders = await action.getPurchaseOrders();
+
+                this.purchaseOrders.forEach(po => {
+                    if(po.date_ordered)
+                        po.date_ordered = po.date_ordered.split('T')[0];
+                    if(po.date_received)
+                        po.date_received = po.date_received.split('T')[0];
+                });
+                
+                console.log(this.purchaseOrders);
                 
                 this.loading = false;
             } catch (err) {
@@ -758,6 +775,19 @@ export default {
             return usedProducts;
         },
 
+        //Description: Gets vendor name from the id
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 5-29-2024
+        getVendor(vendorId: any){
+            //console.log(vendorId);
+            let vendor = this.vendors.find(v => v.vendor_id === vendorId);
+            //console.log(vendor);
+            let name = vendor.vendor_name;
+            //console.log(name);
+            return name;
+        },
+
         getBundleUnits(productNeeded: number, productMade: number){
             //console.log("PRODUCT NEEDED ", productNeeded);
             //console.log("PRODUCT MADE, ", productMade);
@@ -777,27 +807,9 @@ export default {
         getRawBoxTotal(data: any, poCase: any){
             return Math.ceil(this.getTotalUnitsNeeded(data, poCase) / data.default_units_per_case);
         },
-
-        //Calculates various totals of raw product based on the current processed case being inputted
-        //from the purchase order
-        getRecipeTotal(amount:number){
-            /*//The total amount of units for the current processed case in the array
-            let procTotal = this.poCases[counter].units_per_case*amount;
-            //console.log(procTotal);
-            //Goes through each raw product used per processed bundle to calculate various totals
-            this.poCases[counter].recInfo.forEach((ri: any) => {
-                let usedTotal = procTotal*ri.recipe.units_needed;
-                ri.used_total = usedTotal;
-
-                //Rounds up to the nearest whole box to order
-                ri.raw_box_total = Math.ceil(usedTotal/ri.product.default_units_per_case);
-                ri.raw_total = ri.raw_box_total * ri.product.default_units_per_case;
-            })*/
-            //console.log("RECIPE INFO: ", this.poCases[counter].recInfo);
-
-
+        getTotalCost(data: any, poCase: any){
+            return data.price_2023*this.getTotalUnitsOrdered(data, poCase);
         },
-
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -808,23 +820,19 @@ export default {
             this.vendorDialog = true;
             this.purchaseOrder = {};
         },
+        //Description: Gets the raw or processed products for a specific vendor
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 5-29-2024
         selectVendorProducts(poVendor: any, status: any){
             let vendorProducts = [] as any[];
             
             if(status == 'proc'){
-                this.procProducts.forEach(p => {
-                    if(p['vendor'] == poVendor){
-                        vendorProducts.push(p);
-                    }
-                })
+                vendorProducts = this.procProducts.filter(p => p['vendor'] == poVendor)
             }
 
             else if (status == 'raw'){
-                this.unprocProducts.forEach(p => {
-                    if(p['vendor'] == poVendor){
-                        vendorProducts.push(p);
-                    }
-                })
+                vendorProducts = this.unprocProducts.filter(p => p['vendor'] == poVendor)
             }
             return vendorProducts;
         },
@@ -837,7 +845,6 @@ export default {
             this.selectedOrderType = "";
             this.amount = 1;
 
-            this.purchaseOrder.date_ordered = this.today;
             this.purchaseOrder.status = "Draft";
             //this.purchaseOrder.raw = this.poBoxes;
             //this.purchaseOrder.cases = this.poCases
@@ -959,12 +966,12 @@ export default {
 
                 console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
 
-                if (this.purchaseOrder.date_ordered) {
+                /*if (this.purchaseOrder.date_ordered) {
                     this.purchaseOrder.date_ordered = this.purchaseOrders[0].date_ordered.split('T')[0];
                 }
                 if (this.purchaseOrder.date_received){
                     this.purchaseOrder.date_received = this.purchaseOrders[0].date_received.split('T')[0];
-                }
+                }*/
 
                 await this.alocateBoxes();
 
@@ -1390,6 +1397,30 @@ export default {
             let total = qty*units_per_case;
             return total;
         },
+        //Description: When the PO status is changed, the date ordered and date received fields are
+        //updated accordingly
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 5-29-2024
+        //Date Last Edited: 5-29-2024
+        onStatusChange(){
+            //If the PO is new
+            if(!this.purchaseOrder.purchase_order_id){
+                if(this.purchaseOrder.status === "Ordered" || this.purchaseOrder.status === "Inbound")
+                    this.purchaseOrder.date_ordered = this.today;
+                else if(this.purchaseOrder.status === "Delivered"){
+                    this.purchaseOrder.date_ordered = this.today;
+                    this.purchaseOrder.date_received = this.today;
+                }
+            } 
+            //If the PO already exists and is being edited
+            else {
+                if(this.purchaseOrder.status === "Ordered" && !this.purchaseOrder.date_ordered)
+                    this.purchaseOrder.date_ordered = this.today;
+                else if(this.purchaseOrder.status === "Delivered")
+                    this.purchaseOrder.date_received = this.today;
+            }
+        },
         confirmCancelOrder(purchaseOrder: any) {
             this.purchaseOrder = purchaseOrder;
             this.cancelOrderDialog = true;
@@ -1403,7 +1434,7 @@ export default {
                 this.purchaseOrder.status = 'Canceled';
 
                 //DATE FORMATTING IS BEING WEIRD I JUST WANT TO SEE IF THE CANCEL FUNCTION WORKS
-                this.purchaseOrder.date_ordered = null;
+                //this.purchaseOrder.date_ordered = null;
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
 
@@ -1427,7 +1458,31 @@ export default {
             }
         },
 
+        //Description: Calculates the total cost of a PO
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 5-29-2024
+        //Date Last Edited: 5-29-2024
+        calculatePoCostTotal(){
+            let total=0;
 
+            this.poCases.forEach(c => {
+                let data = this.products.find(p => c.product_id === p.product_id);
+                total += this.getTotalCost(data, c);
+            });
+            //this.poBoxes.forEach();
+            console.log(total);
+            this.purchaseOrder.totalCost = total;
+        },
+
+        //Description: Calculates the total units ordered in a PO
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 5-29-2024
+        //Date Last Edited: 5-29-2024
+        calculatePoUnitTotal(PO: number){
+            let total=0;
+        },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
 
