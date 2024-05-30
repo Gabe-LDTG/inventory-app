@@ -210,15 +210,6 @@
                 <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
             </div>
 
-            <div class="field">
-                <label for="total_units">Total Units</label>
-            </div>
-
-            <div class="field">
-                <label for="total_price">Total Cost</label>
-                <inputNumber v-model="purchaseOrder.totalCost"/>
-            </div>
-
             <div v-if="purchaseOrder.purchase_order_id">
                 <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
@@ -369,7 +360,7 @@
                                 <label for="amount">Cases Desired to Be Made</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="poCase.amount" showButtons :min="1"
-                                @update="calculatePoCostTotal()"/>
+                                @update=""/>
                             </div>
 
                             <div class="field">
@@ -395,7 +386,7 @@
                             <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
                         </div> -->
                         <div v-if="poCase.units_per_case">
-                            <DataTable :value="selectRecipe(poCase, counter)">
+                            <DataTable :value="selectRecipe(poCase)">
                                 <Column field="name" header="Product Name" />
                                 <Column field="default_units_per_case" header="Units per Box" />
                                 <Column header="Unit(s) per Bundle" >
@@ -452,7 +443,7 @@
                     </div>
                 </div>
 
-                <template v-if="selectedOrderType" class="caseCard" v-for="(rCase, counter) in poBoxes">
+                <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
 
                     <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
                     <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
@@ -464,15 +455,15 @@
                         <div class="block-div">
                             <div class="field">
                                 <label for="name">Name:</label>
-                                <Dropdown v-model="rCase.product_id" required="true" 
+                                <Dropdown v-model="poBox.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
                                 :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
                                 optionLabel="name"
                                 filter
-                                @change="rCase.units_per_case = onProductSelection(rCase.product_id); rCase.total = rCase.amount*rCase.units_per_case;"
+                                @change="poBox.units_per_case = onProductSelection(poBox.product_id); poBox.total = poBox.amount*poBox.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !rCase.product_id}" 
+                                :class="{'p-invalid': submitted && !poBox.product_id}" 
                                 >
 
                                 <template #value="slotProps">
@@ -487,78 +478,78 @@
                                         <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
                                     </template>
                                 </Dropdown>
-                                <small class="p-error" v-if="submitted && !rCase.product_id">Name is required.</small>
+                                <small class="p-error" v-if="submitted && !poBox.product_id">Name is required.</small>
                             </div>
 
                             <div class="field">
                                 <label for="qty">QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !rCase.units_per_case}"
-                                v-model="rCase.units_per_case" disabled
-                                @input="rCase.total = rCase.amount*rCase.units_per_case"/>
-                                <small class="p-error" v-if="submitted && !rCase.units_per_case">Amount is required.</small>
+                                :class="{'p-invalid': submitted && !poBox.units_per_case}"
+                                v-model="poBox.units_per_case" disabled
+                                @input="poBox.total = poBox.amount*poBox.units_per_case"/>
+                                <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
                             </div>
 
-                            <div v-if="selectedOrderType === 'By Box'" v-show="!rCase.case_id" class="field">
+                            <div v-if="selectedOrderType === 'By Box'" v-show="!poBox.case_id" class="field">
                                 <label for="amount">How Many Boxes to Order?</label>
                                 <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="rCase.amount" showButtons/>
+                                v-model="poBox.amount" showButtons/>
                             </div>
 
-                            <div v-else-if="selectedOrderType === 'By Unit'" v-show="!rCase.case_id" class="field">
+                            <div v-else-if="selectedOrderType === 'By Unit'" v-show="!poBox.case_id" class="field">
                                 <label for="amount">REQUESTED Units to Order:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="rCase.amount" showButtons/>
+                                v-model="poBox.amount" showButtons/>
                             </div>
 
                             <div class="field">
                                 <label for="notes">Notes:</label>
-                                <InputText id="notes" v-model="rCase.notes" rows="3" cols="20" />
+                                <InputText id="notes" v-model="poBox.notes" rows="3" cols="20" />
                             </div>
 
-                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Box'" class="field">
+                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Box'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ rCase.units_per_case * rCase.amount }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ poBox.units_per_case * poBox.amount }}</div>
                             </div>
 
-                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Unit'" class="field">
+                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(rCase.amount/rCase.units_per_case)*rCase.units_per_case }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case }}</div>
                             </div>
 
-                            <div v-if="rCase.units_per_case && selectedOrderType === 'By Unit'" class="field">
+                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(rCase.amount/rCase.units_per_case) }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case) }}</div>
                             </div>
 
-                            <div class="field"></div>
+                            <div v-if="poBox.product_id" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Unit Cost:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ getUnitCost(poBox.product_id) }}</div>
+                            </div>
 
-                            <div class="field"></div>
+                            <div v-if="poBox.product_id && selectedOrderType === 'By Box'" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(poBox.units_per_case * poBox.amount)) }}</div>
+                            </div>
 
-                            <!-- <div class="field">
-                                <label for="total">Requested Total</label>
-                                <InputNumber v-model="poCase.total" 
-                                inputId="stacked-buttons" showButtons
-                                @update:model-value="poCase.amount = onTotalUpdate(poCase.total, poCase.units_per_case)"/>
-                            </div> -->
+                            <div v-if="poBox.product_id && selectedOrderType === 'By Unit'" class="field">
+                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
+                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
+                            </div>
 
                         </div>
-                        
-                        <!-- <div v-show="poCase.total">
-                            <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
-                        </div> -->
-
 
                     </div>
-                    </template>
 
                     <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
+                </template>
 
             </div>
-            
-            
 
             <template #footer>
+                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
+                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="validate" />
             </template>
@@ -582,7 +573,6 @@
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
-//import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -755,24 +745,32 @@ export default {
             }
         },
 
-        selectRecipe(productMade: any, counter: number){
+        selectRecipe(product: any){
 
             //console.log("TESTING MAPS: ", this.recipes.filter(r => r.product_made === productMade.product_id));
             
             //console.log("PRODUCT  ", productMade);
             let usedProducts = [] as any[];
-            let productMap = {} as any;
 
-            let usedRecipes = this.recipes.filter(r => r.product_made === productMade.product_id);
-            
+            let usedRecipes = this.recipes.filter(r => r.product_made === product.product_id);
             usedProducts = usedRecipes.flatMap(r => this.products.filter(p => p.product_id === r.product_needed));
-
             usedProducts.forEach(p => usedRecipes.find(r => p.product_id === r.product_needed))
 
             //console.log("RECIPES USED ", usedRecipes);
             //console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
             return usedProducts;
+        },
+
+        //Description: Gets a product key from the id
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 5-30-2024
+        //Date Last Edited: 5-30-2024
+        getProductKey(productId: number){
+            let foundProd = this.products.find(p => p.product_id === productId);
+            console.log(foundProd);
+            return foundProd;
         },
 
         //Description: Gets vendor name from the id
@@ -796,19 +794,19 @@ export default {
             return recipe[<any>'units_needed'];
         },
 
-        getTotalUnitsNeeded(data: any, poCase: any){
-            return this.getBundleUnits(data.product_id, poCase.product_id)*(poCase.units_per_case * poCase.amount);
+        getTotalUnitsNeeded(rawBox: any, poCase: any){
+            return this.getBundleUnits(rawBox.product_id, poCase.product_id)*(poCase.units_per_case * poCase.amount);
         },
 
-        getTotalUnitsOrdered(data: any, poCase: any){
-            return this.getRawBoxTotal(data, poCase) * data.default_units_per_case;
+        getTotalUnitsOrdered(rawBox: any, poCase: any){
+            return this.getRawBoxTotal(rawBox, poCase) * rawBox.default_units_per_case;
         },
 
-        getRawBoxTotal(data: any, poCase: any){
-            return Math.ceil(this.getTotalUnitsNeeded(data, poCase) / data.default_units_per_case);
+        getRawBoxTotal(rawBox: any, poCase: any){
+            return Math.ceil(this.getTotalUnitsNeeded(rawBox, poCase) / rawBox.default_units_per_case);
         },
-        getTotalCost(data: any, poCase: any){
-            return data.price_2023*this.getTotalUnitsOrdered(data, poCase);
+        getTotalCost(rawBox: any, poCase: any){
+            return rawBox.price_2023*this.getTotalUnitsOrdered(rawBox, poCase); 
         },
         formatCurrency(value: any) {
             if(value)
@@ -1222,10 +1220,10 @@ export default {
 
             linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
             linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
-            console.log(total);
+            //console.log(total);
 
-            console.log("LINKED CASES: ", linkedCases);
-            console.log("LINKED BOXES: ", linkedBoxes);
+            //console.log("LINKED CASES: ", linkedCases);
+            //console.log("LINKED BOXES: ", linkedBoxes);
 
             //NOTE: NEED TO FIND A WAY TO SEPARATE THE OBJECTS BY STATUS. THAT WAY, IF SOME BOXES WERE
             //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
@@ -1467,12 +1465,28 @@ export default {
             let total=0;
 
             this.poCases.forEach(c => {
-                let data = this.products.find(p => c.product_id === p.product_id);
-                total += this.getTotalCost(data, c);
+                if(c.product_id){
+                    //console.log(c);
+                    let rec = this.recipes.find(r => c.product_id === r.product_made);
+                    let rawKey = this.products.find(p => p.product_id === rec.product_needed);
+                    //console.log(rawKey);
+                    total += this.getTotalCost(rawKey, c);
+                }
             });
-            //this.poBoxes.forEach();
-            console.log(total);
-            this.purchaseOrder.totalCost = total;
+            this.poBoxes.forEach(b => {
+                if(b.product_id){
+                    let totalUnitCost = 0;
+                    if(this.selectedOrderType === 'By Box'){
+                        totalUnitCost = this.getUnitCost(b.product_id)*(b.units_per_case * b.amount)
+                    }
+                    else if(this.selectedOrderType === 'By Unit'){
+                        totalUnitCost = this.getUnitCost(b.product_id)*(Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                    }
+                    total += totalUnitCost;
+                }
+            });
+            //console.log(total);
+            return total;
         },
 
         //Description: Calculates the total units ordered in a PO
@@ -1480,8 +1494,32 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
         //Date Last Edited: 5-29-2024
-        calculatePoUnitTotal(PO: number){
+        calculatePoUnitTotal(){
             let total=0;
+
+            this.poCases.forEach(c => {
+                if(c.product_id){
+                    //console.log(c);
+                    let rec = this.recipes.find(r => c.product_id === r.product_made);
+                    let rawKey = this.products.find(p => p.product_id === rec.product_needed);
+                    //console.log(rawKey);
+                    total += this.getTotalUnitsOrdered(rawKey, c);
+                }
+            });
+            this.poBoxes.forEach(b => {
+                if(b.product_id){
+                    let totalUnitCost = 0;
+                    if(this.selectedOrderType === 'By Box'){
+                        totalUnitCost = (b.units_per_case * b.amount)
+                    }
+                    else if(this.selectedOrderType === 'By Unit'){
+                        totalUnitCost = (Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                    }
+                    total += totalUnitCost;
+                }
+            });
+            //console.log(total);
+            return total;
         },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
