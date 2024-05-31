@@ -61,11 +61,24 @@
                     </template>
                 </Column>
 
-                <Column field="notes" header="Notes" sortable></Column>
+                <Column field="notes" header="Notes" sortable />
 
-                <Column field="date_ordered" header="Date Ordered" sortable></Column>
+                <Column field="date_ordered" header="Date Ordered" sortable />
 
-                <Column field="date_received" header="Date Received" sortable></Column>
+                <Column field="date_received" header="Date Received" sortable />
+
+                <Column header="Total Units">
+                    <template #body="{data}">
+                        {{ getCreatedUnitTotal(data.purchase_order_id) }}
+                    </template>
+                </Column>
+
+                <Column header="Total Cost">
+                    <template #body="{data}">
+                        {{ formatCurrency(getCreatedCostTotal(data.purchase_order_id)) }}
+                    </template>
+                </Column>
+
 
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
@@ -82,7 +95,7 @@
                     </div>
                     <!--</ButtonGroup>-->
                         <div class="p-3" v-if="displayStatus === 'Processed'">
-                            <h4>Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <h3 class="font-bold">Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h3>
                             <DataTable :value="displayInfo(slotProps.data)" 
                             :expandedRows="expandedRows">
                             <!-- <template #groupheader="slotProps">
@@ -108,7 +121,7 @@
                                 </Column>
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
-                                    <h4>Raw Product(s) required for {{ data.name }}</h4>
+                                    <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
                                     <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)">
                                         <Column field="name" header="Name"/>
                                         <Column header="UPC">
@@ -133,20 +146,54 @@
                                 </template>
 
                             </DataTable>
+
+                            <br><h4 class="font-bold">Raw Products with No Plan</h4>
+                            <DataTable :value="getPool(slotProps.data.purchase_order_id)">
+                                <Column header="Name">
+                                    <template #body = {data}>
+                                        {{ data.name }}
+                                    </template>
+                                </Column>
+                                <Column header="Units per Box">
+                                    <template #body = {data}>
+                                        {{ data.units_per_case }}
+                                    </template>
+                                </Column>
+                                <Column header="Total # of Boxes">
+                                    <template #body = {data}>
+                                        {{ data.amount }}
+                                    </template>
+                                </Column>
+                            </DataTable>
                         </div>
 
                         <div class="p-3" v-if="displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                            <DataTable :value="displayInfo(slotProps.data)" 
-                            rowGroupMode="subheader" groupRowsBy="name">
-                            <template #groupheader="slotProps">
-                                <div class="flex align-items-center gap-2">
-                                    <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
-                                    <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                                    <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                                </div>
-                            </template>
-                                <Column field="name" header="Name"></Column>
+                            <DataTable :value="displayInfo(slotProps.data)">
+                                <Column field="name" header="Name" />
+                                <Column header="UPC">
+                                    <template #body="{data}">
+                                        {{ getUPC(data.product_id) }}
+                                    </template>
+                                </Column>
+                                <Column field="units_per_case" header="Units per Case" />
+                                <Column field="amount" header="Total # of Cases" />
+                                <Column header="Total # of Units">
+                                    <template #body = {data}>
+                                        {{ data.units_per_case * data.amount }}
+                                    </template>
+                                </Column>
+                                <Column header="Unit Price">
+                                    <template #body="{data}">
+                                        ${{ formatCurrency(getUnitCost(data.product_id)) }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Price">
+                                    <template #body="{data}">
+                                        {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
+                                    </template>
+                                </Column>
+                                <Column field="status" header="Status" />
                             </DataTable>
                         </div>
                 </template>
@@ -808,6 +855,71 @@ export default {
         getTotalCost(rawBox: any, poCase: any){
             return rawBox.price_2023*this.getTotalUnitsOrdered(rawBox, poCase); 
         },
+        getCreatedUnitTotal(poID: number){
+            let total = 0;
+            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
+            usedBoxes.forEach(b => total+=b.units_per_case);
+            return total;
+        },
+        getCreatedCostTotal(poID: number){
+            let total = 0;
+            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
+            usedBoxes.forEach(b => {
+                let prod = this.products.find(p => p.product_id === b.product_id);
+                total+=(b.units_per_case*prod.price_2023);
+            });
+            return total;
+        },
+
+        //Description: Creates a pool of raw products that don't have a plan
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 5-31-2024
+        //Date Last Edited: 5-31-2024
+        getPool(poId: number){
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId);
+            let cases = this.pCases.filter(c => c.purchase_order_id === poId);
+
+            let recipeCombos = [] as any[];
+
+            let poolProd = [] as any[];
+
+            boxes.forEach(b => {
+                cases.forEach(c =>{
+                    let rec = this.recipes.find(r => r.product_needed === b.product_id && r.product_made === c.product_id);
+
+                    if(rec !== undefined)
+                        recipeCombos.push(rec);
+                });
+            });
+
+            console.log("COMBOS: ", recipeCombos);
+
+            boxes.forEach(b => {
+                let inArray = this.recipes.find(r => b.product_id === r.product_needed);
+
+                if (inArray === undefined){
+                    poolProd.push(b);
+                }
+            });
+
+            let pool = Object.values(poolProd.reduce((value, object) => {
+                //console.log(value);
+                //console.log(object);
+                if (value[object.product_id]) {
+                    //value[object.product_id].amount += object.amount; 
+                    value[object.product_id].amount++;
+
+                } else {
+                    value[object.product_id] = { ...object , amount : 1
+                    };
+                }
+                return value;
+                }, {}));;
+
+            return pool;
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -890,13 +1002,6 @@ export default {
             let product = this.products.find(p => p.product_id === productId);
 
             return product.default_units_per_case;
-
-            /*for (let idx = 0; idx < this.products.length; idx++) {
-                if (this.products[idx].product_id == productId) {
-                    console.log("PRODUCT NAME: ", this.products[idx].name);
-                    return this.products[idx].default_units_per_case;
-                }
-            }*/
         },
 
         //Validates a purchase order before creation/editing.
