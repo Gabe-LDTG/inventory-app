@@ -164,6 +164,7 @@
                                         {{ data.amount }}
                                     </template>
                                 </Column>
+                                <Column field="status" header="Status" />
                             </DataTable>
                         </div>
 
@@ -188,7 +189,7 @@
                                         ${{ formatCurrency(getUnitCost(data.product_id)) }}
                                     </template>
                                 </Column>
-                                <Column header="Total Price">
+                                <Column header="Total Price" class="font-bold">
                                     <template #body="{data}">
                                         {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
                                     </template>
@@ -221,8 +222,9 @@
         <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid">
 
             <div class="field">
-                <label for="purchase_order_name">Purchase Order</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" />
+                <label for="purchase_order_name">Name</label>
+                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
+                :disabled="purchaseOrder.purchase_order_id"/>
                 <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
             </div>
 
@@ -264,13 +266,13 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
                 </div>
 
-                <DataTable :value="poCases" rowGroupMode="subheader" groupRowsBy="name">
+                <DataTable :value="reqPoBoxes" rowGroupMode="subheader" groupRowsBy="name">
               
                     <template #groupheader="slotProps">
                         <div class="flex align-items-center gap-2">
                             <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
-                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
-                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
+                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
+                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
                         </div>
                     </template>
   
@@ -280,69 +282,41 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
                 </div>
 
-                <template class="caseCard" v-for="(poCase, counter) in poCases">
+                <template class="caseCard" v-for="(poBox, counter) in poBoxes">
 
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
 
-                        <h4 class="flex justify-content-start font-bold w-full">{{ poCase.name }}</h4><br>
+                        <h4 class="flex justify-content-start font-bold w-full">{{ poBox.name }}</h4><br>
                         <div class="block-div">
-                            <!-- <div class="field">
-                                <label for="name">Name:</label>
-                                <Dropdown v-model="poCase.product_id" required="true" 
-                                placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="products"
-                                optionLabel="name"
-                                filter
-                                disabled
-                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); poCase.total = poCase.amount*poCase.units_per_case;"
-                                optionValue="product_id"
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !poCase.product_id}" 
-                                >
-
-                                <template #value="slotProps">
-                                        <div v-if="slotProps.value" class="flex align-items-center">
-                                            <div>{{ slotProps.value.product_id }}</div>
-                                        </div>
-                                        <span v-else>
-                                            {{ slotProps.placeholder }}
-                                        </span>
-                                    </template>
-                                    <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
-                                    </template>
-                                </Dropdown>
-                                <small class="p-error" v-if="submitted && !poCase.product_id">Name is required.</small>
-                            </div> -->
 
                             <div class="field">
                                 <label for="qty">QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !poCase.units_per_case}"
-                                v-model="poCase.units_per_case" showButtons
-                                @input="poCase.total = poCase.amount*poCase.units_per_case"/>
-                                <small class="p-error" v-if="submitted && !poCase.units_per_case">Amount is required.</small>
-                            </div>
-
-                            <div v-show="!poCase.case_id" class="field">
-                                <label for="amount">How Many Boxes Arrived?</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="poCase.amount" showButtons
-                                @update:model-value="poCase.total = onTotalUpdate(poCase.amount, poCase.units_per_case)"/>
+                                :class="{'p-invalid': submitted && !poBox.units_per_case}"
+                                v-model="poBox.units_per_case" showButtons
+                                @input="poBox.total = poBox.amount*poBox.units_per_case"/>
+                                <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
                             </div>
 
                             <div class="field">
-                                <label for="total">Received Total</label>
-                                <InputNumber v-model="poCase.total" 
+                                <label for="amount">How Many Boxes Arrived?</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="poBox.amount" showButtons
+                                @update:model-value="poBox.total = poBox.amount*poBox.units_per_case"/>
+                            </div>
+
+                            <div class="field">
+                                <label for="total">Total Units Received</label>
+                                <InputNumber v-model="poBox.total" 
                                 inputId="stacked-buttons" showButtons
-                                @update:model-value="poCase.amount = onTotalUpdate(poCase.total, poCase.units_per_case)"/>
+                                @update:model-value="poBox.amount = onTotalUpdate(poBox.total, poBox.units_per_case)"/>
                             </div>
 
                             <!-- MAKE DROPDOWN WHEN LOCATION TABLE IS SET UP -->
                             <div class="field">
                                 <label for="total">Location</label>
-                                <InputText id="notes" v-model="poCase.location" rows="3" cols="20" />
+                                <InputText id="notes" v-model="poBox.location" rows="3" cols="20" />
                             </div>
 
                         </div>
@@ -660,6 +634,7 @@ export default {
             pCases: [] as any[],
             poCases: [] as any[],
             poBoxes: [] as any[],
+            reqPoBoxes: [] as any[],
             amount: 1,
             displayStatus: "",
 
@@ -903,21 +878,45 @@ export default {
                 }
             });
 
-            let pool = Object.values(poolProd.reduce((value, object) => {
+            let pool = Object.values(poolProd.reduce((newArray, currProd) => {
                 //console.log(value);
                 //console.log(object);
-                if (value[object.product_id]) {
-                    //value[object.product_id].amount += object.amount; 
-                    value[object.product_id].amount++;
+                if (newArray[currProd.product_id]) {
+                    //newArray[currProd.product_id].amount += currProd.amount; 
+                    newArray[currProd.product_id].amount++;
 
                 } else {
-                    value[object.product_id] = { ...object , amount : 1
+                    newArray[currProd.product_id] = { ...currProd , amount : 1
                     };
                 }
-                return value;
+                return newArray;
                 }, {}));;
 
             return pool;
+        },
+
+        //Description: Groups products together to get the total amount per product
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-03-2024
+        //Date Last Edited: 6-03-2024
+        groupProducts(prodArray: any[]){
+            let result = [] as any[];
+            result = Object.values(prodArray.reduce((newArray, currProd) => {
+                //console.log(newArray);
+                //console.log(currProd);
+                if (newArray[currProd.product_id]) {
+                    //newArray[currProd.product_id].amount += currProd.amount; 
+                    newArray[currProd.product_id].amount++;
+
+                } else {
+                    newArray[currProd.product_id] = { ...currProd , amount : 1
+                    };
+                }
+                return newArray;
+                }, {}));;
+
+            return result;
         },
 
         formatCurrency(value: any) {
@@ -1004,11 +1003,15 @@ export default {
             return product.default_units_per_case;
         },
 
-        //Validates a purchase order before creation/editing.
+        //Description: Validates a purchase order before creation/editing.
         //Currently checks:
         //1) The PO has a name
         //2) All desired cases have an amount of 1 or greater
         //3) All desired raw boxes have an amount of 1 or greater
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: ???
         validate() {
             this.submitted == true;
 
@@ -1092,21 +1095,23 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
+
+        //Description: Checks the boxes actually received in the PO vs the boxes requested and alocates the 
+        // correct amount to either delivered or back-ordered
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-04-2024
         async alocateBoxes(){
             try {
-                let relatedCases = this.displayInfo(this.purchaseOrder);
-                let rcLength = relatedCases.length;
-                console.log("LINKED CASES", relatedCases);
-                console.log("BULK CASES IN ALOCATE ",this.poCases);
-                for(let bcIdx=0; bcIdx < this.poCases.length; bcIdx++){
+                console.log("BULK CASES IN ALOCATE ",this.poBoxes);
 
-                    console.log(bcIdx);
+                this.purchaseOrder.status = 'Delivered';
 
-                    console.log(this.poCases[bcIdx]);
-                    let totalAmount = this.poCases[bcIdx].total;
-                    let qty = this.poCases[bcIdx].units_per_case;
+                this.poBoxes.forEach(box => {
+                    let qty = box.units_per_case;
+                    let boxAmount = box.amount;
 
-                    let boxAmount = totalAmount/qty;
                     let wholeBoxAmount = Math.floor(boxAmount);
                     let remainder = boxAmount - wholeBoxAmount;
                     let partialBox = Math.round(remainder*qty);
@@ -1114,56 +1119,61 @@ export default {
                     if (partialBox>0){
                         backOrderBoxAmount = qty-partialBox;
                     }
-
                     console.log("BOX AMOUNT", boxAmount);
                     console.log("WHOLE BOX AMOUNT", wholeBoxAmount);
                     console.log("REMAINDER", remainder);
                     console.log("PARTIAL BOX", partialBox);
                     console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
 
-                    for(let rcIdx = 0; rcIdx < rcLength; rcIdx++){
-                        if (relatedCases[rcIdx].product_id == this.poCases[bcIdx].product_id){
+                    this.reqPoBoxes.forEach(requestedBox => {
+                        console.log(requestedBox)
+                        if (requestedBox.product_id == box.product_id){
                             if(wholeBoxAmount > 0){
-                                relatedCases[rcIdx].status = 'Ready';
-                                relatedCases[rcIdx].date_received = this.today;
+                                requestedBox.status = 'Ready';
+                                requestedBox.date_received = this.today;
                                 wholeBoxAmount--;
                             } else if (wholeBoxAmount == 0 && partialBox > 0){
                                 //If a partial box arrives, update the last box amount to partial amount a create 
                                 // an additional box whose status is back ordered
                                 let boBox = [] as any[];
-                                boBox[<any>'name'] = relatedCases[rcIdx].name;
-                                boBox[<any>'product_id'] = relatedCases[rcIdx].product_id
-                                boBox[<any>'purchase_order_id'] = relatedCases[rcIdx].purchase_order_id
+                                boBox[<any>'name'] = requestedBox.name;
+                                boBox[<any>'product_id'] = requestedBox.product_id
+                                boBox[<any>'purchase_order_id'] = requestedBox.purchase_order_id
 
-                                relatedCases[rcIdx].units_per_case = partialBox;
-                                relatedCases[rcIdx].status = 'Ready';
-                                relatedCases[rcIdx].date_received = this.today;
+                                requestedBox.units_per_case = partialBox;
+                                requestedBox.status = 'Ready';
+                                requestedBox.date_received = this.today;
 
                                 boBox[<any>'units_per_case'] = backOrderBoxAmount;
                                 boBox[<any>'status'] = 'BO'
-                                relatedCases.push(boBox);
+
+                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
+                                this.reqPoBoxes.push(boBox);
 
                                 partialBox = 0;
 
                                 this.purchaseOrder.status = 'Partially Delivered'
                             } else if (wholeBoxAmount == 0 && partialBox == 0) {
                                 //If no partial box arrives, update the remaining box amounts to backorder
-                                relatedCases[rcIdx].status = 'BO';
+                                requestedBox.status = 'BO';
                                 this.purchaseOrder.status = 'Partially Delivered'
                             }
                         }
-                    }
+                    })
+                })
 
-                }
-                console.log(relatedCases);
-                for (let rcIdx = 0; rcIdx < relatedCases.length; rcIdx++){
-                    console.log("PRODUCT NAME: ", relatedCases[rcIdx].name, "BOX AMOUNT: ", relatedCases[rcIdx].units_per_case, "BOX STATUS: ", relatedCases[rcIdx].status)
-                    if (relatedCases[rcIdx].case_id){
-                        await action.editCase(relatedCases[rcIdx]);
+                console.log(this.reqPoBoxes);
+
+                //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
+                //PREVIOUS FOREACH FUNCTION
+                this.reqPoBoxes.forEach(async requestedBox => {
+                    console.log("PRODUCT NAME: ", requestedBox.name, "BOX AMOUNT: ", requestedBox.units_per_case, "BOX STATUS: ", requestedBox.status)
+                    if (requestedBox.case_id){
+                        await action.editCase(requestedBox);
                     } else {
-                        await action.addCase(relatedCases[rcIdx]);
+                        await action.addCase(requestedBox);
                     }
-                }
+                })
             } catch (error) {
                 console.log(error);
                 this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
@@ -1275,36 +1285,26 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
+
+        //Description: Sets up all the boxes and cases related to a purchase order and then opens the po dialog
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-03-2024
         confirmOrderReceived(purchaseOrder: any) {
             this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
-            this.purchaseOrder.status = 'Delivered';
             this.poCases = [];
+            this.poBoxes = [];
+            this.reqPoBoxes = [];
 
-            let currentCase = [];
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
-            for(let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
-                if (this.cases[caseIdx].purchase_order_id == this.purchaseOrder.purchase_order_id){
-                    console.log(this.cases[caseIdx])
-                    currentCase = this.cases[caseIdx];
-                    currentCase.total = this.cases[caseIdx].units_per_case;
-                    currentCase.duplicate = false;
-                    console.log('CURRENT CASE', currentCase);
-
-                    for(let bcIdx = 0; bcIdx < this.poCases.length; bcIdx++){
-                        if (this.poCases[bcIdx].name == currentCase.name){
-                            console.log("DUPLICATE CASE")
-                            this.poCases[bcIdx].total += currentCase.total;
-                            this.poCases[bcIdx].plannedTotal = this.poCases[bcIdx].total;
-                            currentCase.duplicate = true;
-                            console.log(currentCase);
-                        }
-                    }
-                    if(currentCase.duplicate == false){
-                        this.poCases.push(this.cases[caseIdx]);
-                    }
-                    
-                }
-            }
+            console.log("Boxes ",boxes);
+            console.log("Cases ",cases);
+            this.reqPoBoxes = this.groupProducts(boxes);
+            this.poBoxes = this.groupProducts(boxes);
+            this.poCases = this.groupProducts(cases);
 
             this.purchaseOrderDialog = true;
         },
@@ -1335,7 +1335,8 @@ export default {
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(this.displayStatus === "Processed"){
-                displayArray = Object.values(linkedCases.reduce((value, object) => {
+                displayArray = this.groupProducts(linkedCases);
+                /* Object.values(linkedCases.reduce((value, object) => {
                     if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
                         value[object.product_id].amount++;
@@ -1345,11 +1346,12 @@ export default {
                         };
                     }
                     return value;
-                    }, {}));;
+                    }, {}));; */
             } 
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (this.displayStatus === "Unprocessed"){
-                displayArray = Object.values(linkedBoxes.reduce((value, object) => {
+                displayArray = this.groupProducts(linkedBoxes);
+                /* Object.values(linkedBoxes.reduce((value, object) => {
                     if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
                         value[object.product_id].amount++;
@@ -1359,7 +1361,7 @@ export default {
                         };
                     }
                     return value;
-                    }, {}));;
+                    }, {}));; */
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -1410,7 +1412,7 @@ export default {
             //console.log("PRODUCT ID: ", product_id);
             let prod = this.products.find(p => product_id === p.product_id);
 
-            console.log(prod.fnsku);
+            //console.log(prod.fnsku);
             return prod.fnsku;
         },
 
@@ -1454,38 +1456,60 @@ export default {
             return total;
         },
 
+        //Description: Changes the color of the PO status based on what the status is
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-04-2024
         getPOSeverity(po: any) {
             switch (po.status) {
+                case 'Draft':
+                    return 'warning';
+                
+                case 'Submitted':
+                    return 'help';
+
+                case 'Ordered':
+                    return 'info';
+
+                case 'Partially Delivered':
+                    return 'warning';
+
                 case 'Delivered':
                     return 'success';
 
                 case 'Canceled':
                     return 'danger';
-
-                case 'Partially Delivered':
-                    return 'warning';
-
-                case 'Ordered':
-                    return 'info';
+              
 
                 default:
                     //console.log("DEFAULT CASE ", c)
                     return 'info';
             }
         },
+
+        //Description: Changes the icon of the PO status based on what the status is
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-04-2024
         getPOIcon(c: any){
             switch (c.status) {
+                case 'Draft':
+                    return 'pi pi-pencil';
+                
+                case 'Submitted':
+                    return 'pi pi-envelope';
+
+                case 'Ordered':
+                    return 'pi pi-truck';
+
+                case 'Partially Delivered':
+                    return 'pi pi-hourglass';
+
                 case 'Delivered':
                     return 'pi pi-check';
 
                 case 'Canceled':
                     return 'pi pi-times';
-
-                case 'Partially Delivered':
-                    return 'pi pi-hourglass';
-
-                case 'Ordered':
-                    return 'pi pi-truck';
 
                 default:
                     //console.log("DEFAULT CASE ", c)
@@ -1565,31 +1589,40 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
-        //Date Last Edited: 5-29-2024
+        //Date Last Edited: 6-04-2024
         calculatePoCostTotal(){
             let total=0;
 
-            this.poCases.forEach(c => {
-                if(c.product_id){
-                    //console.log(c);
-                    let rec = this.recipes.find(r => c.product_id === r.product_made);
-                    let rawKey = this.products.find(p => p.product_id === rec.product_needed);
-                    //console.log(rawKey);
-                    total += this.getTotalCost(rawKey, c);
-                }
-            });
-            this.poBoxes.forEach(b => {
-                if(b.product_id){
-                    let totalUnitCost = 0;
-                    if(this.selectedOrderType === 'By Box'){
-                        totalUnitCost = this.getUnitCost(b.product_id)*(b.units_per_case * b.amount)
+            //If the PO is being edited
+            if(this.purchaseOrder.purchase_order_id){
+                this.poBoxes.forEach(b => {
+                    total += this.getUnitCost(b.product_id)*(b.units_per_case * b.amount);
+                })
+            } // If the PO is being created
+            else {
+                this.poCases.forEach(c => {
+                    if(c.product_id){
+                        //console.log(c);
+                        let rec = this.recipes.find(r => c.product_id === r.product_made);
+                        let rawKey = this.products.find(p => p.product_id === rec.product_needed);
+                        //console.log(rawKey);
+                        total += this.getTotalCost(rawKey, c);
                     }
-                    else if(this.selectedOrderType === 'By Unit'){
-                        totalUnitCost = this.getUnitCost(b.product_id)*(Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                });
+                this.poBoxes.forEach(b => {
+                    if(b.product_id){
+                        let totalUnitCost = 0;
+                        if(this.selectedOrderType === 'By Box'){
+                            totalUnitCost = this.getUnitCost(b.product_id)*(b.units_per_case * b.amount)
+                        }
+                        else if(this.selectedOrderType === 'By Unit'){
+                            totalUnitCost = this.getUnitCost(b.product_id)*(Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                        }
+                        total += totalUnitCost;
                     }
-                    total += totalUnitCost;
-                }
-            });
+                });
+            }
+
             //console.log(total);
             return total;
         },
@@ -1598,31 +1631,44 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
-        //Date Last Edited: 5-29-2024
+        //Date Last Edited: 6-04-2024
         calculatePoUnitTotal(){
             let total=0;
 
-            this.poCases.forEach(c => {
-                if(c.product_id){
-                    //console.log(c);
-                    let rec = this.recipes.find(r => c.product_id === r.product_made);
-                    let rawKey = this.products.find(p => p.product_id === rec.product_needed);
-                    //console.log(rawKey);
-                    total += this.getTotalUnitsOrdered(rawKey, c);
-                }
-            });
-            this.poBoxes.forEach(b => {
-                if(b.product_id){
-                    let totalUnitCost = 0;
-                    if(this.selectedOrderType === 'By Box'){
-                        totalUnitCost = (b.units_per_case * b.amount)
+            //console.log("PO Boxes",this.poBoxes)
+            //console.log("PO Cases",this.poCases);
+
+            //If the PO is being edited
+            if(this.purchaseOrder.purchase_order_id){
+                this.poBoxes.forEach(b => {
+                    total += (b.units_per_case * b.amount)
+                });
+            } //If the PO is being created
+            else {
+                this.poCases.forEach(c => {
+                    if(c.product_id){
+                        //console.log(c);
+                        let rec = this.recipes.find(r => c.product_id === r.product_made);
+                        let rawKey = this.products.find(p => p.product_id === rec.product_needed);
+                        //console.log(rawKey);
+                        total += this.getTotalUnitsOrdered(rawKey, c);
                     }
-                    else if(this.selectedOrderType === 'By Unit'){
-                        totalUnitCost = (Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                });
+                this.poBoxes.forEach(b => {
+                    if(b.product_id){
+                        let totalUnitCost = 0;
+                        if(this.selectedOrderType === 'By Box'){
+                            totalUnitCost = (b.units_per_case * b.amount)
+                        }
+                        else if(this.selectedOrderType === 'By Unit'){
+                            totalUnitCost = (Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                        }
+                        total += totalUnitCost;
                     }
-                    total += totalUnitCost;
-                }
-            });
+                });
+            };
+
+            
             //console.log(total);
             return total;
         },
