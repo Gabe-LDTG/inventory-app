@@ -82,6 +82,12 @@
 
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
+                        <Button icon="pi pi-envelope" v-tooltip.top="'Enter your username'" outlined rounded severity="help" class="mr-2"/>
+                        <i class="pi pi-angle-right" style="color: slateblue"/>
+                        <Button icon="pi pi-box" outlined rounded severity="info" class="mr-2"/>
+                        <i class="pi pi-angle-right" style="color: slateblue"/>
+                        <Button icon="pi pi-truck" outlined rounded severity="warning" class="mr-2"/>
+                        <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-check" outlined rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
                     </template>
@@ -90,11 +96,11 @@
                 <template #expansion="slotProps">
                     <!--<ButtonGroup class="flex justify-content-center">-->
                     <div class="flex justify-content-center">
-                        <Button label="Processed" @click="displayStatus = 'Processed'"/>
-                        <Button label="Unprocessed" severity="info" @click="displayStatus = 'Unprocessed'"/>
+                        <Button label="Processed" @click="slotProps.data.displayStatus = 'Processed'"/>
+                        <Button label="Unprocessed" severity="info" @click="slotProps.data.displayStatus = 'Unprocessed'"/>
                     </div>
                     <!--</ButtonGroup>-->
-                        <div class="p-3" v-if="displayStatus === 'Processed'">
+                        <div class="p-3" v-if="slotProps.data.displayStatus === 'Processed'">
                             <h3 class="font-bold">Processed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h3>
                             <DataTable :value="displayInfo(slotProps.data)" 
                             :expandedRows="expandedRows">
@@ -168,7 +174,7 @@
                             </DataTable>
                         </div>
 
-                        <div class="p-3" v-if="displayStatus === 'Unprocessed'">
+                        <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
                             <DataTable :value="displayInfo(slotProps.data)">
                                 <Column field="name" header="Name" />
@@ -178,7 +184,7 @@
                                     </template>
                                 </Column>
                                 <Column field="units_per_case" header="Units per Case" />
-                                <Column field="amount" header="Total # of Cases" />
+                                <Column field="amount" header="Total # of Boxes" />
                                 <Column header="Total # of Units">
                                     <template #body = {data}>
                                         {{ data.units_per_case * data.amount }}
@@ -878,7 +884,7 @@ export default {
                 }
             });
 
-            let pool = Object.values(poolProd.reduce((newArray, currProd) => {
+            /* let pool = Object.values(poolProd.reduce((newArray, currProd) => {
                 //console.log(value);
                 //console.log(object);
                 if (newArray[currProd.product_id]) {
@@ -890,7 +896,9 @@ export default {
                     };
                 }
                 return newArray;
-                }, {}));;
+                }, {}));; */
+
+            let pool = this.groupProducts(poolProd);
 
             return pool;
         },
@@ -905,7 +913,7 @@ export default {
             result = Object.values(prodArray.reduce((newArray, currProd) => {
                 //console.log(newArray);
                 //console.log(currProd);
-                if (newArray[currProd.product_id]) {
+                if (newArray[currProd.product_id] && newArray[currProd.product_id].status == currProd.status && newArray[currProd.product_id].units_per_case == currProd.units_per_case) {
                     //newArray[currProd.product_id].amount += currProd.amount; 
                     newArray[currProd.product_id].amount++;
 
@@ -1317,7 +1325,7 @@ export default {
         },
         displayInfo(po: any){
             console.log(po);
-            console.log(this.cases);
+            //console.log(this.cases);
             let displayArray = [] as any[];
             let linkedCases = [] as any[]; 
             let linkedBoxes = [] as any[];
@@ -1334,7 +1342,7 @@ export default {
             //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
-            if(this.displayStatus === "Processed"){
+            if(po.displayStatus === "Processed"){
                 displayArray = this.groupProducts(linkedCases);
                 /* Object.values(linkedCases.reduce((value, object) => {
                     if (value[object.product_id]) {
@@ -1349,7 +1357,7 @@ export default {
                     }, {}));; */
             } 
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
-            else if (this.displayStatus === "Unprocessed"){
+            else if (po.displayStatus === "Unprocessed"){
                 displayArray = this.groupProducts(linkedBoxes);
                 /* Object.values(linkedBoxes.reduce((value, object) => {
                     if (value[object.product_id]) {
@@ -1372,7 +1380,7 @@ export default {
             let linkedRecs = this.recipes.filter(r => r.product_made === product_id);
             let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
             
-            let displayArray = Object.values(linkedBoxes.reduce((value, object) => {
+            /* let displayArray = Object.values(linkedBoxes.reduce((value, object) => {
                     if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
                         value[object.product_id].amount++;
@@ -1382,7 +1390,9 @@ export default {
                         };
                     }
                     return value;
-                    }, {}));;
+                    }, {}));; */
+
+            let displayArray = this.groupProducts(linkedBoxes);
 
             displayArray = displayArray.filter((raw: any) => this.recipes.find(rec => rec.product_needed === raw.product_id && rec.product_made === product_id));
             console.log(linkedRecs);
@@ -1471,6 +1481,9 @@ export default {
                 case 'Ordered':
                     return 'info';
 
+                case 'Inbound':
+                    return 'warning';
+
                 case 'Partially Delivered':
                     return 'warning';
 
@@ -1500,6 +1513,9 @@ export default {
                     return 'pi pi-envelope';
 
                 case 'Ordered':
+                    return 'pi pi-box';
+
+                case 'Inbound':
                     return 'pi pi-truck';
 
                 case 'Partially Delivered':

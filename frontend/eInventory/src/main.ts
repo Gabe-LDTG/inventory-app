@@ -40,6 +40,7 @@ import TriStateCheckbox from 'primevue/tristatecheckbox';
 import Toast from 'primevue/toast';
 import ToastService from 'primevue/toastservice';
 import Toolbar from 'primevue/toolbar';
+import Tooltip from 'primevue/tooltip';
 
 const app = createApp(App);
 
@@ -77,6 +78,8 @@ app.component('Tag', Tag);
 app.component('TriStateCheckbox', TriStateCheckbox);
 app.component('Toast', Toast);
 app.component('Toolbar', Toolbar);
+app.component('Tooltip', Tooltip);
+
 
 
 app.mount('#app');
