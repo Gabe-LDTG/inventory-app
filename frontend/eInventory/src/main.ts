@@ -78,7 +78,7 @@ app.component('Tag', Tag);
 app.component('TriStateCheckbox', TriStateCheckbox);
 app.component('Toast', Toast);
 app.component('Toolbar', Toolbar);
-app.component('Tooltip', Tooltip);
+app.directive('Tooltip', Tooltip);
 
 
 
