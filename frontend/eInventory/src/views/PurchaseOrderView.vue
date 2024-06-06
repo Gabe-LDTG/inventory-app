@@ -80,15 +80,15 @@
                 </Column>
 
 
-                <Column :exportable="false" style="min-width:8rem">
+                <Column header="PO Phase" :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-envelope" v-tooltip.top="'Enter your username'" outlined rounded severity="help" class="mr-2"/>
+                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="help" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-box" outlined rounded severity="info" class="mr-2"/>
+                        <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-truck" outlined rounded severity="warning" class="mr-2"/>
+                        <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-check" outlined rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
                     </template>
                 </Column>
@@ -592,6 +592,13 @@
                 <Button label="Yes" icon="pi pi-check" text @click="cancelOrder" />
             </template>
         </Dialog>
+
+        <Dialog v-model:visible="statusChangeDialog" :style="{width: '450px'}" header="Status Change" :modal="true">
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="statusChangeDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" text @click="" />
+            </template>
+        </Dialog>
         
 	</div>
 </template>
@@ -626,6 +633,7 @@ export default {
             cancelOrderDialog: false,
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
+            statusChangeDialog: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1687,6 +1695,32 @@ export default {
             
             //console.log(total);
             return total;
+        },
+
+        disablePoPhase(poStatus: string){
+
+        },
+
+        //Description: When a user wants to update their status, a dialog is opened.
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-06-2024
+        //Date Last Edited: 6-06-2024
+        openStatusChangeDialog(purchaseOrder: any) {
+            this.purchaseOrder = purchaseOrder;
+            this.statusChangeDialog = true;
+        },
+
+        //Description: When the user clicks confirm on a status change, the PO status is changed to the appropriate phase
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-06-2024
+        //Date Last Edited: 6-06-2024
+        confirmStatusChangeDialog(newStatus: string){
+
+            this.statusChangeDialog = false;
+
+            this.purchaseOrder = {};
         },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
