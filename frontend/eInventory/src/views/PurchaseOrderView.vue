@@ -15,11 +15,13 @@
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
-            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" dataKey="purchase_order_id"
+            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
+                dataKey="purchase_order_id"
                 :paginator="true" :rows="10" :filters="filters"
                 selectionMode="single"
                 :selectAll="false"
                 removableSort
+                style="min-width: 1000px"
                 showGridlines
                 stripedRows
                 :loading="loading"
@@ -80,8 +82,9 @@
                 </Column>
 
 
-                <Column header="PO Phase" :exportable="false" style="min-width:8rem">
+                <Column header="PO Phase" :exportable="false" style="min-width: 275px">
                     <template #body="slotProps">
+                        <div class="flex flex-wrap align-items-center ">
                         <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="help" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
@@ -90,6 +93,7 @@
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
+                    </div>
                     </template>
                 </Column>
 
@@ -873,7 +877,15 @@ export default {
 
             let poolProd = [] as any[];
 
-            boxes.forEach(b => {
+            let caseTypes = this.groupProducts(cases);
+            let boxTypes = this.groupProducts(boxes);
+
+            caseTypes.forEach(caseType => {
+                let recipes = this.recipes.filter(r => caseType.product_id === r.product_made);
+                //let rawBox = boxTypes.find()
+            });
+
+            /* boxes.forEach(b => {
                 cases.forEach(c =>{
                     let rec = this.recipes.find(r => r.product_needed === b.product_id && r.product_made === c.product_id);
 
@@ -890,7 +902,7 @@ export default {
                 if (inArray === undefined){
                     poolProd.push(b);
                 }
-            });
+            }); */
 
             /* let pool = Object.values(poolProd.reduce((newArray, currProd) => {
                 //console.log(value);
@@ -915,7 +927,7 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 6-03-2024
-        //Date Last Edited: 6-03-2024
+        //Date Last Edited: 6-07-2024
         groupProducts(prodArray: any[]){
             let result = [] as any[];
             result = Object.values(prodArray.reduce((newArray, currProd) => {
@@ -931,6 +943,16 @@ export default {
                 }
                 return newArray;
                 }, {}));;
+
+            // get the products in the pool along with their amount
+                let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+                    if (map[product.product_id]) // if it already exists, incremenet
+                        map[product.product_id].amount++;
+                    else // otherwise, add it to the map
+                        map[product.product_id] = { ...product, amount: 1 };
+
+                    return map;
+                }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
 
             return result;
         },
