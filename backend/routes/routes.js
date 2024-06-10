@@ -45,6 +45,11 @@ import {
     createRecipe,
     updateRecipe,
     deleteRecipe,
+    showRecipeElements,
+    createRecipeElement,
+    updateRecipeElement,
+    deleteRecipeElement,
+    batchInsertRecEl,
 } from "../controllers/recipes.js";
 
 import {
@@ -158,6 +163,21 @@ router.put("/recipes/:id", updateRecipe);
 
 //Delete a Recipe
 router.delete("/recipes/:id", deleteRecipe);
+
+//Get Recipe Elements
+router.get("/recipeElements", showRecipeElements);
+
+//Create a Recipe Element
+router.post("/recipeElements/create", createRecipeElement);
+
+//Edit a Recipe Element
+router.put("/recipeElements/:id", updateRecipeElement);
+
+//Delete a Recipe Element
+router.delete("/recipeElements/:id", deleteRecipeElement);
+
+//Batch Insert Recipe Elements
+router.post('/recipeElements/batchInsert', batchInsertRecEl);
 
 //VENDORS-------------------------------------------------------------------------
 //Get Vendors
