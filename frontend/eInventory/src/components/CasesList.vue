@@ -27,9 +27,7 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
-                sortField="name" :sortOrder="-1"
                 :globalFilterFields="['name', 'status']"
-                rowGroupMode="subheader" groupRowsBy="name"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -50,17 +48,21 @@
 
                 <template #loading> Loading product data. Please wait. </template>
 
-                <template #groupheader="slotProps">
+                <!-- <template #groupheader="slotProps">
                     <div class="flex align-items-center gap-2" style="background-color:#ddd;">
                         <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
                         <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
                         <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
                     </div>
-                </template>
+                </template> -->
 
-                <Column field="name" header="Name" sortable></Column>
-
-                <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                    <Column expander header="Individual Cases" style="width: 5rem" />
+                </div>
+                <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                    <Column expander header="Individual Boxes" style="width: 5rem" />
+                </div>
+                <Column field="name" header="Name" sortable />
                 
                 <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
                     <Column field="purchase_order_name" header="PO" sortable></Column>
@@ -80,16 +82,44 @@
                         </Dropdown>
                     </template> -->
                 </Column>
-                <Column field="units_per_case" header="QTY" sortable></Column>
+                <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                    <Column field="units_per_case" header="Units per case" sortable/>
+                    <Column field="amount" header="Number of cases" sortable />
+                </div>
+                <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                    <Column field="units_per_case" header="Units per box" sortable/>
+                    <Column field="amount" header="Number of boxes" sortable />
+                </div>
+
                 <Column field="location_name" header="Location" sortable></Column>
-                <Column field="notes" header="Notes" sortable></Column>
-                <Column field="date_received" header="Date received" sortable></Column>
-                <Column :exportable="false" style="min-width:8rem">
-                    <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
-                    </template>
-                </Column>
+
+                <template #expansion="{data}" style="background-color: '#16a085'">
+                    <DataTable :value="getIndivCases(data.product_id, data.units_per_case)" v-model:selection="selectedCases" dataKey="case_id"
+                    :paginator="true" :rows="5"
+                    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport">
+                        <Column field="name" header="Name"/>
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <Column field="units_per_case" header="Units per case" sortable/>
+                        </div>
+                        <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <Column field="units_per_case" header="Units per box" sortable/>
+                        </div>
+                        <Column field="location_name" header="Location">
+                            <template #body="slotProps">
+                                {{ getIndivLocation(slotProps.data.location) }}
+                            </template>
+                        </Column>
+                        <Column field="notes" header="Notes" sortable/>
+                        <Column field="date_received" header="Date received" sortable />
+                        <Column :exportable="false" style="min-width:8rem">
+                            <template #body="slotProps">
+                                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
+                                <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
+                </template>
             </DataTable>
         </div>
 
@@ -316,6 +346,7 @@ export default {
     data() {
         return {
             //CASE VARIABLES
+            dbCases: [] as any[],
             cases: [] as any[],
             caseDialog: false,
             deleteCaseDialog: false,
@@ -441,10 +472,18 @@ export default {
             }
         },
 
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-11-2024
         async getProcCases(){
             try {
                 this.loading = true;
-                this.cases = await action.getProcCases();
+                this.dbCases = await action.getProcCases();
+                console.log(this.dbCases);
+                this.cases = this.groupBoxes(this.dbCases);
+                console.log(this.cases);
                 this.loading = false;
             } catch (err) {
                 console.log(err);
@@ -461,12 +500,20 @@ export default {
             }
         },
 
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-11-2024
         async getUnprocCases(){
             try {
                 this.loading = true;
-                this.cases = await action.getUnprocCases();
+                this.dbCases = await action.getUnprocCases();
+                console.log(this.dbCases);
+                this.cases = this.groupBoxes(this.dbCases);
+                console.log(this.cases);
                 this.purchase_orders = await action.getPurchaseOrders();
-                for (let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
+                /* for (let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
                     //console.log("CASE ",this.cases[caseIdx]);
                     if(this.cases[caseIdx].status == 'Canceled'){
                         //console.log("Canceled product, don't display");
@@ -484,7 +531,7 @@ export default {
                         }
 
                     }
-                }
+                } */
                 this.loading = false;
             } catch (err) {
                 console.log(err);
@@ -498,6 +545,27 @@ export default {
                 console.log(error);
             }
         }, 
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-11-2024
+        //Date Last Edited: 6-11-2024
+        getIndivCases(productId: number, unitsPerCase: number){
+            return this.dbCases.filter(c => c.product_id === productId && c.units_per_case === unitsPerCase);
+        },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-11-2024
+        //Date Last Edited: 6-11-2024
+        getIndivLocation(locationId: number){
+            console.log(locationId);
+            let location = this.locations.find(l => l.location_id === locationId);
+            console.log(location);
+            return location.name;
+        },
 
         onProductSelection(productId: any){
             console.log("PRODUCT ID", productId);
@@ -835,6 +903,47 @@ export default {
                 console.log("UNFILTERED CASES", this.cases);
             }; 
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-11-2024
+        //Date Last Edited: 6-11-2024
+        groupBoxes(boxArray: any[]){
+            // get the products in the pool along with their amount
+            let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
+                const key = product.product_id + ':' + product.units_per_case;
+                if (map[key]) // if it already exists, incremenet
+                    map[key].amount++;
+                    /* if(map[key].location.find((l: any) => l === product.location) === undefined){
+                        console.log("DIFFERENT LOCATION");
+                    } */
+                else // otherwise, add it to the map
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location], amount: 1 };
+                return map;
+            }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
+
+            return pool;
+        },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-11-2024
+        //Date Last Edited: 6-11-2024
+        groupByLocation(boxArray: any[]){
+            // get the products in the pool along with their amount
+            let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
+                if (map[product.product_id] && map[product.product_id].units_per_case == product.units_per_case && map[product.product_id].location == product.location) // if it already exists, incremenet
+                    map[product.product_id].amount++;
+                else // otherwise, add it to the map
+                    map[product.product_id] = { ...product, amount: 1 };
+
+                return map;
+            }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
+
+            return pool;
+        }
     }
 }
 </script>
