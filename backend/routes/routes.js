@@ -38,6 +38,11 @@ import {
     createPurchaseOrder,
     deletePurchaseOrder,
     updatePurchaseOrder,
+    showPurchaseOrderRecipes,
+    createPurchaseOrderRecipe,
+    deletePurchaseOrderRecipe,
+    updatePurchaseOrderRecipe,
+    batchInsertPoRecEl,
 } from "../controllers/purchase_orders.js";
 
 import {
@@ -150,6 +155,21 @@ router.put("/purchaseOrders/:id", updatePurchaseOrder);
 
 //Delete a Purchase order
 router.delete("purchaseOrders/:id", deletePurchaseOrder);
+
+//Get Purchase Order Recipes
+router.get("/purchaseOrderRecipes", showPurchaseOrderRecipes);
+
+//Create a Purchase Order Recipe
+router.post("/purchaseOrders/create", createPurchaseOrderRecipe);
+
+//Edit a Purchase Order Recipe
+router.put("/purchaseOrderRecipes/:id", updatePurchaseOrderRecipe);
+
+//Delete a Purchase Order Recipe
+router.delete("/purchaseOrderRecipes/:id", deletePurchaseOrderRecipe);
+
+//Batch insert Purchase Order Recipes
+router.post("/purchaseOrderRecipes/bulk", batchInsertPoRecEl);
 
 //RECIPES-------------------------------------------------------------------------
 //Get Recipes

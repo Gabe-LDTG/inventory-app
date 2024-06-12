@@ -91,19 +91,24 @@
                     <Column field="amount" header="Number of boxes" sortable />
                 </div>
 
-                <Column field="location_name" header="Location" sortable></Column>
+                <Column field="location_name" header="Location" sortable>
+                    <template #body="{data}">
+                        {{ formatLocations(data.location) }}
+                    </template>
+                </Column>
 
                 <template #expansion="{data}" style="background-color: '#16a085'">
                     <DataTable :value="getIndivCases(data.product_id, data.units_per_case)" v-model:selection="selectedCases" dataKey="case_id"
+                    removableSort
                     :paginator="true" :rows="5"
                     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport">
-                        <Column field="name" header="Name"/>
+                        <Column field="name" header="Name"  />
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                            <Column field="units_per_case" header="Units per case" sortable/>
+                            <Column field="units_per_case" header="Units per case" />
                         </div>
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <Column field="units_per_case" header="Units per box" sortable/>
+                            <Column field="units_per_case" header="Units per box" />
                         </div>
                         <Column field="location_name" header="Location">
                             <template #body="slotProps">
@@ -111,10 +116,14 @@
                             </template>
                         </Column>
                         <Column field="notes" header="Notes" sortable/>
-                        <Column field="date_received" header="Date received" sortable />
+                        <Column field="date_received" header="Date received" sortable >
+                            <template #body="slotProps">
+                                {{ slotProps.data.date_received }}
+                            </template>
+                        </Column>
                         <Column :exportable="false" style="min-width:8rem">
                             <template #body="slotProps">
-                                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
+                                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data); console.log(slotProps.data)" />
                                 <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
                             </template>
                         </Column>
@@ -444,16 +453,8 @@ export default {
             }
             //Possibly try doing this for the product vendors when you have more time
             //Seems more effecient than current trying for two for loops.
-            this.cases.forEach(c => {
+            this.dbCases.forEach(c => {
                 if (c.date_received){ c.date_received = helper.formatDate(c.date_received)};
-
-                const location = this.locations.find(l => c['location'] == l['location_id']);
-
-                //console.log("CHECKING LOCATION")
-                if (location){
-                    //console.log("LOCATION", location);
-                    c['location_name'] = location['name'];
-                }
             })
 
             console.log(this.cases);
@@ -559,12 +560,35 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 6-11-2024
-        //Date Last Edited: 6-11-2024
+        //Date Last Edited: 6-12-2024
         getIndivLocation(locationId: number){
-            console.log(locationId);
+            //console.log(locationId);
             let location = this.locations.find(l => l.location_id === locationId);
-            console.log(location);
-            return location.name;
+            //console.log(location);
+            if(location !== undefined){
+                return location.name;
+            }
+        },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 6-12-2024
+        //Date Last Edited: 6-12-2024
+        formatLocations(locations: any[]){
+            if(locations){
+                let locationNames = [] as any[];
+                locations.forEach(loc => {
+                    if (loc){
+                        let curLoc = this.locations.find(l => l.location_id === loc);
+                        //console.log(loc)
+                        //console.log(curLoc)
+                        locationNames.push(curLoc.name);
+                    }
+                })
+                return locationNames.toString();
+            }
+            
         },
 
         onProductSelection(productId: any){
@@ -590,7 +614,7 @@ export default {
             this.eCase = [];
             this.submitted = false;
             this.amount = 1;
-            this.eCase.date_received = this.today;
+            //this.eCase.date_received = this.today;
             
             this.caseDialog = true;
         },
@@ -639,10 +663,16 @@ export default {
         },
         // AS PER WHAT MICHAEL SAID, SPLIT THE ADD AND EDIT INTO SEPARATE FUNCTIONS WITH TRY CATCHES
         // THAT GET CALLED BY SAVE CASE
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-12-2024
         async saveCase() {
-            this.submitted = true;
-
             try {
+                this.submitted = true;
+                console.log(this.eCase);
+
                 if (this.eCase.product_id) {
                     if (this.eCase.case_id) {
                         await this.confirmEdit();
@@ -672,22 +702,37 @@ export default {
                 
             }
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-12-2024
         async confirmEdit(){
             try {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
-
-                const idx = this.cases.findIndex(c => c.case_id === this.eCase.case_id)
+                console.log(this.eCase);
+                console.log(this.dbCases);
+                const idx = this.dbCases.findIndex(c => c.case_id === this.eCase.case_id)
                 if(idx >= 0)
-                    this.cases[idx] = this.eCase;
+                    this.dbCases[idx] = this.eCase;
                 else
                     throw new Error('Could not find case we were editing :(')
                 //alert("Testing");
 
                 console.log(this.eCase);
 
-                this.eCase.date_received = helper.formatDate(this.eCase.date_received);
+                await action.editCase(this.eCase);
 
-                action.editCase(this.eCase);
+                if(this.displayValue == 'processed'){
+                    console.log('Processed');
+                    await this.getProcCases();
+
+                }
+                else if(this.displayValue == 'unprocessed'){
+                    console.log('Unprocessed');
+                    await this.getUnprocCases();
+                }
                 console.log(this.eCase);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
             } catch (err) {
@@ -695,6 +740,12 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-12-2024
         async confirmCreate(){
             try {
                 console.log("NEW CASE", this.eCase);
@@ -707,12 +758,12 @@ export default {
                 //ASK MICHAEL IF THERES A BETTER WAY
                 if(this.displayValue == 'processed'){
                     console.log('Processed');
-                    this.getProcCases();
+                    await this.getProcCases();
 
                 }
                 else if(this.displayValue == 'unprocessed'){
                     console.log('Unprocessed');
-                    this.getUnprocCases();
+                    await this.getUnprocCases();
                 }
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
             } catch (err: any) {
@@ -732,12 +783,29 @@ export default {
             this.eCase = value;
             this.deleteCaseDialog = true;
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-12-2024
         async deleteCase() {
             try {
-                this.cases = this.cases.filter(val => val.case_id !== this.eCase.case_id);
+                //this.dbCases = this.dbCases.filter(c => c.case_id !== this.eCase.case_id);
                 await action.deleteCase(this.eCase.case_id);
+
+                if(this.displayValue == 'processed'){
+                    console.log('Processed');
+                    await this.getProcCases();
+
+                }
+                else if(this.displayValue == 'unprocessed'){
+                    console.log('Unprocessed');
+                    await this.getUnprocCases();
+                }
+
                 this.deleteCaseDialog = false;
-                this.product = {};
+                this.eCase = {};
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
             } catch (err: any) {
                 console.log(err);
@@ -908,16 +976,19 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 6-11-2024
-        //Date Last Edited: 6-11-2024
+        //Date Last Edited: 6-12-2024
         groupBoxes(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.units_per_case;
-                if (map[key]) // if it already exists, incremenet
+                if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
-                    /* if(map[key].location.find((l: any) => l === product.location) === undefined){
-                        console.log("DIFFERENT LOCATION");
-                    } */
+                    if(map[key].location.find((l: any) => l === product.location) === undefined){
+                        //console.log("DIFFERENT LOCATION");
+                        map[key].location.push(product.location);
+                        console.log(map[key].location);
+                    } 
+                }
                 else // otherwise, add it to the map
                     map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location], amount: 1 };
                 return map;
