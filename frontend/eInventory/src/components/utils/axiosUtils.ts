@@ -169,13 +169,45 @@ var action = {
         //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(r){
-            for(let recIdx = 0; recIdx < r.length; recIdx++){
+            let procRecEl = {} as any;
+            let recElArray = [] as any[];
+            procRecEl['product_id' as any] = addedProductId.data[0]['LAST_INSERT_ID()'];
+            procRecEl['qty' as any] = '1';
+            procRecEl['type' as any] = 'output';
+
+            r.recipeElements.push(procRecEl);
+
+            procRecEl = {};
+
+            console.log(r);
+
+            let addedRecipeId = await axios.post(BASE_URL+"/recipes/create",{
+                label: r.label,
+            })
+
+            r.recipeElements.forEach(async (recEl: any) => {
+                recEl['recipe_id' as any] = addedRecipeId.data[0]['LAST_INSERT_ID()']
+
+                let result = {} as any;
+                result = Object.values(recEl);
+                console.log("RESULT ", result);
+
+                recElArray.push(result);
+
+                result = {};
+            })
+
+            await axios.post(BASE_URL+"/recipeElements/batchInsert", recElArray).catch(error => {
+                console.log(error);
+                throw error;
+            });
+            /* for(let recIdx = 0; recIdx < r.length; recIdx++){
                 axios.post(BASE_URL+"/recipes/create",{
                     product_needed: r[recIdx].product_needed,
                     units_needed: r[recIdx].units_needed,
                     product_made: addedProductId.data[0]['LAST_INSERT_ID()'],
                 })
-            }
+            } */
         }
         return addedProductId.data[0]['LAST_INSERT_ID()'];
     },

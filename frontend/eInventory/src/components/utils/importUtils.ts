@@ -52,7 +52,8 @@ var importAction = {
 
                 let unusedFields=[];
                 let content = [];
-                let recipeContent = [] as any[];
+                let recipes = [] as any[];
+                let recipeElements = [] as any[];
 
                 let vendors = await action.getVendors();
 
@@ -70,6 +71,7 @@ var importAction = {
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
                     let map = [];
                     let recMap = {} as any;
+                    let recElMap = {} as any;
 
                     if (results.data[dataIdx]['Name']) {
                         map['name' as any] = results.data[dataIdx]['Name'];
@@ -298,7 +300,93 @@ var importAction = {
                     //console.log(map['products_needed_a' as any].toLowerCase());
 
                     //products.length
-                    for (let productIdx = 0; productIdx<products.length; productIdx++){
+
+                    if (map['products_needed_a' as any] && map['qty_1' as any]){
+                        let pa = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_a' as any] && p.item_num == map[<any>'item_num_1'])
+                        
+                        recElMap['product_id' as any] = pa.product_id;
+                        recElMap['qty' as any] = map['qty_1' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pa = {};
+                        recElMap = {};
+                    }
+                    if (map['products_needed_b' as any] && map['qty_2' as any]){
+                        let pb = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_b' as any] && p.item_num == map[<any>'item_num_2'])
+                        
+                        recElMap['product_id' as any] = pb.product_id;
+                        recElMap['qty' as any] = map['qty_2' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pb = {};
+                        recElMap = {};
+                    }
+                    if (map['products_needed_c' as any] && map['qty_3' as any]){
+                        let pc = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_c' as any] && p.item_num == map[<any>'item_num_3'])
+                        
+                        recElMap['product_id' as any] = pc.product_id;
+                        recElMap['qty' as any] = map['qty_3' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pc = {};
+                        recElMap = {};
+                    }
+                    if (map['products_needed_d' as any] && map['qty_4' as any]){
+                        let pd = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_d' as any] && p.item_num == map[<any>'item_num_4'])
+                        
+                        recElMap['product_id' as any] = pd.product_id;
+                        recElMap['qty' as any] = map['qty_4' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pd = {};
+                        recElMap = {};
+                    }
+                    if (map['products_needed_e' as any] && map['qty_5' as any]){
+                        let pe = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_e' as any] && p.item_num == map[<any>'item_num_5'])
+                        
+                        recElMap['product_id' as any] = pe.product_id;
+                        recElMap['qty' as any] = map['qty_5' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pe = {};
+                        recElMap = {};
+                    }
+                    if (map['products_needed_f' as any] && map['qty_6' as any]){
+                        let pf = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_f' as any] && p.item_num == map[<any>'item_num_6'])
+                        
+                        recElMap['product_id' as any] = pf.product_id;
+                        recElMap['qty' as any] = map['qty_6' as any];
+                        recElMap['type' as any] = 'input';
+
+                        console.log("REC MAP", recElMap);
+
+                        recipeElements.push(recElMap);
+
+                        pf = {};
+                        recElMap = {};
+                    }
+
+                    /* for (let productIdx = 0; productIdx<products.length; productIdx++){
                         //products[productIdx].name.toLowerCase();
                         //console.log(products[productIdx].name);
                         
@@ -306,14 +394,14 @@ var importAction = {
                             // console.log("MATCH A ", products[productIdx].product_id);
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_1' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_1' as any];
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                             // console.log(map['products_needed_a' as any]);
 
                         }
@@ -323,71 +411,71 @@ var importAction = {
                             // console.log("MATCH B ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_2' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_2' as any];
                             // console.log(map['products_needed_b' as any]);
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                         }
                         if (map['products_needed_c' as any] && products[productIdx].name.toLowerCase() == map['products_needed_c' as any] && products[productIdx].item_num == map[<any>'item_num_3'] && map['qty_3' as any]){
                             // console.log("MATCH C ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_3' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_3' as any];
                             // console.log(map['products_needed_c' as any]);
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                         }
                         if (map['products_needed_d' as any] && products[productIdx].name.toLowerCase() == map['products_needed_d' as any] && products[productIdx].item_num == map[<any>'item_num_4'] && map['qty_4' as any]){
                             // console.log("MATCH D ", products[productIdx].product_id)
                             // console.log(products[productIdx].name);
                             // console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_4' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_4' as any];
                             //console.log(map['products_needed_d' as any]);
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                         }
                         if (map['products_needed_e' as any] && products[productIdx].name.toLowerCase() == map['products_needed_e' as any] && products[productIdx].item_num == map[<any>'item_num_5'] && map['qty_5' as any]){
                             //console.log("MATCH E ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_5' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_5' as any];
                             //console.log(map['products_needed_e' as any]);
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                         }
                         if (map['products_needed_f' as any] && products[productIdx].name.toLowerCase() == map['products_needed_f' as any] && products[productIdx].item_num == map[<any>'item_num_6'] && map['qty_6' as any]){
                             //console.log("MATCH F ", products[productIdx].product_id)
                             //console.log(products[productIdx].name);
                             //console.log(products[productIdx].item_num);
-                            recMap['product_needed' as any] = products[productIdx].product_id;
-                            recMap['units_needed' as any] = map['qty_6' as any];
+                            recElMap['product_needed' as any] = products[productIdx].product_id;
+                            recElMap['units_needed' as any] = map['qty_6' as any];
                             //console.log(map['products_needed_f' as any]);
 
-                            console.log("REC MAP", recMap);
+                            console.log("REC MAP", recElMap);
 
-                            recipeContent.push(recMap);
+                            recipeElements.push(recElMap);
 
-                            recMap = {};
+                            recElMap = {};
                         }
                         if (products[productIdx].name != map['products_needed_a' as any] && products[productIdx].item_num == map[<any>'item_num_1'] && map['products_needed_a' as any] && products[productIdx].item_num != ''){
                             //console.log("MATCH A ", products[productIdx].product_id);
@@ -397,31 +485,37 @@ var importAction = {
                             //console.log("FOREIGN KEY TO CORRECT: ", map['name' as any]); 
 
                         }
-                    }
+                    } */
 
-                    console.log("RECIPE CONTENT ARRAY ", recipeContent);
+                    recMap['label' as any] = map['name' as any];
+                    recMap['recipeElements' as any] = recipeElements;
+
+                    console.log("RECIPE CONTENT ARRAY ", recipeElements);
                     
                     if (map['name' as any]){
-                        console.log("MAP: ", map, " AND RECIPE CONTENT: ", recipeContent);
+                        console.log("MAP: ", map, " AND RECIPE CONTENT: ", recMap);
 
-                        await action.addProduct(map, recipeContent);
-                        recipeContent = [];
+                        await action.addProduct(map, recMap);
+                        recipeElements = [];
                     }
 
                     //console.log(map.name);
                     content.push(map); 
+                    recipes.push(recMap);
                 }
 
                 /* for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
                     
                 } */
 
-                console.log("RESULTS: ", results);
-                console.log("RESULTS LENGTH: ", results.data.length);
+                //console.log("RESULTS: ", results);
+                //console.log("RESULTS LENGTH: ", results.data.length);
                 //console.log(Object.keys(content[0]).length)
                 console.log("CONTENT: ", content);
                 //console.log("TESTING: ", content[0].testing)
                 console.log("CONTENT LENGTH:", content.length);
+
+                console.log("RECIPE: ", recipes);
 
                 console.log("DATA IMPORTED")
                 return content;

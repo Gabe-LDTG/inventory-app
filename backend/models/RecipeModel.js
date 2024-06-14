@@ -16,10 +16,12 @@ export async function getRecipes(){
 //create a recipe
 export async function insertRecipe(rec){
     let info = [
+        rec.label
     ];
     let queryinfo = [
+        "label"
     ];
-    let query = 'INSERT INTO recipes ('+queryinfo+') VALUES (?, ?, ?)';
+    let query = 'INSERT INTO recipes ('+queryinfo+') VALUES (?)';
     
     db.query(query, info).then(([results, fields])=>results);
 
@@ -29,9 +31,10 @@ export async function insertRecipe(rec){
 //edit a recipe
 export async function updateRecipeById(data, id){
     let info = [
-        id
+        id,
+        data.label
     ];
-    return db.query('UPDATE recipes WHERE recipe_id = ?', info).then(([results, fields])=>results);
+    return db.query('UPDATE recipes SET label = ? WHERE recipe_id = ?', info).then(([results, fields])=>results);
 };
 
 //delete a recipe
@@ -87,7 +90,7 @@ export async function deleteRecipeElementById(id){
 
 //Batch insert recipe elements to the database
 export async function batchInsertRecipeElements(values){
-    let fields = "recipe_id, product_id, type, qty"
-    let sql = "INSERT INTO recipe_elements ("+fields+") VALUES (?)"
+    let fields = "product_id, qty, type, recipe_id"
+    let sql = "INSERT INTO recipe_elements ("+fields+") VALUES ?"
     return db.query(sql, [values]).then(([results, fields])=>results);
 }
