@@ -417,9 +417,9 @@
                             <label class="flex justify-content-end font-bold w-full" for="actualTotal">Total:</label>
                         </div> -->
                         <div v-if="poCase.units_per_case">
-                            <DataTable :value="selectRecipe(poCase)">
+                            <DataTable :value="selectRecipeElements(poCase)">
                                 <Column field="name" header="Product Name" />
-                                <Column field="default_units_per_case" header="Units per Box" />
+                                <Column field="qty" header="Units per Box" />
                                 <Column header="Unit(s) per Bundle" >
                                     <template #body="{data}">
                                         {{ getBundleUnits(data.product_id, poCase.product_id) }}
@@ -662,6 +662,7 @@ export default {
 
             //RECIPE VARIABLES
             recipes: [] as any[],
+            recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
 
@@ -777,29 +778,55 @@ export default {
             }
         },
 
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-25-2024
         async getRecipes(){
             try {
                 this.recipes = await action.getRecipes();
+                this.recipeElements = await action.getRecipeElements();
+
+                //console.log(this.recipes);
+                //console.log(this.recipeElements);
             } catch (error) {
                 console.log(error);
             }
         },
 
-        selectRecipe(product: any){
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-25-2024
+        selectRecipeElements(product: any){
 
             //console.log("TESTING MAPS: ", this.recipes.filter(r => r.product_made === productMade.product_id));
             
-            //console.log("PRODUCT  ", productMade);
-            let usedProducts = [] as any[];
+            console.log("PRODUCT  ", product);
+            console.log("RECIPE ELEMENTS ", this.recipeElements);
+            /*let usedProducts = [] as any[];
 
             let usedRecipes = this.recipes.filter(r => r.product_made === product.product_id);
             usedProducts = usedRecipes.flatMap(r => this.products.filter(p => p.product_id === r.product_needed));
-            usedProducts.forEach(p => usedRecipes.find(r => p.product_id === r.product_needed))
+            usedProducts.forEach(p => usedRecipes.find(r => p.product_id === r.product_needed)) */
+
+            let outputProduct = this.recipeElements.find(re => re.type === 'output' && re.product_id === product.product_id);
+            console.log("OUTPUT PRODUCT: ", outputProduct);
+            
+            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === outputProduct.recipe_id);
+            console.log("INPUT PRODUCTS: ", inputProducts);
+
+            inputProducts.forEach(ir => {
+                let inProd = this.products.find(p => p.product_id === ir.product_id);
+                ir.name = inProd.name;
+            })
 
             //console.log("RECIPES USED ", usedRecipes);
             //console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
-            return usedProducts;
+            return inputProducts;
         },
 
         //Description: Gets a product key from the id

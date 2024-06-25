@@ -2,7 +2,7 @@
 import db from "../config/database.js";
 
 const getRec = 'SELECT * FROM recipes';
-const getRecEl = 'SELECT * FROM recipe_element';
+const getRecEl = 'SELECT * FROM recipe_elements';
 const getId = 'SELECT LAST_INSERT_ID()';
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

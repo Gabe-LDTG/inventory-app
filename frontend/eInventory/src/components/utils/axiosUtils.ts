@@ -169,17 +169,17 @@ var action = {
         //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(r){
+            console.log(r);
+            
             let procRecEl = {} as any;
             let recElArray = [] as any[];
             procRecEl['product_id' as any] = addedProductId.data[0]['LAST_INSERT_ID()'];
-            procRecEl['qty' as any] = '1';
+            procRecEl['qty' as any] = 1;
             procRecEl['type' as any] = 'output';
 
             r.recipeElements.push(procRecEl);
 
             procRecEl = {};
-
-            console.log(r);
 
             let addedRecipeId = await axios.post(BASE_URL+"/recipes/create",{
                 label: r.label,
@@ -639,12 +639,21 @@ var action = {
     async getRecipes(){
         return axios.get(BASE_URL+"/recipes").then(res => {
             let recipes = res.data;
-            //console.log("LOCATIONS ", recipes)
+            //console.log("RECIPES ", recipes)
             return recipes;
         })
     },
 
-    //Add a new recipe
+    //Get recipe elements
+    async getRecipeElements(){
+        return axios.get(BASE_URL+"/recipeElements").then(res => {
+            let recipeElements = res.data;
+            console.log("RECIPE ELEMENTS", recipeElements);
+            return recipeElements;
+        })
+    },
+
+    /* //Add a new recipe
     async addRecipe(recipe: any){
         return axios.post(BASE_URL+"/", {
             product_needed: recipe.product_needed,
@@ -658,7 +667,7 @@ var action = {
             console.log(error);
             throw error;
         });
-    },
+    }, */
 
     //LOCATIONS------------------------------------------------------------------------------------------
     //Get locations

@@ -48,8 +48,8 @@
                             PROCESSED
 
                             <DataTable :value="getProductRecipes(slotProps.data.product_id)">
-                                <Column field="product.name" header="Product(s) Needed"></Column>
-                                <Column field="recipe.units_needed" header="Raw Unit(s) Needed Per Processed Unit"></Column>
+                                <Column field="name" header="Product(s) Needed"></Column>
+                                <Column field="qty" header="Raw Unit(s) Needed Per Processed Unit"></Column>
                             </DataTable>
                         </div>
                         <div v-else-if="!slotProps.data.fnsku && !slotProps.data.asin">
@@ -255,14 +255,14 @@
                         <div class="block-div">
                             <div class="field">
                                 <label for="name">Product Needed:</label>
-                                <Dropdown v-model="ing.product_needed" required="true" 
+                                <Dropdown v-model="ing.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
                                 :options="unprocProducts"
                                 optionLabel="name"
                                 filter
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !ing.product_needed}" 
+                                :class="{'p-invalid': submitted && !ing.product_id}" 
                                 >
 
                                 <template #value="slotProps">
@@ -277,15 +277,15 @@
                                         <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
                                     </template>
                                 </Dropdown>
-                                <small class="p-error" v-if="submitted && !ing.product_needed">Product is required.</small>
+                                <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
                             </div>
 
                             <div class="field">
                                 <label for="qty">QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !ing.units_needed}"
-                                v-model="ing.units_needed" showButtons/>
-                                <small class="p-error" v-if="submitted && !ing.units_needed">Amount is required.</small>
+                                :class="{'p-invalid': submitted && !ing.qty}"
+                                v-model="ing.qty" showButtons/>
+                                <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
                             </div>
 
                         </div>
@@ -381,6 +381,7 @@ export default {
 
             //RECIPE VARIABLES
             recipes: [] as any[],
+            recipeElements: [] as any[],
             organizedRecipes: [] as any[],
             recipesInUse: [] as any[],
 
@@ -514,29 +515,19 @@ export default {
             }
         },
 
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-25-2024
         async getRecipes(){
             try {
                 this.loading = true;
                 this.recipes = await action.getRecipes();
+                this.recipeElements = await action.getRecipeElements();
 
-                //console.log(this.recipes.length)
-                //console.log(this.products.length)
-
-                /* for (let recIdx=0; recIdx < this.recipes.length; recIdx++ ){
-                    for (let prodIdx=0; prodIdx < this.products.length; prodIdx++ ){
-                        console.log("IN LOOP")
-                        if (this.recipes[recIdx].product_made==this.products[prodIdx].product_id){
-                            console.log("PRODUCT MADE", this.recipes[recIdx].product_made)
-                            this.recipes[recIdx].made_name = this.products[prodIdx].name;
-                        }
-                        else if (this.recipes[recIdx].product_needed==this.products[prodIdx].product_id){
-                            console.log("PRODUCT needed", this.recipes[recIdx].product_made)
-                            this.recipes[recIdx].needed_name = this.products[prodIdx].name;
-                        }
-                    }
-                }  */
-
-                console.log(this.recipes);
+                //console.log(this.recipes);
+                //console.log(this.recipeElements);
                 this.loading = false;
             } catch (error) {
                 console.log(error);
@@ -619,11 +610,19 @@ export default {
                 this.addIngredient();
             }
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-25-2024
         addIngredient(){
         this.recipesInUse.push(
                 {
-                name: '',
-                amount: 1,
+                product_id: '',
+                qty: 0,
+                type: 'input',
+                recipe_id: '',
                 }
             )
         },
@@ -682,16 +681,33 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
             }
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 6-25-2024
         async confirmCreate(){
             try {
-                this.products.push(this.product);
-                let addedProduct = await action.addProduct(this.product, this.recipesInUse);
+                //this.products.push(this.product);
+
+                let recMap = {} as any;
+
+                console.log("RECIPE ELEMENTS ",this.recipesInUse);
+
+                recMap['label' as any] = this.product.name;
+                recMap['recipeElements' as any] = this.recipesInUse;
+
+                let addedProduct = await action.addProduct(this.product, recMap);
+
+                await this.getProducts();
+                await this.getRecipes();
+
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
 
-                await this.getProducts();
-                await this.getRecipes();
+                recMap = {};
 
                 return addedProduct;
             } catch (err) {
@@ -936,32 +952,19 @@ export default {
         },
 
         getProductRecipes(productId: number){
-            let productRecipes = [] as any[];
-            let displayedProducts = [] as any[];
-            let recipeMap = {} as any;
 
-            for (let recIdx = 0; recIdx < this.recipes.length; recIdx++){
-                if(this.recipes[recIdx].product_made == productId){
-                    productRecipes.push(this.recipes[recIdx]);
-                }
-            }
+            let outputProduct = this.recipeElements.find(re => re.type === 'output' && re.product_id === productId);
+            console.log("OUTPUT RECIPE", outputProduct);
 
-            for (let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
-                for (let prodRecIdx = 0; prodRecIdx < productRecipes.length; prodRecIdx++){
-                    if(productRecipes[prodRecIdx].product_needed == this.products[prodIdx].product_id){
-                        recipeMap['recipe'] = productRecipes[prodRecIdx];
-                        recipeMap['product'] = this.products[prodIdx];
+            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === outputProduct.recipe_id);
+            console.log("INPUT RECIPES", inputProducts);
 
-                        displayedProducts.push(recipeMap);
+            inputProducts.forEach(ir => {
+                let inProd = this.products.find(p => p.product_id === ir.product_id);
+                ir.name = inProd.name;
+            })
 
-                        recipeMap = {};
-                    }
-                }
-            }
-
-            console.log("NEEDED RECIPE ", productRecipes);
-            console.log("DISPLAYED PRODUCTS ", displayedProducts);
-            return displayedProducts;
+           return inputProducts;
         },
     }
 }
