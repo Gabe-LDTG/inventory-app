@@ -160,7 +160,7 @@ router.delete("purchaseOrders/:id", deletePurchaseOrder);
 router.get("/purchaseOrderRecipes", showPurchaseOrderRecipes);
 
 //Create a Purchase Order Recipe
-router.post("/purchaseOrders/create", createPurchaseOrderRecipe);
+router.post("/purchaseOrderRecipes/create", createPurchaseOrderRecipe);
 
 //Edit a Purchase Order Recipe
 router.put("/purchaseOrderRecipes/:id", updatePurchaseOrderRecipe);

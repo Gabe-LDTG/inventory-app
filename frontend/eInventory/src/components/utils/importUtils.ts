@@ -386,7 +386,7 @@ var importAction = {
                         recElMap = {};
                     }
 
-                    recMap['label' as any] = map['name' as any];
+                    recMap['label' as any] = map['name' as any] + ' - ' + map['fnsku' as any];
                     recMap['recipeElements' as any] = recipeElements;
 
                     console.log("RECIPE CONTENT ARRAY ", recipeElements);
@@ -537,7 +537,7 @@ var importAction = {
                     }
                     
 
-                    content.push(JSON.stringify(map)); 
+                    content.push(map); 
                 }
 
                 console.log("RESULTS: ", results);

@@ -686,7 +686,7 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: ???
-        //Date Last Edited: 6-25-2024
+        //Date Last Edited: 6-27-2024
         async confirmCreate(){
             try {
                 //this.products.push(this.product);
@@ -695,7 +695,7 @@ export default {
 
                 console.log("RECIPE ELEMENTS ",this.recipesInUse);
 
-                recMap['label' as any] = this.product.name;
+                recMap['label' as any] = this.product.name + ' - ' + this.product.fnsku;
                 recMap['recipeElements' as any] = this.recipesInUse;
 
                 let addedProduct = await action.addProduct(this.product, recMap);

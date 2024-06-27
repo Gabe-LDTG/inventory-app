@@ -721,6 +721,7 @@ export default {
             try {
                 this.loading = true;
                 this.purchaseOrders = await action.getPurchaseOrders();
+                this.poRecipes = await action.getPurchaseOrderRecipes();
 
                 this.purchaseOrders.forEach(po => {
                     if(po.date_ordered)
@@ -729,7 +730,8 @@ export default {
                         po.date_received = po.date_received.split('T')[0];
                 });
                 
-                console.log(this.purchaseOrders);
+                console.log("PURCHASE ORDERS", this.purchaseOrders);
+                console.log("PO RECIPES ", this.poRecipes);
                 
                 this.loading = false;
             } catch (err) {

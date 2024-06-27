@@ -336,19 +336,7 @@ var action = {
     //Batch insert products
     async batchInsertProduct(p: any){
         console.log("BATCH PRODUCT ", p)
-
-        //let convertedP = JSON.stringify(p);
-
-        //console.log("CONVERTED", convertedP);
-        return axios.post(BASE_URL+"/products/batchInsert", p).then((res) => {
-            //location.reload();
-            //setInterval(this.refreshData, 1000);
-
-            // if ANY fail validation
-            //this.displayCreate = false;
-            //alert('Form successfully submitted.')
-            //this.refreshData();
-        }).catch(error => {
+        return axios.post(BASE_URL+"/products/batchInsert", p).catch(error => {
             console.log(error);
             throw error;
         });
@@ -590,12 +578,51 @@ var action = {
 
     },
 
+    //Get Purchase Order Recipes
+    async getPurchaseOrderRecipes(){
+        return axios.get(BASE_URL+"/purchaseOrderRecipes").then(res => {
+            let poRecipes = res.data;
+            //console.log("PO RECIPES ", poRecipes)
+            return poRecipes;
+        })
+    },
+
+    //Add a Purchase Order Recipe
+    async addPurchaseOrderRecipe(poRecipe: any){
+        return axios.post(BASE_URL+"/purchaseOrderRecipes/create", {
+            purchase_order_id: poRecipe.purchase_order_id,
+            recipe_id: poRecipe.recipe_id,
+            qty: poRecipe.qty
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Edit a Purchase Order Recipe
+    async editPurchaseOrderRecipe(poRecipe: any){
+        return axios.put(BASE_URL+"/purchaseOrderRecipes/"+poRecipe.po_recipe_id, {
+            purchase_order_id: poRecipe.purchase_order_id,
+            recipe_id: poRecipe.recipe_id,
+            qty: poRecipe.qty
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
         return axios.get(BASE_URL+"/vendors").then(res => {
             let vendors = res.data;
-            console.log("VENDORS ", vendors)
+            //console.log("VENDORS ", vendors)
             return vendors;
         })
     },
@@ -619,7 +646,7 @@ var action = {
 
     //Edit a vendor
     async editVendor(vendor: any){
-        return axios.post(BASE_URL+"/vendors/"+vendor.vendor_id, {
+        return axios.put(BASE_URL+"/vendors/"+vendor.vendor_id, {
             vendor_name: vendor.vendor_name,
             vendor_nickname: vendor.vendor_nickname,
             contact_email: vendor.contact_email,
@@ -697,7 +724,7 @@ var action = {
 
     //Edit a location
     async editLocation(location: any){
-        return axios.post(BASE_URL+"/locations/"+location.location_id, {
+        return axios.put(BASE_URL+"/locations/"+location.location_id, {
             name: location.name,
         }).then((res) => {
             console.log(res);
