@@ -23,6 +23,7 @@ import {
     bulkCreateCase,
     updateCase,
     deleteCase,
+    batchDeleteCases,
 } from "../controllers/cases.js";
 
 import {
@@ -142,6 +143,9 @@ router.put('/cases/:id', updateCase);
 
 //Delete Cases
 router.delete('/cases/:id',deleteCase);
+
+//Batch Delete
+router.post('/cases/batchDelete', batchDeleteCases);
 
 //PURCHASE ORDERS-----------------------------------------------------------------
 //Get Purchase orders

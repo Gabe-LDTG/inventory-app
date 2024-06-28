@@ -55,3 +55,9 @@ export async function deleteCaseById(id){
     console.log(id);
     return db.query("DELETE FROM cases WHERE case_id = ?", [id]).then(([results, fields])=>results);
 }
+
+//Batch delete case from the database
+export async function batchDeleteCase(values){
+    let sql = "DELETE FROM cases WHERE case_id IN (?)"
+    return db.query(sql, [values]).then(([results, fields])=>results);
+}

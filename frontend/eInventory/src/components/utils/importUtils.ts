@@ -165,7 +165,7 @@ var importAction = {
                     }
 
                     if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
-                        console.log(results.data[dataIdx]['Products needed A']);
+                        //console.log(results.data[dataIdx]['Products needed A']);
                         map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
                     }
 
@@ -386,7 +386,8 @@ var importAction = {
                         recElMap = {};
                     }
 
-                    recMap['label' as any] = map['name' as any] + ' - ' + map['fnsku' as any];
+                    //recMap['label' as any] = map['name' as any] + ' - ' + map['fnsku' as any];
+                    //recMap['vendor_id' as any] = map['vendor' as any];
                     recMap['recipeElements' as any] = recipeElements;
 
                     console.log("RECIPE CONTENT ARRAY ", recipeElements);

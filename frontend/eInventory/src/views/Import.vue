@@ -124,6 +124,7 @@ export default {
                 console.log("CONTENT ",content);
 
                 await action.batchDeleteProduct(content);
+                content = [];
 
                 this.loading = false;
                 this.actionMSG = "";
@@ -133,6 +134,7 @@ export default {
         },
         async purgeCases(event: any){
             try {
+                let content = [];
                 this.loading = true;
                 let cases = await action.getCases();
                 console.log(cases);
@@ -142,8 +144,12 @@ export default {
                 for(let i=0; i<cases.length; i++){
                     let nuf = (i/this.total)*100;
                     this.percentage = nuf.toFixed(1);
-                    await action.deleteCase(cases[i].case_id);
+                    //await action.deleteCase(cases[i].case_id);
+                    content.push(cases[i].case_id);
                 }
+
+                await action.batchDeleteCases(content);
+                content = [];
                 this.loading = false;
             } catch (error) {
                 console.log(error);

@@ -695,7 +695,8 @@ export default {
 
                 console.log("RECIPE ELEMENTS ",this.recipesInUse);
 
-                recMap['label' as any] = this.product.name + ' - ' + this.product.fnsku;
+                //recMap['label' as any] = this.product.name + ' - ' + this.product.fnsku;
+                //recMap['vendor_id' as any] = this.product.vendor;
                 recMap['recipeElements' as any] = this.recipesInUse;
 
                 let addedProduct = await action.addProduct(this.product, recMap);

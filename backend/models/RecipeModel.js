@@ -16,12 +16,14 @@ export async function getRecipes(){
 //create a recipe
 export async function insertRecipe(rec){
     let info = [
-        rec.label
+        rec.label,
+        rec.vendor_id
     ];
     let queryinfo = [
-        "label"
+        "label",
+        "vendor_id"
     ];
-    let query = 'INSERT INTO recipes ('+queryinfo+') VALUES (?)';
+    let query = 'INSERT INTO recipes ('+queryinfo+') VALUES (?, ?)';
     
     db.query(query, info).then(([results, fields])=>results);
 
@@ -32,9 +34,10 @@ export async function insertRecipe(rec){
 export async function updateRecipeById(data, id){
     let info = [
         id,
-        data.label
+        data.label,
+        data.vendor_id
     ];
-    return db.query('UPDATE recipes SET label = ? WHERE recipe_id = ?', info).then(([results, fields])=>results);
+    return db.query('UPDATE recipes SET label = ?, vendor_id = ? WHERE recipe_id = ?', info).then(([results, fields])=>results);
 };
 
 //delete a recipe

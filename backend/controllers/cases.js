@@ -7,6 +7,7 @@ import{
     bulkInsertCases,
     updateCaseById,
     deleteCaseById,
+    batchDeleteCase,
 } from "../models/CaseModel.js";
 
 //get all cases
@@ -103,5 +104,20 @@ export async function deleteCase(req, res){
     } catch (err) {
         console.error(err);
         res.sendStatus(500);
+    }
+}
+
+//Delete Cases
+export async function batchDeleteCases(req, res){
+    try {
+        console.log("BATCH DELETE")
+        console.log("REQ PARAMS",req.body)
+        const id = req.body;
+
+        const deletedCases = await batchDeleteCase(id);
+        res.json(deletedCases);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send(err.message);
     }
 }

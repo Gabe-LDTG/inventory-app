@@ -170,7 +170,15 @@ var action = {
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(r){
             console.log(r);
+
+            /*
+            * r['label' as any] = p.name + ' - ' + p.fnsku;
+            * r['vendor_id' as any] = p.vendor;
+            */
             
+            r['label' as any] = p.name + ' - ' + p.fnsku;
+            r['vendor_id' as any] = p.vendor;
+
             let procRecEl = {} as any;
             let recElArray = [] as any[];
             procRecEl['product_id' as any] = addedProductId.data[0]['LAST_INSERT_ID()'];
@@ -511,7 +519,29 @@ var action = {
         });
     },
 
-    //PURCHASE ORDERS
+    //Batch delete products
+    async batchDeleteCases(c: any){
+        //console.log(id);
+        //if(confirm("Do you really want to delete?")){
+
+            console.log(c);
+
+            return axios.post(BASE_URL+"/cases/batchDelete", c)
+            .then(res => {
+                //location.reload();
+                //this.refreshData();
+            })
+            .catch(error => {
+                console.log(error.response.data);
+                console.log(error.request.data);
+                console.log(error);
+                //console.log("########################AXIOS ERROR##############################")
+                throw error.response.data;
+            })
+        //}
+    },
+
+    //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
         let purchaseOrders;
