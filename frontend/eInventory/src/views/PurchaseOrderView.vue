@@ -91,7 +91,7 @@
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === 'Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
                     </div>
                     </template>
@@ -419,10 +419,14 @@
                         <div v-if="poCase.units_per_case">
                             <DataTable :value="selectRecipeElements(poCase)">
                                 <Column field="name" header="Product Name" />
-                                <Column field="qty" header="Units per Box" />
+                                <Column field="qty" header="Units per Box" >
+                                    <template #body="{data}">
+                                        {{ getProductInfo(data.product_id, 'default_units_per_case') }}
+                                    </template>
+                                </Column>
                                 <Column header="Unit(s) per Bundle" >
                                     <template #body="{data}">
-                                        {{ getBundleUnits(data.product_id, poCase.product_id) }}
+                                        {{ getBundleUnits(data.product_id) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Units Needed">
@@ -441,8 +445,8 @@
                                     </template>
                                 </Column>
                                 <Column header="Unit Price" >
-                                    <template #body="slotProps">
-                                        ${{ formatCurrency(slotProps.data.price_2023) }}
+                                    <template #body="{data}">
+                                        ${{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Price" >
@@ -855,27 +859,67 @@ export default {
             return name;
         },
 
-        getBundleUnits(productNeeded: number, productMade: number){
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: 7-1-2024
+        //Date Last Edited: 7-1-2024
+        getProductInfo(productId: number, field: string){
+            let prodKey = this.products.find(p => p.product_id === productId);
+            console.log(prodKey)
+            return prodKey[field];
+        },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-1-2024
+        getBundleUnits(productNeeded: number){
             //console.log("PRODUCT NEEDED ", productNeeded);
             //console.log("PRODUCT MADE, ", productMade);
-            let recipe = [] as any[];
-            recipe = this.recipes.find(r => r.product_needed === productNeeded && r.product_made === productMade);
-            return recipe[<any>'units_needed'];
+            let recipeElement = [] as any[];
+            recipeElement = this.recipeElements.find(r => r.product_id === productNeeded && r.type === 'input');
+            return recipeElement[<any>'qty'];
         },
 
-        getTotalUnitsNeeded(rawBox: any, poCase: any){
-            return this.getBundleUnits(rawBox.product_id, poCase.product_id)*(poCase.units_per_case * poCase.amount);
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-1-2024
+        getTotalUnitsNeeded(rawRecEl: any, poCase: any){
+            return this.getBundleUnits(rawRecEl.product_id)*(poCase.units_per_case * poCase.amount);
         },
 
-        getTotalUnitsOrdered(rawBox: any, poCase: any){
-            return this.getRawBoxTotal(rawBox, poCase) * rawBox.default_units_per_case;
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-1-2024
+        getTotalUnitsOrdered(rawRecEl: any, poCase: any){
+            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            return this.getRawBoxTotal(rawRecEl, poCase) * rawBox.default_units_per_case;
         },
 
-        getRawBoxTotal(rawBox: any, poCase: any){
-            return Math.ceil(this.getTotalUnitsNeeded(rawBox, poCase) / rawBox.default_units_per_case);
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-1-2024
+        getRawBoxTotal(rawRecEl: any, poCase: any){
+            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            return Math.ceil(this.getTotalUnitsNeeded(rawRecEl, poCase) / rawBox.default_units_per_case);
         },
-        getTotalCost(rawBox: any, poCase: any){
-            return rawBox.price_2023*this.getTotalUnitsOrdered(rawBox, poCase); 
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-1-2024
+        getTotalCost(rawRecEl: any, poCase: any){
+            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase); 
         },
         getCreatedUnitTotal(poID: number){
             let total = 0;
@@ -1678,10 +1722,15 @@ export default {
                 this.poCases.forEach(c => {
                     if(c.product_id){
                         //console.log(c);
-                        let rec = this.recipes.find(r => c.product_id === r.product_made);
-                        let rawKey = this.products.find(p => p.product_id === rec.product_needed);
-                        //console.log(rawKey);
-                        total += this.getTotalCost(rawKey, c);
+
+                        let caseRecEl = this.recipeElements.find(r => c.product_id === r.product_id);
+                        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === caseRecEl.recipe_id && r.type === 'input');
+
+                        rawRecEls.forEach(recEl => {
+                            let rawKey = this.products.find(p => p.product_id === recEl.product_id);
+                            //console.log("RAW KEY", rawKey);
+                            total += this.getTotalCost(rawKey, c);
+                        });
                     }
                 });
                 this.poBoxes.forEach(b => {
@@ -1723,10 +1772,14 @@ export default {
                 this.poCases.forEach(c => {
                     if(c.product_id){
                         //console.log(c);
-                        let rec = this.recipes.find(r => c.product_id === r.product_made);
-                        let rawKey = this.products.find(p => p.product_id === rec.product_needed);
-                        //console.log(rawKey);
-                        total += this.getTotalUnitsOrdered(rawKey, c);
+                        let caseRecEl = this.recipeElements.find(r => c.product_id === r.product_id);
+                        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === caseRecEl.recipe_id && r.type === 'input');
+
+                        rawRecEls.forEach(recEl => {
+                            let rawKey = this.products.find(p => p.product_id === recEl.product_id);
+                            //console.log("RAW KEY", rawKey);
+                            total += this.getTotalUnitsOrdered(rawKey, c);
+                        });
                     }
                 });
                 this.poBoxes.forEach(b => {

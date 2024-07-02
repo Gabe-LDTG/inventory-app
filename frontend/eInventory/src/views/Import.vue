@@ -148,6 +148,7 @@ export default {
                     content.push(cases[i].case_id);
                 }
 
+                console.log(content);
                 await action.batchDeleteCases(content);
                 content = [];
                 this.loading = false;

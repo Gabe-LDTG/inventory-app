@@ -7,6 +7,7 @@ import{
     updateProductById,
     deleteProductById,
     batchInsertProduct,
+    batchInsertRawProduct,
     batchDeleteProduct,
 } from "../models/ProductModel.js";
 
@@ -126,6 +127,26 @@ export async function batchInsert(req, res){
         res.status(500).send(error.message);
     }
 }
+
+//Batch insert raw products
+export async function batchInsertRaw(req, res){
+    try {
+        console.log("REQ BODY", req.body);
+
+        const data=req.body;
+
+        console.log(data);
+
+        const insertedProduct = await batchInsertRawProduct(data);
+        
+        res.json(insertedProduct);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error.message);
+    }
+}
+
 
 //Delete Product
 export async function batchDelete(req, res){

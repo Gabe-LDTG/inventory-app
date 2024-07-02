@@ -191,6 +191,7 @@ var action = {
 
             let addedRecipeId = await axios.post(BASE_URL+"/recipes/create",{
                 label: r.label,
+                vendor_id: r.vendor_id
             })
 
             r.recipeElements.forEach(async (recEl: any) => {
@@ -345,6 +346,35 @@ var action = {
     async batchInsertProduct(p: any){
         console.log("BATCH PRODUCT ", p)
         return axios.post(BASE_URL+"/products/batchInsert", p).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Batch insert raw products
+    async batchInsertRawProducts(p: any[]){
+        let productArray = [] as any[];
+        p.filter(p => p.name).forEach(product => {
+            if(!product.notes)
+                product.notes = null;
+            if(!product.map)
+                product.map = null;
+            if(!product.price_2021)
+                product.price_2021 = null;
+            if(!product.price_2022)
+                product.price_2022 = null;
+            if(!product.price_2023)
+                product.price_2023 = 0;
+            let tempArray = [product.name, 
+                product.upc, product.notes, 
+                product.default_units_per_case, 
+                product.item_num, product.map, 
+                product.price_2021, product.price_2022, product.price_2023, 
+                product.vendor]
+            productArray.push(tempArray);
+        })
+        console.log("BATCH PRODUCT ", p)
+        return axios.post(BASE_URL+"/products/batchInsertRaw", productArray).catch(error => {
             console.log(error);
             throw error;
         });

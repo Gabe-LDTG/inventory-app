@@ -20,7 +20,7 @@ const app = express();
 const port = 5000;
 
 //use express json
-app.use(express.json());
+app.use(express.json({limit: '50mb'}));
 
 //use cors
 app.use(cors(
