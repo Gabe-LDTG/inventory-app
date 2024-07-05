@@ -601,7 +601,7 @@ var action = {
             vendor_id: purchaseOrder.vendor_id,
         }).then((res) => {
             console.log(res);
-            return res.data;
+            return res.data[0]['LAST_INSERT_ID()'];
 
         }).catch(error => {
             console.log(error);
@@ -676,6 +676,13 @@ var action = {
             throw error;
         });
     },
+
+        //Add multiple cases at the same time
+        async bulkAddPurchaseOrderRecipe(poRecipe: any){
+            return axios.post(BASE_URL+"/purchaseOrderRecipes/bulk",poRecipe).catch(error => {
+                console.log(error);
+            });
+        },
 
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors

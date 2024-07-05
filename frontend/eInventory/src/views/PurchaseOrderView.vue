@@ -340,6 +340,10 @@
                 <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
 
                 <!--------------------------------------- RECIPES ---------------------------------------------->
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
+                </div>
+
                 <template class="caseCard" v-for="(poRecipe, counter) in recipeArray">
 
                 <div class ="caseCard">
@@ -438,122 +442,7 @@
 
                 <Button label="Add another product" text @click="addBulkLine(recipeArray)"/> 
 
-                <!-- PROC------------------------------------------------------------------------------------ -->
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
-                </div>
-
-                <template class="caseCard" v-for="(poCase, counter) in poCases">
-
-                    <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
-
-                        <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
-                        <div class="block-div">
-                            <div class="field">
-                                <label for="name">Name:</label>
-                                <Dropdown v-model="poCase.product_id" required="true" 
-                                placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'proc')"
-                                optionLabel="name"
-                                filter
-                                @change="poCase.units_per_case = onProductSelection(poCase.product_id); /* selectRecipe(poCase, counter);*/ poCase.total = poCase.amount*poCase.units_per_case;"
-                                optionValue="product_id"
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !poCase.product_id}" 
-                                >
-
-                                <template #value="slotProps">
-                                        <div v-if="slotProps.value" class="flex align-items-center">
-                                            <div>{{ slotProps.value.product_id }}</div>
-                                        </div>
-                                        <span v-else>
-                                            {{ slotProps.placeholder }}
-                                        </span>
-                                    </template>
-                                    <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
-                                    </template>
-                                </Dropdown>
-                                <small class="p-error" v-if="submitted && !poCase.product_id">Name is required.</small>
-                            </div>
-
-                            <div class="field">
-                                <label for="qty">Normal Case QTY:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !poCase.units_per_case}"
-                                v-model="poCase.units_per_case" disabled
-                                />
-                                <small class="p-error" v-if="submitted && !poCase.units_per_case">Amount is required.</small>
-                            </div>
-
-                            <div v-show="!poCase.case_id" class="field">
-                                <label for="amount">Cases Desired to Be Made</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="poCase.amount" showButtons :min="1"
-                                @update=""/>
-                            </div>
-
-                            <div class="field">
-                                <label for="notes">Notes:</label>
-                                <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
-                            </div>
-
-                            <div v-if="poCase.units_per_case" class="field">
-                                <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                                <div class="flex justify-content-end font-bold w-full">{{ poCase.units_per_case * poCase.amount }}</div>
-                            </div>
-
-                        </div>
-                        
-                        <div v-if="poCase.units_per_case">
-                            <DataTable :value="selectRecipeElements(poCase)">
-                                <Column field="name" header="Product Name" />
-                                <Column field="qty" header="Units per Box" >
-                                    <template #body="{data}">
-                                        {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                                    </template>
-                                </Column>
-                                <Column header="Unit(s) per Bundle" >
-                                    <template #body="{data}">
-                                        {{ getBundleUnits(data.product_id) }}
-                                    </template>
-                                </Column>
-                                <Column header="Total Units Needed">
-                                    <template #body="{data}">
-                                        {{  getTotalUnitsNeeded(data, poCase) }}
-                                    </template>
-                                </Column>
-                                <Column header="Total Units Ordered" >
-                                    <template #body="{data}">
-                                        {{ getTotalUnitsOrdered(data, poCase) }}
-                                    </template>
-                                </Column>
-                                <Column header="Raw Box Total" >
-                                    <template #body="{data}">
-                                        {{ getRawBoxTotal(data, poCase) }}
-                                    </template>
-                                </Column>
-                                <Column header="Unit Price" >
-                                    <template #body="{data}">
-                                        ${{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                                    </template>
-                                </Column>
-                                <Column header="Total Price" >
-                                    <template #body="{data}">
-                                        {{ formatCurrency(getTotalCost(data, poCase)) }}
-                                    </template>
-                                </Column>
-                            </DataTable>
-                            <InputText id="notes" v-model="poCase.notes" rows="3" cols="20" />
-                        </div>
-
-                    </div>
-                </template>
-
-                <Button label="Add another product" text @click="addBulkLine(poCases)"/>
-
-
+                
                 <!-- RAW ----------------------------------------------------------------------------------- -->
                 <div class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Box(s):</h3>
@@ -666,8 +555,9 @@
 
                     </div>
 
-                    <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
                 </template>
+
+            <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
 
             </div>
 
@@ -946,7 +836,7 @@ export default {
         //Date Last Edited: 7-1-2024
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
-            console.log(prodKey)
+            //console.log(prodKey)
             return prodKey[field];
         },
 
@@ -1154,11 +1044,17 @@ export default {
             return vendorRecipes;
         },
 
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-5-2024
         openNew() {
 
             this.vendorDialog = false;
             this.poBoxes = [];
             this.poCases = [];
+            this.recipeArray = [];
             this.selectedOrderType = "";
             this.amount = 1;
 
@@ -1245,9 +1141,9 @@ export default {
 
             let errAmount = 0;
             let errText = [];
-            console.log("PO", this.purchaseOrder);
-            console.log("PO CASES: ", this.poCases);
-            console.log("PO BOXES: ", this.poBoxes);
+            //console.log("PO", this.purchaseOrder);
+            //console.log("PO CASES: ", this.poCases);
+            //console.log("PO BOXES: ", this.poBoxes);
             //console.log("NOT FLATTENED", this.purchaseOrder.cases);
             //console.log("FLATTENED PO ONE LEVEL", this.purchaseOrder.cases.flat());
             //console.log("FLATTENED PO TWO LEVELS", this.purchaseOrder.cases.flat(2));
@@ -1407,18 +1303,36 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-5-2024
         async confirmCreate(){
             try {
                 this.purchaseOrders.push(this.purchaseOrder);
                 let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
+                //let addedPurchaseOrderId = '';
+
+                console.log("PO ID BEFORE VALUES", addedPurchaseOrderId);
 
                 let casesToInsert = [] as any[];
 
-                //this.poCases = this.poCases.filter(c => c.product_id);
+                let recipesToInsert = [] as any[];
 
                 console.log("PO CASES", this.poCases);
+                console.log("RECIPES ", this.recipeArray);
 
-                this.poCases.filter(c => c.product_id).forEach(async (indivCase: any) => {
+                this.recipeArray.filter(r => r.recipe_id).forEach(r => {
+                    let tempArray = [addedPurchaseOrderId, r.recipe_id, r.amount];
+                    recipesToInsert.push(tempArray);
+                })
+
+                console.log("RECIPES TO INSERT ",recipesToInsert)
+                await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
+
+                /* this.poCases.filter(c => c.product_id).forEach(async (indivCase: any) => {
                     if (indivCase.product_id){
 
                         let indivProcKey = this.products.find(p => p.product_id === indivCase.product_id);
@@ -1464,7 +1378,7 @@ export default {
                             })
                         }
                     }
-                });
+                }); */
 
                 //this.poBoxes = this.poBoxes.filter(b => b.product_id);
 
@@ -1475,7 +1389,7 @@ export default {
                         rawProduct.status = this.purchaseOrder.status;
 
                     rawProduct.units_per_case = rawKey.default_units_per_case;
-                    rawProduct.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
+                    rawProduct.purchase_order_id = addedPurchaseOrderId;
 
                     for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
                         console.log("RAWPRODUCT: ", rawProduct);
@@ -1498,7 +1412,9 @@ export default {
                         finalCaseArray.push(tempArray);
                     })
                 console.log("FINAL ARRAY", finalCaseArray);
-                await action.bulkAddCases(finalCaseArray);
+
+                if(finalCaseArray.length > 0)
+                    await action.bulkAddCases(finalCaseArray);
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
                 console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
@@ -1630,7 +1546,7 @@ export default {
             //console.log("PRODUCT ID: ", product_id);
             let prod = this.products.find(p => product_id === p.product_id);
 
-            console.log(prod.price_2023);
+            //console.log(prod.price_2023);
             //NEED TO MAKE ANOTHER TABLE FOR PRICES
             return prod.price_2023;
         },

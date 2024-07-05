@@ -88,6 +88,6 @@ export async function updatePurOrdRecById (data, id){
 //Batch insert recipe elements to the database
 export async function batchInsertPurchaseOrderRecipeElements(values){
     let fields = "purchase_order_id, recipe_id, qty"
-    let sql = "INSERT INTO po_recipes ("+fields+") VALUES (?)"
+    let sql = "INSERT INTO po_recipes ("+fields+") VALUES ?"
     return db.query(sql, [values]).then(([results, fields])=>results);
 }
