@@ -409,17 +409,17 @@
                             </Column>
                             <Column header="Total Units Needed">
                                 <template #body="{data}">
-                                    {{  getTotalUnitsNeeded(data, poCases[counter]) }}
+                                    {{  getTotalUnitsNeeded(data, poCases[counter], poRecipe.amount) }}
                                 </template>
                             </Column>
                             <Column header="Total Units Ordered" >
                                 <template #body="{data}">
-                                    {{ getTotalUnitsOrdered(data, poCases[counter]) }}
+                                    {{ getTotalUnitsOrdered(data, poCases[counter], poRecipe.amount) }}
                                 </template>
                             </Column>
                             <Column header="Raw Box Total" >
                                 <template #body="{data}">
-                                    {{ getRawBoxTotal(data, poCases[counter]) }}
+                                    {{ getRawBoxTotal(data, poCases[counter], poRecipe.amount) }}
                                 </template>
                             </Column>
                             <Column header="Unit Price" >
@@ -429,7 +429,7 @@
                             </Column>
                             <Column header="Total Price" >
                                 <template #body="{data}">
-                                    {{ formatCurrency(getTotalCost(data, poCases[counter])) }}
+                                    {{ formatCurrency(getTotalCost(data, poCases[counter], poRecipe.amount)) }}
                                 </template>
                             </Column>
                         </DataTable>
@@ -858,10 +858,11 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-3-2024
-        getTotalUnitsNeeded(rawRecEl: any, poCase: any){
-            console.log("rawRecEl ",rawRecEl);
-            console.log("Po CASE ",poCase);
-            return this.getBundleUnits(rawRecEl.product_id)*(poCase.default_units_per_case * poCase.amount);
+        getTotalUnitsNeeded(rawRecEl: any, poCase: any, recipeAmount: number){
+            //CHECK HOW TO STOP THE FUNCTION FROM RUNNING FOR EVERY ARRAY VALUE
+            //console.log("rawRecEl ",rawRecEl);
+            //console.log("Po CASE ",poCase);
+            return this.getBundleUnits(rawRecEl.product_id)*(poCase.default_units_per_case * recipeAmount);
         },
 
         //Description: 
@@ -869,9 +870,9 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-1-2024
-        getTotalUnitsOrdered(rawRecEl: any, poCase: any){
+        getTotalUnitsOrdered(rawRecEl: any, poCase: any, recipeAmount: number){
             let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
-            return this.getRawBoxTotal(rawRecEl, poCase) * rawBox.default_units_per_case;
+            return this.getRawBoxTotal(rawRecEl, poCase, recipeAmount) * rawBox.default_units_per_case;
         },
 
         //Description: 
@@ -879,9 +880,9 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-1-2024
-        getRawBoxTotal(rawRecEl: any, poCase: any){
+        getRawBoxTotal(rawRecEl: any, poCase: any, recipeAmount: number){
             let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
-            return Math.ceil(this.getTotalUnitsNeeded(rawRecEl, poCase) / rawBox.default_units_per_case);
+            return Math.ceil(this.getTotalUnitsNeeded(rawRecEl, poCase, recipeAmount) / rawBox.default_units_per_case);
         },
 
         //Description: 
@@ -889,9 +890,9 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-1-2024
-        getTotalCost(rawRecEl: any, poCase: any){
+        getTotalCost(rawRecEl: any, poCase: any, recipeAmount: number){
             let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
-            return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase); 
+            return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase, recipeAmount); 
         },
         getCreatedUnitTotal(poID: number){
             let total = 0;
@@ -1741,7 +1742,7 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
-        //Date Last Edited: 6-04-2024
+        //Date Last Edited: 7-08-2024
         calculatePoCostTotal(){
             let total=0;
 
@@ -1752,19 +1753,26 @@ export default {
                 })
             } // If the PO is being created
             else {
-                this.poCases.forEach(c => {
-                    if(c.product_id){
-                        //console.log(c);
+                this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
+                    //console.log(poRec);
 
-                        let caseRecEl = this.recipeElements.find(r => c.product_id === r.product_id);
-                        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === caseRecEl.recipe_id && r.type === 'input');
+                    let recipeKey = this.recipes.find(r => poRec.recipe_id === r.recipe_id);
+                    //console.log(recipeKey);
 
-                        rawRecEls.forEach(recEl => {
+                    let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
+                    //console.log(recipeElements);
+
+                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
+                    //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
+
+                    rawRecElArray.forEach(recEl => {
                             let rawKey = this.products.find(p => p.product_id === recEl.product_id);
                             //console.log("RAW KEY", rawKey);
-                            total += this.getTotalCost(rawKey, c);
+                            total += this.getTotalCost(rawKey, processedRecElKey, poRec.amount);
                         });
-                    }
+
                 });
                 this.poBoxes.forEach(b => {
                     if(b.product_id){
@@ -1788,7 +1796,7 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
-        //Date Last Edited: 6-04-2024
+        //Date Last Edited: 7-08-2024
         calculatePoUnitTotal(){
             let total=0;
 
@@ -1802,18 +1810,26 @@ export default {
                 });
             } //If the PO is being created
             else {
-                this.poCases.forEach(c => {
-                    if(c.product_id){
-                        //console.log(c);
-                        let caseRecEl = this.recipeElements.find(r => c.product_id === r.product_id);
-                        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === caseRecEl.recipe_id && r.type === 'input');
+                this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
+                    //console.log(poRec);
 
-                        rawRecEls.forEach(recEl => {
+                    let recipeKey = this.recipes.find(r => poRec.recipe_id === r.recipe_id);
+                    //console.log(recipeKey);
+
+                    let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
+                    //console.log(recipeElements);
+
+                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
+                    //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
+
+                    rawRecElArray.forEach(recEl => {
                             let rawKey = this.products.find(p => p.product_id === recEl.product_id);
                             //console.log("RAW KEY", rawKey);
-                            total += this.getTotalUnitsOrdered(rawKey, c);
+                            total += this.getTotalUnitsOrdered(rawKey, processedRecElKey, poRec.amount);
                         });
-                    }
+
                 });
                 this.poBoxes.forEach(b => {
                     if(b.product_id){
