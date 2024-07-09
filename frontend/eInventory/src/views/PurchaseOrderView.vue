@@ -897,7 +897,10 @@ export default {
         getCreatedUnitTotal(poID: number){
             let total = 0;
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
-            usedBoxes.forEach(b => total+=b.units_per_case);
+            if (usedBoxes.length === 0)
+                usedBoxes.forEach(b => total+=b.units_per_case);
+
+            
             return total;
         },
         getCreatedCostTotal(poID: number){
@@ -1328,6 +1331,25 @@ export default {
                 this.recipeArray.filter(r => r.recipe_id).forEach(r => {
                     let tempArray = [addedPurchaseOrderId, r.recipe_id, r.amount];
                     recipesToInsert.push(tempArray);
+
+                    let processedRecEl = this.recipeElements.find(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'output');
+
+                    let processedCaseKey = this.products.find(prod => prod.product_id === processedRecEl.product_id);
+
+                    for (let recIdx = 0; recIdx < r.amount; recIdx++){
+                        casesToInsert.push(processedCaseKey);
+                    }
+
+                    let rawRecElArray = this.recipeElements.filter(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'input');
+
+                    rawRecElArray.forEach(rawRecEl => {
+                        let rawKey = this.products.find(prod => prod.product_id === rawRecEl.product_id);
+                        let loopAmount = rawRecEl.qty * r.amount;
+
+                        for (let recIdx = 0; recIdx < loopAmount; recIdx++){
+                            casesToInsert.push(rawKey);
+                        }
+                    })
                 })
 
                 console.log("RECIPES TO INSERT ",recipesToInsert)
@@ -1460,12 +1482,27 @@ export default {
 
             this.displayStatus = "";
         },
+
+        //Description: 
+        //
+        //Created by: Gabe de la Torre
+        //Date Created: ???
+        //Date Last Edited: 7-9-2024
         displayInfo(po: any){
             console.log(po);
             //console.log(this.cases);
             let displayArray = [] as any[];
             let linkedCases = [] as any[]; 
             let linkedBoxes = [] as any[];
+            let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
+            let poRecElements = [] as any[];
+
+            poRecipes.forEach(poRec => {
+                let recElArray = this.recipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
+                recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
+                poRecElements.push(recElArray);
+            });
+            poRecElements = poRecElements.flat();
             let total = 0;
 
             linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
@@ -1480,7 +1517,20 @@ export default {
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(po.displayStatus === "Processed"){
-                displayArray = this.groupProducts(linkedCases);
+
+                if (linkedCases.length === 0){
+                    poRecElements.forEach(recEl => {
+                        let productKey = this.products.find(product => product.product_id === recEl.product_id);
+                        productKey.amount = recEl.amount;
+                        productKey.units_per_case = productKey.default_units_per_case;
+                        productKey.status = po.status;
+                        displayArray.push(productKey);
+                    });
+                }
+
+                //displayArray = this.groupProducts(linkedCases);
+
+                console.log("RECIPE ELEMENTS", poRecElements);
                 /* Object.values(linkedCases.reduce((value, object) => {
                     if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
@@ -1495,7 +1545,8 @@ export default {
             } 
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (po.displayStatus === "Unprocessed"){
-                displayArray = this.groupProducts(linkedBoxes);
+                if (linkedBoxes.length > 0)
+                    displayArray = this.groupProducts(linkedBoxes);
                 /* Object.values(linkedBoxes.reduce((value, object) => {
                     if (value[object.product_id]) {
                         //value[object.product_id].amount += object.amount; 
