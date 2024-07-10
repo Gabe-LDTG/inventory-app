@@ -862,7 +862,12 @@ export default {
             //CHECK HOW TO STOP THE FUNCTION FROM RUNNING FOR EVERY ARRAY VALUE
             //console.log("rawRecEl ",rawRecEl);
             //console.log("Po CASE ",poCase);
-            return this.getBundleUnits(rawRecEl.product_id)*(poCase.default_units_per_case * recipeAmount);
+            let unitsPerCase = 0;
+            if(poCase.default_units_per_case)
+                unitsPerCase = poCase.default_units_per_case;
+            else if(poCase.units_per_case)
+                unitsPerCase = poCase.units_per_case;
+            return this.getBundleUnits(rawRecEl.product_id)*(unitsPerCase * recipeAmount);
         },
 
         //Description: 
@@ -897,7 +902,7 @@ export default {
         getCreatedUnitTotal(poID: number){
             let total = 0;
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
-            if (usedBoxes.length === 0)
+            if (usedBoxes.length !== 0)
                 usedBoxes.forEach(b => total+=b.units_per_case);
 
             
@@ -1336,18 +1341,43 @@ export default {
 
                     let processedCaseKey = this.products.find(prod => prod.product_id === processedRecEl.product_id);
 
+                    let procCase = {} as any;
+
+                        procCase.product_id = processedCaseKey.product_id;
+                        procCase.units_per_case = processedCaseKey.default_units_per_case;
+                        procCase.purchase_order_id = addedPurchaseOrderId;
+                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                            procCase.status = this.purchaseOrder.status;
+
+                        if(this.purchaseOrder.status === 'Delivered')
+                            procCase.date_received = this.purchaseOrder.date_received;
+
                     for (let recIdx = 0; recIdx < r.amount; recIdx++){
-                        casesToInsert.push(processedCaseKey);
+                        casesToInsert.push(procCase);
                     }
 
                     let rawRecElArray = this.recipeElements.filter(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'input');
 
+                    //c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id
+
                     rawRecElArray.forEach(rawRecEl => {
                         let rawKey = this.products.find(prod => prod.product_id === rawRecEl.product_id);
-                        let loopAmount = rawRecEl.qty * r.amount;
+
+                        let rawBox = {} as any;
+
+                        rawBox.product_id = rawKey.product_id;
+                        rawBox.units_per_case = rawKey.default_units_per_case;
+                        rawBox.purchase_order_id = addedPurchaseOrderId;
+                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                            rawBox.status = this.purchaseOrder.status;
+
+                        if(this.purchaseOrder.status === 'Delivered')
+                            rawBox.date_received = this.purchaseOrder.date_received;
+
+                        let loopAmount = this.getRawBoxTotal(rawRecEl, procCase, r.amount);
 
                         for (let recIdx = 0; recIdx < loopAmount; recIdx++){
-                            casesToInsert.push(rawKey);
+                            casesToInsert.push(rawBox);
                         }
                     })
                 })
@@ -1509,8 +1539,8 @@ export default {
             linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
             //console.log(total);
 
-            //console.log("LINKED CASES: ", linkedCases);
-            //console.log("LINKED BOXES: ", linkedBoxes);
+            console.log("LINKED CASES: ", linkedCases);
+            console.log("LINKED BOXES: ", linkedBoxes);
 
             //NOTE: NEED TO FIND A WAY TO SEPARATE THE OBJECTS BY STATUS. THAT WAY, IF SOME BOXES WERE
             //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
@@ -1526,9 +1556,9 @@ export default {
                         productKey.status = po.status;
                         displayArray.push(productKey);
                     });
+                } else {
+                    displayArray = this.groupProducts(linkedCases);
                 }
-
-                //displayArray = this.groupProducts(linkedCases);
 
                 console.log("RECIPE ELEMENTS", poRecElements);
                 /* Object.values(linkedCases.reduce((value, object) => {
@@ -1565,27 +1595,23 @@ export default {
         },
         //Displays the raw product info that pertains to each processed case in the PO
         displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
-            let linkedRecs = this.recipes.filter(r => r.product_made === product_id);
+            let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+            let rawRecEls = this.recipeElements.filter(r => r.recipe_id === linkedRecEl.recipe_id && r.type === 'input');
             let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
-            
-            /* let displayArray = Object.values(linkedBoxes.reduce((value, object) => {
-                    if (value[object.product_id]) {
-                        //value[object.product_id].amount += object.amount; 
-                        value[object.product_id].amount++;
 
-                    } else {
-                        value[object.product_id] = { ...object , amount : 1
-                        };
-                    }
-                    return value;
-                    }, {}));; */
+            rawRecEls.forEach(rawRecEl => {
+                console.log(linkedBoxes.filter(b => b.product_id === rawRecEl.product_id));
+            })
 
             let displayArray = this.groupProducts(linkedBoxes);
 
-            displayArray = displayArray.filter((raw: any) => this.recipes.find(rec => rec.product_needed === raw.product_id && rec.product_made === product_id));
-            console.log(linkedRecs);
-            console.log(linkedBoxes);
-            console.log(displayArray);
+            //displayArray = displayArray.filter((raw: any) => this.recipes.find(rec => rec.product_needed === raw.product_id && rec.product_made === product_id));
+            displayArray = displayArray.filter((raw: any) => rawRecEls.filter(rawRecEl => raw.product_id === rawRecEl.product_id));
+            
+            console.log("LINKED REC EL ",linkedRecEl);
+            console.log("RAW REC ELS", rawRecEls);
+            console.log("LINKED BOXES ",linkedBoxes);
+            console.log("DISPLAY ARRAY ",displayArray);
 
             return displayArray;
         },
@@ -1622,7 +1648,7 @@ export default {
             //console.log("PRODUCT ID: ", product_id);
             let prod = this.products.find(p => product_id === p.product_id);
 
-            console.log(prod.upc);
+            //console.log(prod.upc);
             return prod.upc;
         },
         calculateBoxTotal(name: any, purchase_order_id: any){

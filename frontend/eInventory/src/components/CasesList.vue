@@ -91,6 +91,12 @@
                     <Column field="amount" header="Number of boxes" sortable />
                 </div>
 
+                <Column header="Total # Of Units" sortable>
+                    <template #body="{data}">
+                        {{ data.units_per_case * data.amount }}
+                    </template>
+                </Column>
+
                 <Column field="location_name" header="Location" sortable>
                     <template #body="{data}">
                         {{ formatLocations(data.location) }}
@@ -115,12 +121,13 @@
                                 {{ getIndivLocation(slotProps.data.location) }}
                             </template>
                         </Column>
+                        <Column field="amount" header="Number of boxes" sortable />
                         <Column field="notes" header="Notes" sortable/>
-                        <Column field="date_received" header="Date received" sortable >
+                        <!-- <Column field="date_received" header="Date received" sortable >
                             <template #body="slotProps">
                                 {{ slotProps.data.date_received }}
                             </template>
-                        </Column>
+                        </Column> -->
                         <Column :exportable="false" style="min-width:8rem">
                             <template #body="slotProps">
                                 <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data); console.log(slotProps.data)" />
@@ -553,7 +560,7 @@ export default {
         //Date Created: 6-11-2024
         //Date Last Edited: 6-11-2024
         getIndivCases(productId: number, unitsPerCase: number){
-            return this.dbCases.filter(c => c.product_id === productId && c.units_per_case === unitsPerCase);
+            return this.groupByLocation(this.dbCases.filter(c => c.product_id === productId && c.units_per_case === unitsPerCase));
         },
 
         //Description: 
@@ -562,9 +569,10 @@ export default {
         //Date Created: 6-11-2024
         //Date Last Edited: 6-12-2024
         getIndivLocation(locationId: number){
-            //console.log(locationId);
+            //console.log("LOCATION ID",locationId);
+            //console.log("LOCATIONS", this.locations)
             let location = this.locations.find(l => l.location_id === locationId);
-            //console.log(location);
+            //console.log("LOCATION",location);
             if(location !== undefined){
                 return location.name;
             }
@@ -1001,15 +1009,16 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 6-11-2024
-        //Date Last Edited: 6-11-2024
+        //Date Last Edited: 7-10-2024
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                if (map[product.product_id] && map[product.product_id].units_per_case == product.units_per_case && map[product.product_id].location == product.location) // if it already exists, incremenet
-                    map[product.product_id].amount++;
+                const key = product.product_id + ':' + product.location;
+                if (map[key]) { // if it already exists, incremenet
+                    map[key].amount++;
+                }
                 else // otherwise, add it to the map
-                    map[product.product_id] = { ...product, amount: 1 };
-
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 
