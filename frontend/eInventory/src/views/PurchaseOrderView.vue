@@ -260,6 +260,11 @@
             </div>
 
             <div class="field">
+                <label for="discount">Discount</label>
+                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
+            </div>
+
+            <div class="field">
                 <label for="date_ordered">Date Ordered</label>
                 <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
             </div>
@@ -1235,11 +1240,94 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 6-04-2024
+        async alocateBoxesVer2(){
+            try {
+                console.log("BULK CASES IN ALOCATE ",this.poBoxes);
+                console.log("REQUESTED BOXES ", this.reqPoBoxes);
+
+                //this.purchaseOrder.status = 'Delivered';
+
+                this.poBoxes.forEach(box => {
+                    let reqBox = this.reqPoBoxes.find(reqBox => reqBox.product_id === box.product_id);
+
+                    
+                    let qty = box.units_per_case;
+                    let boxAmount = box.amount;
+
+                    let wholeBoxAmount = Math.floor(boxAmount);
+                    let remainder = boxAmount - wholeBoxAmount;
+                    let partialBox = Math.round(remainder*qty);
+                    let backOrderBoxAmount = 0;
+                    if (partialBox>0){
+                        backOrderBoxAmount = qty-partialBox;
+                    }
+                    console.log("BOX AMOUNT", boxAmount);
+                    console.log("WHOLE BOX AMOUNT", wholeBoxAmount);
+                    console.log("REMAINDER", remainder);
+                    console.log("PARTIAL BOX", partialBox);
+                    console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
+
+                    this.reqPoBoxes.forEach(requestedBox => {
+                        console.log(requestedBox)
+                        if (requestedBox.product_id == box.product_id){
+                            if(wholeBoxAmount > 0){
+                                requestedBox.status = 'Ready';
+                                requestedBox.date_received = this.today;
+                                wholeBoxAmount--;
+                            } else if (wholeBoxAmount == 0 && partialBox > 0){
+                                //If a partial box arrives, update the last box amount to partial amount a create 
+                                // an additional box whose status is back ordered
+                                let boBox = [] as any[];
+                                boBox[<any>'name'] = requestedBox.name;
+                                boBox[<any>'product_id'] = requestedBox.product_id
+                                boBox[<any>'purchase_order_id'] = requestedBox.purchase_order_id
+
+                                requestedBox.units_per_case = partialBox;
+                                requestedBox.status = 'Ready';
+                                requestedBox.date_received = this.today;
+
+                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
+                                boBox[<any>'status'] = 'BO'
+
+                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
+                                this.reqPoBoxes.push(boBox);
+
+                                partialBox = 0;
+
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            } else if (wholeBoxAmount == 0 && partialBox == 0) {
+                                //If no partial box arrives, update the remaining box amounts to backorder
+                                requestedBox.status = 'BO';
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            }
+                        }
+                    })
+                })
+
+                console.log(this.reqPoBoxes);
+
+                //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
+                //PREVIOUS FOREACH FUNCTION
+                this.reqPoBoxes.forEach(async requestedBox => {
+                    console.log("PRODUCT NAME: ", requestedBox.name, "BOX AMOUNT: ", requestedBox.units_per_case, "BOX STATUS: ", requestedBox.status)
+                    if (requestedBox.case_id){
+                        await action.editCase(requestedBox);
+                    } else {
+                        await action.addCase(requestedBox);
+                    }
+                })
+            } catch (error) {
+                console.log(error);
+                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+            }
+        },
+
         async alocateBoxes(){
             try {
                 console.log("BULK CASES IN ALOCATE ",this.poBoxes);
+                console.log("REQUESTED BOXES ", this.reqPoBoxes);
 
-                this.purchaseOrder.status = 'Delivered';
+                //this.purchaseOrder.status = 'Delivered';
 
                 this.poBoxes.forEach(box => {
                     let qty = box.units_per_case;

@@ -20,11 +20,13 @@ import {
     showCasesIds,
     showProcCases, 
     showUnprocCases,
+    showDeliveredUnprocCases,
     createCase,
     bulkCreateCase,
     updateCase,
     deleteCase,
     batchDeleteCases,
+    showDeliveredProcCases,
 } from "../controllers/cases.js";
 
 import {
@@ -135,6 +137,12 @@ router.get("/cases/processed",showProcCases);
 
 //Get Unprocessed Cases
 router.get("/cases/unprocessed",showUnprocCases);
+
+//Get Unprocessed Delivered Cases
+router.get("/cases/unprocessed/delivered", showDeliveredUnprocCases);
+
+//Get Processed Delivered Cases
+router.get("/cases/processed/delivered",showDeliveredProcCases);
 
 //Create Processed Cases
 router.post("/cases/create", createCase);

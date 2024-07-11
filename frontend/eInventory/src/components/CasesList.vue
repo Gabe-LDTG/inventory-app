@@ -116,12 +116,17 @@
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                             <Column field="units_per_case" header="Units per box" />
                         </div>
+                        <Column field="amount" header="Number of boxes" sortable />
+                        <Column header="Total # Of Units" sortable>
+                            <template #body="{data}">
+                                {{ data.units_per_case * data.amount }}
+                            </template>
+                        </Column>
                         <Column field="location_name" header="Location">
                             <template #body="slotProps">
                                 {{ getIndivLocation(slotProps.data.location) }}
                             </template>
                         </Column>
-                        <Column field="amount" header="Number of boxes" sortable />
                         <Column field="notes" header="Notes" sortable/>
                         <!-- <Column field="date_received" header="Date received" sortable >
                             <template #body="slotProps">
@@ -488,7 +493,7 @@ export default {
         async getProcCases(){
             try {
                 this.loading = true;
-                this.dbCases = await action.getProcCases();
+                this.dbCases = await action.getProcDeliveredCases();
                 console.log(this.dbCases);
                 this.cases = this.groupBoxes(this.dbCases);
                 console.log(this.cases);
@@ -516,7 +521,7 @@ export default {
         async getUnprocCases(){
             try {
                 this.loading = true;
-                this.dbCases = await action.getUnprocCases();
+                this.dbCases = await action.getUnprocDeliveredBoxes();
                 console.log(this.dbCases);
                 this.cases = this.groupBoxes(this.dbCases);
                 console.log(this.cases);
@@ -1013,12 +1018,12 @@ export default {
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.location;
+                const key = product.product_id + ':' + product.location + ':' + product.status;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                 }
                 else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, status: product.status, amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 

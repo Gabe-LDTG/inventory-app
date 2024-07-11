@@ -3,6 +3,7 @@ import{
     getCases,
     getCasesById,
     getCasesByType,
+    getDeliveredCasesByType,
     insertCase,
     bulkInsertCases,
     updateCaseById,
@@ -46,6 +47,28 @@ export async function showProcCases(req,res){
 export async function showUnprocCases(req,res){
     try {
         const unprocCases = await getCasesByType(false);
+        res.json(unprocCases);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+};
+
+//get delivered unprocessed cases
+export async function showDeliveredUnprocCases(req,res){
+    try {
+        const unprocCases = await getDeliveredCasesByType(false);
+        res.json(unprocCases);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+};
+
+//get delivered processed cases
+export async function showDeliveredProcCases(req,res){
+    try {
+        const unprocCases = await getDeliveredCasesByType(true);
         res.json(unprocCases);
     } catch (err) {
         console.error(err);

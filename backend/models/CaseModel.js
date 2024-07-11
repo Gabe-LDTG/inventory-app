@@ -3,6 +3,8 @@ import db from "../config/database.js";
 
 const whereProc = "WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.fnsku <> '' OR products.asin <> '')";
 const whereUnproc = "WHERE (products.fnsku IS NULL AND products.asin IS NULL) OR (products.fnsku = '' AND products.asin = '') OR (products.fnsku IS NULL AND products.asin = '') OR (products.fnsku = '' AND products.asin IS NULL)";
+const whereDelivered = "((cases.status <> 'Draft') OR (cases.status <> 'Submitted') OR (cases.status <> 'Ordered') OR (cases.status <> 'Inbound') OR (cases.status <> 'BO') OR (cases.status <> 'Back Ordered'))";
+//Draft, Submitted, Ordered, Inbound, BO, Back Ordered
 
 //get all cases
 //cases.case_id, products.name, cases.units_per_case, cases.qty
@@ -24,6 +26,12 @@ export async function getCasesById(){
 export async function getCasesByType(processed){
     //DATE_FORMAT(cases.date_received, "%m %d %Y")
     return db.query("SELECT cases.case_id, cases.units_per_case, cases.date_received, cases.notes, cases.product_id, cases.location, cases.status, cases.purchase_order_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc)).then(([results, fields])=>results);
+}
+
+//get all delivered cases (All delivered cases should not have a status of Draft, Submitted, Ordered, Inbound, BO, or Back Ordered)
+export async function getDeliveredCasesByType(processed){
+    //DATE_FORMAT(cases.date_received, "%m %d %Y")
+    return db.query("SELECT cases.case_id, cases.units_per_case, cases.date_received, cases.notes, cases.product_id, cases.location, cases.status, cases.purchase_order_id, products.name FROM cases INNER JOIN products ON cases.product_id = products.product_id "+ (processed ? whereProc : whereUnproc) +"AND "+whereDelivered).then(([results, fields])=>results);
 }
 
 /* //get all unprocessed cases (all unprocessed cases should have UPC (or maybe item num))

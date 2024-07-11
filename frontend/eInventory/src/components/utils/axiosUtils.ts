@@ -489,6 +489,28 @@ var action = {
     },
 
     //
+    async getUnprocDeliveredBoxes(){
+        let boxes;
+            
+        return axios.get(BASE_URL+"/cases/unprocessed/delivered").then(res => {
+            boxes = res.data;
+            //console.log(cases);
+            return boxes;
+        });
+    },
+
+     //
+     async getProcDeliveredCases(){
+        let boxes;
+            
+        return axios.get(BASE_URL+"/cases/processed/delivered").then(res => {
+            boxes = res.data;
+            //console.log(cases);
+            return boxes;
+        });
+    },
+
+    //
     async addCase(c: any){
         //console.log(this.product);
         return axios.post(BASE_URL+"/cases/create", {
@@ -599,6 +621,7 @@ var action = {
             date_ordered: purchaseOrder.date_ordered,
             date_received: purchaseOrder.date_received,
             vendor_id: purchaseOrder.vendor_id,
+            discount: purchaseOrder.discount,
         }).then((res) => {
             console.log(res);
             return res.data[0]['LAST_INSERT_ID()'];
@@ -618,6 +641,7 @@ var action = {
             date_ordered: purchaseOrder.date_ordered,
             date_received: purchaseOrder.date_received,
             vendor_id: purchaseOrder.vendor_id,
+            discount: purchaseOrder.discount,
         }).then((res) => {
             //console.log(product_id);
             //location.reload();
