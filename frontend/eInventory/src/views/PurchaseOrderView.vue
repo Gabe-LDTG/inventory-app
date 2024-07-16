@@ -1217,8 +1217,7 @@ export default {
                     this.purchaseOrder.date_received = this.purchaseOrders[0].date_received.split('T')[0];
                 }*/
 
-                //await this.alocateBoxes();
-                await this.alocateBoxesVer2();
+                await this.alocateBoxes();
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
@@ -1241,12 +1240,13 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 6-04-2024
-        async alocateBoxesVer2(){
+        async alocateBoxes(){
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
                 //console.log("REQUESTED BOXES ", this.reqPoBoxes);
 
-                //this.purchaseOrder.status = 'Delivered';
+                this.purchaseOrder.status = 'Delivered';
+                let boxesToInsert = [] as any[];
 
                 this.reqPoBoxes.forEach(reqBox => {
                     let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);
@@ -1265,9 +1265,19 @@ export default {
 
                     let poBoxUnitsPerCase = poBox.units_per_case;
 
+                    console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
+                    console.log("REQ", reqBox.total, " - REC", poBox.total, " = LEFT", backorderUnits);
+
                     //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
                     let actualReceivedBoxes = poBox.total/poBoxUnitsPerCase;
                     let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
+
+                    console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
+                    console.log("WHOLE BOX VIEW");
+                    console.log("REQ", reqBox.amount, " - REC", poBox.amount, " = BO", wholeBackorderBoxAmount);
+
+                    console.log("DECIMAL BOX VIEW");
+                    console.log("REQ", reqBox.amount, " - REC", poBox.total/poBox.units_per_case , " = BO", backorderBoxes)
                     
                     //Gets the decimal value if one of the leftover boxes is partial
                     let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
@@ -1279,88 +1289,81 @@ export default {
                         backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
                     }
 
-                    console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
-                    console.log("REQ", reqBox.total, " - REC", poBox.total, " = LEFT", backorderUnits)
-
-                    //console.log("REQUESTED UNIT AMOUNT", reqBox.total);
-                    //console.log("RECEIVED UNIT AMOUNT", poBox.total);
-                    //console.log("LEFTOVER UNIT AMOUNT", backorderUnits);
-
-                    console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
-                    console.log("WHOLE BOX VIEW");
-                    console.log("REQ", reqBox.amount, " - REC", poBox.amount, " = LEFT", wholeBackorderBoxAmount)
-
-                    console.log("DECIMAL BOX VIEW");
-                    console.log("REQ", reqBox.amount, " - REC", poBox.total/poBox.units_per_case , " = LEFT", backorderBoxes)
-
-                    //console.log("RECEIVED BOX AMOUNT", poBox.amount);
-                    //console.log("LEFTOVER BOX AMOUNT", backorderBoxes);
-                    //console.log("WHOLE LEFTOVER BOX AMOUNT", wholeBackorderBoxAmount);
-
                     console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
                     console.log("REM", remainder," * UNITS", poBox.units_per_case," = PARTIAL",partialBoxAmount);
 
-                    //console.log("REMAINDER", remainder);
-                    //console.log("PARTIAL BOX", partialBoxAmount);
                     console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
 
+                    let boxes = this.uBoxes.filter(box => box.purchase_order_id === poBox.purchase_order_id && box.product_id === poBox.product_id);
+
                     //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
-                    this.reqPoBoxes.forEach(requestedBox => {
-                        console.log(requestedBox)
-                        if (requestedBox.product_id == reqBox.product_id){
-                            if(wholeBackorderBoxAmount > 0){
-                                requestedBox.status = 'Ready';
-                                requestedBox.date_received = this.today;
-                                wholeBackorderBoxAmount--;
-                            } else if (wholeBackorderBoxAmount == 0 && partialBoxAmount > 0){
-                                //If a partial box arrives, update the last box amount to partial amount a create 
-                                // an additional box whose status is back ordered
-                                let boBox = [] as any[];
-                                boBox[<any>'name'] = requestedBox.name;
-                                boBox[<any>'product_id'] = requestedBox.product_id
-                                boBox[<any>'purchase_order_id'] = requestedBox.purchase_order_id
+                    //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
+                    boxes.forEach(box => {
+                        if(wholeReceivedBoxAmount > 0){
+                            console.log("FULL BOX");
+                            box.status = 'Ready';
+                            box.date_received = this.today;
+                            boxesToInsert.push(box);
+                            wholeReceivedBoxAmount--;
+                        } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
+                            console.log("PARTIAL FULL AND BACKORDER BOXES");
+                            //If a partial box arrives, update the last box amount to partial amount a create 
+                            // an additional box whose status is back ordered
+                            box.units_per_case = partialBoxAmount;
+                            box.status = 'Ready';
+                            box.date_received = this.today;
 
-                                requestedBox.units_per_case = partialBoxAmount;
-                                requestedBox.status = 'Ready';
-                                requestedBox.date_received = this.today;
+                            boxesToInsert.push(box);
 
-                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
-                                boBox[<any>'status'] = 'BO'
+                            let boBox = [] as any[];
+                            boBox[<any>'name'] = box.name;
+                            boBox[<any>'product_id'] = box.product_id
+                            boBox[<any>'purchase_order_id'] = box.purchase_order_id
+                            boBox[<any>'units_per_case'] = backOrderBoxAmount;
+                            boBox[<any>'status'] = 'BO'
 
-                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
-                                this.reqPoBoxes.push(boBox);
+                            //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
+                            boxesToInsert.push(boBox);
 
-                                partialBoxAmount = 0;
-
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            } else if (wholeBackorderBoxAmount == 0 && partialBoxAmount == 0) {
-                                //If no partial box arrives, update the remaining box amounts to backorder
-                                requestedBox.status = 'BO';
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            }
+                            partialBoxAmount = 0;
+                            this.purchaseOrder.status = 'Partially Delivered'
+                        } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
+                            console.log("BACKORDER BOX");
+                            //If no partial box arrives, update the remaining box amounts to backorder
+                            box.status = 'BO';
+                            boxesToInsert.push(box);
+                            this.purchaseOrder.status = 'Partially Delivered'
+                            wholeBackorderBoxAmount --;
                         }
-                    })
+                    })                    
                 })
 
-                console.log(this.reqPoBoxes);
+                console.log(boxesToInsert);
+
+                let insertArray = [] as any[];
 
                 //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
                 //PREVIOUS FOREACH FUNCTION
-                this.reqPoBoxes.forEach(async requestedBox => {
-                    console.log("PRODUCT NAME: ", requestedBox.name, "BOX AMOUNT: ", requestedBox.units_per_case, "BOX STATUS: ", requestedBox.status)
-                    if (requestedBox.case_id){
+                boxesToInsert.forEach(async box => {
+                    if (box.case_id){
+                        console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status)
                         //await action.editCase(requestedBox);
+                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status];
+                        insertArray.push(tempArray);
                     } else {
+                        console.log("BACK ORDERED PARTIAL BOX", box);
                         //await action.addCase(requestedBox);
                     }
                 })
+                
+                console.log("BOXES TO INSERT ", boxesToInsert);
             } catch (error) {
                 console.log(error);
                 this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
 
-        async alocateBoxes(){
+        async alocateBoxesOld(){
             try {
                 console.log("BULK CASES IN ALOCATE ",this.poBoxes);
                 console.log("REQUESTED BOXES ", this.reqPoBoxes);
