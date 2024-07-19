@@ -91,7 +91,7 @@
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === 'Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
                     </div>
                     </template>
@@ -939,81 +939,65 @@ export default {
             let caseTypes = this.groupProducts(cases);
             let boxTypes = this.groupProducts(boxes);
 
-            caseTypes.forEach(caseType => {
+            caseTypes.forEach((caseType: { product_id: any; }) => {
                 let recipes = this.recipes.filter(r => caseType.product_id === r.product_made);
                 //let rawBox = boxTypes.find()
             });
-
-            /* boxes.forEach(b => {
-                cases.forEach(c =>{
-                    let rec = this.recipes.find(r => r.product_needed === b.product_id && r.product_made === c.product_id);
-
-                    if(rec !== undefined)
-                        recipeCombos.push(rec);
-                });
-            });
-
-            console.log("COMBOS: ", recipeCombos);
-
-            boxes.forEach(b => {
-                let inArray = this.recipes.find(r => b.product_id === r.product_needed);
-
-                if (inArray === undefined){
-                    poolProd.push(b);
-                }
-            }); */
-
-            /* let pool = Object.values(poolProd.reduce((newArray, currProd) => {
-                //console.log(value);
-                //console.log(object);
-                if (newArray[currProd.product_id]) {
-                    //newArray[currProd.product_id].amount += currProd.amount; 
-                    newArray[currProd.product_id].amount++;
-
-                } else {
-                    newArray[currProd.product_id] = { ...currProd , amount : 1
-                    };
-                }
-                return newArray;
-                }, {}));; */
 
             let pool = this.groupProducts(poolProd);
 
             return pool;
         },
 
-        //Description: Groups products together to get the total amount per product
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 6-03-2024
-        //Date Last Edited: 6-07-2024
+        /**
+         * Description: Groups products together to get the total amount per product
+         * @param prodArray {any[]} An array of individual records that needs to be grouped
+         * @returns Gets an array where the values are records grouped together by product_id, status, 
+         * and units_per_case
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 6-03-2024
+         * Date Last Edited: 7-19-2024
+         */
         groupProducts(prodArray: any[]){
-            let result = [] as any[];
-            result = Object.values(prodArray.reduce((newArray, currProd) => {
-                //console.log(newArray);
-                //console.log(currProd);
-                if (newArray[currProd.product_id] && newArray[currProd.product_id].status == currProd.status && newArray[currProd.product_id].units_per_case == currProd.units_per_case) {
-                    //newArray[currProd.product_id].amount += currProd.amount; 
-                    newArray[currProd.product_id].amount++;
-
-                } else {
-                    newArray[currProd.product_id] = { ...currProd , amount : 1
-                    };
-                }
-                return newArray;
-                }, {}));;
-
             // get the products in the pool along with their amount
-                let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
-                    if (map[product.product_id]) // if it already exists, incremenet
-                        map[product.product_id].amount++;
-                    else // otherwise, add it to the map
-                        map[product.product_id] = { ...product, amount: 1 };
+            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+                const key = product.product_id + ':' + product.status + ':' + product.units_per_case;
+                if (map[key]) { // if it already exists, incremenet
+                    map[key].amount++;
+                }
+                else // otherwise, add it to the map
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                return map;
+            }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
 
-                    return map;
-                }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
+            return pool;
+        },
 
-            return result;
+        /**
+         * Description: Groups products together to get the total amount per product based on a specified key
+         * @param prodArray {any[]} An array of individual records that needs to be grouped
+         * @param keyString {string} A string of fields that is used to group records together
+         * @returns Gets an array where the values are records grouped together by product_id, status, 
+         * and the contents of the keyString
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-19-2024
+         * Date Last Edited: 7-19-2024
+         */
+         groupProductsByKey(prodArray: any[], keyString: string){
+            // get the products in the pool along with their amount
+            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+                const key = product.product_id + ':' + product.units_per_case + ':' + keyString;
+                if (map[key]) { // if it already exists, incremenet
+                    map[key].amount++;
+                }
+                else // otherwise, add it to the map
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                return map;
+            }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
+
+            return pool;
         },
 
         formatCurrency(value: any) {
@@ -1348,14 +1332,16 @@ export default {
                     if (box.case_id){
                         console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status)
                         //await action.editCase(requestedBox);
-                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status];
+                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
                         insertArray.push(tempArray);
                     } else {
                         console.log("BACK ORDERED PARTIAL BOX", box);
-                        //await action.addCase(requestedBox);
+                        await action.addCase(box);
                     }
                 })
                 
+                await action.bulkEditCases(insertArray);
+
                 console.log("BOXES TO INSERT ", boxesToInsert);
             } catch (error) {
                 console.log(error);
@@ -1722,28 +1708,99 @@ export default {
             console.log("DISPLAY ARRAY", displayArray);
             return displayArray;
         },
-        //Displays the raw product info that pertains to each processed case in the PO
+        /** 
+         * Description: Displays the raw product info that pertains to each processed case in the PO
+         * @param purchase_order_id {number} The purchase order ID
+         * @param product_id {number} The ID of the output product
+         * @param amount {number} The amount of output boxes made
+         * @returns An array with the information of each input box required for the output boxes recipe
+         *
+         * Created by: Gabe de la Torre
+         * Date Created: ???
+         * Date Last Edited: 7-19-2024 
+         */
         displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
-            let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
-            let rawRecEls = this.recipeElements.filter(r => r.recipe_id === linkedRecEl.recipe_id && r.type === 'input');
-            let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
+            console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
-            rawRecEls.forEach(rawRecEl => {
-                console.log(linkedBoxes.filter(b => b.product_id === rawRecEl.product_id));
-            })
+            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.recipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
+            //let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+            let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
+            //let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
+
+            let linkedBoxes = [] as any[];
+            for(const box of this.uBoxes) {
+                if (box.purchase_order_id !== purchase_order_id)
+                continue;
+
+                const recInput = rawRecInputs.find(input => box.product_id === input.product_id);
+                if (recInput)
+                //linkedBoxes.push({ box: box, rec: recInput });
+                linkedBoxes.push(box);
+            }
+            console.log("LINKED BOXES ",linkedBoxes);
+            console.log("PO RECIPE ARRAY", linkedPoRec);
 
             let displayArray = this.groupProducts(linkedBoxes);
 
+            console.log(displayArray);
+
             //displayArray = displayArray.filter((raw: any) => this.recipes.find(rec => rec.product_needed === raw.product_id && rec.product_made === product_id));
-            displayArray = displayArray.filter((raw: any) => rawRecEls.filter(rawRecEl => raw.product_id === rawRecEl.product_id));
+            //displayArray = displayArray.filter((raw: any) => rawRecEls.filter(rawRecEl => raw.product_id === rawRecEl.product_id));
             
-            console.log("LINKED REC EL ",linkedRecEl);
-            console.log("RAW REC ELS", rawRecEls);
+            //console.log("LINKED REC EL ",linkedRecEl);
+            console.log("RAW REC ELS", rawRecInputs);
             console.log("LINKED BOXES ",linkedBoxes);
             console.log("DISPLAY ARRAY ",displayArray);
 
             return displayArray;
         },
+
+        /**
+         * Give the raw info of a particular purchase order's work-order,
+         * dynamically inferred from the given output product and its amount.
+         * 
+         * @param purchase_order_id {number} The purchase order ID
+         * @param product_id {number} The output product ID
+         * @param amount {number} The amount of the output products
+         * @returns The box info, with amount being the amount used, and leftover being the amount left over
+         * 
+         * Created by: Micheal Chapell
+         * Date Created: 7-18-2024 
+         * Date Last Edited: 7-18-2024 
+         */
+        displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
+        console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
+        // the recipe that is being used, determined by output product
+        /**
+         * @TODO rename to "recipeOutput"
+         * @TODO What if there are multiple recipes that have this product as an output?
+         * Or is this enforced as unique? This is why I recommended you to store the recipes
+         * being used in the purchase order.
+         */
+        let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        // the input products given the recipe id
+        /** @TODO rename to "rawRecInputs" */
+        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === linkedRecEl.recipe_id && r.type === 'input');
+
+        // get the input boxes that are being used as inputs. Use a filter-map for-loop
+        const inputBoxesAndRecEl = [] as any[];
+        for(const b of this.uBoxes) {
+            if(b.purchase_order_id !== purchase_order_id)
+            continue;
+
+            const inputEl = rawRecEls.find(r => r.product_id  === /* idk what field to use */ b.product_id);
+            if(inputEl)
+            inputBoxesAndRecEl.push({ box: b, rec: inputEl });
+        }
+        
+        const numRecipesProcessed = amount / /* idk the field */ linkedRecEl.amount;
+        return inputBoxesAndRecEl.map(({ box, rec }) => ({
+            ...box,
+            /* idk the field */ amount: rec.amount * numRecipesProcessed,
+            leftover: box.amount - rec.amount * numRecipesProcessed
+        }));
+        },
+
         //Description: Gets the unit cost for a specific product
         //Created by: Gabe de la Torre
         //Date Created: ???

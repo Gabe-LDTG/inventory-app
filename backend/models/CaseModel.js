@@ -58,6 +58,31 @@ export async function updateCaseById(data, id){
     return db.query("UPDATE cases SET product_id = ?, units_per_case = ?, location = ?, notes = ?, date_received = ?, status = ? WHERE case_id = ?",[data.product_id, data.units_per_case, data.location, data.notes, data.date_received, data.status, id]).then(([results, fields])=>results);
 }
 
+// Bulk Update Cases in Database
+export async function bulkUpdateCases(data){
+    console.log(data);
+    const fields = "case_id, product_id, units_per_case, location, notes, date_received, status, purchase_order_id"
+    const updateFields = "product_id = VALUES(product_id), units_per_case = VALUES(units_per_case), location = VALUES(location), notes = VALUES(notes), date_received = VALUES(date_received), status = VALUES(status)"
+    return db.query("INSERT INTO cases ("+fields+") VALUES ? ON DUPLICATE KEY UPDATE "+updateFields,[data]).then(([results, fields])=>results);
+}
+
+/* // Bulk Update Cases in Database
+export async function bulkUpdateCasesV2(data){
+    console.log(data);
+
+    let dbQuery = [];
+    data.forEach(record => {
+        if (record[4] !== null){
+            record[4] = "'"+record[4]+"'";
+        }
+        let tempString = "UPDATE cases SET product_id = "+record[1]+", units_per_case = "+record[2]+", location = "+record[3]+", notes = "+record[4]+", date_received = "+record[5]+", status = '"+record[6]+"' WHERE case_id = "+record[0]+"; "
+        dbQuery += tempString;
+    })
+    console.log("START TRANSACTION; "+dbQuery+" COMMIT;");
+
+    return db.query(dbQuery).then(([results, fields])=>results);
+} */
+
 //Delete Case from Database
 export async function deleteCaseById(id){
     console.log(id);

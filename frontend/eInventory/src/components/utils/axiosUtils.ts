@@ -571,6 +571,13 @@ var action = {
         });
     },
 
+     //Edit multiple cases at the same time
+     async bulkEditCases(c: any){
+        return axios.post(BASE_URL+"/cases/bulkUpdate",c).catch(error => {
+            console.log(error);
+        });
+    },
+
     //Batch delete products
     async batchDeleteCases(c: any){
         //console.log(id);

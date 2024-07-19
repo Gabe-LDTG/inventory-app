@@ -24,6 +24,7 @@ import {
     createCase,
     bulkCreateCase,
     updateCase,
+    bulkUpdateCase,
     deleteCase,
     batchDeleteCases,
     showDeliveredProcCases,
@@ -152,6 +153,9 @@ router.post("/cases/bulk", bulkCreateCase);
 
 //Update Case
 router.put('/cases/:id', updateCase);
+
+//Bulk Update Cases
+router.post('/cases/bulkUpdate', bulkUpdateCase);
 
 //Delete Cases
 router.delete('/cases/:id',deleteCase);
