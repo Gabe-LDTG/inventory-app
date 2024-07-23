@@ -85,11 +85,11 @@
                 <Column header="PO Phase" :exportable="false" style="min-width: 275px">
                     <template #body="slotProps">
                         <div class="flex flex-wrap align-items-center ">
-                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="help" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
+                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="help" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
+                        <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data)"/>
+                        <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
@@ -334,6 +334,20 @@
                                 <InputText id="notes" v-model="poBox.location" rows="3" cols="20" />
                             </div>
 
+                            <div class="field">
+                                <label for="location">Location:</label>
+                                <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                <Dropdown v-model="poBox.location"
+                                placeholder="Select a Location" class="w-full md:w-14rem" editable
+                                :options="locations"
+                                filter
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                optionLabel="name"
+                                optionValue="location_id" />
+                                <Button label="Additional Location(s)" icon="pi pi-plus" @click="additionalLocation()"  />
+                                <Button label="New Location" icon="pi pi-plus" @click="newLocation()"  />
+                            </div>
+
                         </div>
 
                     </div>
@@ -407,11 +421,7 @@
                                     {{ getProductInfo(data.product_id, 'default_units_per_case') }}
                                 </template>
                             </Column>
-                            <Column header="Unit(s) per Bundle" >
-                                <template #body="{data}">
-                                    {{ getBundleUnits(data.product_id) }}
-                                </template>
-                            </Column>
+                            <Column field="qty" header="Unit(s) per Bundle" ></Column>
                             <Column header="Total Units Needed">
                                 <template #body="{data}">
                                     {{  getTotalUnitsNeeded(data, poCases[counter], poRecipe.amount) }}
@@ -587,9 +597,45 @@
         </Dialog>
 
         <Dialog v-model:visible="statusChangeDialog" :style="{width: '450px'}" header="Status Change" :modal="true">
+            <div class="confirmation-content">
+                <span v-if="purchaseOrder">Change Purchase Order <b>{{purchaseOrder.purchase_order_name}}</b> status to {{ newStatus }}?</span>
+            </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="statusChangeDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" text @click="" />
+                <Button label="No" icon="pi pi-times" text @click="statusChangeDialog = false; newStatus=''"/>
+                <Button label="Yes" icon="pi pi-check" text @click="confirmStatusChange" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="locationDialog" :style="{width: '450px'}" header="Add Location" :modal="true">
+            <div class="field">
+                <label>Location Name:</label>
+                <InputText id="location" v-model="locationToCreate.name" rows="3" cols="20" />
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="locationDialog = false;"/>
+                <Button label="Save" icon="pi pi-check" text @click="createLocation" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="additionalLocationDialog" :style="{width: '450px'}" header="Add Location" :modal="true">
+            <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
+                <div class="field">
+                    <label for="location">Location:</label>
+                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                    <Dropdown v-model="poBox.location"
+                    placeholder="Select a Location" class="w-full md:w-14rem" editable
+                    :options="locations"
+                    filter
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    optionLabel="name"
+                    optionValue="location_id" />
+                </div>
+            </template>
+            
+            <Button label="New Location" icon="pi pi-plus" @click="newLocation()"  />
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="additionalLocationDialog = false;"/>
+                <Button label="Save" icon="pi pi-check" text @click="createLocation" />
             </template>
         </Dialog>
         
@@ -627,6 +673,7 @@ export default {
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
             statusChangeDialog: false,
+            newStatus: "",
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -655,6 +702,12 @@ export default {
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
+
+            //LOCATION VARIABLES
+            locations: [] as any[],
+            locationToCreate: {} as any,
+            locationDialog: false,
+            additionalLocationDialog: false,
 
             //MISC VARIABLES
             today: "",
@@ -699,6 +752,7 @@ export default {
                 await this.getProducts();
                 await this.getBoxes();
                 await this.getRecipes();
+                await this.getLocations();
                 this.getDate();
 
 
@@ -787,6 +841,64 @@ export default {
             }
         },
 
+        /**
+         * Description: Grabs the locations from the database
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-22-2024
+         * Date Last Edited: 7-22-2024
+         */
+        async getLocations(){
+            try {
+                this.locations = await action.getLocations();
+            } catch (error) {
+                console.log(error);
+            }
+        }, 
+
+        /**
+         * Description: Clears the locationToCreate object and opens the Dialog for adding a new location to the database
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-22-2024
+         * Date Last Edited: 7-22-2024
+         */
+        newLocation(){
+            this.locationToCreate = {};
+
+            this.locationDialog = true;
+        },
+
+        /**
+         * Description: 
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-22-2024
+         * Date Last Edited: 7-22-2024
+         */
+        additionalLocation(){},
+
+        /**
+         * Description: Inserts a new location into the databse, refreshes the locations array, closes the location
+         * dialog, and clears the locationToCreate object
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-22-2024
+         * Date Last Edited: 7-22-2024
+         */
+        async createLocation(){
+            try {
+                await action.addLocation(this.locationToCreate);
+
+                this.getLocations();
+
+                this.locationDialog = false;
+                this.locationToCreate = {};
+                
+            } catch (error) {
+                console.log(error);
+            }
+        },
         //Description: 
         //
         //Created by: Gabe de la Torre
@@ -850,13 +962,14 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-1-2024
-        getBundleUnits(productNeeded: number){
+        /* getBundleUnits(productNeeded: number){
             //console.log("PRODUCT NEEDED ", productNeeded);
             //console.log("PRODUCT MADE, ", productMade);
             let recipeElement = [] as any[];
             recipeElement = this.recipeElements.find(r => r.product_id === productNeeded && r.type === 'input');
+            console.log("BUNDLE REC EL", recipeElement);
             return recipeElement[<any>'qty'];
-        },
+        }, */
 
         //Description: 
         //
@@ -872,7 +985,7 @@ export default {
                 unitsPerCase = poCase.default_units_per_case;
             else if(poCase.units_per_case)
                 unitsPerCase = poCase.units_per_case;
-            return this.getBundleUnits(rawRecEl.product_id)*(unitsPerCase * recipeAmount);
+            return rawRecEl.qty*(unitsPerCase * recipeAmount);
         },
 
         //Description: 
@@ -920,6 +1033,12 @@ export default {
                 let prod = this.products.find(p => p.product_id === b.product_id);
                 total+=(b.units_per_case*prod.price_2023);
             });
+
+            if (this.purchaseOrder.discount){
+                const discountDecimal = 1 - (this.purchaseOrder.discount/100);
+                total = total * discountDecimal;
+            }
+
             return total;
         },
 
@@ -1673,6 +1792,11 @@ export default {
                     });
                 } else {
                     displayArray = this.groupProducts(linkedCases);
+                    /** @TODO Need to find a way to make sure that the display array is showing only the amount needed
+                     * for the processed boxes, even if there are more raw products of the same type.
+                     * IE: 30 Grinch boxes for Grinch/Cindy 2pk and 70 Grinch boxes for Grinch single,
+                     * instead of 100 Grinch boxes for both
+                     */
                 }
 
                 console.log("RECIPE ELEMENTS", poRecElements);
@@ -1708,6 +1832,7 @@ export default {
             console.log("DISPLAY ARRAY", displayArray);
             return displayArray;
         },
+        
         /** 
          * Description: Displays the raw product info that pertains to each processed case in the PO
          * @param purchase_order_id {number} The purchase order ID
@@ -1722,7 +1847,11 @@ export default {
         displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
             console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
+            //Grab the linked po recipe for the inline processed product
             let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.recipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
+            
+            let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
+
             //let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
             let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
             //let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
@@ -1741,6 +1870,11 @@ export default {
             console.log("PO RECIPE ARRAY", linkedPoRec);
 
             let displayArray = this.groupProducts(linkedBoxes);
+            displayArray.forEach((line: any) => {
+                const recInput = rawRecInputs.find(input => line.product_id === input.product_id);
+
+                line.amount = Math.ceil((linkedCase.units_per_case*amount*recInput.qty)/line.units_per_case);
+            })
 
             console.log(displayArray);
 
@@ -1871,6 +2005,7 @@ export default {
         //Date Created: ???
         //Date Last Edited: 6-04-2024
         getPOSeverity(po: any) {
+            //console.log("STATUS", po.status);
             switch (po.status) {
                 case 'Draft':
                     return 'warning';
@@ -2031,9 +2166,7 @@ export default {
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
                     rawRecElArray.forEach(recEl => {
-                            let rawKey = this.products.find(p => p.product_id === recEl.product_id);
-                            //console.log("RAW KEY", rawKey);
-                            total += this.getTotalCost(rawKey, processedRecElKey, poRec.amount);
+                            total += this.getTotalCost(recEl, processedRecElKey, poRec.amount);
                         });
 
                 });
@@ -2052,6 +2185,11 @@ export default {
             }
 
             //console.log(total);
+            if (this.purchaseOrder.discount){
+                const discountDecimal = 1 - (this.purchaseOrder.discount/100);
+                total = total * discountDecimal;
+            }
+
             return total;
         },
 
@@ -2088,9 +2226,7 @@ export default {
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
                     rawRecElArray.forEach(recEl => {
-                            let rawKey = this.products.find(p => p.product_id === recEl.product_id);
-                            //console.log("RAW KEY", rawKey);
-                            total += this.getTotalUnitsOrdered(rawKey, processedRecElKey, poRec.amount);
+                            total += this.getTotalUnitsOrdered(recEl, processedRecElKey, poRec.amount);
                         });
 
                 });
@@ -2109,7 +2245,7 @@ export default {
             };
 
             
-            //console.log(total);
+            console.log(total);
             return total;
         },
 
@@ -2137,6 +2273,24 @@ export default {
             this.statusChangeDialog = false;
 
             this.purchaseOrder = {};
+        },
+
+        /**
+         * Description: Updates the current purchase order's status to the user selected status and then posts those 
+         * edits to the database
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-23-2024 
+         * Date Last Edited: 7-23-2024 
+         */
+        async confirmStatusChange(){
+            try {
+                this.purchaseOrder.status = this.newStatus; 
+                await action.editPurchaseOrder(this.purchaseOrder);
+                this.statusChangeDialog = false;
+            } catch (error) {
+                console.log(error);
+            }
         },
 
         //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------

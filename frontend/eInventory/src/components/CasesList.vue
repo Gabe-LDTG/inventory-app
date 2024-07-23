@@ -64,10 +64,6 @@
                 </div>
                 <Column field="name" header="Name" sortable />
                 
-                <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                    <Column field="purchase_order_name" header="PO" sortable></Column>
-                </div>
-                
                 <Column field="status" header="Status" sortable>
                     <template #body="slotProps">
                         <div class="card flex flex-wrap  gap-2">
