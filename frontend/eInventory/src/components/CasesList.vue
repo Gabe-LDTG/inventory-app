@@ -70,13 +70,6 @@
                             <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
                         </div>
                     </template>
-                    <!-- <template #filter="{ filterModel, filterCallback }">
-                        <Dropdown v-model="filterModel.value" @change="filterCallback()" :options="statuses" placeholder="Select One" class="p-column-filter" style="min-width: 12rem" :showClear="true">
-                            <template #option="slotProps">
-                                <Tag :value="slotProps.option" :severity="getCaseSeverity(slotProps.option)" />
-                            </template>
-                        </Dropdown>
-                    </template> -->
                 </Column>
                 <div v-if="displayValue === 'processed'" class="flex align-items-center">
                     <Column field="units_per_case" header="Units per case" sortable/>
@@ -105,6 +98,11 @@
                     :paginator="true" :rows="5"
                     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport">
+                        <Column header="PO">
+                            <template #body="{data}">
+                                {{ getPoName(data.purchase_order_id) }}
+                            </template>
+                        </Column>
                         <Column field="name" header="Name"  />
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
                             <Column field="units_per_case" header="Units per case" />
@@ -121,6 +119,13 @@
                         <Column field="location_name" header="Location">
                             <template #body="slotProps">
                                 {{ getIndivLocation(slotProps.data.location) }}
+                            </template>
+                        </Column>
+                        <Column field="status" header="Status" sortable>
+                            <template #body="slotProps">
+                                <div class="card flex flex-wrap  gap-2">
+                                    <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
+                                </div>
                             </template>
                         </Column>
                         <Column field="notes" header="Notes" sortable/>
@@ -1014,7 +1019,7 @@ export default {
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.location + ':' + product.status;
+                const key = product.product_id + ':' + product.location + ':' + product.status + ':' + product.purchase_order_id;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                 }
@@ -1024,7 +1029,18 @@ export default {
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 
             return pool;
-        }
+        },
+
+        getPoName(poId: number){
+            let po = this.purchase_orders.find(po => po.purchase_order_id === poId);
+            let name = "N/A";
+
+            if (po !== undefined)
+                name = po.purchase_order_name;
+
+            return name;
+        },
+
     }
 }
 </script>

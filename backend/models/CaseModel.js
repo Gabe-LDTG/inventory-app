@@ -1,9 +1,9 @@
 //import connection
 import db from "../config/database.js";
 
-const whereProc = "WHERE (products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.fnsku <> '' OR products.asin <> '')";
-const whereUnproc = "WHERE (products.fnsku IS NULL AND products.asin IS NULL) OR (products.fnsku = '' AND products.asin = '') OR (products.fnsku IS NULL AND products.asin = '') OR (products.fnsku = '' AND products.asin IS NULL)";
-const whereDelivered = "((cases.status <> 'Draft') OR (cases.status <> 'Submitted') OR (cases.status <> 'Ordered') OR (cases.status <> 'Inbound') OR (cases.status <> 'BO') OR (cases.status <> 'Back Ordered'))";
+const whereProc = "WHERE ((products.fnsku IS NOT NULL OR products.asin IS NOT NULL) AND (products.fnsku <> '' OR products.asin <> ''))";
+const whereUnproc = "WHERE ((products.fnsku IS NULL AND products.asin IS NULL) OR (products.fnsku = '' AND products.asin = '') OR (products.fnsku IS NULL AND products.asin = '') OR (products.fnsku = '' AND products.asin IS NULL))";
+const whereDelivered = "((cases.status <> 'Draft') AND (cases.status <> 'Submitted') AND (cases.status <> 'Ordered') AND (cases.status <> 'Inbound') AND (cases.status <> 'BO') AND (cases.status <> 'Back Ordered'))";
 //Draft, Submitted, Ordered, Inbound, BO, Back Ordered
 
 //get all cases

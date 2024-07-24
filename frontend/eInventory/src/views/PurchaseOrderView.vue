@@ -8,10 +8,10 @@
                     <!-- <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" /> -->
                 </template>
 
-                <template #end>
-                    <!-- <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/> -->
+                <!--<template #end>
+                    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
-                </template>
+                </template>-->
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
@@ -85,7 +85,7 @@
                 <Column header="PO Phase" :exportable="false" style="min-width: 275px">
                     <template #body="slotProps">
                         <div class="flex flex-wrap align-items-center ">
-                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="help" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
+                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
                         <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
                         <i class="pi pi-angle-right" style="color: slateblue"/>
@@ -297,7 +297,25 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
                 </div>
 
-                <template class="caseCard" v-for="(poBox, counter) in poBoxes">
+                <DataTable :value="checkBoxes('Received')" rowGroupMode="subheader" groupRowsBy="name">
+              
+                    <template #groupheader="slotProps">
+                        <div class="flex align-items-center gap-2">
+                            <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
+                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
+                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
+                        </div>
+                    </template>
+
+                    <template #empty> No products received yet. </template>
+
+                </DataTable> <br>
+
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s) Still Waiting On:</h3>
+                </div>
+
+                <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
 
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
@@ -329,14 +347,14 @@
                             </div>
 
                             <!-- MAKE DROPDOWN WHEN LOCATION TABLE IS SET UP -->
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="total">Location</label>
                                 <InputText id="notes" v-model="poBox.location" rows="3" cols="20" />
-                            </div>
+                            </div> -->
 
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="location">Location:</label>
-                                <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                <InputText id="location" v-model="eCase.location" rows="3" cols="20" />
                                 <Dropdown v-model="poBox.location"
                                 placeholder="Select a Location" class="w-full md:w-14rem" editable
                                 :options="locations"
@@ -344,9 +362,13 @@
                                 :virtualScrollerOptions="{ itemSize: 38 }"
                                 optionLabel="name"
                                 optionValue="location_id" />
-                                <Button label="Additional Location(s)" icon="pi pi-plus" @click="additionalLocation()"  />
                                 <Button label="New Location" icon="pi pi-plus" @click="newLocation()"  />
-                            </div>
+                            </div> -->
+
+                            <!-- FUTURE PROJECT -->
+                            <!-- <div class="field">
+                                <Button label="Additional Location(s)" icon="pi pi-plus" @click="additionalLocation()"  />
+                            </div> -->
 
                         </div>
 
@@ -1093,6 +1115,21 @@ export default {
             return pool;
         },
 
+        groupReqProducts(prodArray: any[]){
+            // get the products in the pool along with their amount
+            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+                const key = product.product_id + ':' + product.units_per_case;
+                if (map[key]) { // if it already exists, incremenet
+                    map[key].amount++;
+                }
+                else // otherwise, add it to the map
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                return map;
+            }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
+
+            return pool;
+        },
+
         /**
          * Description: Groups products together to get the total amount per product based on a specified key
          * @param prodArray {any[]} An array of individual records that needs to be grouped
@@ -1347,124 +1384,249 @@ export default {
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
                 //console.log("REQUESTED BOXES ", this.reqPoBoxes);
+                if(this.purchaseOrder.status == "Partially Delivered"){
+                    console.log("IN PARTIALLY DELIVERED");
+                    this.purchaseOrder.status = 'Delivered';
+                    let boxesToInsert = [] as any[];
 
-                this.purchaseOrder.status = 'Delivered';
-                let boxesToInsert = [] as any[];
+                    this.reqPoBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
-                this.reqPoBoxes.forEach(reqBox => {
-                    let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);
+                    this.reqPoBoxes.forEach(reqBox => {
+                        let receivedBoxArray = this.checkBoxes("Received");
+                        let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
 
-                    console.log("REQUESTED BOX ", reqBox, " AND ACTUAL RECEIVED BOX ", poBox);
+                        let awaitedBoxArray = this.checkBoxes("Awaited");
+                        let awaitedBox = awaitedBoxArray.find(ab => ab.product_id === reqBox.product_id)
 
-                    if(!reqBox.total)
-                        reqBox.total = reqBox.amount * reqBox.units_per_case;
+                        console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND AWAITED BOXES ", awaitedBox);
 
-                    if(!poBox.total)
-                        poBox.total = poBox.amount * poBox.units_per_case;
+                        if(!reqBox.total)
+                            reqBox.total = reqBox.amount * reqBox.units_per_case;
 
-                    let backorderUnits = reqBox.total - poBox.total;
-                    let backorderBoxes = backorderUnits/poBox.units_per_case;
-                    let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
+                        if(!awaitedBox.total)
+                            awaitedBox.total = awaitedBox.amount * awaitedBox.units_per_case;
 
-                    let poBoxUnitsPerCase = poBox.units_per_case;
+                        let backorderUnits = reqBox.total - awaitedBox.total;
+                        let backorderBoxes = backorderUnits/awaitedBox.units_per_case;
+                        let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
 
-                    console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
-                    console.log("REQ", reqBox.total, " - REC", poBox.total, " = LEFT", backorderUnits);
+                        let poBoxUnitsPerCase = awaitedBox.units_per_case;
 
-                    //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
-                    let actualReceivedBoxes = poBox.total/poBoxUnitsPerCase;
-                    let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
+                        console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
+                        console.log("REQ", reqBox.total, " - REC", awaitedBox.total, " = LEFT", backorderUnits);
 
-                    console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
-                    console.log("WHOLE BOX VIEW");
-                    console.log("REQ", reqBox.amount, " - REC", poBox.amount, " = BO", wholeBackorderBoxAmount);
+                        //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
+                        let actualReceivedBoxes = awaitedBox.total/poBoxUnitsPerCase;
+                        let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
 
-                    console.log("DECIMAL BOX VIEW");
-                    console.log("REQ", reqBox.amount, " - REC", poBox.total/poBox.units_per_case , " = BO", backorderBoxes)
-                    
-                    //Gets the decimal value if one of the leftover boxes is partial
-                    let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
+                        console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
+                        console.log("WHOLE BOX VIEW");
+                        console.log("REQ", reqBox.amount, " - REC", awaitedBox.amount, " = BO", wholeBackorderBoxAmount);
 
-                    let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
+                        console.log("DECIMAL BOX VIEW");
+                        console.log("REQ", reqBox.amount, " - REC", awaitedBox.total/awaitedBox.units_per_case , " = BO", backorderBoxes)
+                        
+                        //Gets the decimal value if one of the leftover boxes is partial
+                        let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
 
-                    let backOrderBoxAmount = 0;
-                    if (partialBoxAmount>0){
-                        backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
-                    }
+                        let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
 
-                    console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
-                    console.log("REM", remainder," * UNITS", poBox.units_per_case," = PARTIAL",partialBoxAmount);
-
-                    console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
-
-                    let boxes = this.uBoxes.filter(box => box.purchase_order_id === poBox.purchase_order_id && box.product_id === poBox.product_id);
-
-                    //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
-                    //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
-                    boxes.forEach(box => {
-                        if(wholeReceivedBoxAmount > 0){
-                            console.log("FULL BOX");
-                            box.status = 'Ready';
-                            box.date_received = this.today;
-                            boxesToInsert.push(box);
-                            wholeReceivedBoxAmount--;
-                        } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
-                            console.log("PARTIAL FULL AND BACKORDER BOXES");
-                            //If a partial box arrives, update the last box amount to partial amount a create 
-                            // an additional box whose status is back ordered
-                            box.units_per_case = partialBoxAmount;
-                            box.status = 'Ready';
-                            box.date_received = this.today;
-
-                            boxesToInsert.push(box);
-
-                            let boBox = [] as any[];
-                            boBox[<any>'name'] = box.name;
-                            boBox[<any>'product_id'] = box.product_id
-                            boBox[<any>'purchase_order_id'] = box.purchase_order_id
-                            boBox[<any>'units_per_case'] = backOrderBoxAmount;
-                            boBox[<any>'status'] = 'BO'
-
-                            //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
-                            boxesToInsert.push(boBox);
-
-                            partialBoxAmount = 0;
-                            this.purchaseOrder.status = 'Partially Delivered'
-                        } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
-                            console.log("BACKORDER BOX");
-                            //If no partial box arrives, update the remaining box amounts to backorder
-                            box.status = 'BO';
-                            boxesToInsert.push(box);
-                            this.purchaseOrder.status = 'Partially Delivered'
-                            wholeBackorderBoxAmount --;
+                        let backOrderBoxAmount = 0;
+                        if (partialBoxAmount>0){
+                            backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
                         }
-                    })                    
-                })
 
-                console.log(boxesToInsert);
+                        console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
+                        console.log("REM", remainder," * UNITS", awaitedBox.units_per_case," = PARTIAL",partialBoxAmount);
 
-                let insertArray = [] as any[];
+                        console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
 
-                //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
-                //PREVIOUS FOREACH FUNCTION
-                boxesToInsert.forEach(async box => {
-                    if (box.case_id){
-                        console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status)
-                        //await action.editCase(requestedBox);
-                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
-                        insertArray.push(tempArray);
-                    } else {
-                        console.log("BACK ORDERED PARTIAL BOX", box);
-                        await action.addCase(box);
-                    }
-                })
+                        let boxes = this.uBoxes.filter(box => box.purchase_order_id === awaitedBox.purchase_order_id && box.product_id === awaitedBox.product_id && box.status !== 'Ready');
+
+                        //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
+                        //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
+                        boxes.forEach(box => {
+                            if(wholeReceivedBoxAmount > 0){
+                                console.log("FULL BOX");
+                                box.status = 'Ready';
+                                box.date_received = this.today;
+                                boxesToInsert.push(box);
+                                wholeReceivedBoxAmount--;
+                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
+                                console.log("PARTIAL FULL AND BACKORDER BOXES");
+                                //If a partial box arrives, update the last box amount to partial amount a create 
+                                // an additional box whose status is back ordered
+                                box.units_per_case = partialBoxAmount;
+                                box.status = 'Ready';
+                                box.date_received = this.today;
+
+                                boxesToInsert.push(box);
+
+                                let boBox = [] as any[];
+                                boBox[<any>'name'] = box.name;
+                                boBox[<any>'product_id'] = box.product_id
+                                boBox[<any>'purchase_order_id'] = box.purchase_order_id
+                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
+                                boBox[<any>'status'] = 'BO'
+
+                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
+                                boxesToInsert.push(boBox);
+
+                                partialBoxAmount = 0;
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
+                                console.log("BACKORDER BOX");
+                                //If no partial box arrives, update the remaining box amounts to backorder
+                                box.status = 'BO';
+                                boxesToInsert.push(box);
+                                this.purchaseOrder.status = 'Partially Delivered'
+                                wholeBackorderBoxAmount --;
+                            }
+                        })                    
+                    })
+
+                    console.log(boxesToInsert);
+
+                    let insertArray = [] as any[];
+
+                    //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
+                    //PREVIOUS FOREACH FUNCTION
+                    boxesToInsert.forEach(async box => {
+                        if (box.case_id){
+                            console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status)
+                            //await action.editCase(requestedBox);
+                            let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
+                            insertArray.push(tempArray);
+                        } else {
+                            console.log("BACK ORDERED PARTIAL BOX", box);
+                            await action.addCase(box);
+                        }
+                    })
+                    
+                    await action.bulkEditCases(insertArray);
+
+                    console.log("BOXES TO INSERT ", boxesToInsert);
+                }
+                else{
+                    this.purchaseOrder.status = 'Delivered';
+                    let boxesToInsert = [] as any[];
+
+                    this.reqPoBoxes.forEach(reqBox => {
+                        let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);
+
+                        console.log("REQUESTED BOX ", reqBox, " AND ACTUAL RECEIVED BOX ", poBox);
+
+                        if(!reqBox.total)
+                            reqBox.total = reqBox.amount * reqBox.units_per_case;
+
+                        if(!poBox.total)
+                            poBox.total = poBox.amount * poBox.units_per_case;
+
+                        let backorderUnits = reqBox.total - poBox.total;
+                        let backorderBoxes = backorderUnits/poBox.units_per_case;
+                        let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
+
+                        let poBoxUnitsPerCase = poBox.units_per_case;
+
+                        console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
+                        console.log("REQ", reqBox.total, " - REC", poBox.total, " = LEFT", backorderUnits);
+
+                        //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
+                        let actualReceivedBoxes = poBox.total/poBoxUnitsPerCase;
+                        let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
+
+                        console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
+                        console.log("WHOLE BOX VIEW");
+                        console.log("REQ", reqBox.amount, " - REC", poBox.amount, " = BO", wholeBackorderBoxAmount);
+
+                        console.log("DECIMAL BOX VIEW");
+                        console.log("REQ", reqBox.amount, " - REC", poBox.total/poBox.units_per_case , " = BO", backorderBoxes)
+                        
+                        //Gets the decimal value if one of the leftover boxes is partial
+                        let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
+
+                        let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
+
+                        let backOrderBoxAmount = 0;
+                        if (partialBoxAmount>0){
+                            backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
+                        }
+
+                        console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
+                        console.log("REM", remainder," * UNITS", poBox.units_per_case," = PARTIAL",partialBoxAmount);
+
+                        console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
+
+                        let boxes = this.uBoxes.filter(box => box.purchase_order_id === poBox.purchase_order_id && box.product_id === poBox.product_id && box.status !== 'Ready');
+
+                        //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
+                        //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
+                        boxes.forEach(box => {
+                            if(wholeReceivedBoxAmount > 0){
+                                console.log("FULL BOX");
+                                box.status = 'Ready';
+                                box.date_received = this.today;
+                                boxesToInsert.push(box);
+                                wholeReceivedBoxAmount--;
+                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
+                                console.log("PARTIAL FULL AND BACKORDER BOXES");
+                                //If a partial box arrives, update the last box amount to partial amount a create 
+                                // an additional box whose status is back ordered
+                                box.units_per_case = partialBoxAmount;
+                                box.status = 'Ready';
+                                box.date_received = this.today;
+
+                                boxesToInsert.push(box);
+
+                                let boBox = [] as any[];
+                                boBox[<any>'name'] = box.name;
+                                boBox[<any>'product_id'] = box.product_id
+                                boBox[<any>'purchase_order_id'] = box.purchase_order_id
+                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
+                                boBox[<any>'status'] = 'BO'
+
+                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
+                                boxesToInsert.push(boBox);
+
+                                partialBoxAmount = 0;
+                                this.purchaseOrder.status = 'Partially Delivered'
+                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
+                                console.log("BACKORDER BOX");
+                                //If no partial box arrives, update the remaining box amounts to backorder
+                                box.status = 'BO';
+                                boxesToInsert.push(box);
+                                this.purchaseOrder.status = 'Partially Delivered'
+                                wholeBackorderBoxAmount --;
+                            }
+                        })                    
+                    })
+
+                    console.log(boxesToInsert);
+
+                    let insertArray = [] as any[];
+
+                    //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
+                    //PREVIOUS FOREACH FUNCTION
+                    boxesToInsert.forEach(async box => {
+                        if (box.case_id){
+                            console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
+                            //await action.editCase(requestedBox);
+                            let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
+                            insertArray.push(tempArray);
+                        } else {
+                            console.log("BACK ORDERED PARTIAL BOX", box);
+                            await action.addCase(box);
+                        }
+                    })
+                    
+                    await action.bulkEditCases(insertArray);
+
+                    console.log("BOXES TO INSERT ", boxesToInsert);
+                }
                 
-                await action.bulkEditCases(insertArray);
-
-                console.log("BOXES TO INSERT ", boxesToInsert);
             } catch (error) {
                 console.log(error);
-                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+                //this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
 
@@ -2008,10 +2170,10 @@ export default {
             //console.log("STATUS", po.status);
             switch (po.status) {
                 case 'Draft':
-                    return 'warning';
+                    return 'danger';
                 
                 case 'Submitted':
-                    return 'help';
+                    return 'warning';
 
                 case 'Ordered':
                     return 'info';
@@ -2293,73 +2455,32 @@ export default {
             }
         },
 
-        //STUFF THAT HASN'T BEEN CHECKED AND MOVED OVER YET-------------------------------------------------
-
-        //https://codesandbox.io/p/sandbox/primevue-fileuploader-custom-q2dqhh?file=%2Fsrc%2FFileUploadDemo.vue%3A42%2C7-42%2C27
-        onUpload(event: any) {
-            importAction.onUpload(event, 'Processed Product Key');
-            
-            
-        },
-        exportCSV() {
-            //this.$refs.dt.exportCSV();
-            console.log("Functionality not finished");
-        },
-        async deleteSelectedProducts() {
-            try {
-                //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
-                //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
-                if(this.selectedProducts){
-                    for(let i=0; i<this.selectedProducts.length; i++){
-                    //stop = this.validateDelete(this.selectedProducts[i]);
-
-                    await action.deleteProduct(this.selectedProducts[i].product_id);
-                    this.products = this.products.filter(val => !this.selectedProducts.includes(val));
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
-                }
-                this.deleteProductsDialog = false;
-                }
-                
-                //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
-            } catch (err) {
-                console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
-            } finally {
-                this.selectedProducts = [];
-            }
-            
-        },
         initFilters() {
             this.filters = {
                 'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
             }
         },
-        getStatusLabel(status: any) {
-            switch (status) {
-                case 'INSTOCK':
-                    return 'success';
 
-                case 'LOWSTOCK':
-                    return 'warning';
+        checkBoxes(boxType: string){
+            let boxArray = [] as any[];
 
-                case 'OUTOFSTOCK':
-                    return 'danger';
+            console.log("PO BOXES", this.poBoxes);
 
-                default:
-                    return null;
+            //POSSIBLY CHECK FOR NOT EQUALS AS WELL
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
+            console.log("RECEIVED BOXES", receivedBoxes);
+
+            //CHANGE TO INCOMING
+            let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
+            console.log("AWAITED BOXES", awaitedBoxes);
+
+            if(boxType === 'Received'){
+                boxArray = receivedBoxes;
+            } else if (boxType === 'Awaited'){
+                boxArray = awaitedBoxes
             }
-        },
-        /* rowStyle(data: any) {
-            if (data.fnsku === '' && data.asin === '') {
-                return { background: 'red' };
-            }
-            else {
-                return { background: 'green'}
-            }  
-        }, */
-        parseFile(){
-            this.loading = true;
-        },
+            return boxArray;
+        }
     }
 }
 </script>
