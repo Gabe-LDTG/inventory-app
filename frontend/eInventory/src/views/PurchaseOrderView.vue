@@ -2,6 +2,7 @@
     <div>
         <div class="card">
             <Toast />
+            <div v-if="loading" style="z-index: 1"> LOADING <ProgressSpinner /> </div>
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
@@ -84,16 +85,20 @@
 
                 <Column header="PO Phase" :exportable="false" style="min-width: 275px">
                     <template #body="slotProps">
-                        <div class="flex flex-wrap align-items-center ">
-                        <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
-                        <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
-                        <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
-                        <i class="pi pi-angle-right" style="color: slateblue"/>
-                        <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
-                        <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
-                    </div>
+                        <div v-if="slotProps.data.status === 'Delivered'" class="flex flex-wrap align-items-center ">
+                            <Button icon="pi pi-pencil" v-tooltip.top="'Edit PO'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                        </div>
+
+                        <div v-else class="flex flex-wrap align-items-center ">
+                            <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
+                            <i class="pi pi-angle-right" style="color: slateblue"/>
+                            <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
+                            <i class="pi pi-angle-right" style="color: slateblue"/>
+                            <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
+                            <i class="pi pi-angle-right" style="color: slateblue"/>
+                            <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                            <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
+                        </div>
                     </template>
                 </Column>
 
@@ -132,7 +137,7 @@
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
-                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)">
+                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
@@ -151,7 +156,13 @@
                                                 {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
                                             </template>
                                         </Column>
-                                        <Column field="status" header="Status"/>
+                                        <Column field="status" header="Status" sortable>
+                                            <template #body="slotProps">
+                                                <div class="card flex flex-wrap  gap-2">
+                                                    <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
+                                                </div>
+                                            </template>
+                                        </Column>
                                     </DataTable>
                                 </template>
 
@@ -180,7 +191,7 @@
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                            <DataTable :value="displayInfo(slotProps.data)">
+                            <DataTable :value="displayInfo(slotProps.data)" :rowClass="rowClass" :rowStyle="rowStyle">
                                 <Column field="name" header="Name" />
                                 <Column header="UPC">
                                     <template #body="{data}">
@@ -204,7 +215,13 @@
                                         {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
                                     </template>
                                 </Column>
-                                <Column field="status" header="Status" />
+                                <Column field="status" header="Status" sortable>
+                                    <template #body="slotProps">
+                                        <div class="card flex flex-wrap  gap-2">
+                                            <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
+                                        </div>
+                                    </template>
+                                </Column>
                             </DataTable>
                         </div>
                 </template>
@@ -281,7 +298,7 @@
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
                 </div>
 
-                <DataTable :value="reqPoBoxes" rowGroupMode="subheader" groupRowsBy="name">
+                <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" groupRowsBy="name">
               
                     <template #groupheader="slotProps">
                         <div class="flex align-items-center gap-2">
@@ -311,7 +328,7 @@
 
                 </DataTable> <br>
 
-                <div class="field">
+                <div v-if="checkBoxes('Awaited')" class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s) Still Waiting On:</h3>
                 </div>
 
@@ -373,7 +390,9 @@
                         </div>
 
                     </div>
-                    </template>
+                </template>
+
+            
 
             </div>
 
@@ -600,6 +619,7 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
+                <div v-if="loading" style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 25px; height: 25px" fill="transparent" /> </div>
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
@@ -769,6 +789,7 @@ export default {
     methods: {
         async initVariables(){
             try {
+                this.loading = true;
                 await this.getVendors();
                 await this.getPurchaseOrders();
                 await this.getProducts();
@@ -776,6 +797,7 @@ export default {
                 await this.getRecipes();
                 await this.getLocations();
                 this.getDate();
+                this.loading = false;
 
 
             } catch (error) {
@@ -785,7 +807,7 @@ export default {
 
         async getPurchaseOrders(){
             try {
-                this.loading = true;
+                
                 this.purchaseOrders = await action.getPurchaseOrders();
                 this.poRecipes = await action.getPurchaseOrderRecipes();
 
@@ -799,7 +821,6 @@ export default {
                 console.log("PURCHASE ORDERS", this.purchaseOrders);
                 console.log("PO RECIPES ", this.poRecipes);
                 
-                this.loading = false;
             } catch (err) {
                 console.log(err);
             }
@@ -1104,14 +1125,18 @@ export default {
             // get the products in the pool along with their amount
             let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.status + ':' + product.units_per_case;
+                //console.log("KEY", key);
+                //console.log("MAP", map);
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
+                    //console.log(map[key].amount);
                 }
                 else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, status: product.status, amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
 
+            //console.log("POOL", pool);
             return pool;
         },
 
@@ -1292,6 +1317,7 @@ export default {
         //Date Last Edited: ???
         validate() {
             this.submitted == true;
+            
 
             let errAmount = 0;
             let errText = [];
@@ -1328,19 +1354,24 @@ export default {
             }
         },
         async savePurchaseOrder() {
-            //this.submitted = true;
+            try {
+                //this.submitted = true;
+                if (this.purchaseOrder.purchase_order_name.trim()) {
+                    this.loading = true;
+                    if (this.purchaseOrder.purchase_order_id) {
+                        await this.confirmEdit();
+                    }
+                    else {
+                        await this.confirmCreate();
+                    }
 
-			if (this.purchaseOrder.purchase_order_name.trim()) {
-                if (this.purchaseOrder.purchase_order_id) {
-                    await this.confirmEdit();
+                    this.loading = false;
+                    this.purchaseOrderDialog = false;
+                    //this.selectedProducts = null;
+                    this.purchaseOrder = {};
                 }
-                else {
-                    await this.confirmCreate();
-                }
-
-                this.purchaseOrderDialog = false;
-                //this.selectedProducts = null;
-                this.purchaseOrder = {};
+            } catch (error) {
+                console.log(error);
             }
         },
         async confirmEdit(){
@@ -1384,12 +1415,17 @@ export default {
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
                 //console.log("REQUESTED BOXES ", this.reqPoBoxes);
-                if(this.purchaseOrder.status == "Partially Delivered"){
-                    console.log("IN PARTIALLY DELIVERED");
+
+                if (!this.purchaseOrder.date_received)
+                    this.purchaseOrder.date_received = this.today;
+
+                if(this.purchaseOrder.status === "Partially Delivered"){
                     this.purchaseOrder.status = 'Delivered';
+                    console.log("IN PARTIALLY DELIVERED");
+
                     let boxesToInsert = [] as any[];
 
-                    this.reqPoBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
+                    this.reqPoBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status === "BO"));
 
                     this.reqPoBoxes.forEach(reqBox => {
                         let receivedBoxArray = this.checkBoxes("Received");
@@ -2032,11 +2068,13 @@ export default {
             console.log("PO RECIPE ARRAY", linkedPoRec);
 
             let displayArray = this.groupProducts(linkedBoxes);
-            displayArray.forEach((line: any) => {
+            console.log("DISPLAY ARRAY BEFORE FOR EACH", displayArray);
+
+            /* displayArray.forEach((line: any) => {
                 const recInput = rawRecInputs.find(input => line.product_id === input.product_id);
 
                 line.amount = Math.ceil((linkedCase.units_per_case*amount*recInput.qty)/line.units_per_case);
-            })
+            }) */
 
             console.log(displayArray);
 
@@ -2229,6 +2267,22 @@ export default {
                     return 'pi pi-question-circle';
             }
         },
+
+        getBoxSeverity(box: any) {
+            //console.log("STATUS", po.status);
+            switch (box.status) {
+                case 'BO':
+                    return 'warning';
+
+                case 'Ready':
+                    return 'success';
+
+                default:
+                    //console.log("DEFAULT CASE ", c)
+                    return 'info';
+            }
+        },
+
         onTotalUpdate(total: any, units_per_case: any){
             let qty = Math.ceil(total/units_per_case);
             return qty;
@@ -2448,6 +2502,9 @@ export default {
         async confirmStatusChange(){
             try {
                 this.purchaseOrder.status = this.newStatus; 
+                if (this.purchaseOrder.status)
+                this.purchaseOrder.date_ordered = this.today;
+
                 await action.editPurchaseOrder(this.purchaseOrder);
                 this.statusChangeDialog = false;
             } catch (error) {
@@ -2465,6 +2522,9 @@ export default {
             let boxArray = [] as any[];
 
             console.log("PO BOXES", this.poBoxes);
+            //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
+
+            let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
             let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
@@ -2477,10 +2537,23 @@ export default {
             if(boxType === 'Received'){
                 boxArray = receivedBoxes;
             } else if (boxType === 'Awaited'){
-                boxArray = awaitedBoxes
+                boxArray = awaitedBoxes;
+            } else if (boxType === 'All'){
+                boxArray = allBoxes;
             }
             return boxArray;
-        }
+        },
+        
+        rowClass(data: any) {
+            console.log(data);
+            return [{ '!font-bold !text-primary-contrast': data.status === 'BO' }];
+        },
+
+        rowStyle(data: any) {
+            if (data.status === 'BO') {
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            }
+        },
     }
 }
 </script>
