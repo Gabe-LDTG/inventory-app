@@ -2,7 +2,7 @@
     <div>
         <div class="card">
             <Toast />
-            <div v-if="loading" style="z-index: 1"> LOADING <ProgressSpinner /> </div>
+            <!-- <div v-if="loading" style="z-index: 1"> LOADING <ProgressSpinner /> </div> -->
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
@@ -168,7 +168,7 @@
 
                             </DataTable>
 
-                            <br><h4 class="font-bold">Raw Products with No Plan</h4>
+                           <!--  <br><h4 class="font-bold">Raw Products with No Plan</h4>
                             <DataTable :value="getPool(slotProps.data.purchase_order_id)">
                                 <Column header="Name">
                                     <template #body = {data}>
@@ -186,36 +186,37 @@
                                     </template>
                                 </Column>
                                 <Column field="status" header="Status" />
-                            </DataTable>
+                            </DataTable> -->
                         </div>
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                            <DataTable :value="displayInfo(slotProps.data)" :rowClass="rowClass" :rowStyle="rowStyle">
-                                <Column field="name" header="Name" />
-                                <Column header="UPC">
+                            <DataTable :value="displayInfo(slotProps.data)" :rowClass="rowClass" :rowStyle="rowStyle"
+                            sortField="name" :sortOrder="-1">
+                                <Column field="name" header="Name" :sortable="true"/>
+                                <Column header="UPC" :sortable="true">
                                     <template #body="{data}">
                                         {{ getUPC(data.product_id) }}
                                     </template>
-                                </Column>
-                                <Column field="units_per_case" header="Units per Case" />
-                                <Column field="amount" header="Total # of Boxes" />
-                                <Column header="Total # of Units">
+                                </Column >
+                                <Column field="units_per_case" header="Units per Case"  sortable/>
+                                <Column field="amount" header="Total # of Boxes" sortable />
+                                <Column header="Total # of Units" :sortable="true">
                                     <template #body = {data}>
                                         {{ data.units_per_case * data.amount }}
                                     </template>
-                                </Column>
-                                <Column header="Unit Price">
+                                </Column >
+                                <Column header="Unit Price" :sortable="true">
                                     <template #body="{data}">
                                         ${{ formatCurrency(getUnitCost(data.product_id)) }}
                                     </template>
                                 </Column>
-                                <Column header="Total Price" class="font-bold">
+                                <Column header="Total Price" class="font-bold" :sortable="true">
                                     <template #body="{data}">
                                         {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
                                     </template>
-                                </Column>
-                                <Column field="status" header="Status" sortable>
+                                </Column >
+                                <Column field="status" header="Status" :sortable="true">
                                     <template #body="slotProps">
                                         <div class="card flex flex-wrap  gap-2">
                                             <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
@@ -369,9 +370,9 @@
                                 <InputText id="notes" v-model="poBox.location" rows="3" cols="20" />
                             </div> -->
 
-                            <!-- <div class="field">
+                            <!-- <InputText id="location" v-model="poBox.location" rows="3" cols="20" /> -->
+                             <!-- <div class="field">
                                 <label for="location">Location:</label>
-                                <InputText id="location" v-model="eCase.location" rows="3" cols="20" />
                                 <Dropdown v-model="poBox.location"
                                 placeholder="Select a Location" class="w-full md:w-14rem" editable
                                 :options="locations"
@@ -380,7 +381,7 @@
                                 optionLabel="name"
                                 optionValue="location_id" />
                                 <Button label="New Location" icon="pi pi-plus" @click="newLocation()"  />
-                            </div> -->
+                            </div>  -->
 
                             <!-- FUTURE PROJECT -->
                             <!-- <div class="field">
@@ -619,7 +620,7 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div v-if="loading" style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 25px; height: 25px" fill="transparent" /> </div>
+                <div v-if="loading" style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div>
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
@@ -1376,7 +1377,7 @@ export default {
         },
         async confirmEdit(){
             try {
-                this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                //this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
                 console.log(this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
                 console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
@@ -1388,7 +1389,8 @@ export default {
                     this.purchaseOrder.date_received = this.purchaseOrders[0].date_received.split('T')[0];
                 }*/
 
-                await this.alocateBoxes();
+                if (this.purchaseOrder.status != 'Delivered')
+                    await this.alocateBoxes();
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
@@ -2070,11 +2072,11 @@ export default {
             let displayArray = this.groupProducts(linkedBoxes);
             console.log("DISPLAY ARRAY BEFORE FOR EACH", displayArray);
 
-            /* displayArray.forEach((line: any) => {
+           /*  displayArray.forEach((line: any) => {
                 const recInput = rawRecInputs.find(input => line.product_id === input.product_id);
 
                 line.amount = Math.ceil((linkedCase.units_per_case*amount*recInput.qty)/line.units_per_case);
-            }) */
+            })  */
 
             console.log(displayArray);
 

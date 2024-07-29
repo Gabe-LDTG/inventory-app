@@ -2,7 +2,7 @@ var helper = {
     formatDate(rawDate: string) {
         var date = new Date(rawDate);
         //momentDate = this.eCase.date_received;
-        console.log("TESTING DATES: ", date);
+        //console.log("TESTING DATES: ", date);
 
         return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
     },

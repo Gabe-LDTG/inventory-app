@@ -231,6 +231,8 @@
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveCase" />
+                <!-- <Button label="Edit One" icon="pi pi-check" text @click="saveCase" />
+                <Button label="Edit All" /> -->
             </template>
         </Dialog>
 
@@ -735,6 +737,9 @@ export default {
                 //alert("Testing");
 
                 console.log(this.eCase);
+
+                if(this.eCase.date_received)
+                this.eCase.date_received = this.eCase.date_received.split('T')[0];
 
                 await action.editCase(this.eCase);
 
