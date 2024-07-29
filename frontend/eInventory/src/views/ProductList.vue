@@ -65,15 +65,15 @@
                 <Column field="notes" header="Notes" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-cog" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
+                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
+                        <Button icon="pi pi-trash" v-tooltip.top="'Delete Product'" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
                 </Column>
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="productDialog" :style="{width: '450px'}" header="Product Details" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="productDialog" :style="{width: '450px'}" :header="getProductDialogName()" :modal="true" class="p-fluid">
             <div class="field">
                 <label for="vendor">Vendor</label>
                 <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
@@ -86,7 +86,7 @@
                 optionValue="vendor_id" />
             </div>
             
-            <div class="field">
+            <div class="field" v-if="!product.product_id">
                 <label for="name">Name</label>
                 <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                 <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
@@ -244,7 +244,7 @@
                 <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
             </div>
 
-            <div class="field">
+            <div class="field" v-if="product.fnsku || product.asin">
                 <label>Product(s) Needed</label>
                 <template class="caseCard" v-for="(ing, counter) in recipesInUse">
 
@@ -302,7 +302,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="productInfoDialog" header="Additional Details" :modal="true">
+        <Dialog v-model:visible="productInfoDialog" :header="product.Name+' Details'" :modal="true">
             <Button label="Toggle Filter" @click="toggleFilter()"/>
             
             <div v-for="(item, index) in product">
@@ -446,6 +446,7 @@ export default {
             { field: 'item_num_5', header: 'Item Number #5'},
             { field: 'item_num_6', header: 'Item Number #6'},
             { field: 'labor_cost', header: 'Labor Cost' },
+            { field: 'name', header: 'Name' },
             { field: 'map', header: 'Map' },
             { field: 'meltable', header: 'Meltable?' },
             { field: 'misc_cost', header: 'Misc Cost' },
@@ -592,6 +593,26 @@ export default {
             console.log(recipe);
         },
 
+        /** 
+         * Description: Checks the current product being worked on. If the product has an id, it is being edited,
+         * and the header will show the name of the product being edited. Otherwise, the header will display 
+         * "Create Product."
+         *
+         * Created by: Gabe de la Torre
+         * Date Created: 7-29-2024
+         * Date Last Edited: 7-29-2024 
+         */
+        getProductDialogName(){
+            let header = "";
+
+            if(this.product.product_id)
+                header = "Edit: "+this.product.name;
+            else 
+                header = "Create Product";
+
+            return header;
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -720,10 +741,15 @@ export default {
             this.recipesInUse = [];
             this.product = {...product}; //ASK MICHAEL
 
-            let recipeMap = this.getProductRecipes(this.product.product_id);
+            if(this.product.fnksu || this.product.asin){
+                let recipeMap = this.getProductRecipes(this.product.product_id);
 
+                console.log("RECIPE MAP", recipeMap);
 
-            if(this.product.fnsku){
+                this.recipesInUse = recipeMap;
+            }
+
+            /* if(this.product.fnsku){
                 console.log("PROCESSED")
                 for (let recIdx = 0; recIdx < recipeMap.length; recIdx++){
                     let indRec = [] as any[];
@@ -734,7 +760,7 @@ export default {
                     indRec[<any>'units_needed'] = recipeMap[recIdx]['recipe']['units_needed'];
                     this.recipesInUse.push(indRec);
                 }
-            }
+            } */
 
             //this.recipesInUse = this.getProductRecipes(this.product.product_id);
             console.log(this.recipesInUse);

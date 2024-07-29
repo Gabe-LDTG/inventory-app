@@ -295,42 +295,69 @@
             <div v-if="purchaseOrder.purchase_order_id">
                 <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
+                <div class ="caseCard">
+                    <div class="field">
+                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
+                    </div>
+
+                    <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" :rowStyle="rowStyleRequested"> 
+                        <!-- groupRowsBy="name" -->
+                
+                        <!-- <template #groupheader="slotProps">
+                            <div class="flex align-items-center gap-2">
+                                <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
+                                <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
+                                <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
+                            </div>
+                        </template> -->
+
+                        <!-- <template #groupheader="slotProps">
+                            <div class="flex align-items-center gap-2">
+                                <div class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</div>
+                            </div>
+                        </template> -->
+
+                        <Column field="name" header="Name"/>
+                        <Column field="amount" header="Total Number of Boxes"/>
+                        <Column header="Total Number of Units">
+                            <template #body={data}>
+                                {{ data.amount*data.units_per_case }}
+                            </template>
+                        </Column>
+    
+                    </DataTable> <br>
                 </div>
 
-                <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" groupRowsBy="name">
-              
-                    <template #groupheader="slotProps">
-                        <div class="flex align-items-center gap-2">
-                            <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
-                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
-                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
-                        </div>
-                    </template>
-  
-                </DataTable> <br>
+                <div class="caseCard">
+                    <div class="field">
+                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
+                    </div>
 
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
+                    <DataTable :value="checkBoxes('Received')" rowGroupMode="subheader" :rowStyle="rowStyleReceived">
+                
+                        <!-- <template #groupheader="slotProps">
+                            <div class="flex align-items-center gap-2">
+                                <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
+                                <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
+                                <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
+                            </div>
+                        </template> -->
+
+                        <Column field="name" header="Name"/>
+                        <Column field="amount" header="Total Number of Boxes"/>
+                        <Column header="Total Number of Units">
+                            <template #body={data}>
+                                {{ data.amount*data.units_per_case }}
+                            </template>
+                        </Column>
+
+                        <template #empty> No products received yet. </template>
+
+                    </DataTable> <br>
                 </div>
-
-                <DataTable :value="checkBoxes('Received')" rowGroupMode="subheader" groupRowsBy="name">
-              
-                    <template #groupheader="slotProps">
-                        <div class="flex align-items-center gap-2">
-                            <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
-                            <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
-                            <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
-                        </div>
-                    </template>
-
-                    <template #empty> No products received yet. </template>
-
-                </DataTable> <br>
 
                 <div v-if="checkBoxes('Awaited')" class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s) Still Waiting On:</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Newly Arrived Product(s):</h3>
                 </div>
 
                 <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
@@ -2520,11 +2547,67 @@ export default {
             }
         },
 
+        /** 
+         * Description: Displays the raw product info that pertains to each processed case in the PO
+         * @param boxType {string} A string with the value of either "Received", "Awaited", "All"
+         * @returns An array based on the inputted boxType string
+         * Received: All the recieved boxes
+         * Awaited: All boxes yet to be delivered
+         * All: All boxes belonging to the PO
+         *
+         * Created by: Gabe de la Torre
+         * Date Created: 7-25-2024
+         * Date Last Edited: 7-25-2024 
+         */
         checkBoxes(boxType: string){
+            let boxArray = [] as any[];
+
+            //console.log("PO BOXES", this.poBoxes);
+            //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
+
+            let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
+
+            //POSSIBLY CHECK FOR NOT EQUALS AS WELL
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
+            //console.log("RECEIVED BOXES", receivedBoxes);
+
+            //CHANGE TO INCOMING
+            let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
+            // console.log("AWAITED BOXES", awaitedBoxes);
+
+            if(boxType === 'Received'){
+                boxArray = receivedBoxes;
+            } else if (boxType === 'Awaited'){
+                boxArray = awaitedBoxes;
+            } else if (boxType === 'All'){
+                boxArray = allBoxes;
+            }
+
+            console.log("Box Array ",boxArray);
+            return boxArray;
+        },
+
+        /** 
+         * Description: Displays the raw product info that pertains to a specific processed case in the PO
+         * @param boxType {string} A string with the value of either "Received", "Awaited", "All"
+         * @param product_id {number} The ID of the output product
+         * @returns An array based on the inputted boxType string
+         * Received: All the recieved boxes related to the inputed processed product
+         * Awaited: All boxes yet to be delivered related to the inputed processed product
+         * All: All boxes belonging to the PO related to the inputed processed product
+         *
+         * Created by: Gabe de la Torre
+         * Date Created: 7-29-2024
+         * Date Last Edited: 7-29-2024 
+         */
+        checkSpecificBoxes(boxType: string, product_id: number){
             let boxArray = [] as any[];
 
             console.log("PO BOXES", this.poBoxes);
             //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
+
+            let outputProduct = this.recipeElements.find(element => element.product_id === product_id && element.type === "output");
+            let inputProducts = this.recipeElements.filter(element => element.recipe_id === outputProduct.recipe_id);
 
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
@@ -2554,7 +2637,16 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            } else if (data.status === 'Draft') {
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Blue' };
             }
+        },
+
+        rowStyleRequested() {
+            return { font: 'bold', backgroundColor: '#C0EEFF' };
+        },
+        rowStyleReceived() {
+            return { font: 'bold', backgroundColor: '#bbffb5' };
         },
     }
 }
