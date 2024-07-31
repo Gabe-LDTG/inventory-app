@@ -295,27 +295,13 @@
             <div v-if="purchaseOrder.purchase_order_id">
                 <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
+                <div v-if="purchaseOrder.status === 'Delivered'">
                 <div class ="caseCard">
                     <div class="field">
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
                     </div>
 
-                    <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" :rowStyle="rowStyleRequested"> 
-                        <!-- groupRowsBy="name" -->
-                
-                        <!-- <template #groupheader="slotProps">
-                            <div class="flex align-items-center gap-2">
-                                <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
-                                <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
-                                <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
-                            </div>
-                        </template> -->
-
-                        <!-- <template #groupheader="slotProps">
-                            <div class="flex align-items-center gap-2">
-                                <div class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</div>
-                            </div>
-                        </template> -->
+                    <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" :rowStyle="rowStyleRequested">
 
                         <Column field="name" header="Name"/>
                         <Column field="amount" header="Total Number of Boxes"/>
@@ -334,14 +320,6 @@
                     </div>
 
                     <DataTable :value="checkBoxes('Received')" rowGroupMode="subheader" :rowStyle="rowStyleReceived">
-                
-                        <!-- <template #groupheader="slotProps">
-                            <div class="flex align-items-center gap-2">
-                                <span class="flex justify-content-start w-full">{{ slotProps.data.name }}</span>
-                                <div class="flex justify-content-end w-full">Total Number of Boxes: {{ slotProps.data.amount }}</div>
-                                <div class="flex justify-content-end w-full">Requested Total QTY: {{ slotProps.data.amount*slotProps.data.units_per_case }}</div>
-                            </div>
-                        </template> -->
 
                         <Column field="name" header="Name"/>
                         <Column field="amount" header="Total Number of Boxes"/>
@@ -354,10 +332,13 @@
                         <template #empty> No products received yet. </template>
 
                     </DataTable> <br>
+                </div> 
                 </div>
 
-                <div v-if="checkBoxes('Awaited')" class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Newly Arrived Product(s):</h3>
+                <div v-if="purchaseOrder.status !== 'Delivered'">
+                <div class="field">
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
+                </div>
                 </div>
 
                 <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
@@ -365,31 +346,98 @@
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
 
-                        <h4 class="flex justify-content-start font-bold w-full">{{ poBox.name }}</h4><br>
+                        <h3 class="flex justify-content-start font-bold w-full">{{ poBox.name }}</h3><br>
+
+                        <DataTable :value="checkSpecificBoxes('All', poBox.product_id)" rowGroupMode="subheader" :rowStyle="rowStyleRequested"> 
+
+                            <template #header>
+                                <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
+                                    <h3 class="m-0 font-bold">Requested</h3>
+                                </div>
+                            </template>
+                            <Column field="amount" header="Total Number of Boxes"/>
+                            <Column header="Total Number of Units">
+                                <template #body={data}>
+                                    {{ data.amount*data.units_per_case }}
+                                </template>
+                            </Column>
+
+                        </DataTable>
+
+                        <DataTable :value="checkSpecificBoxes('Received', poBox.product_id)" rowGroupMode="subheader" :rowStyle="rowStyleReceived"> 
+
+                            <template #header>
+                                <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
+                                    <h3 class="m-0 font-bold">Received</h3>
+                                </div>
+                            </template>
+                            <Column field="amount" header="Total Number of Boxes"/>
+                            <Column header="Total Number of Units">
+                                <template #body={data}>
+                                    {{ data.amount*data.units_per_case }}
+                                </template>
+                            </Column>
+
+                            <template #footer> In total there are {{ getReceivedTotal(poBox.product_id) }} received units. </template>
+                        </DataTable>
+
+                        <DataTable :value="checkSpecificBoxes('Awaited', poBox.product_id)" rowGroupMode="subheader" editMode="cell" @cell-edit-complete="onCellEditComplete" :rowStyle="rowStyleAwaiting"> 
+
+                            <template #header>
+                                <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
+                                    <h3 class="m-0 font-bold">Waiting On</h3>
+                                </div>
+                            </template>
+                            <Column field="amount" header="Total Number of Boxes">
+                                <template #body={data}>
+                                    {{ data.amount }}
+                                </template>
+                                <template #editor={data}>
+                                    <InputNumber inputId="stacked-buttons" required="true" 
+                                    v-model="data.amount" showButtons
+                                    @update:model-value="data.total = data.amount*data.units_per_case; poBox.amount = data.amount; poBox.total = data.total"/>
+                                </template>
+                            </Column>
+                            <Column header="Total Number of Units">
+                                <template #body={data}>
+                                    {{ data.total }}
+                                </template>
+                                <template #editor={data}>
+                                    <InputNumber v-model="data.total" 
+                                    inputId="stacked-buttons" showButtons
+                                    @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case); poBox.total = data.total; poBox.amount = data.amount"/>
+                                </template>
+                            </Column>
+
+                        </DataTable>
+
+                        <!-- <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
+                            <h3 class="m-0 font-bold">Waiting On</h3>
+                        </div> -->
                         <div class="block-div">
 
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="qty">QTY:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 :class="{'p-invalid': submitted && !poBox.units_per_case}"
                                 v-model="poBox.units_per_case" showButtons
                                 @input="poBox.total = poBox.amount*poBox.units_per_case"/>
                                 <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                            </div>
+                            </div> -->
 
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="amount">How Many Boxes Arrived?</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="poBox.amount" showButtons
                                 @update:model-value="poBox.total = poBox.amount*poBox.units_per_case"/>
-                            </div>
+                            </div> -->
 
-                            <div class="field">
+                            <!-- <div class="field">
                                 <label for="total">Total Units Received</label>
                                 <InputNumber v-model="poBox.total" 
                                 inputId="stacked-buttons" showButtons
                                 @update:model-value="poBox.amount = onTotalUpdate(poBox.total, poBox.units_per_case)"/>
-                            </div>
+                            </div> -->
 
                             <!-- MAKE DROPDOWN WHEN LOCATION TABLE IS SET UP -->
                             <!-- <div class="field">
@@ -1171,10 +1219,12 @@ export default {
         groupReqProducts(prodArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.units_per_case;
+                const key = product.product_id;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
-                }
+                    if(product.units_per_case > map[key].units_per_case)
+                        map[key].units_per_case = product.units_per_case;
+                } 
                 else // otherwise, add it to the map
                     map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
                 return map;
@@ -2598,26 +2648,21 @@ export default {
          *
          * Created by: Gabe de la Torre
          * Date Created: 7-29-2024
-         * Date Last Edited: 7-29-2024 
+         * Date Last Edited: 7-31-2024 
          */
         checkSpecificBoxes(boxType: string, product_id: number){
             let boxArray = [] as any[];
 
             console.log("PO BOXES", this.poBoxes);
-            //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
-
-            let outputProduct = this.recipeElements.find(element => element.product_id === product_id && element.type === "output");
-            let inputProducts = this.recipeElements.filter(element => element.recipe_id === outputProduct.recipe_id);
-
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
             let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
             console.log("RECEIVED BOXES", receivedBoxes);
 
-            //CHANGE TO INCOMING
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
-            console.log("AWAITED BOXES", awaitedBoxes);
+            //console.log(boxArray.push(allBoxes), boxArray.push(receivedBoxes), boxArray);
+            awaitedBoxes.forEach(box => box.total = box.amount*box.units_per_case);
 
             if(boxType === 'Received'){
                 boxArray = receivedBoxes;
@@ -2626,6 +2671,11 @@ export default {
             } else if (boxType === 'All'){
                 boxArray = allBoxes;
             }
+
+            //console.log("ARRAY BEFORE FILTER", boxArray);
+            boxArray = boxArray.flat().filter(box => box.product_id === product_id);
+            //console.log("ARRAY AFTER FILTER", boxArray);
+
             return boxArray;
         },
         
@@ -2648,6 +2698,32 @@ export default {
         rowStyleReceived() {
             return { font: 'bold', backgroundColor: '#bbffb5' };
         },
+        rowStyleAwaiting() {
+            return { font: 'bold', backgroundColor: '#FFD580'};
+        },
+        rowStyleCompared(data: any){
+            if (data.moment === 'Requested') {
+                return { font: 'bold', backgroundColor: '#C0EEFF' };
+            } else if (data.moment === 'Received') {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
+            }
+        },
+
+        onCellEditComplete(event: any) {
+            console.log(event);
+            let {data, newValue, field} = event;
+            data[field] = newValue;
+        },
+
+        getReceivedTotal(product_id: number) {
+            let receivedArray = this.checkSpecificBoxes('Received', product_id);
+            let total = 0;
+
+            receivedArray.forEach(line => {
+                console.log(line);
+                total += line.amount * line.units_per_case});
+            return total;
+        }
     }
 }
 </script>

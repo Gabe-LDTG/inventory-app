@@ -8,6 +8,12 @@
                     <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
                 </template>
 
+                <template #center>
+                    <Button label="Processed" severity="success" @click="displayType = 'proc'; toggleProducts(displayType)" />
+                    <Button label="All" severity="help" @click="displayType = 'all'; toggleProducts(displayType)" />
+                    <Button label="Unprocessed" severity="info" @click="displayType = 'unproc'; toggleProducts(displayType)" />
+                </template>
+
                 <template #end>
                     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
@@ -15,7 +21,7 @@
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
-            <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="product_id"
+            <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
                 :paginator="true" :rows="25" :filters="filters"
                 :selectAll="false"
                 removableSort
@@ -366,6 +372,10 @@ export default {
         return {
             //PRODUCT VARIABLES
             products: [] as any[],
+            displayProducts: [] as any[],
+            processedProducts: [] as any[],
+            unprocessedProducts: [] as any[],
+            displayType: "",
             productDialog: false,
             productInfoDialog: false,
             deleteProductDialog: false,
@@ -488,6 +498,7 @@ export default {
 
         async initVariables(){
             try {
+                this.loading = true;
 
                 await this.getProducts();
                 await this.getRecipes();
@@ -510,7 +521,12 @@ export default {
                         Number(p['price_2023']);
                     }
                 })
-                
+
+                this.displayProducts = this.products;
+                this.processedProducts = this.products.filter(product => product.fnsku || product.asin);
+                this.unprocessedProducts = this.products.filter(product => (!product.fnsku && !product.asin) || product.upc);
+
+                this.loading = false;
             } catch (error) {
                 console.log(error);
             }
@@ -523,13 +539,13 @@ export default {
         //Date Last Edited: 6-25-2024
         async getRecipes(){
             try {
-                this.loading = true;
+                //this.loading = true;
                 this.recipes = await action.getRecipes();
                 this.recipeElements = await action.getRecipeElements();
 
                 //console.log(this.recipes);
                 //console.log(this.recipeElements);
-                this.loading = false;
+                //this.loading = false;
             } catch (error) {
                 console.log(error);
             }
@@ -537,9 +553,9 @@ export default {
 
         async getProducts(){
             try {
-                this.loading = true;
+                //this.loading = true;
                 this.products = await action.getProducts();
-                this.loading = false;
+                //this.loading = false;
             } catch (err) {
                 console.log(err);
             }
@@ -992,6 +1008,30 @@ export default {
             })
 
            return inputProducts;
+        },
+
+        /** 
+         * Toggles what products to display based on the toggle type. Can be processed, unprocessed or
+         * all products.
+         * @param type {string} A string with the value of either "all", "proc", "unproc"
+         *
+         * Created by: Gabe de la Torre
+         * Date Created: 7-31-2024
+         * Date Last Edited: 7-31-2024 
+         */
+        toggleProducts(type: string){
+            this.loading = true;
+            //console.log(type);
+            if(type === "all") {
+                this.displayProducts = this.products;
+            } else if(type === "proc"){
+                this.displayProducts = this.processedProducts;
+                console.log(this.displayProducts);
+            } else if(type === "unproc"){
+                this.displayProducts = this.unprocessedProducts;
+            }
+            //console.log(this.displayProducts);
+            this.loading = false;
         },
     }
 }
