@@ -341,6 +341,59 @@
                 </div>
                 </div>
 
+                <div class="field">
+                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">NEW Product(s):</h3>
+                    </div>
+                    <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" rowGroupMode="subheader" groupRowsBy="name" editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared">
+                        <template #empty>No more units being waited on.</template>
+
+                        <template #groupheader="{data}">
+                            <div class="flex items-center font-bold gap-2">
+                                <h4 class="flex items-center font-bold gap-2">{{ data.name }}</h4>
+                            </div>
+                        </template>
+
+                        <Column class="font-bold" field="moment" header="Status" />
+                        <Column field="name" header="Name"/>
+                        <Column field="amount" header="Total Number of Boxes">
+                            <template #body={data}>
+                                {{ data.amount }}
+                            </template>
+                            <template #editor={data}>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="data.amount" showButtons
+                                @update:model-value="data.total = data.amount*data.units_per_case"
+                                />
+                            </template>
+                            <!-- <template #editor={data}>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="data.amount" showButtons
+                                @update:model-value="data.total = data.amount*data.units_per_case"
+                                />
+                            </template> -->
+                        </Column>
+                        <Column header="Total Number of Units">
+                            <template #body={data}>
+                                {{ data.total }}
+                            </template>
+                            <template #editor={data}>
+                                <InputNumber v-model="data.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
+                                />
+                            </template>
+                            <!-- <template #editor={data}>
+                                <InputNumber v-model="data.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
+                                />
+                            </template> -->
+                        </Column>
+
+                        <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                    
+
+                    </DataTable> <br>
                 <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
 
                     <div class ="caseCard">
@@ -352,7 +405,7 @@
 
                             <template #header>
                                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">Requested</h3>
+                                    <h3 class="m-0 font-bold">Requested {{ poBox.name }}</h3>
                                     In total there were {{ getRequestedTotal(poBox.product_id) }} ordered units.
                                 </div>
                             </template>
@@ -370,10 +423,11 @@
 
                             <template #header>
                                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">Received</h3>
+                                    <h3 class="m-0 font-bold">Received {{ poBox.name }}</h3>
                                     In total there are {{ getReceivedTotal(poBox.product_id) }} received units.
                                 </div>
                             </template>
+                            <template #empty>No units received yet.</template>
                             <Column field="amount" header="Total Number of Boxes"/>
                             <Column header="Total Number of Units">
                                 <template #body={data}>
@@ -388,17 +442,18 @@
 
                             <template #header>
                                 <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">Waiting On</h3>
+                                    <h3 class="m-0 font-bold">{{ poBox.name }} Still Waiting On</h3>
                                 </div>
                             </template>
+                            <template #empty>No more units being waited on.</template>
                             <Column field="amount" header="Total Number of Boxes">
                                 <template #body={data}>
                                     {{ data.amount }}
                                 </template>
                                 <template #editor={data}>
                                     <InputNumber inputId="stacked-buttons" required="true" 
-                                    v-model="poBox.amount" showButtons
-                                    @update:model-value="poBox.total = poBox.amount*poBox.units_per_case"
+                                    v-model="data.amount" showButtons
+                                    @update:model-value="data.total = data.amount*poBox.units_per_case"
                                     />
                                 </template>
                                 <!-- <template #editor={data}>
@@ -413,9 +468,9 @@
                                     {{ data.total }}
                                 </template>
                                 <template #editor={data}>
-                                    <InputNumber v-model="poBox.total" 
+                                    <InputNumber v-model="data.total" 
                                     inputId="stacked-buttons" showButtons
-                                    @update:model-value="poBox.amount = onTotalUpdate(poBox.total, poBox.units_per_case)"
+                                    @update:model-value="data.amount = onTotalUpdate(data.total, poBox.units_per_case)"
                                     />
                                 </template>
                                 <!-- <template #editor={data}>
@@ -716,7 +771,7 @@
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" text @click="validate" />
+                <Button label="Save" icon="pi pi-check"  text @click="validate" />
             </template>
         </Dialog>
 
@@ -827,6 +882,7 @@ export default {
             reqPoBoxes: [] as any[],
             amount: 1,
             displayStatus: "",
+            deliveredDataTableArray: [] as any[],
 
             //VENDOR VARIABLES
             vendors: [] as any[],
@@ -1253,14 +1309,31 @@ export default {
          * Description: Groups products together to get the total amount per product based on a specified key
          * @param prodArray {any[]} An array of individual records that needs to be grouped
          * @param keyString {string} A string of fields that is used to group records together
-         * @returns Gets an array where the values are records grouped together by product_id, status, 
+         * @returns Gets an array where the values are records grouped together by product_id, units_per_case, 
          * and the contents of the keyString
          * 
          * Created by: Gabe de la Torre
          * Date Created: 7-19-2024
          * Date Last Edited: 7-19-2024
          */
-         groupProductsByKey(prodArray: any[], keyString: string){
+         groupProductsByKey(prodArray: any[], keyArray: any[]){
+            // get the products in the pool along with their amount
+            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+                let keyString = "";
+                keyArray.forEach(key => keyString += ':'+product[key]);
+
+                const key = product.product_id + ':' + product.units_per_case + keyString;
+                if (map[key]) { // if it already exists, incremenet
+                    map[key].amount++;
+                }
+                else // otherwise, add it to the map
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1 };
+                return map;
+            }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
+
+            return pool;
+        },
+         groupProductsByKeyOLD(prodArray: any[], keyString: string){
             // get the products in the pool along with their amount
             let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.units_per_case + ':' + keyString;
@@ -2024,6 +2097,8 @@ export default {
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
             let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
+            this.deliveredDataTableArray = this.getDeliveredDataTable(purchaseOrder.purchase_order_id, boxes);
+
             console.log("Boxes ",boxes);
             console.log("Cases ",cases);
             this.reqPoBoxes = this.groupProducts(boxes);
@@ -2457,9 +2532,10 @@ export default {
 
             //If the PO is being edited
             if(this.purchaseOrder.purchase_order_id){
-                this.poBoxes.forEach(b => {
-                    total += this.getUnitCost(b.product_id)*(b.units_per_case * b.amount);
-                })
+                //console.log(this.uBoxes);
+                this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id).forEach(b => {
+                    total += this.getUnitCost(b.product_id) * (b.units_per_case)
+                });
             } // If the PO is being created
             else {
                 this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
@@ -2512,13 +2588,14 @@ export default {
         calculatePoUnitTotal(){
             let total=0;
 
-            //console.log("PO Boxes",this.poBoxes)
+            console.log("PO Boxes",this.poBoxes)
             //console.log("PO Cases",this.poCases);
 
             //If the PO is being edited
             if(this.purchaseOrder.purchase_order_id){
-                this.poBoxes.forEach(b => {
-                    total += (b.units_per_case * b.amount)
+                //console.log(this.uBoxes);
+                this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id).forEach(b => {
+                    total += (b.units_per_case)
                 });
             } //If the PO is being created
             else {
@@ -2678,7 +2755,10 @@ export default {
 
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
             //console.log(boxArray.push(allBoxes), boxArray.push(receivedBoxes), boxArray);
-            awaitedBoxes.forEach(box => box.total = box.amount*box.units_per_case);
+            awaitedBoxes.forEach(box => {
+                if(!box.total)
+                    box.total = box.amount*box.units_per_case;
+            });
 
             if(boxType === 'Received'){
                 boxArray = receivedBoxes;
@@ -2717,20 +2797,41 @@ export default {
         rowStyleAwaiting() {
             return { font: 'bold', backgroundColor: '#FFD580'};
         },
+
         rowStyleCompared(data: any){
             if (data.moment === 'Requested') {
                 return { font: 'bold', backgroundColor: '#C0EEFF' };
             } else if (data.moment === 'Received') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
+            } else if (data.moment === 'Awaiting') {
+                return { font: 'bold', backgroundColor: '#FFD580' };
             }
         },
 
+        /**
+         * 
+         * 
+         * @param 
+         * 
+         * Created by: Gabe de la Torre-Garcia
+         * Date Created: 8-01-2024 
+         * Date Last Edited: 8-01-2024 
+         */
         onCellEditComplete(event: any) {
             console.log(event);
             let {data, newValue, field} = event;
             data[field] = newValue;
         },
 
+        /**
+         * 
+         * 
+         * @param 
+         * 
+         * Created by: Gabe de la Torre-Garcia
+         * Date Created: 8-02-2024 
+         * Date Last Edited: 8-02-2024 
+         */
         onRowEditSave(event: any) {
             console.log("EVENT ",event);
             
@@ -2750,7 +2851,20 @@ export default {
                     console.log("NEW DATA TOTAL ",box.total);
                 }
             })
-            console.log(this.poBoxes.forEach(box => console.log(box.total)));
+
+            this.deliveredDataTableArray.forEach(box => {
+                if(box.case_id === data.case_id && box.moment === 'Awaiting'){
+                    console.log("OLD DATA ",box);
+                    console.log("EVENT DATA", newData);
+                    console.log("OLD DATA TOTAL",box.total);
+                    console.log("EVENT DATA TOTAL", newData.total);
+                    box.amount = newData.amount;
+                    box.total = newData.total;
+                    console.log("NEW DATA ",box);
+                    console.log("NEW DATA TOTAL ",box.total);
+                }
+            })
+            //console.log(this.poBoxes.forEach(box => console.log(box.total)));
         },
 
         getReceivedTotal(product_id: number) {
@@ -2771,6 +2885,83 @@ export default {
                 //console.log(line);
                 total += line.amount * line.units_per_case});
             return total;
+        },
+
+        /**
+         * Takes a purchase order id and generates an array that displays the requested, received, and awaited product
+         * 
+         * @param purchase_order_id {number} The id of the purchase order that is currently being viewed
+         * @returns An array of products belonging to the purchase order and separated into three types: Requested,
+         * Received, and Awaiting
+         * 
+         * Created by: Gabe de la Torre-Garcia
+         * Date Created: 8-05-2024 
+         * Date Last Edited: 8-05-2024 
+         */
+         getDeliveredDataTable(purchase_order_id: number, poBoxes: any[]){
+            let tableData = [] as any[];
+            // let boxes = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+
+            for(const box of poBoxes){
+                box.moment = 'Requested';
+                tableData.push(box);
+
+                if (box.status === 'Ready'){
+                    let readyBox = {} as any;
+                    readyBox.case_id = box.case_id;
+                    readyBox.date_received = box.data_received;
+                    readyBox.location = box.location;
+                    readyBox.name = box.name;
+                    readyBox.notes = box.notes;
+                    readyBox.product_id = box.product_id;
+                    readyBox.purchase_order_id = box.purchase_order_id;
+                    readyBox.status = box.status;
+                    readyBox.units_per_case = box.units_per_case;
+                    readyBox.moment = 'Received';
+                    console.log("BOX MOMENT",box.moment);
+                    console.log("READY BOX MOMENT",readyBox.moment);
+                    tableData.push(readyBox);
+                }
+
+                if (box.status === 'BO'|| box.status === 'Draft'){
+                    let awaitedBox = {} as any;
+                    awaitedBox.case_id = box.case_id;
+                    awaitedBox.date_received = box.data_received;
+                    awaitedBox.location = box.location;
+                    awaitedBox.name = box.name;
+                    awaitedBox.notes = box.notes;
+                    awaitedBox.product_id = box.product_id;
+                    awaitedBox.purchase_order_id = box.purchase_order_id;
+                    awaitedBox.status = box.status;
+                    awaitedBox.units_per_case = box.units_per_case;
+                    awaitedBox.moment = 'Awaiting';
+                    console.log("BOX MOMENT",box.moment);
+                    console.log("AWAITED BOX MOMENT",awaitedBox.moment);
+                    tableData.push(awaitedBox);
+                }
+            }
+
+            console.log("BOXES", tableData);
+
+            const keyStringArray = ["moment"];
+            const displayArray = this.groupProductsByKey(tableData, keyStringArray);
+            displayArray.forEach((line: { total: number; amount: number; units_per_case: number; }) => {
+                if(!line.total)
+                    line.total = line.amount*line.units_per_case;
+            });
+
+            console.log("DISPLAY ARRAY", displayArray);
+
+            return displayArray;
+        },
+
+        setRowEditor(data: any){
+            let toggle = false;
+
+            if (data.moment === "Awaiting")
+                toggle = true;
+
+            return toggle;
         },
     }
 }
