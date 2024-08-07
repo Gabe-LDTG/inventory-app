@@ -151,6 +151,11 @@
                                                 {{ data.units_per_case * data.amount }}
                                             </template>
                                         </Column>
+                                        <Column header="Location">
+                                            <template #body="{data}">
+                                                {{ formatSingleLocation(data.location) }}
+                                            </template>
+                                        </Column>
                                         <Column header="Total Price" class="font-bold">
                                             <template #body = {data}>
                                                 {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
@@ -206,6 +211,11 @@
                                         {{ data.units_per_case * data.amount }}
                                     </template>
                                 </Column >
+                                <Column header="Location">
+                                            <template #body="{data}">
+                                                {{ formatSingleLocation(data.location) }}
+                                            </template>
+                                        </Column>
                                 <Column header="Unit Price" :sortable="true">
                                     <template #body="{data}">
                                         ${{ formatCurrency(getUnitCost(data.product_id)) }}
@@ -344,12 +354,18 @@
                 <div class="field">
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">NEW Product(s):</h3>
                     </div>
-                    <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" rowGroupMode="subheader" groupRowsBy="name" editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared">
+                    <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" 
+                    rowGroupMode="subheader" groupRowsBy="name" 
+                    editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
+                    showGridlines
+                    tableStyle="background-color: '#16a085'"
+                    >
                         <template #empty>No more units being waited on.</template>
 
                         <template #groupheader="{data}">
-                            <div class="flex items-center font-bold gap-2">
+                            <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                                 <h4 class="flex items-center font-bold gap-2">{{ data.name }}</h4>
+                                In total there are {{ getReceivedTotal(data.product_id) }} received units.
                             </div>
                         </template>
 
@@ -360,6 +376,7 @@
                                 {{ data.amount }}
                             </template>
                             <template #editor={data}>
+                                <label for=""># of Boxes that Arrived:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = data.amount*data.units_per_case"
@@ -377,6 +394,7 @@
                                 {{ data.total }}
                             </template>
                             <template #editor={data}>
+                                <label for="total"># of Units that Arrived:</label>
                                 <InputNumber v-model="data.total" 
                                 inputId="stacked-buttons" showButtons
                                 @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
@@ -390,8 +408,37 @@
                             </template> -->
                         </Column>
 
+                        <Column header="Location">
+                            <template #body="{data}">
+                                <div v-if="data.moment == 'Received'">
+                                    {{ formatSingleLocation(data.location) }}
+                                </div>
+                            </template>
+                            <template #editor="{data}">
+                                <label for="location">Location:</label>
+                                <div class="container">
+                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                    <Dropdown v-model="data.location"
+                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
+                                    :options="locations"
+                                    filter
+                                    :virtualScrollerOptions="{ itemSize: 38 }"
+                                    optionLabel="name"
+                                    optionValue="location_id" />
+                                    <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
+                                </div>
+                            </template>
+                        </Column>
+
                         <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                     
+                        <!-- <Column >
+                            <template #body="{data}">
+                                <div v-if="data.moment == 'Awaiting'">
+                                    <Button label="Received" severity="success" class="mr-2" @click=""/>
+                                </div>
+                            </template>
+                        </Column> -->
 
                     </DataTable> <br>
                 <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
@@ -864,6 +911,7 @@ export default {
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
             statusChangeDialog: false,
+            receivedDialog: false,
             newStatus: "",
 
             //PRODUCTS VARIABLES
@@ -1274,7 +1322,7 @@ export default {
         groupProducts(prodArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.status + ':' + product.units_per_case;
+                const key = product.product_id + ':' + product.status + ':' + product.units_per_case + ':' + product.location;
                 //console.log("KEY", key);
                 //console.log("MAP", map);
                 if (map[key]) { // if it already exists, incremenet
@@ -1653,6 +1701,7 @@ export default {
                             if(wholeReceivedBoxAmount > 0){
                                 console.log("FULL BOX");
                                 box.status = 'Ready';
+                                box.location = awaitedBox.location;
                                 box.date_received = this.today;
                                 boxesToInsert.push(box);
                                 wholeReceivedBoxAmount--;
@@ -1682,6 +1731,7 @@ export default {
                                 console.log("BACKORDER BOX");
                                 //If no partial box arrives, update the remaining box amounts to backorder
                                 box.status = 'BO';
+                                box.location = null;
                                 boxesToInsert.push(box);
                                 this.purchaseOrder.status = 'Partially Delivered'
                                 wholeBackorderBoxAmount --;
@@ -2780,6 +2830,10 @@ export default {
             return [{ '!font-bold !text-primary-contrast': data.status === 'BO' }];
         },
 
+        dataTableStyle(){
+            return { backgroundColor: 'Black' };
+        },
+
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
@@ -2841,27 +2895,29 @@ export default {
 
             this.poBoxes.forEach(box => {
                 if(box.case_id === data.case_id){
-                    console.log("OLD DATA ",box);
-                    console.log("EVENT DATA", newData);
-                    console.log("OLD DATA TOTAL",box.total);
-                    console.log("EVENT DATA TOTAL", newData.total);
+                    //console.log("OLD DATA ",box);
+                    //console.log("EVENT DATA", newData);
+                    //console.log("OLD DATA TOTAL",box.total);
+                    //console.log("EVENT DATA TOTAL", newData.total);
                     box.amount = newData.amount;
                     box.total = newData.total;
-                    console.log("NEW DATA ",box);
-                    console.log("NEW DATA TOTAL ",box.total);
+                    box.location = newData.location;
+                    //console.log("NEW DATA ",box);
+                    //console.log("NEW DATA TOTAL ",box.total);
                 }
             })
 
             this.deliveredDataTableArray.forEach(box => {
                 if(box.case_id === data.case_id && box.moment === 'Awaiting'){
-                    console.log("OLD DATA ",box);
-                    console.log("EVENT DATA", newData);
-                    console.log("OLD DATA TOTAL",box.total);
-                    console.log("EVENT DATA TOTAL", newData.total);
+                    //console.log("OLD DATA ",box);
+                    //console.log("EVENT DATA", newData);
+                    //console.log("OLD DATA TOTAL",box.total);
+                    //console.log("EVENT DATA TOTAL", newData.total);
                     box.amount = newData.amount;
                     box.total = newData.total;
-                    console.log("NEW DATA ",box);
-                    console.log("NEW DATA TOTAL ",box.total);
+                    box.location = newData.location;
+                    //console.log("NEW DATA ",box);
+                    //console.log("NEW DATA TOTAL ",box.total);
                 }
             })
             //console.log(this.poBoxes.forEach(box => console.log(box.total)));
@@ -2918,8 +2974,8 @@ export default {
                     readyBox.status = box.status;
                     readyBox.units_per_case = box.units_per_case;
                     readyBox.moment = 'Received';
-                    console.log("BOX MOMENT",box.moment);
-                    console.log("READY BOX MOMENT",readyBox.moment);
+                    // console.log("BOX MOMENT",box.moment);
+                    // console.log("READY BOX MOMENT",readyBox.moment);
                     tableData.push(readyBox);
                 }
 
@@ -2935,8 +2991,8 @@ export default {
                     awaitedBox.status = box.status;
                     awaitedBox.units_per_case = box.units_per_case;
                     awaitedBox.moment = 'Awaiting';
-                    console.log("BOX MOMENT",box.moment);
-                    console.log("AWAITED BOX MOMENT",awaitedBox.moment);
+                    //console.log("BOX MOMENT",box.moment);
+                    // console.log("AWAITED BOX MOMENT",awaitedBox.moment);
                     tableData.push(awaitedBox);
                 }
             }
@@ -2950,7 +3006,7 @@ export default {
                     line.total = line.amount*line.units_per_case;
             });
 
-            console.log("DISPLAY ARRAY", displayArray);
+            // console.log("DISPLAY ARRAY", displayArray);
 
             return displayArray;
         },
@@ -2962,6 +3018,33 @@ export default {
                 toggle = true;
 
             return toggle;
+        },
+
+        formatSingleLocation(location: any[]){
+            console.log(location)
+            if(location){
+                let curLoc = this.locations.find(l => l.location_id === location);
+
+                return curLoc.name;
+            }
+            
+        },
+
+        formatLocations(locations: any[]){
+            console.log(locations)
+            if(locations){
+                let locationNames = [] as any[];
+                locations.forEach(loc => {
+                    if (loc){
+                        let curLoc = this.locations.find(l => l.location_id === loc);
+                        //console.log(loc)
+                        //console.log(curLoc)
+                        locationNames.push(curLoc.name);
+                    }
+                })
+                return locationNames.toString();
+            }
+            
         },
     }
 }
@@ -2984,4 +3067,10 @@ export default {
    border-radius: 5px;
    border-width: 1px;
  }
+
+ .container {
+  display: flex;
+  align-items: center;
+}
+
 </style>
