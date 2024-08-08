@@ -83,22 +83,24 @@
                 </Column>
 
 
-                <Column header="PO Phase" :exportable="false" style="min-width: 275px">
+                <Column header="PO Phase" :exportable="false">
                     <template #body="slotProps">
                         <div v-if="slotProps.data.status === 'Delivered'" class="flex flex-wrap align-items-center ">
                             <Button icon="pi pi-pencil" v-tooltip.top="'Edit PO'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                         </div>
 
-                        <div v-else class="flex flex-wrap align-items-center ">
-                            <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
-                            <i class="pi pi-angle-right" style="color: slateblue"/>
-                            <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
-                            <i class="pi pi-angle-right" style="color: slateblue"/>
-                            <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
-                            <i class="pi pi-angle-right" style="color: slateblue"/>
-                            <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
-                            <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
-                        </div>
+                        <div v-else style="min-width: 240px" >
+                            <div class="flex flex-wrap align-items-center "> 
+                                <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
+                                <i class="pi pi-angle-right" style="color: slateblue"/>
+                                <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
+                                <i class="pi pi-angle-right" style="color: slateblue"/>
+                                <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
+                                <i class="pi pi-angle-right" style="color: slateblue"/>
+                                <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
+                                <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
+                            </div>
+                           </div>
                     </template>
                 </Column>
 
@@ -305,7 +307,7 @@
             <div v-if="purchaseOrder.purchase_order_id">
                 <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
 
-                <div v-if="purchaseOrder.status === 'Delivered'">
+                <!-- <div v-if="purchaseOrder.status === 'Delivered'">
                 <div class ="caseCard">
                     <div class="field">
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
@@ -349,18 +351,19 @@
                 <div class="field">
                     <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
                 </div>
-                </div>
+                </div> -->
 
                 <div class="field">
-                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">NEW Product(s):</h3>
+                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
                     </div>
                     <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" 
                     rowGroupMode="subheader" groupRowsBy="name" 
                     editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
+                    scrollable scrollHeight="400px"
                     showGridlines
                     tableStyle="background-color: '#16a085'"
                     >
-                        <template #empty>No more units being waited on.</template>
+                        <template #empty>No units in purchase order.</template>
 
                         <template #groupheader="{data}">
                             <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -432,6 +435,14 @@
 
                         <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                     
+                        <Column >
+                            <template #body="{data}">
+                                <div v-if="data.moment === 'Awaiting'">
+                                    <Button  label="Recieved" v-tooltip.top="'Inventory newly-received products'" @click="receivedDialogSetup(data.product_id)"/>
+                                </div>
+                            </template>
+                        </Column>
+
                         <!-- <Column >
                             <template #body="{data}">
                                 <div v-if="data.moment == 'Awaiting'">
@@ -441,7 +452,7 @@
                         </Column> -->
 
                     </DataTable> <br>
-                <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
+                <!-- <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
 
                     <div class ="caseCard">
                         <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
@@ -463,7 +474,7 @@
                                 </template>
                             </Column>
 
-                            <!-- <template #footer> <div :style="rowStyleRequested">In total there are {{ getRequestedTotal(poBox.product_id) }} received units.</div> </template> -->
+                            <!-- <template #footer> <div :style="rowStyleRequested">In total there are {{ getRequestedTotal(poBox.product_id) }} received units.</div> </template> 
                         </DataTable>
 
                         <DataTable :value="checkSpecificBoxes('Received', poBox.product_id)" rowGroupMode="subheader" :rowStyle="rowStyleReceived"> 
@@ -482,7 +493,7 @@
                                 </template>
                             </Column>
 
-                            <!-- <template #footer> In total there are {{ getReceivedTotal(poBox.product_id) }} received units. </template> -->
+                            <!-- <template #footer> In total there are {{ getReceivedTotal(poBox.product_id) }} received units. </template> 
                         </DataTable>
 
                         <DataTable :value="checkSpecificBoxes('Awaited', poBox.product_id)" v-model:editingRows="editingRows" rowGroupMode="subheader" editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleAwaiting"> 
@@ -508,7 +519,7 @@
                                     v-model="data.amount" showButtons
                                     @update:model-value="data.total = data.amount*data.units_per_case"
                                     />
-                                </template> -->
+                                </template> 
                             </Column>
                             <Column header="Total Number of Units">
                                 <template #body={data}>
@@ -525,14 +536,14 @@
                                     inputId="stacked-buttons" showButtons
                                     @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
                                     />
-                                </template> -->
+                                </template> 
                             </Column>
                             <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                         </DataTable>
 
                         <!-- <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
                             <h3 class="m-0 font-bold">Waiting On</h3>
-                        </div> -->
+                        </div> --
                         <div class="block-div">
 
                             <!-- <div class="field">
@@ -542,7 +553,7 @@
                                 v-model="poBox.units_per_case" showButtons
                                 @input="poBox.total = poBox.amount*poBox.units_per_case"/>
                                 <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                            </div> -->
+                            </div> 
 
                             <div class="field">
                                 <label for="amount">How Many Boxes Arrived?</label>
@@ -580,12 +591,12 @@
                             <!-- FUTURE PROJECT -->
                             <!-- <div class="field">
                                 <Button label="Additional Location(s)" icon="pi pi-plus" @click="additionalLocation()"  />
-                            </div> -->
+                            </div> 
 
                         </div>
 
                     </div>
-                </template>
+                </template> -->
 
             
 
@@ -875,6 +886,69 @@
                 <Button label="Save" icon="pi pi-check" text @click="createLocation" />
             </template>
         </Dialog>
+
+        <Dialog v-model:visible="receivedDialog" header="Received Boxes" :modal="true">
+            <DataTable :value="receivedLocationsArray" v-model:editingRows="editingRows" 
+                    rowGroupMode="subheader" groupRowsBy="name" 
+                    editMode="row" @row-edit-save="onReceivedLocationRowSave"
+                    scrollable scrollHeight="400px"
+                    showGridlines
+                    >
+                        <Column field="name" header="Name"/>
+                        <Column field="amount" header="Total Number of Boxes">
+                            <template #body={data}>
+                                {{ data.amount }}
+                            </template>
+                            <template #editor={data}>
+                                <label for=""># of Boxes that Arrived:</label>
+                                <InputNumber inputId="stacked-buttons" required="true" 
+                                v-model="data.amount" showButtons
+                                @update:model-value="data.total = data.amount*data.units_per_case"
+                                />
+                            </template>
+                        </Column>
+                        <Column header="Total Number of Units">
+                            <template #body={data}>
+                                {{ data.total }}
+                            </template>
+                            <template #editor={data}>
+                                <label for="total"># of Units that Arrived:</label>
+                                <InputNumber v-model="data.total" 
+                                inputId="stacked-buttons" showButtons
+                                @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
+                                />
+                            </template>
+                        </Column>
+
+                        <Column header="Location">
+                            <template #body="{data}">
+                                {{ formatSingleLocation(data.location) }}
+                            </template>
+                            <template #editor="{data}">
+                                <label for="location">Location:</label>
+                                <div class="container">
+                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                    <Dropdown v-model="data.location"
+                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
+                                    :options="locations"
+                                    filter
+                                    :virtualScrollerOptions="{ itemSize: 38 }"
+                                    optionLabel="name"
+                                    optionValue="location_id" />
+                                    <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+
+                    </DataTable>
+                    <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="receivedDialog = false;"/>
+                <Button label="Save" icon="pi pi-check" text @click="receivedDialogSave" />
+            </template>
+        </Dialog>
         
 	</div>
 </template>
@@ -928,6 +1002,7 @@ export default {
             poCases: [] as any[],
             poBoxes: [] as any[],
             reqPoBoxes: [] as any[],
+            editedLine: {} as any,
             amount: 1,
             displayStatus: "",
             deliveredDataTableArray: [] as any[],
@@ -948,6 +1023,7 @@ export default {
             locationToCreate: {} as any,
             locationDialog: false,
             additionalLocationDialog: false,
+            receivedLocationsArray: [] as any,
 
             //MISC VARIABLES
             today: "",
@@ -2959,14 +3035,17 @@ export default {
             // let boxes = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
 
             for(const box of poBoxes){
+                let location = null;
                 box.moment = 'Requested';
+                location = box.location;
+                box.location = null;
                 tableData.push(box);
 
                 if (box.status === 'Ready'){
                     let readyBox = {} as any;
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
-                    readyBox.location = box.location;
+                    readyBox.location = location;
                     readyBox.name = box.name;
                     readyBox.notes = box.notes;
                     readyBox.product_id = box.product_id;
@@ -2983,7 +3062,7 @@ export default {
                     let awaitedBox = {} as any;
                     awaitedBox.case_id = box.case_id;
                     awaitedBox.date_received = box.data_received;
-                    awaitedBox.location = box.location;
+                    awaitedBox.location = location;
                     awaitedBox.name = box.name;
                     awaitedBox.notes = box.notes;
                     awaitedBox.product_id = box.product_id;
@@ -2999,7 +3078,7 @@ export default {
 
             console.log("BOXES", tableData);
 
-            const keyStringArray = ["moment"];
+            const keyStringArray = ["moment", "location"];
             const displayArray = this.groupProductsByKey(tableData, keyStringArray);
             displayArray.forEach((line: { total: number; amount: number; units_per_case: number; }) => {
                 if(!line.total)
@@ -3046,6 +3125,78 @@ export default {
             }
             
         },
+
+        // 8/8
+        receivedDialogSetup(product_id: number){
+            this.receivedDialog = true;
+            this.receivedLocationsArray = [];
+            this.editedLine = {};
+            console.log(this.poBoxes);
+
+            this.editedLine = this.poBoxes.find(box => box.product_id === product_id && (box.status === "BO" || box.status === "Draft"))
+            
+            this.addReceivedArrayLine();
+            this.receivedLocationsArray[0].amount = this.editedLine.amount;
+            this.receivedLocationsArray[0].total = this.editedLine.total;
+        },
+
+        // 8/8
+        addReceivedArrayLine(){
+            this.receivedLocationsArray.push(
+                    {
+                    product_id: this.editedLine.product_id,
+                    amount: 1,
+                    name: this.editedLine.name,
+                    units_per_case: this.editedLine.units_per_case,
+                    total: this.editedLine.amount*this.editedLine.units_per_case,
+                    location: null
+                    }
+                )
+        },
+
+        // 8/8
+        onReceivedLocationRowSave(event: any){
+            console.log(event);
+            let { newData, index } = event;
+
+            /* this.deliveredDataTableArray.forEach(box => {
+                if(box.case_id === data.case_id && box.moment === 'Awaiting'){
+                    //console.log("OLD DATA ",box);
+                    //console.log("EVENT DATA", newData);
+                    //console.log("OLD DATA TOTAL",box.total);
+                    //console.log("EVENT DATA TOTAL", newData.total);
+                    box.amount = newData.amount;
+                    box.total = newData.total;
+                    box.location = newData.location;
+                    //console.log("NEW DATA ",box);
+                    //console.log("NEW DATA TOTAL ",box.total);
+                }
+            }) */
+
+            console.log(this.receivedLocationsArray[index])
+            console.log(newData.location);
+
+            this.receivedLocationsArray[index] = newData;
+        },
+
+        // 8/8
+        receivedDialogSave(){
+            let total = 0;
+            this.receivedLocationsArray.forEach((line: { amount: number; }) => total += line.amount);
+            // console.log(total);
+            // console.log(this.editedLine.amount);
+
+            /**
+             * @TODO Eventually, I want this to open a confirm dialog to make sure a user knows that the inserted 
+             * box amount is greater than what was order. This is for the fringe cases where we get more than we ordered
+             */
+            if (total > this.editedLine.amount){
+                this.$toast.add({severity:'error', summary: "The total number of boxes exceeds the amount still awaiting", detail: "Number Awaiting: "+ this.editedLine.amount+ ". Number Inputted: "+total});
+            } else {
+                let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft"));
+                console.log(awaitedBoxes);
+            }
+        },
     }
 }
 </script>
@@ -3071,6 +3222,11 @@ export default {
  .container {
   display: flex;
   align-items: center;
+}
+
+.p-datatable.p-datatable-gridlines .p-datatable-border-color .p-datatable-tbody > tr {
+  background: gray
+  
 }
 
 </style>

@@ -136,8 +136,8 @@
                         </Column> -->
                         <Column :exportable="false" style="min-width:8rem">
                             <template #body="slotProps">
-                                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editCase(slotProps.data); console.log(slotProps.data)" />
-                                <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
+                                <Button icon="pi pi-pencil"  v-tooltip.top="'Edit'" outlined rounded class="mr-2" @click="editCase(slotProps.data); console.log(slotProps.data)" />
+                                <Button icon="pi pi-trash"  v-tooltip.top="'Delete'" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
                             </template>
                         </Column>
                     </DataTable>
@@ -229,6 +229,11 @@
             </div>
 
             <template #footer>
+                <div v-show="eCase.case_id" class="field">
+                    <label for="amount">How Many to Edit?</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    v-model="eCase.amount" showButtons/>
+                </div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveCase" />
                 <!-- <Button label="Edit One" icon="pi pi-check" text @click="saveCase" />
@@ -376,6 +381,7 @@ export default {
             deleteCaseDialog: false,
             deleteCasesDialog: false,
             eCase: {} as any,
+            oldCaseValues: {} as any,
             selectedCases: [] as any[],
             filteredCases: [] as any[],
             bulkCases: [] as any[],
@@ -741,7 +747,37 @@ export default {
                 if(this.eCase.date_received)
                 this.eCase.date_received = this.eCase.date_received.split('T')[0];
 
-                await action.editCase(this.eCase);
+                let boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location === this.oldCaseValues.location && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
+                console.log("BOXES TO EDIT", boxesToEdit);
+                let editBoxArray = [] as any[];
+
+                for(let boxIdx = 0; boxIdx < this.eCase.amount; boxIdx++){
+                    if(boxesToEdit[boxIdx]){
+                        let boxMap = [] as any[];
+                        console.log(boxesToEdit[boxIdx]);
+                        boxesToEdit[boxIdx].units_per_case = this.eCase.units_per_case;
+                        boxesToEdit[boxIdx].date_received = this.eCase.date_received;
+                        boxesToEdit[boxIdx].notes = this.eCase.notes;
+                        boxesToEdit[boxIdx].product_id = this.eCase.product_id;
+                        boxesToEdit[boxIdx].location = this.eCase.location;
+                        boxesToEdit[boxIdx].status = this.eCase.status;
+                        boxesToEdit[boxIdx].purchase_order_id = this.eCase.purchase_order_id;
+
+                        boxMap = [
+                            boxesToEdit[boxIdx].case_id, 
+                            boxesToEdit[boxIdx].product_id,
+                            boxesToEdit[boxIdx].units_per_case, 
+                            boxesToEdit[boxIdx].location,
+                            boxesToEdit[boxIdx].notes,
+                            boxesToEdit[boxIdx].date_received,
+                            boxesToEdit[boxIdx].status,
+                            boxesToEdit[boxIdx].purchase_order_id
+                        ];
+                        editBoxArray.push(boxMap);
+                    }
+                }
+                //await action.editCase(this.eCase);
+                await action.bulkEditCases(editBoxArray);
 
                 if(this.displayValue == 'processed'){
                     console.log('Processed');
@@ -793,7 +829,8 @@ export default {
         },
         editCase(value: any) {
             this.product = {...value}; //ASK MICHAEL
-            this.eCase = {...value}
+            this.eCase = {...value};
+            this.oldCaseValues = {...value};
             //this.productDialog = true;
             this.caseDialog = true;
         },
