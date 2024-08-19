@@ -413,7 +413,7 @@
 
                         <Column header="Location">
                             <template #body="{data}">
-                                <div v-if="data.moment == 'Received'">
+                                <div v-if="data.moment == 'Received' || data.moment== 'Awaiting'">
                                     {{ formatSingleLocation(data.location) }}
                                 </div>
                             </template>
@@ -433,12 +433,12 @@
                             </template>
                         </Column>
 
-                        <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> -->
                     
                         <Column >
                             <template #body="{data}">
                                 <div v-if="data.moment === 'Awaiting'">
-                                    <Button  label="Recieved" v-tooltip.top="'Inventory newly-received products'" @click="receivedDialogSetup(data.product_id)"/>
+                                    <Button  icon="pi pi-pencil" text style="color: gray" v-tooltip.top="'Inventory newly-received products'" @click="receivedDialogSetup(data.product_id)"/>
                                 </div>
                             </template>
                         </Column>
@@ -1706,7 +1706,7 @@ export default {
         async alocateBoxes(){
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
-                //console.log("REQUESTED BOXES ", this.reqPoBoxes);
+                console.log("REQUESTED BOXES ", this.reqPoBoxes);
 
                 if (!this.purchaseOrder.date_received)
                     this.purchaseOrder.date_received = this.today;
@@ -1718,6 +1718,8 @@ export default {
                     let boxesToInsert = [] as any[];
 
                     this.reqPoBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status === "BO"));
+
+                    console.log(this.reqPoBoxes);
 
                     this.reqPoBoxes.forEach(reqBox => {
                         let receivedBoxArray = this.checkBoxes("Received");
@@ -1777,7 +1779,10 @@ export default {
                             if(wholeReceivedBoxAmount > 0){
                                 console.log("FULL BOX");
                                 box.status = 'Ready';
-                                box.location = awaitedBox.location;
+
+                                if(!box.location)
+                                    box.location = awaitedBox.location;
+
                                 box.date_received = this.today;
                                 boxesToInsert.push(box);
                                 wholeReceivedBoxAmount--;
@@ -1893,9 +1898,14 @@ export default {
                         //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
                         boxes.forEach(box => {
                             if(wholeReceivedBoxAmount > 0){
+                                console.log(poBox);
                                 console.log("FULL BOX");
                                 box.status = 'Ready';
                                 box.date_received = this.today;
+
+                                if(!box.location)
+                                    box.location = poBox.location;
+                                
                                 boxesToInsert.push(box);
                                 wholeReceivedBoxAmount--;
                             } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
@@ -1931,7 +1941,7 @@ export default {
                         })                    
                     })
 
-                    console.log(boxesToInsert);
+                    // console.log(boxesToInsert);
 
                     let insertArray = [] as any[];
 
@@ -1939,7 +1949,7 @@ export default {
                     //PREVIOUS FOREACH FUNCTION
                     boxesToInsert.forEach(async box => {
                         if (box.case_id){
-                            console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
+                            //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
                             //await action.editCase(requestedBox);
                             let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
                             insertArray.push(tempArray);
@@ -1951,7 +1961,7 @@ export default {
                     
                     await action.bulkEditCases(insertArray);
 
-                    console.log("BOXES TO INSERT ", boxesToInsert);
+                    // console.log("BOXES TO INSERT ", boxesToInsert);
                 }
                 
             } catch (error) {
@@ -2267,8 +2277,8 @@ export default {
             linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
             //console.log(total);
 
-            console.log("LINKED CASES: ", linkedCases);
-            console.log("LINKED BOXES: ", linkedBoxes);
+            //console.log("LINKED CASES: ", linkedCases);
+            //console.log("LINKED BOXES: ", linkedBoxes);
 
             //NOTE: NEED TO FIND A WAY TO SEPARATE THE OBJECTS BY STATUS. THAT WAY, IF SOME BOXES WERE
             //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
@@ -3100,7 +3110,7 @@ export default {
         },
 
         formatSingleLocation(location: any[]){
-            console.log(location)
+            // console.log(location)
             if(location){
                 let curLoc = this.locations.find(l => l.location_id === location);
 
@@ -3148,7 +3158,7 @@ export default {
                     amount: 1,
                     name: this.editedLine.name,
                     units_per_case: this.editedLine.units_per_case,
-                    total: this.editedLine.amount*this.editedLine.units_per_case,
+                    total: this.editedLine.units_per_case,
                     location: null
                     }
                 )
@@ -3173,10 +3183,13 @@ export default {
                 }
             }) */
 
-            console.log(this.receivedLocationsArray[index])
-            console.log(newData.location);
+            // console.log(this.receivedLocationsArray[index])
+            // console.log(newData.location);
 
             this.receivedLocationsArray[index] = newData;
+            // console.log(this.receivedLocationsArray[index])
+            console.log(this.receivedLocationsArray);
+            console.log(this.poBoxes);
         },
 
         // 8/8
@@ -3195,6 +3208,118 @@ export default {
             } else {
                 let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft"));
                 console.log(awaitedBoxes);
+                /**
+                 * @TODO Check the length of the receivedLocationsArray. If 1, apply the location and amount to
+                 * the back ordered PO boxes in the poBoxes array. Else, apply the location and amount of the first
+                 * array value, then push the remaining array values into the poBoxes array, granted they have 
+                 * an amount greater than 0. 
+                 */
+
+                if (this.receivedLocationsArray.length === 1){
+
+                    let receivedLocationKey = this.receivedLocationsArray[0];
+
+                    /* if(this.purchaseOrder.status === "Partially Delivered"){
+                        /* this.reqPoBoxes.forEach(box => {
+                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                                box.location = receivedLocationKey.location;
+                                box.amount = receivedLocationKey.amount;
+                                box.total = receivedLocationKey.total;
+                            }
+                        }) *
+
+                        this.poBoxes.forEach(box => {
+                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                                box.location = receivedLocationKey.location;
+                                box.amount = receivedLocationKey.amount;
+                                box.total = receivedLocationKey.total;
+
+                            }
+                        })
+                    } else {
+                        this.poBoxes.forEach(box => {
+                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                                box.location = receivedLocationKey.location;
+                                box.amount = receivedLocationKey.amount;
+                                box.total = receivedLocationKey.total;
+
+                            }
+                        })
+                    } */
+
+                    
+
+                    this.poBoxes.forEach(box => {
+                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                            box.location = receivedLocationKey.location;
+                            box.amount = receivedLocationKey.amount;
+                            box.total = receivedLocationKey.total;
+
+                        }
+                    })
+
+                    console.log(this.deliveredDataTableArray);
+
+                    this.deliveredDataTableArray.forEach(box => {
+                        if (box.product_id === receivedLocationKey.product_id && box.moment==='Awaiting' ){
+                            box.location = receivedLocationKey.location;
+                            box.amount = receivedLocationKey.amount;
+                            box.total = receivedLocationKey.total;
+                        }
+                    })
+
+                    console.log(this.poBoxes);
+
+                } else {
+
+                    let receivedLocationKey = this.receivedLocationsArray[0];
+                    let boxKey = {} as any;
+
+                    this.poBoxes.forEach(box => {
+                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                                boxKey = box;
+                                box.location = receivedLocationKey.location;
+                                box.amount = receivedLocationKey.amount;
+                                box.total = receivedLocationKey.total;
+                            }
+                        })
+
+                    console.log(this.deliveredDataTableArray);
+
+                    this.deliveredDataTableArray.forEach(box => {
+                        if (box.product_id === receivedLocationKey.product_id && box.moment==='Awaiting' ){
+                            box.location = receivedLocationKey.location;
+                            box.amount = receivedLocationKey.amount;
+                            box.total = receivedLocationKey.total;
+                        }
+                    })
+
+                    for ( let locArrayIdx = 1; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
+                        let newArrayObj = {} as any;
+                        newArrayObj.amount = this.receivedLocationsArray[locArrayIdx].amount;
+                        newArrayObj.location = this.receivedLocationsArray[locArrayIdx].location;
+                        newArrayObj.name = this.receivedLocationsArray[locArrayIdx].name;
+                        newArrayObj.product_id = this.receivedLocationsArray[locArrayIdx].product_id;
+                        newArrayObj.total = this.receivedLocationsArray[locArrayIdx].total;
+                        newArrayObj.units_per_case = this.receivedLocationsArray[locArrayIdx].units_per_case;
+
+                        newArrayObj.case_id = boxKey.case_id;
+                        newArrayObj.date_received = boxKey.date_received;
+                        newArrayObj.moment = boxKey.moment;
+                        newArrayObj.notes = boxKey.notes;
+                        newArrayObj.purchase_order_id = boxKey.purchase_order_id;
+                        newArrayObj.status = boxKey.status;
+
+                        this.deliveredDataTableArray.push(newArrayObj);
+                        this.poBoxes.push(newArrayObj);
+                    }
+
+                    console.log(this.poBoxes);
+
+
+                 }
+
+                 this.receivedDialog = false;
             }
         },
     }
