@@ -825,7 +825,6 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div v-if="loading" style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div>
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
@@ -887,10 +886,10 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="receivedDialog" header="Received Boxes" :modal="true">
+        <Dialog v-model:visible="receivedDialog" header="Received Boxes [Click any cell to edit]" :modal="true">
             <DataTable :value="receivedLocationsArray" v-model:editingRows="editingRows" 
                     rowGroupMode="subheader" groupRowsBy="name" 
-                    editMode="row" @row-edit-save="onReceivedLocationRowSave"
+                    editMode="cell" @row-edit-save="onReceivedLocationRowSave" @cell-edit-complete="onReceivedLocationCellEdit"
                     scrollable scrollHeight="400px"
                     showGridlines
                     >
@@ -900,7 +899,6 @@
                                 {{ data.amount }}
                             </template>
                             <template #editor={data}>
-                                <label for=""># of Boxes that Arrived:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = data.amount*data.units_per_case"
@@ -912,7 +910,6 @@
                                 {{ data.total }}
                             </template>
                             <template #editor={data}>
-                                <label for="total"># of Units that Arrived:</label>
                                 <InputNumber v-model="data.total" 
                                 inputId="stacked-buttons" showButtons
                                 @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
@@ -925,7 +922,6 @@
                                 {{ formatSingleLocation(data.location) }}
                             </template>
                             <template #editor="{data}">
-                                <label for="location">Location:</label>
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
                                     <Dropdown v-model="data.location"
@@ -940,8 +936,15 @@
                             </template>
                         </Column>
 
-                        <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> -->
 
+                        <Column >
+                            <template #body="{index}">
+                                <div v-if="index > 0">
+                                    <Button icon="pi pi-times" style="color: red" text @click="deleteBulkLine(receivedLocationsArray, index)"/>
+                                </div>
+                            </template>
+                        </Column>
                     </DataTable>
                     <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/>
             <template #footer>
@@ -949,6 +952,8 @@
                 <Button label="Save" icon="pi pi-check" text @click="receivedDialogSave" />
             </template>
         </Dialog>
+
+        <Dialog v-model:visible="loading"><div style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div></Dialog>
         
 	</div>
 </template>
@@ -975,6 +980,7 @@ export default {
 
             //DIALOG VARIABLES
             submitted: false,
+            locationSubmitted: false,
 
             //PURCHASE ORDER VARIABLES
             purchaseOrders: [] as any[],
@@ -2945,6 +2951,8 @@ export default {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else if (data.moment === 'Awaiting') {
                 return { font: 'bold', backgroundColor: '#FFD580' };
+            } else if (data.moment === 'Back Ordered') {
+                return { font: 'bold', backgroundColor: '#f1948a ' };
             }
         },
 
@@ -3169,33 +3177,47 @@ export default {
             console.log(event);
             let { newData, index } = event;
 
-            /* this.deliveredDataTableArray.forEach(box => {
-                if(box.case_id === data.case_id && box.moment === 'Awaiting'){
-                    //console.log("OLD DATA ",box);
-                    //console.log("EVENT DATA", newData);
-                    //console.log("OLD DATA TOTAL",box.total);
-                    //console.log("EVENT DATA TOTAL", newData.total);
-                    box.amount = newData.amount;
-                    box.total = newData.total;
-                    box.location = newData.location;
-                    //console.log("NEW DATA ",box);
-                    //console.log("NEW DATA TOTAL ",box.total);
-                }
-            }) */
-
-            // console.log(this.receivedLocationsArray[index])
-            // console.log(newData.location);
-
             this.receivedLocationsArray[index] = newData;
             // console.log(this.receivedLocationsArray[index])
             console.log(this.receivedLocationsArray);
             console.log(this.poBoxes);
         },
 
+        /**
+         * 
+         * 
+         * @param 
+         * 
+         * Created by: Gabe de la Torre-Garcia
+         * Date Created: 8-01-2024 
+         * Date Last Edited: 8-01-2024 
+         */
+         onReceivedLocationCellEdit(event: any) {
+            console.log(event);
+            let { newData, index } = event;
+
+            this.receivedLocationsArray[index] = newData;
+        },
+
         // 8/8
         receivedDialogSave(){
             let total = 0;
-            this.receivedLocationsArray.forEach((line: { amount: number; }) => total += line.amount);
+            let numErr = 0;
+            let errMSG = [] as any[];
+            this.locationSubmitted = true;
+            this.receivedLocationsArray.forEach((line: { amount: number; location: number; }) => {
+                total += line.amount
+
+                if (!line.location){
+                    numErr++;
+                    errMSG.push("Location Required");
+                }
+
+            });
+
+            let requestedTotalOBJ = {} as any;
+            let arrivingTotalAmount = 0;
+            let arrivingTotalUnits = 0;
             // console.log(total);
             // console.log(this.editedLine.amount);
 
@@ -3204,50 +3226,19 @@ export default {
              * box amount is greater than what was order. This is for the fringe cases where we get more than we ordered
              */
             if (total > this.editedLine.amount){
-                this.$toast.add({severity:'error', summary: "The total number of boxes exceeds the amount still awaiting", detail: "Number Awaiting: "+ this.editedLine.amount+ ". Number Inputted: "+total});
+                numErr++;
+                errMSG.push("Number Awaiting: "+ this.editedLine.amount+ ". Number Inputted: "+total);
+            } 
+            
+            if (this.locationSubmitted === true && numErr > 0) {
+                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
             } else {
                 let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft"));
                 console.log(awaitedBoxes);
-                /**
-                 * @TODO Check the length of the receivedLocationsArray. If 1, apply the location and amount to
-                 * the back ordered PO boxes in the poBoxes array. Else, apply the location and amount of the first
-                 * array value, then push the remaining array values into the poBoxes array, granted they have 
-                 * an amount greater than 0. 
-                 */
 
                 if (this.receivedLocationsArray.length === 1){
 
                     let receivedLocationKey = this.receivedLocationsArray[0];
-
-                    /* if(this.purchaseOrder.status === "Partially Delivered"){
-                        /* this.reqPoBoxes.forEach(box => {
-                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
-                                box.location = receivedLocationKey.location;
-                                box.amount = receivedLocationKey.amount;
-                                box.total = receivedLocationKey.total;
-                            }
-                        }) *
-
-                        this.poBoxes.forEach(box => {
-                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
-                                box.location = receivedLocationKey.location;
-                                box.amount = receivedLocationKey.amount;
-                                box.total = receivedLocationKey.total;
-
-                            }
-                        })
-                    } else {
-                        this.poBoxes.forEach(box => {
-                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
-                                box.location = receivedLocationKey.location;
-                                box.amount = receivedLocationKey.amount;
-                                box.total = receivedLocationKey.total;
-
-                            }
-                        })
-                    } */
-
-                    
 
                     this.poBoxes.forEach(box => {
                         if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
@@ -3265,6 +3256,16 @@ export default {
                             box.location = receivedLocationKey.location;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
+
+                            arrivingTotalAmount += box.amount;
+                            arrivingTotalUnits += box.total;
+
+                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Received') {
+                            arrivingTotalAmount += box.amount;
+                            arrivingTotalUnits += box.total;
+
+                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Requested'){
+                            requestedTotalOBJ = box;
                         }
                     })
 
@@ -3274,6 +3275,14 @@ export default {
 
                     let receivedLocationKey = this.receivedLocationsArray[0];
                     let boxKey = {} as any;
+                    let locationAmountArray = [] as any[];
+                    this.receivedLocationsArray.forEach((line: { location: any; amount: any; }) => {
+                        let locationAmountOBJ = {} as any;
+                        locationAmountOBJ.location = line.location;
+                        locationAmountOBJ.amount = line.amount;
+
+                        locationAmountArray.push(locationAmountOBJ);
+                    });
 
                     this.poBoxes.forEach(box => {
                             if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
@@ -3291,6 +3300,16 @@ export default {
                             box.location = receivedLocationKey.location;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
+
+                            arrivingTotalAmount += box.amount;
+                            arrivingTotalUnits += box.total;
+
+                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Received') {
+                            arrivingTotalAmount += box.amount;
+                            arrivingTotalUnits += box.total;
+
+                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Requested'){
+                            requestedTotalOBJ = box;
                         }
                     })
 
@@ -3305,21 +3324,51 @@ export default {
 
                         newArrayObj.case_id = boxKey.case_id;
                         newArrayObj.date_received = boxKey.date_received;
-                        newArrayObj.moment = boxKey.moment;
+                        newArrayObj.moment = "Awaiting";
                         newArrayObj.notes = boxKey.notes;
                         newArrayObj.purchase_order_id = boxKey.purchase_order_id;
                         newArrayObj.status = boxKey.status;
+
+                        arrivingTotalAmount += this.receivedLocationsArray[locArrayIdx].amount;
+                        arrivingTotalUnits += this.receivedLocationsArray[locArrayIdx].total;
 
                         this.deliveredDataTableArray.push(newArrayObj);
                         this.poBoxes.push(newArrayObj);
                     }
 
-                    console.log(this.poBoxes);
+                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'Draft' || box.status === 'BO'));
+                    console.log("AWAITED BOXES IN DIALOG SAVE", awaitedBoxArray);
+
+                    let locationIdx = 0;
+
+                    awaitedBoxArray.forEach(box => {
+                        if(locationAmountArray[locationIdx]){
+                            if(locationAmountArray[locationIdx].amount === 0){
+                            locationIdx++;
+                        } else {
+                            box.location = locationAmountArray[locationIdx].location;
+                            locationAmountArray[locationIdx].amount--;
+                        }
+                    }
+                        
+                    });
+
+                }
+                let key = this.uBoxes.find(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
 
-                 }
+                let backOrderOBJ = {} as any;
+                backOrderOBJ.moment = "Back Ordered";
+                console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                backOrderOBJ.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
+                backOrderOBJ.total = requestedTotalOBJ.total - arrivingTotalUnits;
+                backOrderOBJ.name = key.name;
 
-                 this.receivedDialog = false;
+                this.deliveredDataTableArray.push(backOrderOBJ);
+
+                console.log(this.poBoxes);
+
+                this.receivedDialog = false;
             }
         },
     }
