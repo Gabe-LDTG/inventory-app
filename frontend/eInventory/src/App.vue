@@ -43,6 +43,7 @@ export default {
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
         <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
         <RouterLink :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink>
+        <RouterLink :to="{ name: 'PurchaseOrders_v2' }">Purchase Orders VERSION 2</RouterLink>
         <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
         <!-- SPOT FOR WORK ORDERS -->
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
