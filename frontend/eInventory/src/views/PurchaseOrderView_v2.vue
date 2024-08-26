@@ -134,7 +134,7 @@
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
-                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
+                                    <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
@@ -170,8 +170,10 @@
 
                             </DataTable>
 
-                           <!--  <br><h4 class="font-bold">Raw Products with No Plan</h4>
-                            <DataTable :value="getPool(slotProps.data.purchase_order_id)">
+                            <br><h4 class="font-bold">Raw Products with No Plan</h4>
+                            <!-- <DataTable :value="getPool(slotProps.data.purchase_order_id)" :rowStyle="rowStylePool">
+                                <template #empty> No unplanned products found. </template>
+
                                 <Column header="Name">
                                     <template #body = {data}>
                                         {{ data.name }}
@@ -187,8 +189,9 @@
                                         {{ data.amount }}
                                     </template>
                                 </Column>
+                                <Column field="total" header="Total # of Units" />
                                 <Column field="status" header="Status" />
-                            </DataTable> -->
+                            </DataTable>  -->
                         </div>
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
@@ -1152,24 +1155,97 @@ export default {
         //Date Created: 5-31-2024
         //Date Last Edited: 5-31-2024
         getPool(poId: number){
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId);
-            let cases = this.pCases.filter(c => c.purchase_order_id === poId);
-
-            let recipeCombos = [] as any[];
-
             let poolProd = [] as any[];
 
-            let caseTypes = this.groupProducts(cases);
-            let boxTypes = this.groupProducts(boxes);
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId && b.status === 'Ready');
 
-            caseTypes.forEach((caseType: { product_id: any; }) => {
-                let recipes = this.recipes.filter(r => caseType.product_id === r.product_made);
-                //let rawBox = boxTypes.find()
-            });
+            console.log("boxes" , boxes);
 
-            let pool = this.groupProducts(poolProd);
+            if (boxes.length > 0){
 
-            return pool;
+                let cases = this.pCases.filter(c => c.purchase_order_id === poId);
+
+                let recipeInputArray = [] as any[];
+
+                let caseArray = this.groupProducts(cases);
+                let boxArray = this.groupProducts(boxes);
+
+                // console.log("boxArray",boxArray);
+
+                let totalArray = [] as any[];
+
+                caseArray.forEach((caseLine: { product_id: number; amount: number; units_per_case: number; }) => {
+                    // console.log("caseLine", caseLine);
+                    let recipeOutput = this.recipeElements.find(r => caseLine.product_id === r.product_id && r.type === "output");
+                    console.log(recipeOutput);
+
+
+                    let recipeInputs = this.recipeElements.filter(r => r.recipe_id === recipeOutput.recipe_id && r.type === "input");
+                    recipeInputs.forEach(input => {
+                        let totalMap = {} as any;
+                        input.totalAmount = input.qty * caseLine.amount;
+                        input.totalUnits = caseLine.amount * caseLine.units_per_case;
+                        totalMap.totalUnits = input.totalUnits;
+                        totalMap.product_id = input.product_id;
+                        totalArray.push(totalMap);
+                        recipeInputArray.push(input);
+                    });
+                    // console.log("recipeInputs",recipeInputs);
+                    // recipeInputArray.push(recipeInputs);
+                });
+                // console.log("recipeInputArray", recipeInputArray);
+                // console.log("totalArray", totalArray);
+                let idx = 0;
+
+                boxArray.forEach((boxLine: {product_id: number; amount: number; units_per_case: number;}) => {
+                    // console.log("START----------------------------------------------------------")
+                    idx++;
+                    // console.log("boxLine",boxLine);
+                    let arrivedLine = recipeInputArray.find((recInput: {product_id: number}) => boxLine.product_id === recInput.product_id);
+                    // console.log("arrivedLine",arrivedLine);
+
+                    if(arrivedLine){
+                        let totalLine = totalArray.find(line => line.product_id === arrivedLine.product_id)
+
+                        if(totalLine.totalUnits > 0){
+                            totalLine.totalUnits = totalLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
+                            if(totalLine.totalUnits < 0)
+                                totalLine.totalUnits = totalLine.totalUnits*(-1);
+
+                        }
+                        // console.log(arrivedLine.totalUnits);
+                        // if(arrivedLine.totalUnits > 0)
+                            // arrivedLine.totalUnits = arrivedLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
+                    } else {
+                        poolProd.push(boxLine);
+                    }
+                });
+                // console.log(idx);
+
+                // console.log("recipeInputArray after boxArray Loop", recipeInputArray);
+                // console.log("totalArray after boxArray Loop", totalArray);
+
+                totalArray.forEach(amountLine => {
+                    if(amountLine.totalUnits > 0) {
+                        let poolMap = {} as any;
+                        // console.log("amountLine" ,amountLine)
+                        console.log(boxArray);
+                        console.log(boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id));
+                        poolMap = boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id);
+                        // console.log("poolMap", poolMap);
+                        poolMap.amount = amountLine.totalUnits/poolMap.units_per_case;
+                        poolMap.total = poolMap.amount * poolMap.units_per_case;
+
+                        poolProd.push(poolMap);
+                    }
+                })
+
+                // let pool = this.groupProducts(poolProd);
+
+                // console.log("poolProd", poolProd);
+            }
+
+            return poolProd;
         },
 
         /**
@@ -1509,7 +1585,7 @@ export default {
                 
 
                 this.reqPoBoxes.forEach(reqBox => {
-                    let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
+                    // let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
 
                     /** @TODO Loop through the newlyArrivedBox array, function should still work as intended.
                      * Try to find a more effecient way to work after getting it to work at all.
@@ -1545,16 +1621,15 @@ export default {
                 boxesToInsert.forEach(async box => {
                     if (box.case_id){
                         //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
-                        //await action.editCase(requestedBox);
                         let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
                         insertArray.push(tempArray);
                     } else {
                         console.log("BACK ORDERED PARTIAL BOX", box);
-                        //await action.addCase(box);
+                        await action.addCase(box);
                     }
                 })
                 
-                //await action.bulkEditCases(insertArray);
+                await action.bulkEditCases(insertArray);
 
                 // console.log("BOXES TO INSERT ", boxesToInsert);
 
@@ -1567,6 +1642,13 @@ export default {
         alocateBoxCalculation(requestedBoxLine: any, receivedBoxLine: any, newlyArrivedBoxLine: any){
             console.log("REQUESTED BOXES ", requestedBoxLine, " ACTUAL RECEIVED BOXES ", receivedBoxLine, "AND NEWLY RECEIVED BOXES ", newlyArrivedBoxLine);
             let boxesToInsert = [] as any[];
+
+            if(!receivedBoxLine){
+                receivedBoxLine = {} as any;
+                receivedBoxLine.total = 0;
+                receivedBoxLine.amount = 0;
+                receivedBoxLine.units_per_case = 0;
+            }
 
             if(!requestedBoxLine.total)
                 requestedBoxLine.total = requestedBoxLine.amount * requestedBoxLine.units_per_case;
@@ -1990,6 +2072,7 @@ export default {
          */
         displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
         console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
+
         // the recipe that is being used, determined by output product
         /**
          * @TODO rename to "recipeOutput"
@@ -1997,10 +2080,17 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        let recipeOutput = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        console.log("recipeOutput", recipeOutput);
+
+        // console.log(this.poRecipes)
+        let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+        console.log("poRecipe",poRecipe);
+
         // the input products given the recipe id
         /** @TODO rename to "rawRecInputs" */
-        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === linkedRecEl.recipe_id && r.type === 'input');
+        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+        console.log("rawRecInputs", rawRecInputs);
 
         // get the input boxes that are being used as inputs. Use a filter-map for-loop
         const inputBoxesAndRecEl = [] as any[];
@@ -2008,12 +2098,26 @@ export default {
             if(b.purchase_order_id !== purchase_order_id)
             continue;
 
-            const inputEl = rawRecEls.find(r => r.product_id  === /* idk what field to use */ b.product_id);
+            const inputEl = rawRecInputs.find(r => r.product_id  === /* idk what field to use */ b.product_id);
             if(inputEl)
             inputBoxesAndRecEl.push({ box: b, rec: inputEl });
         }
+
+        console.log(this.groupProducts(inputBoxesAndRecEl));
+
+        console.log("inputBoxesAndRecEl", inputBoxesAndRecEl);
         
-        const numRecipesProcessed = amount / /* idk the field */ linkedRecEl.amount;
+        const numRecipesProcessed = amount / /* idk the field */ recipeOutput.qty;
+        console.log("numRecipesProcessed", numRecipesProcessed);
+
+        let test = inputBoxesAndRecEl.map(({ box, rec }) => ({
+            ...box,
+            /* idk the field */ amount: rec.qty * numRecipesProcessed,
+            leftover: box.amount - rec.qty * numRecipesProcessed
+        }));
+
+        console.log(test);
+
         return inputBoxesAndRecEl.map(({ box, rec }) => ({
             ...box,
             /* idk the field */ amount: rec.amount * numRecipesProcessed,
@@ -2497,7 +2601,7 @@ export default {
         },
         
         rowClass(data: any) {
-            console.log(data);
+            // console.log(data);
             return [{ '!font-bold !text-primary-contrast': data.status === 'BO' }];
         },
 
@@ -2509,7 +2613,7 @@ export default {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             } else if (data.status === 'Draft') {
-                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Blue' };
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
             }
         },
 
@@ -2521,6 +2625,9 @@ export default {
         },
         rowStyleAwaiting() {
             return { font: 'bold', backgroundColor: '#FFD580'};
+        },
+        rowStylePool() {
+            return { font: 'bold', backgroundColor: '#C0EEFF' };
         },
 
         rowStyleCompared(data: any){
@@ -2729,17 +2836,18 @@ export default {
         receivedDialogSetup(product_id: number){
             this.receivedDialog = true;
             console.log(this.poBoxes);
-            this.editedLine ={}
+            this.editedLine ={};
             
             this.editedLine = this.deliveredDataTableArray.find(box => box.product_id === product_id && box.moment === "Awaiting")
             
             if (this.editedLine === undefined){
                 let bundleArray = this.deliveredDataTableArray.filter(box => box.product_id === product_id && box.moment === "Newly Arrived" || box.moment === "Back Ordered");
-                this.editedLine['amount'] = 0;
+                this.editedLine ={};
+                this.editedLine.amount = 0;
                 this.editedLine.total = 0;
                 
                 bundleArray.forEach(boxLine => {
-                    let map = {};
+                    let map = {} as any;
                     map.amount = boxLine.amount;
                     map.total = boxLine.total;
                     map.product_id = boxLine.product_id;
