@@ -2,7 +2,6 @@
     <div>
         <div class="card">
             <Toast />
-            <!-- <div v-if="loading" style="z-index: 1"> LOADING <ProgressSpinner /> </div> -->
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label="New PO" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
@@ -134,7 +133,7 @@
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
-                                    <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
+                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
@@ -143,16 +142,16 @@
                                         </Column>
                                         <Column field="units_per_case" header="Units per Box"/>
                                         <Column field="amount" header="Total # of Boxes"/>
-                                        <Column field="" header="Total # of Units">
+                                        <Column header="Total # of Units">
                                             <template #body = {data}>
                                                 {{ data.units_per_case * data.amount }}
                                             </template>
                                         </Column>
-                                        <Column header="Location">
+                                        <!-- <Column header="Location">
                                             <template #body="{data}">
                                                 {{ formatSingleLocation(data.location) }}
                                             </template>
-                                        </Column>
+                                        </Column> -->
                                         <Column header="Total Price" class="font-bold">
                                             <template #body = {data}>
                                                 {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
@@ -170,8 +169,8 @@
 
                             </DataTable>
 
-                            <br><h4 class="font-bold">Raw Products with No Plan</h4>
-                            <!-- <DataTable :value="getPool(slotProps.data.purchase_order_id)" :rowStyle="rowStylePool">
+                            <!-- <br><h4 class="font-bold">Raw Products with No Plan</h4>
+                            <DataTable :value="getPool(slotProps.data.purchase_order_id)" :rowStyle="rowStylePool">
                                 <template #empty> No unplanned products found. </template>
 
                                 <Column header="Name">
@@ -191,8 +190,8 @@
                                 </Column>
                                 <Column field="total" header="Total # of Units" />
                                 <Column field="status" header="Status" />
-                            </DataTable>  -->
-                        </div>
+                            </DataTable> -->
+                        </div> 
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
@@ -2082,6 +2081,8 @@ export default {
          */
         let recipeOutput = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
         console.log("recipeOutput", recipeOutput);
+        let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
+        console.log("outputKey", outputKey);
 
         // console.log(this.poRecipes)
         let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
@@ -2094,11 +2095,23 @@ export default {
 
         // get the input boxes that are being used as inputs. Use a filter-map for-loop
         const inputBoxesAndRecEl = [] as any[];
+
+        // console.log(this.uBoxes);
+
+        let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+        console.log("boxArray", boxArray);
+
+        let filteredBoxArray = this.groupProducts(boxArray);
+        console.log("filteredBoxArray", filteredBoxArray);
+
+        let boxIdx = 0;
+
         for(const b of this.uBoxes) {
             if(b.purchase_order_id !== purchase_order_id)
             continue;
 
-            const inputEl = rawRecInputs.find(r => r.product_id  === /* idk what field to use */ b.product_id);
+
+            const inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
             if(inputEl)
             inputBoxesAndRecEl.push({ box: b, rec: inputEl });
         }
@@ -2110,19 +2123,15 @@ export default {
         const numRecipesProcessed = amount / /* idk the field */ recipeOutput.qty;
         console.log("numRecipesProcessed", numRecipesProcessed);
 
-        let test = inputBoxesAndRecEl.map(({ box, rec }) => ({
+        let returnArray = inputBoxesAndRecEl.map(({ box, rec }) => ({
             ...box,
-            /* idk the field */ amount: rec.qty * numRecipesProcessed,
+            /* idk the field */ amount: rec.qty * box.units_per_case * numRecipesProcessed,
             leftover: box.amount - rec.qty * numRecipesProcessed
         }));
 
-        console.log(test);
+        console.log("returnArray", returnArray);
 
-        return inputBoxesAndRecEl.map(({ box, rec }) => ({
-            ...box,
-            /* idk the field */ amount: rec.amount * numRecipesProcessed,
-            leftover: box.amount - rec.amount * numRecipesProcessed
-        }));
+        return returnArray;
         },
 
         //Description: Gets the unit cost for a specific product
