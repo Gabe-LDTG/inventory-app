@@ -2,22 +2,17 @@
     <div>
         <div class="card">
             <Toast />
-            <Toolbar class="mb-4">
-                <template #end>
-                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" icon="pi pi-plus" severity="success" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
-                </template>
-
-            </Toolbar>
 
             <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
             showGridlines stripedRows :filters="filters"
             :loading="loading" :paginator="true" :rows="20"
-            scrollable scrollHeight="700px" 
+            scrollable scrollHeight="650px" 
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Request To Proccess List</h4>
-						<span class="p-input-icon-right">
+						<Button label="Pick List" v-tooltip.top="'Generate a new pick list'" icon="pi pi-plus" severity="success" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
+                        <span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
                         </span>
