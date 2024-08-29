@@ -5,7 +5,7 @@
 
             <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
             showGridlines stripedRows :filters="filters"
-            :loading="loading" :paginator="true" :rows="20"
+            :loading="loading" :paginator="true" :rows="40"
             scrollable scrollHeight="650px" 
             >
                 <template #header>
@@ -22,15 +22,24 @@
                 <template #loading>Loading Requests</template>
 
                 <Column selectionMode="multiple" headerStyle="width: 3rem"/>
-                <Column field="" header="Problems/Notes"></Column>
-                <Column field="" header="Status"></Column>
-                <Column field="" header="LABELS PRINTED"></Column>
-                <Column field="" header="SHIP LABEL"></Column>
-                <Column field="" header="Priority"></Column>
-                <Column field="" header="Ship to Amz" style="min-width: 100px"></Column>
-                <Column field="" header="Deadline" />
-                <Column field="amount" header="Warehouse QTY"></Column>
-                <Column field="location" header="WH Location" style="min-width: 200px"></Column>
+                <Column field="notes" header="Comments"></Column>
+                <Column field="status" header="Status" style="min-width: 150px"></Column>
+                <Column header="LABELS PRINTED" :bodyStyle="labelStyle">
+                    <template #body="{data}" :bodyStyle="labelStyle">
+                        {{ data.labels_printed ? "Yes" : "No" }}
+                    </template>
+                </Column>
+                <Column header="SHIP LABEL" :style="labelStyle">
+                    <template #body="{data}">
+                        {{ data.ship_label ? "Yes" : "No" }}
+                    </template>
+                </Column>
+                <Column field="priority" header="Priority" style="min-width: 200px"></Column>
+                <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px"></Column>
+                <Column field="deadline" header="Deadline" />
+                <Column field="warehouse_qty" header="Warehouse QTY"></Column>
+                <Column field="amount" header="Total QTY"></Column>
+                <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
                 <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px"></Column>
                 <Column field="name" header="Name" style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
                 <Column field="fnsku" header="FNSKU"></Column>
@@ -38,7 +47,6 @@
                 <Column field="units_per_case" header="Units per Case"></Column>
                 <Column field="bag_size" header="Bags"></Column>
                 <Column field="box_type" header="Boxes"></Column>
-                <Column field="" header="Comments"></Column>
             </DataTable>
 
 
@@ -106,6 +114,29 @@ export default {
             // MISC VARIABLES
             loading: false,
             today: "",
+            statuses: [
+                '1 WORKING',
+                '1.25 PICKED',
+				'1.5 PICKLIST',
+                '2 READY',
+                '3 AWAITING PLAN',
+				'4 INBOUND',
+                '5 ON ORDER',
+                '6 ISSUE',
+                '7 FLAGGED'
+            ],
+            priority: [
+                '0 MUST GO OUT TODAY',
+                '1 ASAP',
+                '1 Prep to Make Space (Large Qty)',
+                '2 Could Go Out Today',
+                '2 Prep to Make Space',
+                '3 Could Go Out Tomorrow',
+                '3 Prep to Make Space',
+				'4 Could Go Out This Week',
+                '5 Could Go Out This Month',
+                '6 Prep For Later'
+            ],
 
             // DATATABLE VARIABLES
             filters: {
@@ -236,31 +267,33 @@ export default {
             try {
                 // this.requestsToProcces = await action.getRequestsToProccess
 
-                let cases = helper.groupProducts(this.pCases);
-                console.log("cases", cases);
+                // let cases = helper.groupProducts(this.pCases);
+                // console.log("cases", cases);
 
                 const casesWithR2PsAndPOs = [] as any[];
 
                 for(const c of this.pCases) {
-                    let productKey = this.products.find(p => p.product_id === c.product_id);
                     let location = this.locations.find(l => l.location_id  === c.location);
+                    if (location)
+                        continue;
+
+                    let productKey = this.products.find(p => p.product_id === c.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === c.purchase_order_id);
                     let request = this.requestsToProcess.find(req => req.purchase_order_id === purchaseOrder.purchase_order_id && req.product_id === c.product_id);
-                    if(!location)
-                        location = {};
+                    // if(!location)
+                    //     location = {};
                     if(!purchaseOrder)
                         purchaseOrder = {};
                     if(!request)
-                        request = {};
+                        request = {notes: '', status: 'On Order', labels_printed: false, ship_label: false, priority: '6 Prep For Later', ship_to_amz: '', deadline: '', warehouse_qty: ''};
 
-                    casesWithR2PsAndPOs.push({ box: c, key: productKey, loc: location, po: purchaseOrder, req: request });
+                    casesWithR2PsAndPOs.push({ box: c, key: productKey, po: purchaseOrder, req: request });
                 }
 
                 console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
-                let returnArray = casesWithR2PsAndPOs.map(({ box, key, loc, po, req }) => ({
+                let returnArray = casesWithR2PsAndPOs.map(({ box, key, po, req }) => ({
                     ...box,
-                    location: loc.name,
                     purchase_order_name: po.purchase_order_name,
                     ...req,
                     bag_size: key.bag_size,
@@ -271,7 +304,7 @@ export default {
                 }));
                 console.log("returnArray", returnArray);
 
-                const keyStringArray = ['product_id', 'purchase_order_name', 'location', 'request_id']
+                const keyStringArray = ['product_id', 'purchase_order_name', 'request_id']
 
                 console.log("returnArray grouped", helper.groupItemsByKey(returnArray, keyStringArray));
 
@@ -279,6 +312,15 @@ export default {
             } catch (error) {
                 console.log(error);
             }
+        },
+
+        labelStyle(data: any){
+            console.log(data);
+            if (data.labels_printed === 'No') {
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            } else if  (data.labels_printed === true) {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
+            } 
         },
     },
 }

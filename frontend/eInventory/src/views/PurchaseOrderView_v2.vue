@@ -147,17 +147,17 @@
                                                 {{ data.units_per_case * data.amount }}
                                             </template>
                                         </Column>
-                                        <Column header="Location">
+                                        <!-- <Column header="Location">
                                             <template #body="{data}">
                                                 {{ formatSingleLocation(data.location) }}
                                             </template>
-                                        </Column>
+                                        </Column> -->
                                         <Column header="Total Price" class="font-bold">
                                             <template #body = {data}>
                                                 {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
                                             </template>
                                         </Column>
-                                        <Column field="status" header="Status" sortable>
+                                        <Column header="Status" sortable>
                                             <template #body="slotProps">
                                                 <div class="card flex flex-wrap  gap-2">
                                                     <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
@@ -193,7 +193,13 @@
                                         {{ data.amount * data.units_per_case }}
                                     </template>
                                 </Column>
-                                <Column field="status" header="Status" />
+                                <Column header="Status" sortable>
+                                    <template #body="slotProps">
+                                        <div class="card flex flex-wrap  gap-2">
+                                            <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
+                                        </div>
+                                    </template>
+                                </Column>
                             </DataTable>
                         </div> 
 
@@ -1975,6 +1981,7 @@ export default {
             this.poBoxes = [];
             this.reqPoBoxes = [];
             this.editedLine = {};
+            this.deliveredDataTableArray = [];
 
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
             let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
