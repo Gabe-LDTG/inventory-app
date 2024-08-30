@@ -66,13 +66,33 @@ import {
     showVendors,
     createVendor,
     updateVendor
-} from "../controllers/vendors.js"
+} from "../controllers/vendors.js";
 
 import {
     showLocations,
     createLocation,
     updateLocation
-} from "../controllers/locations.js"
+} from "../controllers/locations.js";
+
+import {
+    showRequests,
+    createRequestToProcess,
+    deleteRequest,
+    updateRequest
+} from "../controllers/requests.js";
+
+import {
+    showPicklists,
+    createPicklist,
+    deletePicklist,
+    updatePicklist,
+    showPicklistElements,
+    createPicklistElement,
+    deletePicklistElement,
+    updatePicklistElement,
+    batchInsertPicklistElements,
+    batchUpdatePicklistElements
+} from "../controllers/picklists.js";
 
 //init express router
 const router=express.Router();
@@ -238,6 +258,50 @@ router.post("/locations/create", createLocation);
 
 //Update a Location
 router.put("/locations/:id", updateLocation);
+
+//REQUESTS TO PROCESS-------------------------------------------------------------
+// Get requests
+router.get("/requests", showRequests);
+
+// Create a request
+router.post("/requests/create", createRequestToProcess);
+
+// Update a request
+router.put("/requests/:id", updateRequest);
+
+//Delete a request
+router.delete("/requests/:id", deleteRequest);
+
+//PICKLISTS-----------------------------------------------------------------------
+// Get picklists
+router.get("/picklists", showPicklists);
+
+// Create a picklist
+router.post("/picklists/create", createPicklist);
+
+// Update a picklist
+router.put("/picklists/:id", updatePicklist);
+
+// Delete a picklist
+router.delete("/picklists/:id", deletePicklist);
+
+// Get picklist elements
+router.get("/picklistElements", showPicklistElements);
+
+// Create a picklist element
+router.post("/picklistElements/create", createPicklistElement);
+
+// Update a picklist element
+router.put("/picklistElements/:id", updatePicklistElement);
+
+// Delete a picklist element
+router.delete("/picklistElements/:id", deletePicklistElement);
+
+// Batch insert picklist elements
+router.post("/picklistElements/batchInsert", batchInsertPicklistElements)
+
+// Batch update picklist elements
+router.post("/picklistElements/batchUpdate", batchUpdatePicklistElements);
 
 
 //ROUTER--------------------------------------------------------------------------

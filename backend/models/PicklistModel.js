@@ -76,14 +76,14 @@ export async function updatePicklistElementById (data, id){
 };
 
 //Batch insert picklist elements to the database
-export async function batchInsertPicklistElements(values){
+export async function batchInsertPicklistEl(values){
     let fields = "picklist_id, recipe_id, case_qty";
     let sql = "INSERT INTO picklist_elements ("+fields+") VALUES ?";
     return db.query(sql, [values]).then(([results, fields])=>results);
 };
 
-// Bulk Update picklist elements in Database
-export async function bulkUpdatePicklistElements(data){
+// Batch Update picklist elements in Database
+export async function batchUpdatePicklistEl(data){
     console.log(data);
     const fields = "picklist_element_id, picklist_id, recipe_id, case_qty";
     const updateFields = "picklist_id = VALUES(picklist_id), recipe_id = VALUES(recipe_id), case_qty = VALUES(case_qty)"

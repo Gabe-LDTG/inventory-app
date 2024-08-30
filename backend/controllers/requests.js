@@ -3,7 +3,7 @@ import {
     insertRequestToProcess,
     deleteRequestById,
     updateRequestById,
-} from '../models/RequestModel';
+} from '../models/RequestModel.js';
 
 //get all requests to process
 export async function showRequests(req,res){
@@ -36,7 +36,7 @@ export async function deleteRequest(req, res){
     try {
         const id = req.params.id;
 
-        const deletedRequest = await deleteRequest(id);
+        const deletedRequest = await deleteRequestById(id);
         res.json(deletedRequest);
     } catch (err) {
         console.error(err);
@@ -50,7 +50,7 @@ export async function updateRequest (req,res){
         const data = req.body;
         const id = req.params.id;
 
-        const updatedRequest = await updateRequest(data, id);
+        const updatedRequest = await updateRequestById(data, id);
         res.json(updatedRequest);
     } catch (err) {
         console.error(err);
