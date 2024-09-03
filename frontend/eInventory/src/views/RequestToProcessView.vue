@@ -7,6 +7,7 @@
             showGridlines stripedRows :filters="filters"
             :loading="loading" :paginator="true" :rows="40"
             scrollable scrollHeight="650px" 
+            editMode="cell" @cell-edit-complete="onRequestCellEdit"
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -21,23 +22,99 @@
                 <template #empty>No cases in the request to process</template>
                 <template #loading>Loading Requests</template>
 
+
+                <template #footer>
+                    <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <h4 class="m-0">There is 1 request to update.</h4>
+                    </div>
+                    <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
+                    </div>
+                </template>
+
+
                 <Column selectionMode="multiple" headerStyle="width: 3rem"/>
-                <Column field="notes" header="Comments"></Column>
-                <Column field="status" header="Status" style="min-width: 150px"></Column>
+                <Column field="notes" header="Comments">
+                    <template #body="{data}">
+                        {{ data.notes }}
+                    </template>
+                    <template #editor="{data}">
+                        <InputText type="text" v-model="data.notes"/>
+                    </template>
+                </Column>
+                <Column field="status" header="Status" style="min-width: 150px">
+                    <template #editor="{data}">
+                        <div class="container">
+                            <Dropdown v-model="data.status"
+                            placeholder="Select a status" class="w-full md:w-14rem" editable
+                            :options="statuses"/>
+                            </div>
+                    </template>
+                </Column>
                 <Column header="LABELS PRINTED" :bodyStyle="labelStyle">
                     <template #body="{data}" :bodyStyle="labelStyle">
                         {{ data.labels_printed ? "Yes" : "No" }}
+                    </template>
+                    <template #editor="{data}">
+                        <div class="container">
+                            <Dropdown v-model="data.labels_printed"
+                            placeholder="Item labels printed?" class="w-full md:w-14rem" editable
+                            :options="labelOptions"
+                            optionLabel="header"
+                            optionValue="value" />
+                        </div>
                     </template>
                 </Column>
                 <Column header="SHIP LABEL" :style="labelStyle">
                     <template #body="{data}">
                         {{ data.ship_label ? "Yes" : "No" }}
                     </template>
+                    <template #editor="{data}">
+                        <div class="container">
+                            <Dropdown v-model="data.ship_label"
+                            placeholder="Shipping labels printed?" class="w-full md:w-14rem" editable
+                            :options="labelOptions"
+                            optionLabel="header"
+                            optionValue="value" />
+                        </div>
+                    </template>
                 </Column>
-                <Column field="priority" header="Priority" style="min-width: 200px"></Column>
-                <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px"></Column>
-                <Column field="deadline" header="Deadline" />
-                <Column field="warehouse_qty" header="Warehouse QTY"></Column>
+                <Column field="priority" header="Priority" style="min-width: 200px">
+                    <template #body="{data}">
+                        {{ data.priority }}
+                    </template>
+                    <template #editor="{data}">
+                        <div class="container">
+                            <Dropdown v-model="data.priority"
+                            placeholder="Select a priority" class="w-full md:w-14rem" editable
+                            :options="priorities"/>
+                            </div>
+                    </template>
+                </Column>
+                <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
+                    <template #body="{data}">
+                        {{ data.ship_to_amz }}
+                    </template>
+                    <template #editor="{data}">
+                        <InputNumber v-model="data.ship_to_amz" />
+                    </template>
+                </Column>
+                <Column field="deadline" header="Deadline" >
+                    <template #body="{data}">
+                        {{ data.deadline }}
+                    </template>
+                    <template #editor="{data}">
+                        <Calendar dateFormat="yy-mm-dd" v-model="data.deadline"/>
+                    </template>
+                </Column>
+                <Column field="warehouse_qty" header="Warehouse QTY">
+                    <template #body="{data}">
+                        {{ data.warehouse_qty }}
+                    </template>
+                    <template #editor="{data}">
+                        <InputNumber v-model="data.warehouse_qty" />
+                    </template>
+                </Column>
                 <Column field="amount" header="Total QTY"></Column>
                 <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
                 <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px"></Column>
@@ -86,8 +163,8 @@ export default {
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
-            cancelOrderDialog: false,
-            rawOrderType: ['By Box', 'By Unit'],
+            cancelOrderDialog: false as boolean,
+            rawOrderType: ['By Box', 'By Unit'] as string[],
             selectedOrderType: "",
             statusChangeDialog: false,
             receivedDialog: false,
@@ -108,9 +185,21 @@ export default {
             poRecipes: [] as any[],
 
             // REQUEST TO PROCESS VARIABLES
+            requestToProcess: {} as {
+                request_id: number; 
+                case_id: number; 
+                notes: string, 
+                labels_printed: boolean; 
+                ship_label: boolean; 
+                priority: string; 
+                ship_to_amz: number; 
+                deadline: Date; 
+                warehouse_qty: number;
+            },
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
-
+            requestsUpdateArray: [] as any[],
+            
             // MISC VARIABLES
             loading: false,
             today: "",
@@ -125,7 +214,7 @@ export default {
                 '6 ISSUE',
                 '7 FLAGGED'
             ],
-            priority: [
+            priorities: [
                 '0 MUST GO OUT TODAY',
                 '1 ASAP',
                 '1 Prep to Make Space (Large Qty)',
@@ -136,6 +225,10 @@ export default {
 				'4 Could Go Out This Week',
                 '5 Could Go Out This Month',
                 '6 Prep For Later'
+            ],
+            labelOptions: [
+                {value: true, header: 'Yes'},
+                {value: false, header: 'No'}
             ],
 
             // DATATABLE VARIABLES
@@ -149,10 +242,29 @@ export default {
     },
     created(){
         this.initVariables();
+        window.addEventListener('beforeunload', function onBeforeUnload(event: any){
+            console.log(event);
+            return  window.confirm('Do you really want to leave? you have unsaved changes!');
+        });
+        if(this.requestsUpdateArray.length > 0){
+            window.onbeforeunload = function() {
+                return "Data will be lost if you leave the page, are you sure?";
+            };
+        }
+        
     },
     mounted(){
         //this.initVariables();
     },
+    beforeUnmount(){ 
+        console.log("BEFORE UNMOUNTED") 
+
+        if(this.requestsUpdateArray.length > 0){
+            window.confirm('Do you really want to leave? you have unsaved changes!');
+        };
+
+    },
+    unmounted(){ console.log("UNMOUNTED") },
     methods: {
         async initVariables(){
             try {
@@ -321,6 +433,29 @@ export default {
             } else if  (data.labels_printed === true) {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } 
+        },
+
+        onRequestCellEdit(event: any){
+            console.log(event);
+
+            let {data, index, newData} = event;
+
+            if (data === newData)
+                console.log("EQUAL");
+            else{
+                console.log("EDITS");
+                this.R2Parray[index] = newData;
+                const request = this.requestsUpdateArray.find(req => req.case_id === newData.case_id && req.purchase_order_id === newData.purchase_order_id);
+
+                if (!request)
+                    this.requestsUpdateArray.push(newData);
+            }
+                
+        },
+
+        onBeforeUnload(event: any){
+            console.log(event);
+            return  window.confirm('Do you really want to leave? you have unsaved changes!');
         },
     },
 }
