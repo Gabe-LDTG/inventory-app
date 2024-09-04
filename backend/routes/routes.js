@@ -78,7 +78,9 @@ import {
     showRequests,
     createRequestToProcess,
     deleteRequest,
-    updateRequest
+    updateRequest,
+    batchInsertRequests2P,
+    batchUpdateRequests2P
 } from "../controllers/requests.js";
 
 import {
@@ -271,6 +273,12 @@ router.put("/requests/:id", updateRequest);
 
 //Delete a request
 router.delete("/requests/:id", deleteRequest);
+
+// Batch insert requests into the database
+router.post("/requests/batchInsert", batchInsertRequests2P);
+
+// Batch update requests in the database
+router.post("/requests/batchUpdate", batchUpdateRequests2P);
 
 //PICKLISTS-----------------------------------------------------------------------
 // Get picklists

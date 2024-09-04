@@ -3,6 +3,8 @@ import {
     insertRequestToProcess,
     deleteRequestById,
     updateRequestById,
+    batchInsertRequests,
+    batchUpdateRequests
 } from '../models/RequestModel.js';
 
 //get all requests to process
@@ -55,5 +57,31 @@ export async function updateRequest (req,res){
     } catch (err) {
         console.error(err);
         res.sendStatus(500);
+    }
+};
+
+// Batch insert requests into the database
+export async function batchInsertRequests2P(req, res) {
+    try {
+        const data = req.body;
+        const insertedRequests = await batchInsertRequests(data);
+
+        res.json(insertedRequests);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error.message);
+    }
+};
+
+// Batch update requests into the database
+export async function batchUpdateRequests2P(req, res) {
+    try {
+        const data = req.body;
+        const updatedRequests = await batchUpdateRequests(data);
+
+        res.json(updatedRequests);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error.message);
     }
 };

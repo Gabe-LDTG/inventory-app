@@ -12,7 +12,7 @@
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Request To Proccess List</h4>
-						<Button label="Pick List" v-tooltip.top="'Generate a new pick list'" icon="pi pi-plus" severity="success" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
+						<Button label="Pick List" v-tooltip.top="'Generate a new pick list'" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
                         <span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -24,11 +24,15 @@
 
 
                 <template #footer>
-                    <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">There is 1 request to update.</h4>
-                    </div>
-                    <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
+                        </div>
+                        <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                            <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
+                        </div>
+
+                        <Button label="Save" v-tooltip.top="'Save the edited requests'" @click="saveUpdatedRequests" severity="success" class="mr-2" :disabled="requestsUpdateArray.length < 1" />
                     </div>
                 </template>
 
@@ -51,7 +55,7 @@
                             </div>
                     </template>
                 </Column>
-                <Column header="LABELS PRINTED" :bodyStyle="labelStyle">
+                <Column header="LABELS PRINTED" :style="labelStyle">
                     <template #body="{data}" :bodyStyle="labelStyle">
                         {{ data.labels_printed ? "Yes" : "No" }}
                     </template>
@@ -189,6 +193,7 @@ export default {
                 request_id: number; 
                 case_id: number; 
                 notes: string, 
+                status: string,
                 labels_printed: boolean; 
                 ship_label: boolean; 
                 priority: string; 
@@ -397,12 +402,12 @@ export default {
                     if(!purchaseOrder)
                         purchaseOrder = {};
                     if(!request)
-                        request = {notes: '', status: 'On Order', labels_printed: false, ship_label: false, priority: '6 Prep For Later', ship_to_amz: '', deadline: '', warehouse_qty: ''};
+                        request = {notes: '', status: 'On Order', labels_printed: false, ship_label: false, priority: '6 Prep For Later', ship_to_amz: 0, deadline: '', warehouse_qty: 0};
 
                     casesWithR2PsAndPOs.push({ box: c, key: productKey, po: purchaseOrder, req: request });
                 }
 
-                console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
+                // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
                 let returnArray = casesWithR2PsAndPOs.map(({ box, key, po, req }) => ({
                     ...box,
@@ -414,7 +419,7 @@ export default {
                     asin: key.asin,
 
                 }));
-                console.log("returnArray", returnArray);
+                // console.log("returnArray", returnArray);
 
                 const keyStringArray = ['product_id', 'purchase_order_name', 'request_id']
 
@@ -427,12 +432,14 @@ export default {
         },
 
         labelStyle(data: any){
-            console.log(data);
-            if (data.labels_printed === 'No') {
+            console.log("STYLE ",data);
+            if (data.labels_printed === false) {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             } else if  (data.labels_printed === true) {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
-            } 
+            } else {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
+            }
         },
 
         onRequestCellEdit(event: any){
@@ -440,7 +447,7 @@ export default {
 
             let {data, index, newData} = event;
 
-            if (data === newData)
+            if (data.notes === newData.notes && data.status === newData.status && data.labels_printed === newData.labels_printed && data.ship_label === newData.ship_label && data.priority === newData.priority && data.ship_to_amz === newData.ship_to_amz && data.deadline === newData.deadline && data.warehouse_qty === newData.warehouse_qty)
                 console.log("EQUAL");
             else{
                 console.log("EDITS");
@@ -451,6 +458,31 @@ export default {
                     this.requestsUpdateArray.push(newData);
             }
                 
+        },
+
+        async saveUpdatedRequests(){
+            try {
+                console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
+                let newRequests = [] as any[];
+                let editedRequests = [] as any[];
+
+                for(const request of this.requestsUpdateArray){
+                    if(request.request_id)
+                        editedRequests.push(request);
+                    else
+                        newRequests.push(request);
+                };
+
+                console.log("New requests", newRequests, " and edited requests", editedRequests);
+
+                this.requestsUpdateArray = [];
+
+                // if(newRequests.length > 0)
+                
+
+            } catch (error) {
+                console.log(error);
+            }
         },
 
         onBeforeUnload(event: any){

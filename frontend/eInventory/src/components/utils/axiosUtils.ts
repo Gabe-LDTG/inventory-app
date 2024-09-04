@@ -1,5 +1,6 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
+import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -604,13 +605,13 @@ var action = {
     //Gets purchase orders
     async getPurchaseOrders(){
         let purchaseOrders;
-            console.log("IN GET PURCHASE ORDERS");
+            // console.log("IN GET PURCHASE ORDERS");
 
             return axios.get(BASE_URL+"/purchaseOrders").then(res => {
                 purchaseOrders = res.data;
 
-                console.log('TESTING-------------------')
-                console.log("Purchase Order List received\n",purchaseOrders);
+                // console.log('TESTING-------------------')
+                // console.log("Purchase Order List received\n",purchaseOrders);
                 //console.log("Keys", Object.keys(purchaseOrders[1]));
                 //console.log(this.cases.date_received.getMonth());
 
@@ -666,7 +667,6 @@ var action = {
         .catch(error => {
             console.log(error);
         })
-
     },
 
     //Get Purchase Order Recipes
@@ -708,12 +708,12 @@ var action = {
         });
     },
 
-        //Add multiple cases at the same time
-        async bulkAddPurchaseOrderRecipe(poRecipe: any){
-            return axios.post(BASE_URL+"/purchaseOrderRecipes/bulk",poRecipe).catch(error => {
-                console.log(error);
-            });
-        },
+    //Add multiple cases at the same time
+    async bulkAddPurchaseOrderRecipe(poRecipe: any){
+        return axios.post(BASE_URL+"/purchaseOrderRecipes/bulk",poRecipe).catch(error => {
+            console.log(error);
+        });
+    },
 
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
@@ -773,7 +773,7 @@ var action = {
     async getRecipeElements(){
         return axios.get(BASE_URL+"/recipeElements").then(res => {
             let recipeElements = res.data;
-            console.log("RECIPE ELEMENTS", recipeElements);
+            // console.log("RECIPE ELEMENTS", recipeElements);
             return recipeElements;
         })
     },
@@ -833,6 +833,270 @@ var action = {
             throw error;
         });
     },
+
+    //REQUESTS--------------------------------------------------------------------------------------------
+    // Get requests
+    async getRequests(){
+        return axios.get(BASE_URL+"/requests").then(res => {
+            const requests = res.data;
+            //console.log("LOCATIONS ", locations)
+            return requests;
+        })
+    },
+
+    // Create a request
+    async addRequest(request: {
+        case_id: number; 
+        notes: string, 
+        status: string,
+        labels_printed: boolean; 
+        ship_label: boolean; 
+        priority: string; 
+        ship_to_amz: number; 
+        deadline: Date; 
+        warehouse_qty: number;
+    }){
+        return axios.post(BASE_URL+"/requests/create", {
+            case_id: request.case_id,
+            notes: request.notes,
+            status: request.status,
+            labels_printed: request.labels_printed,
+            ship_label: request.ship_label,
+            priority: request.priority,
+            ship_to_amz: request.ship_to_amz,
+            deadline: request.deadline,
+            warehouse_qty: request.warehouse_qty,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Update a request
+    async editRequest(request: {
+        request_id: number; 
+        case_id: number; 
+        notes: string, 
+        status: string,
+        labels_printed: boolean; 
+        ship_label: boolean; 
+        priority: string; 
+        ship_to_amz: number; 
+        deadline: Date; 
+        warehouse_qty: number;
+    }){
+        return axios.put(BASE_URL+"/requests/"+request.request_id, {
+            case_id: request.case_id,
+            notes: request.notes,
+            status: request.status,
+            labels_printed: request.labels_printed,
+            ship_label: request.ship_label,
+            priority: request.priority,
+            ship_to_amz: request.ship_to_amz,
+            deadline: request.deadline,
+            warehouse_qty: request.warehouse_qty,
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    //Delete a request
+    async deleteRequest(id: number){
+        return axios.delete(BASE_URL+"/requests/"+id)
+        .catch(error => {
+            console.log(error);
+        })
+    },
+
+    // Batch insert requests into the database
+    async batchAddRequests(request: {
+        case_id: number; 
+        notes: string, 
+        status: string,
+        labels_printed: boolean; 
+        ship_label: boolean; 
+        priority: string; 
+        ship_to_amz: number; 
+        deadline: Date; 
+        warehouse_qty: number;
+    }){
+        return axios.post(BASE_URL+"/requests/batchInsert",request).catch(error => {
+            console.log(error);
+        });
+    },
+
+    // Batch update requests into the database
+    async batchUpdateRequests(request: {
+        request_id: number; 
+        case_id: number; 
+        notes: string, 
+        status: string,
+        labels_printed: boolean; 
+        ship_label: boolean; 
+        priority: string; 
+        ship_to_amz: number; 
+        deadline: Date; 
+        warehouse_qty: number;
+    }){
+        return axios.post(BASE_URL+"/requests/batchUpdate",request).catch(error => {
+            console.log(error);
+        });
+    },
+
+    //PICKLISTS--------------------------------------------------------------------------------------------
+    // Get picklists
+    async getPicklists(){
+        return axios.get(BASE_URL+"/picklists").then(res => {
+            const picklists = res.data;
+            //console.log("LOCATIONS ", locations)
+            return picklists;
+        })
+    },
+
+    // Create a picklist
+    async addPicklist(picklist: {
+        label: string; 
+    }){
+        return axios.post(BASE_URL+"/picklists/create", {
+            label: picklist.label
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Update a picklist
+    // router.put("/picklists/:id", updatePicklist);
+    async editPicklist(picklist: {
+        picklist_id: number;
+        label: string; 
+    }){
+        return axios.put(BASE_URL+"/picklists/"+picklist.picklist_id, {
+            label: picklist.label
+        }).then((res) => {
+            console.log(res);
+            return res.data;
+
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Delete a picklist
+    // router.delete("/picklists/:id", deletePicklist);
+    async deletePicklist(id: number){
+        return axios.delete(BASE_URL+"/picklists/"+id)
+        .catch(error => {
+            console.log(error);  
+        })
+    },
+
+    // Get picklist elements
+    async getPicklistElements(){
+        return axios.get(BASE_URL+"/picklistElements").then(res => {
+            const picklistElements = res.data;
+            //console.log("LOCATIONS ", locations)
+            return picklistElements;
+        })
+    },
+
+    // Create a picklist element
+    async addPicklistElement(picklistElement: {
+        picklist_id: number;
+        recipe_id: number;
+        case_qty: number;
+        notes: string;
+    }){
+        return axios.post(BASE_URL+"/picklistElements/create", {
+            picklist_id: picklistElement.picklist_id,
+            recipe_id: picklistElement.recipe_id,
+            case_qty: picklistElement.case_qty,
+            notes: picklistElement.notes
+        }).then((res) => {
+            return res.data;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Update a picklist element
+    // router.put("/picklistElements/:id", updatePicklistElement);
+    async updatePicklistElement(picklistElement: {
+        picklist_element_id: number;
+        picklist_id: number;
+        recipe_id: number;
+        case_qty: number;
+        notes: string;
+    }){
+        return axios.put(BASE_URL+"/picklistElements/"+picklistElement.picklist_element_id, {
+            picklist_id: picklistElement.picklist_id,
+            recipe_id: picklistElement.recipe_id,
+            case_qty: picklistElement.case_qty,
+            notes: picklistElement.notes
+        }).then((res) => {
+            return res.data;
+        }).catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Delete a picklist element
+    // router.delete("/picklistElements/:id", deletePicklistElement);
+    async deletePicklistElement(id: number){
+        return axios.delete(BASE_URL+"/picklistElements"+id)
+        .catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Batch insert picklist elements
+    // router.post("/picklistElements/batchInsert", batchInsertPicklistElements)
+    async batchInsertPicklistElements(picklistElement: {
+        picklist_id: number;
+        recipe_id: number;
+        case_qty: number;
+        notes: string;
+    }){
+        return axios.post(BASE_URL+"/picklistElements/batchInsert", picklistElement)
+        .catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
+    // Batch update picklist elements
+    // router.post("/picklistElements/batchUpdate", batchUpdatePicklistElements);
+    async batchUpdatePicklistElements(picklistElement: {
+        picklist_element_id: number;
+        picklist_id: number;
+        recipe_id: number;
+        case_qty: number;
+        notes: string;
+    }){
+        return axios.post(BASE_URL+"/picklistElements/batchUpdate", picklistElement)
+        .catch(error => {
+            console.log(error);
+            throw error;
+        });
+    },
+
 }
 
 export default action;
