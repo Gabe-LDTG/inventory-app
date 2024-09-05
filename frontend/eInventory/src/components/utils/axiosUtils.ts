@@ -1,6 +1,5 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
-import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -846,7 +845,8 @@ var action = {
 
     // Create a request
     async addRequest(request: {
-        case_id: number; 
+        product_id: number; 
+        purchase_order_id: number;
         notes: string, 
         status: string,
         labels_printed: boolean; 
@@ -857,7 +857,8 @@ var action = {
         warehouse_qty: number;
     }){
         return axios.post(BASE_URL+"/requests/create", {
-            case_id: request.case_id,
+            product_id: request.product_id,
+            purchase_order_id: request.purchase_order_id,
             notes: request.notes,
             status: request.status,
             labels_printed: request.labels_printed,
@@ -879,7 +880,8 @@ var action = {
     // Update a request
     async editRequest(request: {
         request_id: number; 
-        case_id: number; 
+        product_id: number; 
+        purchase_order_id: number; 
         notes: string, 
         status: string,
         labels_printed: boolean; 
@@ -890,7 +892,8 @@ var action = {
         warehouse_qty: number;
     }){
         return axios.put(BASE_URL+"/requests/"+request.request_id, {
-            case_id: request.case_id,
+            product_id: request.product_id,
+            purchase_order_id: request.purchase_order_id,
             notes: request.notes,
             status: request.status,
             labels_printed: request.labels_printed,
@@ -918,35 +921,14 @@ var action = {
     },
 
     // Batch insert requests into the database
-    async batchAddRequests(request: {
-        case_id: number; 
-        notes: string, 
-        status: string,
-        labels_printed: boolean; 
-        ship_label: boolean; 
-        priority: string; 
-        ship_to_amz: number; 
-        deadline: Date; 
-        warehouse_qty: number;
-    }){
+    async batchInsertRequests(request: any[]){
         return axios.post(BASE_URL+"/requests/batchInsert",request).catch(error => {
             console.log(error);
         });
     },
 
     // Batch update requests into the database
-    async batchUpdateRequests(request: {
-        request_id: number; 
-        case_id: number; 
-        notes: string, 
-        status: string,
-        labels_printed: boolean; 
-        ship_label: boolean; 
-        priority: string; 
-        ship_to_amz: number; 
-        deadline: Date; 
-        warehouse_qty: number;
-    }){
+    async batchUpdateRequests(request: any[]){
         return axios.post(BASE_URL+"/requests/batchUpdate",request).catch(error => {
             console.log(error);
         });

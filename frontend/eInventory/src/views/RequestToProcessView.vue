@@ -1,139 +1,169 @@
 <template>
-    <div>
-        <div class="card">
-            <Toast />
+    <div class="card">
+        <Toast />
 
-            <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
-            showGridlines stripedRows :filters="filters"
-            :loading="loading" :paginator="true" :rows="40"
-            scrollable scrollHeight="650px" 
-            editMode="cell" @cell-edit-complete="onRequestCellEdit"
-            >
-                <template #header>
-                    <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">Request To Proccess List</h4>
-						<Button label="Pick List" v-tooltip.top="'Generate a new pick list'" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
-                        <span class="p-input-icon-right">
-                            <!-- <i class="pi pi-search" /> -->
-                            <InputText v-model="filters['global'].value" placeholder="Search..." />
-                        </span>
-					</div>
+        <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
+        showGridlines stripedRows :filters="filters"
+        :loading="loading" :paginator="true" :rows="40"
+        scrollable scrollHeight="650px" 
+        editMode="cell" @cell-edit-complete="onRequestCellEdit"
+        >
+            <template #header>
+                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <h4 class="m-0">Request To Proccess List</h4>
+                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
+                    <span class="p-input-icon-right">
+                        <!-- <i class="pi pi-search" /> -->
+                        <InputText v-model="filters['global'].value" placeholder="Search..." />
+                    </span>
+                </div>
+            </template>
+            <template #empty>No cases in the request to process</template>
+            <template #loading>Loading Requests</template>
+
+
+            <template #footer>
+                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <h4 class="m-0">There is 1 request to update.</h4>
+                    </div>
+                    <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
+                    </div>
+
+                    <Button label="Save" v-tooltip.top="'Save the edited requests'" @click="saveUpdatedRequests" severity="success" class="mr-2" :disabled="requestsUpdateArray.length < 1" />
+                </div>
+            </template>
+
+
+            <Column selectionMode="multiple" headerStyle="width: 3rem"/>
+            <Column field="notes" header="Comments">
+                <template #body="{data}">
+                    {{ data.notes }}
                 </template>
-                <template #empty>No cases in the request to process</template>
-                <template #loading>Loading Requests</template>
-
-
-                <template #footer>
-                    <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">There is 1 request to update.</h4>
+                <template #editor="{data}">
+                    <InputText type="text" v-model="data.notes"/>
+                </template>
+            </Column>
+            <Column field="status" header="Status" style="min-width: 150px">
+                <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.status"
+                        placeholder="Select a status" class="w-full md:w-14rem" editable
+                        :options="statuses"/>
                         </div>
-                        <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                            <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
-                        </div>
-
-                        <Button label="Save" v-tooltip.top="'Save the edited requests'" @click="saveUpdatedRequests" severity="success" class="mr-2" :disabled="requestsUpdateArray.length < 1" />
+                </template>
+            </Column>
+            <Column header="LABELS PRINTED" :style="labelStyle">
+                <template #body="{data}" :bodyStyle="labelStyle">
+                    {{ data.labels_printed ? "Yes" : "No" }}
+                </template>
+                <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.labels_printed"
+                        placeholder="Item labels printed?" class="w-full md:w-14rem" editable
+                        :options="labelOptions"
+                        optionLabel="header"
+                        optionValue="value" />
                     </div>
                 </template>
-
-
-                <Column selectionMode="multiple" headerStyle="width: 3rem"/>
-                <Column field="notes" header="Comments">
-                    <template #body="{data}">
-                        {{ data.notes }}
-                    </template>
-                    <template #editor="{data}">
-                        <InputText type="text" v-model="data.notes"/>
-                    </template>
-                </Column>
-                <Column field="status" header="Status" style="min-width: 150px">
-                    <template #editor="{data}">
-                        <div class="container">
-                            <Dropdown v-model="data.status"
-                            placeholder="Select a status" class="w-full md:w-14rem" editable
-                            :options="statuses"/>
-                            </div>
-                    </template>
-                </Column>
-                <Column header="LABELS PRINTED" :style="labelStyle">
-                    <template #body="{data}" :bodyStyle="labelStyle">
-                        {{ data.labels_printed ? "Yes" : "No" }}
-                    </template>
-                    <template #editor="{data}">
-                        <div class="container">
-                            <Dropdown v-model="data.labels_printed"
-                            placeholder="Item labels printed?" class="w-full md:w-14rem" editable
-                            :options="labelOptions"
-                            optionLabel="header"
-                            optionValue="value" />
+            </Column>
+            <Column header="SHIP LABEL" :style="labelStyle">
+                <template #body="{data}">
+                    {{ data.ship_label ? "Yes" : "No" }}
+                </template>
+                <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.ship_label"
+                        placeholder="Shipping labels printed?" class="w-full md:w-14rem" editable
+                        :options="labelOptions"
+                        optionLabel="header"
+                        optionValue="value" />
+                    </div>
+                </template>
+            </Column>
+            <Column field="priority" header="Priority" style="min-width: 200px">
+                <template #body="{data}">
+                    {{ data.priority }}
+                </template>
+                <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.priority"
+                        placeholder="Select a priority" class="w-full md:w-14rem" editable
+                        :options="priorities"/>
                         </div>
-                    </template>
-                </Column>
-                <Column header="SHIP LABEL" :style="labelStyle">
-                    <template #body="{data}">
-                        {{ data.ship_label ? "Yes" : "No" }}
-                    </template>
-                    <template #editor="{data}">
-                        <div class="container">
-                            <Dropdown v-model="data.ship_label"
-                            placeholder="Shipping labels printed?" class="w-full md:w-14rem" editable
-                            :options="labelOptions"
-                            optionLabel="header"
-                            optionValue="value" />
-                        </div>
-                    </template>
-                </Column>
-                <Column field="priority" header="Priority" style="min-width: 200px">
-                    <template #body="{data}">
-                        {{ data.priority }}
-                    </template>
-                    <template #editor="{data}">
-                        <div class="container">
-                            <Dropdown v-model="data.priority"
-                            placeholder="Select a priority" class="w-full md:w-14rem" editable
-                            :options="priorities"/>
-                            </div>
-                    </template>
-                </Column>
-                <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
-                    <template #body="{data}">
-                        {{ data.ship_to_amz }}
-                    </template>
-                    <template #editor="{data}">
-                        <InputNumber v-model="data.ship_to_amz" />
-                    </template>
-                </Column>
-                <Column field="deadline" header="Deadline" >
-                    <template #body="{data}">
-                        {{ data.deadline }}
-                    </template>
-                    <template #editor="{data}">
-                        <Calendar dateFormat="yy-mm-dd" v-model="data.deadline"/>
-                    </template>
-                </Column>
-                <Column field="warehouse_qty" header="Warehouse QTY">
-                    <template #body="{data}">
-                        {{ data.warehouse_qty }}
-                    </template>
-                    <template #editor="{data}">
-                        <InputNumber v-model="data.warehouse_qty" />
-                    </template>
-                </Column>
-                <Column field="amount" header="Total QTY"></Column>
-                <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
-                <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px"></Column>
-                <Column field="name" header="Name" style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
-                <Column field="fnsku" header="FNSKU"></Column>
-                <Column field="asin" header="ASIN"></Column>
-                <Column field="units_per_case" header="Units per Case"></Column>
-                <Column field="bag_size" header="Bags"></Column>
-                <Column field="box_type" header="Boxes"></Column>
-            </DataTable>
+                </template>
+            </Column>
+            <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
+                <template #body="{data}">
+                    {{ data.ship_to_amz }}
+                </template>
+                <template #editor="{data}">
+                    <InputNumber v-model="data.ship_to_amz" />
+                </template>
+            </Column>
+            <Column field="deadline" header="Deadline" >
+                <template #body="{data}">
+                    {{ data.deadline }}
+                </template>
+                <template #editor="{data}">
+                    <Calendar dateFormat="yy-mm-dd" v-model="data.deadline"/>
+                </template>
+            </Column>
+            <Column field="warehouse_qty" header="Warehouse QTY">
+                <template #body="{data}">
+                    {{ data.warehouse_qty }}
+                </template>
+                <template #editor="{data}">
+                    <InputNumber v-model="data.warehouse_qty" />
+                </template>
+            </Column>
+            <Column field="amount" header="Total QTY" class="font-bold"></Column>
+            <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
+            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
+            <Column field="name" header="Name" style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
+            <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
+            <Column field="asin" header="ASIN" class="font-bold"></Column>
+            <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
+            <Column field="bag_size" header="Bags" class="font-bold"></Column>
+            <Column field="box_type" header="Boxes" class="font-bold"></Column>
+        </DataTable>
 
 
-        </div>
-        
     </div>
+
+    <Dialog v-model:visible="picklistAmountDialog" :style="{width: '450px'}" header="How many cases to create?" :modal="true">
+        <DataTable ref="dt" :value="picklistCases" 
+        showGridlines stripedRows 
+        editMode="cell" @cell-edit-complete="onAmountCellEdit"
+        >
+            <Column field="name" header="Name" style="min-width: 250px;" class="font-bold"></Column>
+            <Column field="amount" header="Total QTY" class="font-bold"></Column>
+            <Column header="Cases to Pick">
+                <template #body="{data}">
+                    {{ data.casesToPick }}
+                </template>
+                <template #editor="{data}">
+                    <InputNumber v-model="data.casesToPick" />
+                </template>
+            </Column>
+        </DataTable>
+
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="picklistAmountDialog = false"/>
+            <Button label="Select" icon="pi pi-check" text @click="openPicklistDialog" />
+        </template>
+    </Dialog>
+        
+    <Dialog v-model:visible="picklistDialog" :style="{width: '450px'}" header="Generated Picklist" :modal="true">
+
+
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="picklistDialog = false"/>
+            <Button label="Select" icon="pi pi-check" text @click="" />
+        </template>
+    </Dialog>
+    
 </template>
 <script lang="ts">
 import { FilterMatchMode } from 'primevue/api';
@@ -204,6 +234,13 @@ export default {
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
             requestsUpdateArray: [] as any[],
+
+            // PICKLIST VARIABLES
+            picklists: [] as any[],
+            picklistCases: [] as any[],
+            picklistBoxes: [] as any[],
+            picklistAmountDialog: false,
+            picklistDialog: false,
             
             // MISC VARIABLES
             loading: false,
@@ -355,7 +392,7 @@ export default {
         //Date Last Edited: 6-25-2024
         async getRecipes(){
             try {
-                this.recipes = await action.getRecipes();
+                // this.recipes = await action.getRecipes();
                 this.recipeElements = await action.getRecipeElements();
 
                 //console.log(this.recipes);
@@ -382,7 +419,7 @@ export default {
 
         async getRequestsToProccess(){
             try {
-                // this.requestsToProcces = await action.getRequestsToProccess
+                this.requestsToProcess = await action.getRequests();
 
                 // let cases = helper.groupProducts(this.pCases);
                 // console.log("cases", cases);
@@ -390,19 +427,30 @@ export default {
                 const casesWithR2PsAndPOs = [] as any[];
 
                 for(const c of this.pCases) {
-                    let location = this.locations.find(l => l.location_id  === c.location);
-                    if (location)
+                    // let location = this.locations.find(l => l.location_id  === c.location);
+                    if (c.location)
                         continue;
 
                     let productKey = this.products.find(p => p.product_id === c.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === c.purchase_order_id);
-                    let request = this.requestsToProcess.find(req => req.purchase_order_id === purchaseOrder.purchase_order_id && req.product_id === c.product_id);
+                    // console.log("purchase order", purchaseOrder);
+                    let request = this.requestsToProcess.find(req => req.purchase_order_id === c.purchase_order_id && req.product_id === c.product_id);
+                    // console.log("request", request);
                     // if(!location)
                     //     location = {};
                     if(!purchaseOrder)
                         purchaseOrder = {};
                     if(!request)
-                        request = {notes: '', status: 'On Order', labels_printed: false, ship_label: false, priority: '6 Prep For Later', ship_to_amz: 0, deadline: '', warehouse_qty: 0};
+                        request = {
+                            notes: null, 
+                            status: 'On Order', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0
+                        };
 
                     casesWithR2PsAndPOs.push({ box: c, key: productKey, po: purchaseOrder, req: request });
                 }
@@ -417,7 +465,7 @@ export default {
                     box_type: key.box_type,
                     fnsku: key.fnsku,
                     asin: key.asin,
-
+                    casesToPick: 0,
                 }));
                 // console.log("returnArray", returnArray);
 
@@ -467,27 +515,112 @@ export default {
                 let editedRequests = [] as any[];
 
                 for(const request of this.requestsUpdateArray){
-                    if(request.request_id)
-                        editedRequests.push(request);
-                    else
-                        newRequests.push(request);
+                    let requestMap = [] as any[];
+
+                    if(request.request_id){
+                        requestMap = [
+                            request.request_id,
+                            request.product_id, 
+                            request.purchase_order_id,
+                            request.notes, 
+                            request.status, 
+                            request.labels_printed, 
+                            request.ship_label, 
+                            request.priority, 
+                            request.ship_to_amz, 
+                            request.deadline, 
+                            request.warehouse_qty
+                        ];
+                        editedRequests.push(requestMap);
+                    }
+                    else{
+                        requestMap = [
+                            request.product_id, 
+                            request.purchase_order_id, 
+                            request.notes, 
+                            request.status, 
+                            request.labels_printed, 
+                            request.ship_label, 
+                            request.priority, 
+                            request.ship_to_amz, 
+                            request.deadline, 
+                            request.warehouse_qty
+                        ];
+                        newRequests.push(requestMap);
+                    }
+                        
                 };
 
                 console.log("New requests", newRequests, " and edited requests", editedRequests);
 
+                if(newRequests.length > 0){
+                    await action.batchInsertRequests(newRequests);
+                    newRequests = [];
+                }
+
+                if(editedRequests.length > 0){
+                    await action.batchUpdateRequests(editedRequests);
+                    editedRequests = [];
+                }
+                
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request(s) Updated', life: 3000});
+                
                 this.requestsUpdateArray = [];
 
-                // if(newRequests.length > 0)
-                
 
             } catch (error) {
                 console.log(error);
+                this.$toast.add({severity:'error', summary: "Error", detail: error});
+                
             }
         },
 
         onBeforeUnload(event: any){
             console.log(event);
             return  window.confirm('Do you really want to leave? you have unsaved changes!');
+        },
+
+        openPicklistAmountDialog(){
+            this.picklistAmountDialog = true;
+
+            this.picklistCases = this.selectedCaseLines;
+
+            console.log("Picklist Cases", this.picklistCases);
+        },
+
+        onAmountCellEdit(event: any){
+            // console.log(event);
+
+            let {data, index, newData} = event;
+
+            this.picklistCases[index] = newData; 
+        },
+
+        openPicklistDialog(){
+            this.picklistAmountDialog = false;
+            this.picklistDialog = true;
+            let pickListOutputOBJ = {} as any;
+            let pickListInputArray = [] as any[];
+            let pickListArray = [] as any[];
+
+            for(const pickCase of this.picklistCases){
+                pickListOutputOBJ = pickCase;
+                const recOutput = this.recipeElements.find(rec => rec.product_id === pickCase.product_id && rec.type === 'output');
+                const recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
+
+                for(const box of this.uBoxes){
+                    if (box.purchase_order_id !== pickCase.purchase_order_id)
+                    continue;
+
+                    let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+
+                    if (recInput === undefined)
+                    continue;
+
+                    console.log("Box", box);
+
+                }
+            }
         },
     },
 }
