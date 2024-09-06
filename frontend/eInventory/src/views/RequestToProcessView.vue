@@ -603,24 +603,55 @@ export default {
             let pickListInputArray = [] as any[];
             let pickListArray = [] as any[];
 
+            console.log("uBoxes", this.uBoxes);
+
             for(const pickCase of this.picklistCases){
                 pickListOutputOBJ = pickCase;
                 const recOutput = this.recipeElements.find(rec => rec.product_id === pickCase.product_id && rec.type === 'output');
                 const recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
 
+                console.log("recInputs", recInputs);
+                let totalArray = [] as any[];
+
                 for(const box of this.uBoxes){
                     if (box.purchase_order_id !== pickCase.purchase_order_id)
                     continue;
 
+                    // console.log("Box", box);
+                    let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
                     let recInput = recInputs.find(rec => rec.product_id === box.product_id);
 
                     if (recInput === undefined)
                     continue;
 
-                    console.log("Box", box);
+                    // Checks if the 
+                    let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                    console.log("recIdx", recIdx);
+                    /** @TODO Calculate totals by unit, not box count. This will make it easier to handle partial boxes */
+                    if(recIdx >= 0){
+                        // The total already exists in the array. Subract the box amount by the total amount until
+                        // the total reaches zero
+                        if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
+                            continue;
 
+                        console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                        totalArray[recIdx].currAmount += box.units_per_case;
+                        pickListInputArray.push(box);
+                    } else {
+                        // The total does not exist in the array. Add it.
+                        const totalUnits = pickCase.casesToPick * pickCase.units_per_case;
+                        const product_id = box.product_id;
+                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: 0 };
+                        totalArray.push(recipeTotalOBJ);
+                        console.log("totalArray", totalArray);
+                    }
+
+                    // console.log("Box", box);
                 }
+
             }
+            
+            console.log("INPUT ARRAY", pickListInputArray);
         },
     },
 }
