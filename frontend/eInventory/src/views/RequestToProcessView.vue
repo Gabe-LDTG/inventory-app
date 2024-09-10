@@ -661,6 +661,8 @@ export default {
 
                 /** @TODO Need to figure out why the math is wrong when dividing the same box type between
                  * two different processed case types (i.e. 16" GRINCH for Grinch Singles and Grinch/Cindy 2pk).
+                 * 
+                 *  @TODO CHECK TO MAKE SURE THE BOX ISN'T ALREADY BEING USED IN THE INPUT ARRAY
                  */
                 for(const box of this.uBoxes){
                     if (box.purchase_order_id !== pickCase.purchase_order_id)
@@ -669,8 +671,12 @@ export default {
                     // console.log("Box", box);
                     let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
                     let recInput = recInputs.find(rec => rec.product_id === box.product_id);
-
                     if (recInput === undefined)
+                    continue;
+
+                    let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                    // Box already being used
+                    if(boxInArray)
                     continue;
 
                     // Checks if the 
@@ -690,6 +696,7 @@ export default {
                         box.procUnitsPerCase = pickCase.units_per_case;
                         box.notes = pickCase.notes;
                         console.log("BOX PROC NAME", box.procName);
+                        console.log("BOX ID", box.case_id);
                         pickListInputArray.push(box);
                         // this.pickListArray.push(box);
                     } else {
