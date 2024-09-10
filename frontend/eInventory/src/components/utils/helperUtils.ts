@@ -75,8 +75,7 @@ var helper = {
      * Description: Groups products together to get the total amount per product based on a specified key
      * @param itemArray {any[]} An array of individual records that needs to be grouped
      * @param keyString {string} A string of fields that is used to group records together
-     * @returns Gets an array where the values are records grouped together by product_id, units_per_case, 
-     * and the contents of the keyString
+     * @returns Gets an array where the values are records grouped together by the contents of the keyString
      * 
      * Created by: Gabe de la Torre
      * Date Created: 7-19-2024

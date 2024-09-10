@@ -132,7 +132,7 @@
 
     </div>
 
-    <Dialog v-model:visible="picklistAmountDialog" :style="{width: '450px'}" header="How many cases to create?" :modal="true">
+    <Dialog v-model:visible="picklistAmountDialog" :style="{width: '800px'}" header="How many cases to create?" :modal="true">
         <DataTable ref="dt" :value="picklistCases" 
         showGridlines stripedRows 
         editMode="cell" @cell-edit-complete="onAmountCellEdit"
@@ -147,6 +147,14 @@
                     <InputNumber v-model="data.casesToPick" />
                 </template>
             </Column>
+            <Column header="Notes">
+                <template #body="{data}">
+                    {{ data.notes }}
+                </template>
+                <template #editor="{data}">
+                    <InputText v-model="data.notes" />
+                </template>
+            </Column>
         </DataTable>
 
         <template #footer>
@@ -155,8 +163,35 @@
         </template>
     </Dialog>
         
-    <Dialog v-model:visible="picklistDialog" :style="{width: '450px'}" header="Generated Picklist" :modal="true">
-
+    <Dialog v-model:visible="picklistDialog" :style="{width: '1000px'}" header="Generated Picklist" :modal="true">
+        <DataTable ref="dt" :value="pickListArray" 
+        showGridlines stripedRows 
+        rowGroupMode="rowspan" groupRowsBy="procName" sortMode="single" sortField="procName"
+        editMode="cell" @cell-edit-complete="onPicklistCellEdit"
+        >
+            <Column field="procName" header="Case Name" class="font-bold">
+                <template #body="{data}">
+                   {{ data.procUnitsPerCase }} {{ data.procName }} (x{{ data.procAmount }})
+                </template>
+            </Column>
+            <Column field="name" header=" Box Name" />
+            <Column field="units_per_case" header="Units per Box" />
+            <Column field="location" header="Location" />
+            <Column field="amount" header="# of Boxes" />
+            <Column header="Total Units" >
+                <template #body="{data}">
+                    {{ data.amount * data.units_per_case }}
+                </template>
+            </Column>
+            <Column header="Notes">
+                <template #body="{data}">
+                    {{ data.notes }}
+                </template>
+                <template #editor="{data}">
+                    <InputText v-model="data.notes" />
+                </template>
+            </Column>
+        </DataTable>
 
         <template #footer>
             <Button label="Cancel" icon="pi pi-times" text @click="picklistDialog = false"/>
@@ -241,6 +276,7 @@ export default {
             picklistBoxes: [] as any[],
             picklistAmountDialog: false,
             picklistDialog: false,
+            pickListArray: [] as any[],
             
             // MISC VARIABLES
             loading: false,
@@ -584,6 +620,7 @@ export default {
             this.picklistAmountDialog = true;
 
             this.picklistCases = this.selectedCaseLines;
+            this.selectedCaseLines = [];
 
             console.log("Picklist Cases", this.picklistCases);
         },
@@ -596,12 +633,20 @@ export default {
             this.picklistCases[index] = newData; 
         },
 
+        onPicklistCellEdit(event: any){
+            // console.log(event);
+
+            let {data, index, newData} = event;
+
+            this.pickListArray[index] = newData; 
+        },
+
         openPicklistDialog(){
             this.picklistAmountDialog = false;
             this.picklistDialog = true;
             let pickListOutputOBJ = {} as any;
             let pickListInputArray = [] as any[];
-            let pickListArray = [] as any[];
+            this.pickListArray = [];
 
             console.log("uBoxes", this.uBoxes);
 
@@ -612,7 +657,11 @@ export default {
 
                 console.log("recInputs", recInputs);
                 let totalArray = [] as any[];
+                // pickListInputArray = [];
 
+                /** @TODO Need to figure out why the math is wrong when dividing the same box type between
+                 * two different processed case types (i.e. 16" GRINCH for Grinch Singles and Grinch/Cindy 2pk).
+                 */
                 for(const box of this.uBoxes){
                     if (box.purchase_order_id !== pickCase.purchase_order_id)
                     continue;
@@ -626,20 +675,26 @@ export default {
 
                     // Checks if the 
                     let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
-                    console.log("recIdx", recIdx);
-                    /** @TODO Calculate totals by unit, not box count. This will make it easier to handle partial boxes */
+                    // console.log("recIdx", recIdx);
                     if(recIdx >= 0){
+                        console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                        
                         // The total already exists in the array. Subract the box amount by the total amount until
                         // the total reaches zero
                         if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
                             continue;
 
-                        console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
                         totalArray[recIdx].currAmount += box.units_per_case;
+                        box.procName = pickCase.name;
+                        box.procAmount = pickCase.casesToPick;
+                        box.procUnitsPerCase = pickCase.units_per_case;
+                        box.notes = pickCase.notes;
+                        console.log("BOX PROC NAME", box.procName);
                         pickListInputArray.push(box);
+                        // this.pickListArray.push(box);
                     } else {
                         // The total does not exist in the array. Add it.
-                        const totalUnits = pickCase.casesToPick * pickCase.units_per_case;
+                        const totalUnits = pickCase.casesToPick * pickCase.units_per_case * recInput.qty;
                         const product_id = box.product_id;
                         recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: 0 };
                         totalArray.push(recipeTotalOBJ);
@@ -648,10 +703,19 @@ export default {
 
                     // console.log("Box", box);
                 }
-
+                console.log("INPUT ARRAY", pickListInputArray);
+                // this.pickListArray.push({ caseName: pickCase.name, pickListInputArray});
             }
+            const keyArray = ['product_id', 'units_per_case', 'location', 'procName'];
+            this.pickListArray = helper.groupItemsByKey(pickListInputArray, keyArray);
             
-            console.log("INPUT ARRAY", pickListInputArray);
+            this.pickListArray.forEach(inputLine => {
+                const locKey = this.locations.find(loc => loc.location_id === inputLine.location);
+                
+                if(locKey)
+                inputLine.locationName = locKey.name;
+            })
+            console.log("PICK LIST ARRAY", this.pickListArray);
         },
     },
 }
