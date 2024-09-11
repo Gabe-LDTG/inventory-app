@@ -2,9 +2,11 @@
     <div class="card">
         <Toast />
 
+        <!-- Sorting was messing with the cell saving function. Might implement later -->
+        <!-- sortMode="single" sortField="priority" :sortOrder=1 -->
         <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
         showGridlines stripedRows :filters="filters"
-        :loading="loading" :paginator="true" :rows="40"
+        :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
         scrollable scrollHeight="650px" 
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
         >
@@ -36,7 +38,7 @@
             </template>
 
 
-            <Column selectionMode="multiple" headerStyle="width: 3rem"/>
+            <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
                 <template #body="{data}">
                     {{ data.notes }}
@@ -45,7 +47,11 @@
                     <InputText type="text" v-model="data.notes"/>
                 </template>
             </Column>
-            <Column field="status" header="Status" style="min-width: 150px">
+            <Column field="status" header="Status" removableSort style="min-width: 160px">
+                <template #body="{data}" class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <!-- {{ data.status }} -->
+                    <Tag :style="statusStyle(data.status)">{{ data.status }}</Tag>
+                </template>
                 <template #editor="{data}">
                     <div class="container">
                         <Dropdown v-model="data.status"
@@ -56,7 +62,11 @@
             </Column>
             <Column header="LABELS PRINTED" :style="labelStyle">
                 <template #body="{data}" :bodyStyle="labelStyle">
-                    {{ data.labels_printed ? "Yes" : "No" }}
+                    <!-- {{ data.labels_printed ? "Yes" : "No" }} -->
+                    <div :style="labelStyle(data.label_printed)">
+                        <Tag :style="labelStyle(data.labels_printed)">{{ data.labels_printed ? "Yes" : "No" }}</Tag>
+                    </div>
+                    
                 </template>
                 <template #editor="{data}">
                     <div class="container">
@@ -70,7 +80,7 @@
             </Column>
             <Column header="SHIP LABEL" :style="labelStyle">
                 <template #body="{data}">
-                    {{ data.ship_label ? "Yes" : "No" }}
+                    <Tag :style="labelStyle(data.ship_label)">{{ data.ship_label ? "Yes" : "No" }}</Tag>
                 </template>
                 <template #editor="{data}">
                     <div class="container">
@@ -82,9 +92,10 @@
                     </div>
                 </template>
             </Column>
-            <Column field="priority" header="Priority" style="min-width: 200px">
+            <Column field="priority" header="Priority" removableSort style="min-width: 200px">
                 <template #body="{data}">
-                    {{ data.priority }}
+                    <!-- {{ data.priority }} -->
+                    <Tag :style="priorityStyle(data.priority)">{{ data.priority }}</Tag>
                 </template>
                 <template #editor="{data}">
                     <div class="container">
@@ -164,38 +175,41 @@
     </Dialog>
         
     <Dialog v-model:visible="picklistDialog" :style="{width: '1000px'}" header="Generated Picklist" :modal="true">
-        <DataTable ref="dt" :value="pickListArray" 
-        showGridlines stripedRows 
-        rowGroupMode="rowspan" groupRowsBy="procName" sortMode="single" sortField="procName"
-        editMode="cell" @cell-edit-complete="onPicklistCellEdit"
-        >
-            <Column field="procName" header="Case Name" class="font-bold">
-                <template #body="{data}">
-                   {{ data.procUnitsPerCase }} {{ data.procName }} (x{{ data.procAmount }})
-                </template>
-            </Column>
-            <Column field="name" header=" Box Name" />
-            <Column field="units_per_case" header="Units per Box" />
-            <Column field="location" header="Location" />
-            <Column field="amount" header="# of Boxes" />
-            <Column header="Total Units" >
-                <template #body="{data}">
-                    {{ data.amount * data.units_per_case }}
-                </template>
-            </Column>
-            <Column header="Notes">
-                <template #body="{data}">
-                    {{ data.notes }}
-                </template>
-                <template #editor="{data}">
-                    <InputText v-model="data.notes" />
-                </template>
-            </Column>
-        </DataTable>
+        <div id="element-to-convert">
+            <DataTable ref="dt" :value="pickListArray" 
+            showGridlines stripedRows 
+            rowGroupMode="rowspan" groupRowsBy="procName" sortMode="single" sortField="procName"
+            editMode="cell" @cell-edit-complete="onPicklistCellEdit"
+            >
+                <Column field="procName" header="Case Name" class="font-bold">
+                    <template #body="{data}">
+                    {{ data.procUnitsPerCase }} {{ data.procName }} (x{{ data.procAmount }})
+                    </template>
+                </Column>
+                <Column field="name" header=" Box Name" />
+                <Column field="units_per_case" header="Units per Box" />
+                <Column field="locationName" header="Location" />
+                <Column field="amount" header="# of Boxes" />
+                <Column header="Total Units" >
+                    <template #body="{data}">
+                        {{ data.amount * data.units_per_case }}
+                    </template>
+                </Column>
+                <Column header="Notes">
+                    <template #body="{data}">
+                        {{ data.notes }}
+                    </template>
+                    <template #editor="{data}">
+                        <InputText v-model="data.notes" />
+                    </template>
+                </Column>
+            </DataTable>
+        </div>
 
         <template #footer>
+            <Button label="PDF" icon="pi pi-upload" text @click="exportToPDF" />
             <Button label="Cancel" icon="pi pi-times" text @click="picklistDialog = false"/>
-            <Button label="Select" icon="pi pi-check" text @click="" />
+            <Button label="Save Picklist" icon="pi pi-check" text disabled @click="" />
         </template>
     </Dialog>
     
@@ -203,7 +217,13 @@
 <script lang="ts">
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
-import helper from "../components/utils/helperUtils"
+import helper from "../components/utils/helperUtils";
+
+/** @TODO Try to fix module later */
+// @ts-ignore
+import html2pdf from "html2pdf.js";
+// https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
+
 export default {
     data() {
         return {
@@ -479,7 +499,7 @@ export default {
                     if(!request)
                         request = {
                             notes: null, 
-                            status: 'On Order', 
+                            status: '5 ON ORDER', 
                             labels_printed: false, 
                             ship_label: false, 
                             priority: '6 Prep For Later', 
@@ -515,14 +535,70 @@ export default {
             }
         },
 
-        labelStyle(data: any){
-            console.log("STYLE ",data);
-            if (data.labels_printed === false) {
-                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
-            } else if  (data.labels_printed === true) {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
-            } else {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
+        requestRowStyle(data: any){
+            if (data.status === '3 AWAITING PLAN'){
+                return { font: 'bold', color: '#d4ac0d', backgroundColor: '#fcf3cf' };
+            } else if(data.status === '6 ISSUE'){
+                return { font: 'bold', color: '#943126', backgroundColor: '#f5b7b1' };
+            } else if (data.status === '7 FLAGGED'){
+                return { font: 'bold', color: '#fdedec', backgroundColor: '#cb4335'};
+            }
+        },
+
+        labelStyle(data: boolean | number){
+            // console.log("STYLE ",data);
+            if (data === 0 || data === false) {
+                return { font: 'bold', color: '#2874a6', backgroundColor: '#90caf9', fontSize: '14px' };
+            } else if  (data === 1 || data === true) {
+                return { font: 'bold', color: '#1e8449', backgroundColor: '#a5d6a7', fontSize: '14px' };
+            }
+        },
+
+        statusStyle(data: string){
+            // console.log("DATA ",data);
+            if(data === '1 WORKING'){
+                return { font: 'bold', backgroundColor: '#2e7d32', fontSize: '14px' };
+            } else if (data === '1.25 PICKED'){
+                return { font: 'bold', backgroundColor: '#43a047', fontSize: '14px' };
+            } else if (data === '1.5 PICKLIST'){
+                return { font: 'bold', color: '#145a32', backgroundColor: '#66bb6a', fontSize: '14px' };
+            } else if (data === '2 READY'){
+                return { font: 'bold', color: '#145a32', backgroundColor: '#81c784', fontSize: '14px' };
+            } else if (data === '3 AWAITING PLAN'){
+                return { font: 'bold', color: '#d4ac0d', backgroundColor: '#fcf3cf', fontSize: '14px' };
+            } else if (data === '4 INBOUND'){
+                return { font: 'bold', color: '#21618c ', backgroundColor: '#aed6f1', fontSize: '14px' };
+            } else if (data === '5 ON ORDER'){
+                return { font: 'bold', backgroundColor: '#1976d2', fontSize: '14px' };
+            } else if (data === '6 ISSUE'){
+                return { font: 'bold', color: '#943126', backgroundColor: '#f5b7b1', fontSize: '14px' };
+            } else if (data === '7 FLAGGED'){
+                return { font: 'bold', color: '#fdedec', backgroundColor: '#cb4335', fontSize: '14px' };
+            }
+        },
+
+        priorityStyle(data: string){
+            // console.log("DATA ",data);
+             if(data === '0 MUST GO OUT TODAY'){
+                return { font: 'bold', backgroundColor: '#4a148c', fontSize: '14px' };
+            } else if (data === '1 ASAP'){
+                return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
+            } else if (data === '1 Prep to Make Space (Large Qty)'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+            } else if (data === '2 Could Go Out Today'){
+                return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
+            } else if (data === '2 Prep to Make Space'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+            } else if (data === '3 Could Go Out Tomorrow'){
+                return { font: 'bold', backgroundColor: '#d1c4e9', fontSize: '14px' };
+            } else if (data === '3 Prep to Make Space'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+            } else if (data === '4 Could Go Out This Week'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+            } else if (data === '5 Could Go Out This Month'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+            } else if (data === '6 Prep For Later'){
+                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
             }
         },
 
@@ -723,6 +799,14 @@ export default {
                 inputLine.locationName = locKey.name;
             })
             console.log("PICK LIST ARRAY", this.pickListArray);
+        },
+
+        exportToPDF(){
+            html2pdf(document.getElementById("element-to-convert"), {
+                margin: 1,
+                filename: "picklist.pdf",
+                jsPDF: { orientation: 'landscape' },
+            });
         },
     },
 }
