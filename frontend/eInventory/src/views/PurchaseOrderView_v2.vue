@@ -757,6 +757,10 @@ import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
 
+/** @TODO Try to fix module later */
+// @ts-ignore
+import { supabase } from '../supabase';
+
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
@@ -865,6 +869,11 @@ export default {
         async initVariables(){
             try {
                 this.loading = true;
+                const { data } = await supabase.from('testing').select();
+                let testing = data;
+                    
+                console.log("TESTING", testing);
+
                 await this.getVendors();
                 await this.getPurchaseOrders();
                 await this.getProducts();
@@ -1160,9 +1169,11 @@ export default {
             return total;
         },
 
+        /** @TODO Overhaul so that the pool math is right. Check what boxes are being used to make cases */
         getPoolNew(purchase_order_id: number){
             let poolArray = [] as any[];
             let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
+            let casesBeingUsed = [] as any[];
             
             linkedPoRecipes.forEach(poRec => {
                 let recipeOutput = this.recipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
@@ -1212,9 +1223,17 @@ export default {
                     if(inputEl){
                         let total = totals.find(t => t.product_id === inputEl.product_id)
 
+                        let boxInArray = casesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
+                        console.log(boxInArray);
+                        // Box already being used
+                        if(boxInArray)
+                        continue;
+
                         if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
                             b.taken = true;
                             inputBoxesAndRecEl.push({ box: b, rec: inputEl });
+                            casesBeingUsed.push(b);
+                            // console.log("INPUT BOXES", inputBoxesAndRecEl);
                             total.currentUnits += b.units_per_case;
                             console.log("TOTAL UNITS", inputEl.totalUnits);
                         } else if (inputEl.totalUnits === total.currentUnits){
@@ -1227,9 +1246,18 @@ export default {
                 }
             })
 
+            console.log(casesBeingUsed);
+
             for(const b of this.uBoxes) {
-                if(b.purchase_order_id !== purchase_order_id || b.taken)
+                if(b.purchase_order_id !== purchase_order_id || b.taken === true)
                 continue;
+
+                /* let boxInArray = casesBeingUsed.find(boxLine => boxLine === b.case_id);
+                        console.log(boxInArray);
+                        // Box already being used
+                        if(boxInArray)
+                        continue; */
+
 
                 poolArray.push(b);
             }

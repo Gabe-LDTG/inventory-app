@@ -7,7 +7,7 @@
         <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
         showGridlines stripedRows :filters="filters"
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
-        scrollable scrollHeight="650px" 
+        scrollable scrollHeight="650px" removableSort
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
         >
             <template #header>
@@ -47,7 +47,7 @@
                     <InputText type="text" v-model="data.notes"/>
                 </template>
             </Column>
-            <Column field="status" header="Status" removableSort style="min-width: 160px">
+            <Column field="status" header="Status" sortable style="min-width: 160px">
                 <template #body="{data}" class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <!-- {{ data.status }} -->
                     <Tag :style="statusStyle(data.status)">{{ data.status }}</Tag>
@@ -92,7 +92,7 @@
                     </div>
                 </template>
             </Column>
-            <Column field="priority" header="Priority" removableSort style="min-width: 200px">
+            <Column field="priority" header="Priority" sortable style="min-width: 200px">
                 <template #body="{data}">
                     <!-- {{ data.priority }} -->
                     <Tag :style="priorityStyle(data.priority)">{{ data.priority }}</Tag>
@@ -132,7 +132,7 @@
             <Column field="amount" header="Total QTY" class="font-bold"></Column>
             <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
             <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
-            <Column field="name" header="Name" style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
+            <Column field="name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
             <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
@@ -561,9 +561,9 @@ export default {
             } else if (data === '1.25 PICKED'){
                 return { font: 'bold', backgroundColor: '#43a047', fontSize: '14px' };
             } else if (data === '1.5 PICKLIST'){
-                return { font: 'bold', color: '#145a32', backgroundColor: '#66bb6a', fontSize: '14px' };
-            } else if (data === '2 READY'){
                 return { font: 'bold', color: '#145a32', backgroundColor: '#81c784', fontSize: '14px' };
+            } else if (data === '2 READY'){
+                return { font: 'bold', color: '#145a32', backgroundColor: '#c8e6c9', fontSize: '14px' };
             } else if (data === '3 AWAITING PLAN'){
                 return { font: 'bold', color: '#d4ac0d', backgroundColor: '#fcf3cf', fontSize: '14px' };
             } else if (data === '4 INBOUND'){
@@ -584,21 +584,21 @@ export default {
             } else if (data === '1 ASAP'){
                 return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
             } else if (data === '1 Prep to Make Space (Large Qty)'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
             } else if (data === '2 Could Go Out Today'){
                 return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
             } else if (data === '2 Prep to Make Space'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
             } else if (data === '3 Could Go Out Tomorrow'){
-                return { font: 'bold', backgroundColor: '#d1c4e9', fontSize: '14px' };
+                return { font: 'bold', color: '#673ab7', backgroundColor: '#d1c4e9', fontSize: '14px' };
             } else if (data === '3 Prep to Make Space'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', color: '#673ab7', backgroundColor: '#d1c4e9', fontSize: '14px' };
             } else if (data === '4 Could Go Out This Week'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', color: '#673ab7', backgroundColor: '#ede7f6', fontSize: '14px' };
             } else if (data === '5 Could Go Out This Month'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', color: '#311b92', backgroundColor: '#f5f5f5', fontSize: '14px' };
             } else if (data === '6 Prep For Later'){
-                return { font: 'bold', backgroundColor: '', fontSize: '14px' };
+                return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
             }
         },
 
@@ -735,11 +735,6 @@ export default {
                 let totalArray = [] as any[];
                 // pickListInputArray = [];
 
-                /** @TODO Need to figure out why the math is wrong when dividing the same box type between
-                 * two different processed case types (i.e. 16" GRINCH for Grinch Singles and Grinch/Cindy 2pk).
-                 * 
-                 *  @TODO CHECK TO MAKE SURE THE BOX ISN'T ALREADY BEING USED IN THE INPUT ARRAY
-                 */
                 for(const box of this.uBoxes){
                     if (box.purchase_order_id !== pickCase.purchase_order_id)
                     continue;
@@ -782,6 +777,14 @@ export default {
                         recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: 0 };
                         totalArray.push(recipeTotalOBJ);
                         console.log("totalArray", totalArray);
+                        // Push the first box into the array
+                        box.procName = pickCase.name;
+                        box.procAmount = pickCase.casesToPick;
+                        box.procUnitsPerCase = pickCase.units_per_case;
+                        box.notes = pickCase.notes;
+                        console.log("BOX PROC NAME", box.procName);
+                        console.log("BOX ID", box.case_id);
+                        pickListInputArray.push(box);
                     }
 
                     // console.log("Box", box);
