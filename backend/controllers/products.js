@@ -15,9 +15,18 @@ import{
     getCases
 } from "../models/CaseModel.js";
 
+/** @TODO Try to fix module later */
+// @ts-ignore
+import { supabase } from '../config/supabase.js';
+
 //get all products
 export async function showProducts(req,res){
     try {
+        const { data } = await supabase.from('testing').select();
+        let testing = data;
+            
+        console.log("TESTING", testing);
+
         const products = await getProducts();
         res.json(products);
         //console.log("SESSION ID: ",req.session.cookie);
