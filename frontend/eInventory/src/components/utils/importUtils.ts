@@ -69,7 +69,7 @@ var importAction = {
                     console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
-                    let map = [];
+                    let map = [] as any[];
                     let recMap = {} as any;
                     let recElMap = {} as any;
 
