@@ -9,7 +9,7 @@ import { Sequelize } from 'sequelize';
     database:"eInventory",
     port: '3306',
 }); */
-b 
+
 // Option 3: Passing parameters separately (other dialects)
 /* const sequelize = new Sequelize('einventory', 'root', '', {
     host: 'localhost',
