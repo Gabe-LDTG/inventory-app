@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { supabase } from './clients/supabase';
+
+const route = useRoute();
 </script>
 
-<script lang="ts">
+<!-- <script lang="ts">
 import action from "./components/utils/axiosUtils";
+import { supabase } from "./supabase"
 export default {
   data(){
     return{
@@ -15,32 +19,21 @@ export default {
   },
   methods:{
     async getSessionUser(){
-      try {
-       console.log("GET SESSION USER");
-       console.log("CURRENT ROUTE ", this.$router.currentRoute.value);
-       this.sessionUser = await action.getSessionUser();
-       console.log(this.sessionUser);
-       if(this.sessionUser && this.$router.currentRoute.value.name == "Login"){
-        this.$router.push('/Home');
-       }
-       else if(!this.sessionUser){
-        this.$router.push('/');
-       }
-      } catch (error) {
-        console.log(error);
-        this.$router.push('/');
-      }
+      console.log("IN get session user")
+      this.sessionUser = await supabase.auth.getSession();
+      console.log(this.sessionUser);
     },
   },
 }
-</script>
+</script> -->
 
 <template>
   <header>
     <img alt="Vue logo" class="logo" src="@/assets/echapps rgb.png" width="200" height="50" />
 
-      <nav v-show="sessionUser">    
+      <nav v-if="route.name != 'Login2'"> 
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
+        <!-- <RouterLink :to="{name: 'Login2'}">Login</RouterLink> -->
         <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
         <!-- <RouterLink :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink> -->
         <RouterLink :to="{ name: 'PurchaseOrders_v2' }">Purchase Orders</RouterLink>

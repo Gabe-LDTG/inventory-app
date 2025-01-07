@@ -26,6 +26,11 @@
 
 <script lang="ts">
 import action from "../components/utils/axiosUtils";
+
+/** @TODO Try to fix module later */
+// @ts-ignore
+import { supabase } from '../clients/supabase';
+
 export default {
 name: 'LoginView',
 data(){
@@ -46,6 +51,10 @@ async login(){
   try {
     this.submitted = true;
 
+    const { data, error } = await supabase.auth.signInWithPassword({
+    email: 'valid.email@supabase.io',
+    password: 'example-password',
+  })
     const sessionUser = await action.validatePassword(this.input);
     console.log("SESSION USER: ",sessionUser);
     if(sessionUser){
