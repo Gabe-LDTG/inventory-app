@@ -9,8 +9,8 @@ import UnprocessedCases from '../views/UnprocessedCases.vue'
 import ProductList from '../views/ProductList.vue'
 import Import from '../views/Import.vue'
 import Login from '../views/LoginView.vue'
-// @ts-ignore
-import Login2 from '../views/LoginView2.vue';
+//@ts-ignore
+import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
 import PurchaseOrderView_v2 from '@/views/PurchaseOrderView_v2.vue'
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
@@ -35,7 +35,7 @@ const router = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      component: About,
         meta: { requiresAuth: true}
     },
     {
@@ -68,11 +68,6 @@ const router = createRouter({
       component: Login
     },
     {
-      path: '/login2',
-      name: 'Login2',
-      component: Login2
-    },
-    {
       path: '/purchaseorders',
       name: 'PurchaseOrders',
       component: PurchaseOrder,
@@ -97,7 +92,7 @@ async function getUser(next:any) {
   // console.log("in GetUser");
   localUser = await supabase.auth.getSession();
   if(localUser.data.session == null){
-    next('/login2')
+    next('/login')
   }
   else{
     next();

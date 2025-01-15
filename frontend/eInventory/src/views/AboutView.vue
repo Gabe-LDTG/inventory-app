@@ -129,7 +129,7 @@ async function logout() {
 	}
 	else {
 		console.log("Sign out success")
-    router.push({name: 'Login2'})
+    router.push({name: 'Login'})
 	}
 }
 </script>

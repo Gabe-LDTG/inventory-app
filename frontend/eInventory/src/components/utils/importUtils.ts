@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import action from "./axiosUtils";
+import { supabase } from "@/clients/supabase";
 
 interface test {
     fnsku: any;
@@ -16,10 +17,10 @@ var importAction = {
 
         let fileData = [];
 
-        let products = await action.getProducts();
+        //let products = await action.getProducts();
 
         if (fileType == 'Processed Product Key'){
-            await this.processedProductKeyParse(fileUp, products);
+            // await this.processedProductKeyParse(fileUp, products);
         }
 
         else if(fileType == 'Raw Product Key'){
@@ -27,15 +28,15 @@ var importAction = {
         }
 
         else if(fileType == 'Processed Product List'){
-            await this.ProcessedProductListParse(fileUp, products);
+           //await this.ProcessedProductListParse(fileUp, products);
         }
 
         else if(fileType == 'Unprocessed Product List'){
-            await this.UnprocessedProductListParse(fileUp, products);
+            //await this.UnprocessedProductListParse(fileUp, products);
         }
 
         //console.log("FILE DATA: ", fileData);
-        console.log("PRODUCTS: ", products);
+        //console.log("PRODUCTS: ", products);
 
         return 0;
     },
@@ -425,6 +426,72 @@ var importAction = {
 
     async rawProductKeyParse(file: any){
         console.log(file);
+
+        return Papa.parse(file, {
+            header: true,
+            complete: async function( results: any){
+                // let testing = results.data.shift();
+                //let twoArray = testing.pop();
+                /* let twoArray = results.data.filter((d: any[]) => d.length == 10);
+                console.log(twoArray);
+
+                const {data , error} = await supabase.rpc('print_2darray', {data_array: twoArray});
+                if(error){
+                    console.error('Error calling RPC:', error);
+                } else {
+                    console.log('Function executed successfully:', data);
+                } */
+
+                
+                let bigArray = results.data;
+                console.log(bigArray);
+                bigArray.forEach(async (record: {['Product Name']: string, ['item #']: string, 
+                    ['UPC']: string, ['Vendor']: string, ['2023 Price']: number | null, ['2022 AUG Price']: number | null, 
+                    ['2021 Price']: number | null, ['MAP']: number | null, ['Units Per Case']: number | null, 
+                    ['Notes']: string}) => {
+                    //console.log("WHAT IS IN HERE")
+                    //console.log(record['Product Name']);
+                    //console.log(record);
+                    if(record['Product Name']){
+                        console.log(record.Vendor)
+                        //console.log(record);
+                        if(!record["2023 Price"])
+                            record["2023 Price"] = null;
+                        if(!record["2022 AUG Price"])
+                            record["2022 AUG Price"] = null;
+                        if(!record["2021 Price"])
+                            record["2021 Price"] = null;
+                        if(!record.MAP)
+                            record.MAP = null;
+                        if(!record["Units Per Case"])
+                            record["Units Per Case"] = null;
+                        const {data , error} = await supabase.rpc('import_raw_product_keys_from_csv', {
+                            product_name: record["Product Name"], item_number: record["item #"], product_upc: record.UPC, 
+                            vendor_name: record.Vendor, the_2023_price: record["2023 Price"], the_2022_price: record["2022 AUG Price"], 
+                            the_2021_price: record["2021 Price"], unit_per_box: record["Units Per Case"], 
+                            map_cost: record.MAP, product_notes: record.Notes
+                        });
+                            if(error){
+                                console.error('Error calling RPC:', error);
+                            } else {
+                                console.log('Function executed successfully:', data);
+                            }
+                    }
+                }).then(console.log("DATA IMPORTED"));
+
+                
+
+                /* const {data , error} = await supabase.rpc('import_raw_product_keys_from_csv', {csv_data: results});
+                if(error){
+                    console.error('Error calling RPC:', error);
+                } else {
+                    console.log('Function executed successfully:', data);
+                } */
+            }
+            
+        })
+
+        /* console.log(file);
         //return file;
         return Papa.parse(file, {
             header: true,
@@ -553,7 +620,7 @@ var importAction = {
                 console.log("DATA IMPORTED")
                 return content;
             }.bind(this)
-        }); 
+        });  */
     },
 
     async ProcessedProductListParse(file: any, products: any){

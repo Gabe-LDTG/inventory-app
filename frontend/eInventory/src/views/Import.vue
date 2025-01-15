@@ -4,8 +4,8 @@
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product List" chooseLabel="Import Processed Product List" class="mr-2 inline-block" @uploader="processProductListUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Unprocessed Product List" chooseLabel="Import Unprocessed Product List" class="mr-2 inline-block" @uploader="unprocessedProductListUpload"/>
-    <Button label="Purge Products" text @click="purgeProducts"/>
-    <Button label="Purge Cases" text @click="purgeCases"/>
+    <!-- <Button label="Purge Products" text @click="purgeProducts"/> -->
+    <!-- <Button label="Purge Cases" text @click="purgeCases"/> -->
     <!-- <div>
         <form enctype="multipart/form-data">
             <input type="file" accept=".csv" @change="handleFileUpload( $event )"/>
@@ -101,7 +101,7 @@ export default {
             await importAction.onUpload(event, 'Unprocessed Product List');
             this.loading = false;
         },
-        async purgeProducts(){
+        /* async purgeProducts(){
             try {
                 let content = [];
                 this.actionMSG = "Deleting "+this.percentage+"% complete"
@@ -131,8 +131,8 @@ export default {
             } catch (error) {
                 console.log(error);
             }
-        },
-        async purgeCases(event: any){
+        }, */
+        /* async purgeCases(event: any){
             try {
                 let content = [];
                 this.loading = true;
@@ -155,7 +155,7 @@ export default {
             } catch (error) {
                 console.log(error);
             }
-        },
+        }, */
     }
 }
 </script>
