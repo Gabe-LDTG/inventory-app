@@ -20,7 +20,7 @@ var importAction = {
         //let products = await action.getProducts();
 
         if (fileType == 'Processed Product Key'){
-            // await this.processedProductKeyParse(fileUp, products);
+            await this.processedProductKeyParse(fileUp);
         }
 
         else if(fileType == 'Raw Product Key'){
@@ -41,32 +41,56 @@ var importAction = {
         return 0;
     },
 
-    async processedProductKeyParse(file: any, products: any){
+    async processedProductKeyParse(file: any){
         console.log(file);
         //return file;
         return Papa.parse(file, {
-            header: true,
+            header: false,
             complete: async function( results: any){
-                console.log(results);
+                console.log(results.data);
                 
-                console.log(results.data[0]);
+                // console.log(results.data[0]);
 
-                let unusedFields=[];
-                let content = [];
-                let recipes = [] as any[];
-                let recipeElements = [] as any[];
+                let multiArray = [] as any[];
 
-                let vendors = await action.getVendors();
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
 
-                //objectLength = Object.keys(exampleObject).length
-                console.log(Object.keys(results.data[0]))
+                /* multiArray.forEach((record: any[]) => {
+                    record.forEach((field: any) => {
+                        if(field == "")
+                            field = null;
+                    })
+                    console.log(record.length);
+                    //record[0] = new Date(record[0]);
+                }); */
+
+                let filteredArray = multiArray.filter(record => record.length == 51);
+                console.log(filteredArray);
+
+                const {data , error} = await supabase.rpc('import_processed_product_keys_batch', { record_array: filteredArray });
+                    if(error){
+                        console.error('Error calling RPC:', error);
+                    } else {
+                        console.log('Function executed successfully:', data);
+                    }
+
+                /* const {data , error} = await supabase.rpc('print_2darray_text', { data_array: filteredArray });
+                    if(error){
+                        console.error('Error calling RPC:', error);
+                    } else {
+                        console.log('Function executed successfully:', data);
+                    } */
+
                 //let mapLength = Object.keys(results.data[0]).length; 
 
                 //let keys = Object.keys(results.data[0])
 
                 
                 //results.data.length
-                for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
+                /* for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
                     console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
                     //console.log(results.data[0][this.columns[k].header]);
                     //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
@@ -407,7 +431,7 @@ var importAction = {
 
                 /* for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
                     
-                } */
+                } 
 
                 //console.log("RESULTS: ", results);
                 //console.log("RESULTS LENGTH: ", results.data.length);
@@ -419,8 +443,8 @@ var importAction = {
                 console.log("RECIPE: ", recipes);
 
                 console.log("DATA IMPORTED")
-                return content;
-            },
+                return content;*/
+            }, 
         }); 
     },
 
@@ -428,8 +452,36 @@ var importAction = {
         console.log(file);
 
         return Papa.parse(file, {
-            header: true,
+            header: false,
             complete: async function( results: any){
+
+                let multiArray = [] as any[];
+
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
+
+                /* multiArray.forEach((record: any[]) => {
+                    record.forEach((field: any) => {
+                        if(field == "")
+                            field = null;
+                    })
+                    console.log(record.length);
+                    //record[0] = new Date(record[0]);
+                }); */
+
+                let filteredArray = multiArray.filter(record => record.length == 10);
+                console.log(filteredArray);
+
+                const {data , error} = await supabase.rpc('import_raw_product_keys_batch', { record_array: filteredArray });
+                if(error){
+                    console.error('Error calling RPC:', error);
+                } else {
+                    console.log('Function executed successfully:', data);
+                }
+
+
                 // let testing = results.data.shift();
                 //let twoArray = testing.pop();
                 /* let twoArray = results.data.filter((d: any[]) => d.length == 10);
@@ -443,7 +495,7 @@ var importAction = {
                 } */
 
                 
-                let bigArray = results.data;
+                /* let bigArray = results.data;
                 console.log(bigArray);
                 bigArray.forEach(async (record: {['Product Name']: string, ['item #']: string, 
                     ['UPC']: string, ['Vendor']: string, ['2023 Price']: number | null, ['2022 AUG Price']: number | null, 
@@ -453,7 +505,7 @@ var importAction = {
                     //console.log(record['Product Name']);
                     //console.log(record);
                     if(record['Product Name']){
-                        console.log(record.Vendor)
+                        //console.log(record.Vendor)
                         //console.log(record);
                         if(!record["2023 Price"])
                             record["2023 Price"] = null;
@@ -465,7 +517,7 @@ var importAction = {
                             record.MAP = null;
                         if(!record["Units Per Case"])
                             record["Units Per Case"] = null;
-                        const {data , error} = await supabase.rpc('import_raw_product_keys_from_csv', {
+                        const {data , error} = await supabase.rpc('import_raw_product_keys', {
                             product_name: record["Product Name"], item_number: record["item #"], product_upc: record.UPC, 
                             vendor_name: record.Vendor, the_2023_price: record["2023 Price"], the_2022_price: record["2022 AUG Price"], 
                             the_2021_price: record["2021 Price"], unit_per_box: record["Units Per Case"], 
@@ -477,7 +529,7 @@ var importAction = {
                                 console.log('Function executed successfully:', data);
                             }
                     }
-                }).then(console.log("DATA IMPORTED"));
+                }).then(console.log("DATA IMPORTED")); */
 
                 
 

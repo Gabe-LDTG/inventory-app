@@ -1,4 +1,5 @@
 <template lang="">
+    <Toast />
     <div v-show="loading"><Message :closable="false" icon="pi pi-spin pi-spinner" iconPos="right"> {{actionMSG}} </Message></div>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Raw Product Key" chooseLabel="Import Raw Product Key" class="mr-2 inline-block" @uploader="rawProductKeyUpload"/>
     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import Processed Product Key" chooseLabel="Import Processed Product Key" class="mr-2 inline-block" @uploader="procProductKeyUpload"/>
@@ -64,6 +65,7 @@ export default {
                 this.loading = true;
                 await importAction.onUpload(event, 'Processed Product Key');
                 this.loading = false;
+                // this.$toast.add({severity:'success', summary: 'Successful', detail: 'Processed Product Key Imported', life: 3000});
             } catch (error) {
                 console.log(error);
             }
@@ -75,6 +77,7 @@ export default {
                 await importAction.onUpload(event, 'Raw Product Key');
 
                 this.loading = false;
+                // this.$toast.add({severity:'success', summary: 'Successful', detail: 'Raw Product Key Imported', life: 3000});
                 this.actionMSG = "";
                 
             } catch (error) {
@@ -90,6 +93,7 @@ export default {
             this.loading = true;
             await importAction.onUpload(event, 'Processed Product List');
             this.loading = false;
+            // this.$toast.add({severity:'success', summary: 'Successful', detail: 'Processed Product List Imported', life: 3000});
         },
         async unprocessedProductListUpload(event: any){
             try {
@@ -100,6 +104,8 @@ export default {
             this.loading = true;
             await importAction.onUpload(event, 'Unprocessed Product List');
             this.loading = false;
+
+            this.$toast.add({severity:'success', summary: 'Successful', detail: 'Raw Product List Imported', life: 3000});
         },
         /* async purgeProducts(){
             try {
