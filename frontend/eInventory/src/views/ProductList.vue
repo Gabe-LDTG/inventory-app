@@ -502,11 +502,11 @@ export default {
 
                 await this.getProducts();
                 await this.getRecipes();
-                await this.getUnprocessedProducts();
+                // await this.getUnprocessedProducts();
                 await this.getVendors();
 
                 this.products.forEach(p => {
-                    const vendor = this.vendors.find(v => p['vendor'] == v['vendor_id']);
+                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
 
                     if (vendor){
                         //console.log("LOCATION", location);
@@ -561,13 +561,14 @@ export default {
             }
         },
 
-        async getUnprocessedProducts(){
+        /* async getUnprocessedProducts(){
             try {
+                // @ts-ignore
                 this.unprocProducts = await action.getUnprocProducts();
             } catch (err) {
                 console.log(err);
             }
-        },
+        }, */
 
         async getVendors(){
             try {
@@ -737,6 +738,8 @@ export default {
                 recMap['recipeElements' as any] = this.recipesInUse;
 
                 let addedProduct = await action.addProduct(this.product, recMap);
+
+                this.products.push(addedProduct);
 
                 await this.getProducts();
                 await this.getRecipes();

@@ -1,5 +1,7 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
+import { supabase } from "@/clients/supabase";
+import type { NumericLiteral } from "typescript";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -67,9 +69,20 @@ var action = {
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
-        let products;
+        let products = [] as any[];
+
+        // const {data, error} = await supabase.rpc('get_all_product_keys_with_vendors');
+        const {data, error} = await supabase.rpc('get_all_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Products:', data);
+            products = data;
+        }
+
+        return products;
             
-        return axios.get(BASE_URL+"/products",{
+        /* return axios.get(BASE_URL+"/products",{
             withCredentials: true, // Now this is was the missing piece in the client side 
           }).then(res => {
             products = res.data;
@@ -82,32 +95,40 @@ var action = {
             //console.log("Keys", Object.keys(products[1]));
 
             return products;
-        })
+        }) */
     },
 
     async getProcProducts(){
-        let products;
+        let products = [] as any[];
 
-        return axios.get(BASE_URL+"/products/processed").then(res => {
-            products = res.data
-            console.log(products);
-            return products;
-        });
+        const {data, error} = await supabase.rpc('get_proc_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Function executed successfully:', data);
+            products = data;
+        }
 
+        return products;
     },
 
     async getUnprocProducts(){
-        let products;
+        let products = [] as any[];
 
-        return axios.get(BASE_URL+"/products/unprocessed").then(res => {
-            products = res.data
-            console.log(products);
-            return products;
-        })
+        const {data, error} = await supabase.rpc('get_raw_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Function executed successfully:', data);
+            products = data;
+        }
+
+        return products;
     },
 
+    // !!!!!!!!!!!!!!UNUSED!!!!!!!!!!!!!!!!!!!!!!
     //Used to search for a specific product by Id
-    async getProductById(id: string){
+    /* async getProductById(id: string){
         let specificProduct;
         //console.log(id);
         axios.get(BASE_URL+"/products/"+id)
@@ -120,13 +141,69 @@ var action = {
         })
 
         return specificProduct;
-    },
+    }, */
 
     //Posts a newly added product into the database using API
     async addProduct(p: any, r: any){            
         //console.log("UPC ______ ", this.upc);
         //console.log(this.fnsku);
-        let addedProductId = await axios.post(BASE_URL+"/products/create", {
+
+        console.log('Product: ', p, 'Recipe: ', r);
+
+        // Typescript is VERY strict, and so it will be skipped for now :                   )
+        /* let product: {
+            name: String; 
+            item_num: String; 
+            upc: String; 
+            vendor_id: Number;
+            price_2023: Number;
+            price_2022: Number;
+            price_2021: Number;
+            default_units_per_case: Number;
+            map: Number;
+            notes: String;
+        } = {
+            p.name,
+            p.item_num,
+            p.upc,
+            p.vendor_id,
+            p.price_2023,
+            p.price_2022,
+            p.price_2021,
+            p.default_units_per_case,
+            p.map,
+            p.notes,
+        }; */
+
+        let record_array = [
+            p.name,
+            p.item_num,
+            p.upc,
+            p.vendor,
+            p.price_2023,
+            p.price_2022,
+            p.price_2021,
+            p.default_units_per_case,
+            p.map,
+            p.notes,
+        ];
+
+        let new_product = {} as any;
+
+        const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
+        if(error){
+            console.error('Error calling RPC:', error);
+            throw error;
+        } else {
+            console.log('Newly Added Product:', data);
+            new_product = data;
+        }
+
+        return new_product;
+
+        // For now, the add product function will be split into two: raw and processed. Might combine later,
+        // if it is deemed for effecient
+        /* let addedProductId = await axios.post(BASE_URL+"/products/create", {
             name: p.name,
             asin: p.asin,
             fnsku: p.fnsku,
@@ -164,17 +241,17 @@ var action = {
         }).catch(error => {
             console.log(error);
             throw error;
-        });
+        }); */
 
         //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(r){
-            console.log(r);
+            /* console.log(r);
 
             /*
             * r['label' as any] = p.name + ' - ' + p.fnsku;
             * r['vendor_id' as any] = p.vendor;
-            */
+            
             
             r['label' as any] = p.name + ' - ' + p.fnsku;
             r['vendor_id' as any] = p.vendor;
@@ -209,7 +286,7 @@ var action = {
             await axios.post(BASE_URL+"/recipeElements/batchInsert", recElArray).catch(error => {
                 console.log(error);
                 throw error;
-            });
+            }); */
             /* for(let recIdx = 0; recIdx < r.length; recIdx++){
                 axios.post(BASE_URL+"/recipes/create",{
                     product_needed: r[recIdx].product_needed,
@@ -218,7 +295,8 @@ var action = {
                 })
             } */
         }
-        return addedProductId.data[0]['LAST_INSERT_ID()'];
+        
+        // return addedProductId.data[0]['LAST_INSERT_ID()'];
     },
 
     //Posts a newly added product into the database using API
@@ -717,11 +795,13 @@ var action = {
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
-        return axios.get(BASE_URL+"/vendors").then(res => {
-            let vendors = res.data;
-            //console.log("VENDORS ", vendors)
-            return vendors;
-        })
+        const {data, error} = await supabase.rpc('get_vendors');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Vendors:', data);
+            return data;
+        }
     },
 
     //Add a vendor
@@ -761,20 +841,24 @@ var action = {
     //RECIPES--------------------------------------------------------------------------------------------
     //Get recipes
     async getRecipes(){
-        return axios.get(BASE_URL+"/recipes").then(res => {
-            let recipes = res.data;
-            //console.log("RECIPES ", recipes)
-            return recipes;
-        })
+        const {data, error} = await supabase.rpc('get_recipes');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('RECIPES:', data);
+            return data;
+        }
     },
 
     //Get recipe elements
     async getRecipeElements(){
-        return axios.get(BASE_URL+"/recipeElements").then(res => {
-            let recipeElements = res.data;
-            // console.log("RECIPE ELEMENTS", recipeElements);
-            return recipeElements;
-        })
+        const {data, error} = await supabase.rpc('get_recipe_elements');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('RECIPE ELEMENTS: ', data);
+            return data;
+        }
     },
 
     /* //Add a new recipe
