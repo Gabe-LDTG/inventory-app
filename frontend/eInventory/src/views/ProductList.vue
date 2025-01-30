@@ -263,7 +263,7 @@
                                 <label for="name">Product Needed:</label>
                                 <Dropdown v-model="ing.product_id" required="true" 
                                 placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="unprocProducts"
+                                :options="unprocessedProducts"
                                 optionLabel="name"
                                 filter
                                 optionValue="product_id"
@@ -382,7 +382,7 @@ export default {
             deleteProductsDialog: false,
             product: {} as any,
             selectedProducts: [] as any[],
-            unprocProducts: [],
+            unprocProducts: [] as any[],
             recipeProducts:[] as any[],
             toggleProduct: {} as any,
 
@@ -505,27 +505,7 @@ export default {
                 // await this.getUnprocessedProducts();
                 await this.getVendors();
 
-                this.products.forEach(p => {
-                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
-
-                    if (vendor){
-                        //console.log("LOCATION", location);
-                        p['vendor_name'] = vendor['vendor_name'];
-                    }
-
-                    if (p['price_2021']){
-                        Number(p['price_2021']);
-                    }
-
-                    if (p['price_2023']){
-                        Number(p['price_2023']);
-                    }
-                })
-
-                this.displayProducts = this.products;
-                this.processedProducts = this.products.filter(product => product.fnsku || product.asin);
-                this.unprocessedProducts = this.products.filter(product => (!product.fnsku && !product.asin) || product.upc);
-
+                
                 this.loading = false;
             } catch (error) {
                 console.log(error);
@@ -555,20 +535,41 @@ export default {
             try {
                 //this.loading = true;
                 this.products = await action.getProducts();
+
+                this.products.forEach(p => {
+                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
+
+                    if (vendor){
+                        //console.log("LOCATION", location);
+                        p['vendor_name'] = vendor['vendor_name'];
+                    }
+
+                    if (p['price_2021']){
+                        Number(p['price_2021']);
+                    }
+
+                    if (p['price_2023']){
+                        Number(p['price_2023']);
+                    }
+                })
+
+                this.displayProducts = this.products;
+                this.processedProducts = this.products.filter(product => product.fnsku || product.asin);
+                this.unprocessedProducts = this.products.filter(product => (!product.fnsku && !product.asin) || product.upc);
+
                 //this.loading = false;
             } catch (err) {
                 console.log(err);
             }
         },
 
-        /* async getUnprocessedProducts(){
+        async getUnprocessedProducts(){
             try {
-                // @ts-ignore
                 this.unprocProducts = await action.getUnprocProducts();
             } catch (err) {
                 console.log(err);
             }
-        }, */
+        },
 
         async getVendors(){
             try {
@@ -740,6 +741,7 @@ export default {
                 let addedProduct = await action.addProduct(this.product, recMap);
 
                 this.products.push(addedProduct);
+                // this.displayProducts.push(addedProduct);
 
                 await this.getProducts();
                 await this.getRecipes();
@@ -835,6 +837,7 @@ export default {
                 const deletedProduct = await action.deleteProduct(this.product.product_id);
                 
                 this.products = this.products.filter(val => val.product_id !== this.product.product_id);
+                this.displayProducts = this.displayProducts.filter(val => val.product_id !== this.product.product_id);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Deleted', life: 3000});
 
                 this.product = {};

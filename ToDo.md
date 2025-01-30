@@ -11,6 +11,10 @@
 
 - Add error messages below username and password to help the user understand why they can't log in []
 
--FOR PRODUCTS PAGE: Look into making the product array into an object with the appropriate fields []
+- FOR PRODUCTS PAGE: Look into making the product array into an object with the appropriate fields []
 
--FOR PRODUCT PAGE: Make sure the newly added product records get added to the inventory without the user having to refresh []
+- FOR PRODUCT PAGE: Make sure the newly added product records get added to the inventory without the user having to refresh [x]
+
+- Add a private common function for creating both raw and processed product keys []
+
+- Once the unprocessed and processed box pages done, host an alpha version for ben and katelin to look at while finishing up the other pages []

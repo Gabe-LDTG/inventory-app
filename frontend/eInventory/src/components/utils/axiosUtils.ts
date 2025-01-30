@@ -150,6 +150,59 @@ var action = {
 
         console.log('Product: ', p, 'Recipe: ', r);
 
+        let recipe_elements = r['recipeElements'];
+
+        console.log('Recipe Elements: ', recipe_elements);
+
+        let element_array = [] as any[];
+
+        recipe_elements.forEach((element: any) => {
+            console.log(element.product_id);
+            if(element.product_id)
+                element_array.push(element);
+        });
+
+        console.log('Recipe Element Array: ', element_array);
+
+        let record_array = [
+            p.name, 
+            p.item_num, 
+            p.vendor, 
+            p.weight_lbs, 
+            p.box_type, 
+            p.box_cost, 
+            p.bag_size, 
+            p.bag_cost, 
+            p.price_2021, 
+            p.price_2022, 
+            p.price_2023, 
+            p.notes, 
+            p.date_added, 
+            p.upc, 
+            p.fnsku, 
+            p.asin, 
+            p.do_we_carry, 
+            p.process_time_per_unit_sec, 
+            p.meltable, 
+            p.map, 
+            p.in_shipping_cost,
+            p.out_shipping_cost, 
+            p.labor_cost, 
+            p.item_cost, 
+            p.misc_cost, 
+            p.amz_fees_cost, 
+            p.amz_fulfilment_cost, 
+            p.storage_cost_30_day, 
+            p.holiday_storage_cost, 
+            p.total_cost, 
+            p.total_holiday_cost, 
+            p.default_units_per_case, 
+            p.status, 
+            p.unit_box_cost
+        ];
+
+        let new_product = {} as any;
+
         // Typescript is VERY strict, and so it will be skipped for now :                   )
         /* let product: {
             name: String; 
@@ -174,32 +227,6 @@ var action = {
             p.map,
             p.notes,
         }; */
-
-        let record_array = [
-            p.name,
-            p.item_num,
-            p.upc,
-            p.vendor,
-            p.price_2023,
-            p.price_2022,
-            p.price_2021,
-            p.default_units_per_case,
-            p.map,
-            p.notes,
-        ];
-
-        let new_product = {} as any;
-
-        const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
-        if(error){
-            console.error('Error calling RPC:', error);
-            throw error;
-        } else {
-            console.log('Newly Added Product:', data);
-            new_product = data;
-        }
-
-        return new_product;
 
         // For now, the add product function will be split into two: raw and processed. Might combine later,
         // if it is deemed for effecient
@@ -245,7 +272,31 @@ var action = {
 
         //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
-        if(r){
+        if(element_array.length > 0){
+            console.log('Created processed product');
+
+            let recipe_2Darray = [] as any[];
+
+            element_array.forEach((recipe_element: any) => {
+                recipe_2Darray.push([
+                    recipe_element.product_id,
+                    recipe_element.qty
+                ])
+            })
+
+            console.log('2D Array', recipe_2Darray);
+
+            const {data, error} = await supabase.rpc('add_processed_product_text', {
+                product_record: record_array,
+                recipe_array: recipe_2Darray
+            });
+            if(error){
+                console.error(error);
+                throw error;
+            } else {
+                console.log('Successfully Added Processed Product: ', data);
+                new_product = data;
+            }
             /* console.log(r);
 
             /*
@@ -294,7 +345,19 @@ var action = {
                     product_made: addedProductId.data[0]['LAST_INSERT_ID()'],
                 })
             } */
+        } else {    
+            console.log('Creating raw product');
+            const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
+            if(error){
+                console.error('Error calling RPC:', error);
+                throw error;
+            } else {
+                console.log('Newly Added Raw Product:', data);
+                new_product = data;
+            }
         }
+
+        return new_product;
         
         // return addedProductId.data[0]['LAST_INSERT_ID()'];
     },
@@ -332,21 +395,14 @@ var action = {
 
     //Removes a product from the database using API
     async deleteProduct(id: string){
-        //console.log(id);
-        //if(confirm("Do you really want to delete?")){
-            return axios.delete(BASE_URL+"/products/"+id)
-            .then(res => {
-                //location.reload();
-                //this.refreshData();
-            })
-            .catch(error => {
-                console.log(error.response.data);
-                console.log(error.request.data);
-                console.log(error);
-                //console.log("########################AXIOS ERROR##############################")
-                throw error.response.data;
-            })
-        //}
+
+        const {data, error} = await supabase.rpc('delete_product_by_id', {record_id: id});
+        if (error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Record deleted ', data);
+        }
     },
 
     //Updates an already existing product in the database using API
