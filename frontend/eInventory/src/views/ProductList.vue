@@ -83,7 +83,7 @@
             <div class="field">
                 <label for="vendor">Vendor</label>
                 <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
-                <Dropdown v-model="product.vendor"
+                <Dropdown v-model="product.vendor_id"
                 placeholder="Select a Vendor" class="w-full md:w-14rem" editable
                 :options="vendors"
                 filter
@@ -701,17 +701,19 @@ export default {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
 
                 //Promise.resolve(action.editProduct(this.product));
-                this.products[this.findIndexById(this.product.product_id)] = this.product;
                 
-                this.getRecipes();
 
-                console.log(this.products[this.findIndexById(this.product.product_id)]);
+                // console.log(this.products[this.findIndexById(this.product.product_id)]);
 
-                console.log("PRODUCT BEFORE AWAIT",this.product);
+                // console.log("PRODUCT BEFORE AWAIT",this.product);
 
                 const editedProduct = await action.editProduct(this.product, this.recipesInUse);
+
+                this.getRecipes();
                 
-                console.log("PRODUCT AFTER AWAIT",this.product);
+                this.products[this.findIndexById(this.product.product_id)] = this.product;
+                
+                // console.log("PRODUCT AFTER AWAIT",this.product);
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
                 return editedProduct;
@@ -762,12 +764,16 @@ export default {
             this.recipesInUse = [];
             this.product = {...product}; //ASK MICHAEL
 
-            if(this.product.fnksu || this.product.asin){
+            console.log(this.product);
+
+            if(this.product.fnsku || this.product.asin){
+                console.log('Processed Product Edit');
                 let recipeMap = this.getProductRecipes(this.product.product_id);
 
                 console.log("RECIPE MAP", recipeMap);
 
                 this.recipesInUse = recipeMap;
+                console.log('Recipes in use: ',this.recipesInUse);
             }
 
             /* if(this.product.fnsku){
@@ -784,7 +790,6 @@ export default {
             } */
 
             //this.recipesInUse = this.getProductRecipes(this.product.product_id);
-            console.log(this.recipesInUse);
             this.productDialog = true;
         },
         displayProductInfo(product: any){
@@ -885,15 +890,12 @@ export default {
                 //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
                 //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
                 if(this.selectedProducts){
-                    for(let i=0; i<this.selectedProducts.length; i++){
-                    //stop = this.validateDelete(this.selectedProducts[i]);
-
-                    await action.deleteProduct(this.selectedProducts[i].product_id);
-                    this.products = this.products.filter(val => !this.selectedProducts.includes(val));
-                    this.$toast.add({severity:'success', summary: 'Successful', detail: this.selectedProducts[i].name+' Deleted', life: 3000});
-                }
-                this.deleteProductsDialog = false;
-                }
+                    await action.batchDeleteProduct(this.selectedProducts);
+                    this.getProducts();
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product(s) Deleted', life: 3000});
+    
+                    this.deleteProductsDialog = false;
+                    }
                 
                 //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
             } catch (err) {

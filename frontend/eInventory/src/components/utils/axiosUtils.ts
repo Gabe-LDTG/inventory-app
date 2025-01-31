@@ -144,9 +144,7 @@ var action = {
     }, */
 
     //Posts a newly added product into the database using API
-    async addProduct(p: any, r: any){            
-        //console.log("UPC ______ ", this.upc);
-        //console.log(this.fnsku);
+    async addProduct(p: any, r: any){ 
 
         console.log('Product: ', p, 'Recipe: ', r);
 
@@ -167,7 +165,7 @@ var action = {
         let record_array = [
             p.name, 
             p.item_num, 
-            p.vendor, 
+            p.vendor_id, 
             p.weight_lbs, 
             p.box_type, 
             p.box_cost, 
@@ -203,74 +201,6 @@ var action = {
 
         let new_product = {} as any;
 
-        // Typescript is VERY strict, and so it will be skipped for now :                   )
-        /* let product: {
-            name: String; 
-            item_num: String; 
-            upc: String; 
-            vendor_id: Number;
-            price_2023: Number;
-            price_2022: Number;
-            price_2021: Number;
-            default_units_per_case: Number;
-            map: Number;
-            notes: String;
-        } = {
-            p.name,
-            p.item_num,
-            p.upc,
-            p.vendor_id,
-            p.price_2023,
-            p.price_2022,
-            p.price_2021,
-            p.default_units_per_case,
-            p.map,
-            p.notes,
-        }; */
-
-        // For now, the add product function will be split into two: raw and processed. Might combine later,
-        // if it is deemed for effecient
-        /* let addedProductId = await axios.post(BASE_URL+"/products/create", {
-            name: p.name,
-            asin: p.asin,
-            fnsku: p.fnsku,
-            upc: p.upc,
-            notes: p.notes,
-            storage_cost_30_day: p.storage_cost_30_day,
-            amz_fees_cost: p.amz_fees_cost,
-            amz_fulfilment_cost: p.amz_fulfilment_cost,
-            bag_cost: p.bag_cost,
-            bag_size: p.bag_size,
-            box_cost: p.box_cost,
-            box_type: p.box_type,
-            date_added: p.date_added,
-            do_we_carry: p.do_we_carry,
-            default_units_per_case: p.default_units_per_case,
-            holiday_storage_cost: p.holiday_storage_cost,
-            in_shipping_cost: p.in_shipping_cost,
-            item_cost: p.item_cost,
-            item_num: p.item_num,
-            labor_cost: p.labor_cost,
-            map: p.map,
-            meltable: p.meltable,
-            misc_cost: p.misc_cost,
-            out_shipping_cost: p.out_shipping_cost,
-            price_2021: p.price_2021,
-            price_2022: p.price_2022,
-            price_2023: p.price_2023,
-            process_time_per_unit_sec: p.process_time_per_unit_sec,
-            total_cost: p.total_cost,
-            total_holiday_cost: p.total_holiday_cost,
-            vendor: p.vendor,
-            weight_lbs: p.weight_lbs,
-            unit_box_cost: p.unit_box_cost,
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        }); */
-
-        //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(element_array.length > 0){
             console.log('Created processed product');
@@ -297,54 +227,6 @@ var action = {
                 console.log('Successfully Added Processed Product: ', data);
                 new_product = data;
             }
-            /* console.log(r);
-
-            /*
-            * r['label' as any] = p.name + ' - ' + p.fnsku;
-            * r['vendor_id' as any] = p.vendor;
-            
-            
-            r['label' as any] = p.name + ' - ' + p.fnsku;
-            r['vendor_id' as any] = p.vendor;
-
-            let procRecEl = {} as any;
-            let recElArray = [] as any[];
-            procRecEl['product_id' as any] = addedProductId.data[0]['LAST_INSERT_ID()'];
-            procRecEl['qty' as any] = 1;
-            procRecEl['type' as any] = 'output';
-
-            r.recipeElements.push(procRecEl);
-
-            procRecEl = {};
-
-            let addedRecipeId = await axios.post(BASE_URL+"/recipes/create",{
-                label: r.label,
-                vendor_id: r.vendor_id
-            })
-
-            r.recipeElements.forEach(async (recEl: any) => {
-                recEl['recipe_id' as any] = addedRecipeId.data[0]['LAST_INSERT_ID()']
-
-                let result = {} as any;
-                result = Object.values(recEl);
-                console.log("RESULT ", result);
-
-                recElArray.push(result);
-
-                result = {};
-            })
-
-            await axios.post(BASE_URL+"/recipeElements/batchInsert", recElArray).catch(error => {
-                console.log(error);
-                throw error;
-            }); */
-            /* for(let recIdx = 0; recIdx < r.length; recIdx++){
-                axios.post(BASE_URL+"/recipes/create",{
-                    product_needed: r[recIdx].product_needed,
-                    units_needed: r[recIdx].units_needed,
-                    product_made: addedProductId.data[0]['LAST_INSERT_ID()'],
-                })
-            } */
         } else {    
             console.log('Creating raw product');
             const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
@@ -358,39 +240,6 @@ var action = {
         }
 
         return new_product;
-        
-        // return addedProductId.data[0]['LAST_INSERT_ID()'];
-    },
-
-    //Posts a newly added product into the database using API
-    async addRawProductKey(p: any){
-            
-        //console.log("UPC ______ ", this.upc);
-        //console.log(this.fnsku);
-            return axios.post(BASE_URL+"/products/create", {
-                vendor: p.vendor,
-                name: p.name,
-                item_num: p.item_num,
-                price_2023: p.price_2023,
-                price_2022: p.price_2022,
-                price_2021: p.price_2021,
-                default_units_per_case: p.default_units_per_case,
-                map: p.map,
-                notes: p.notes,
-                upc: p.upc,
-
-            }).then((res) => {
-                //location.reload();
-                //setInterval(this.refreshData, 1000);
-
-                // if ANY fail validation
-                //this.displayCreate = false;
-                //alert('Form successfully submitted.')
-                //this.refreshData();
-            }).catch(error => {
-                console.log(error);
-                throw error;
-            });
     },
 
     //Removes a product from the database using API
@@ -408,110 +257,98 @@ var action = {
     //Updates an already existing product in the database using API
     async editProduct(p: any, r: any){
 
-        console.log("PRODUCT NAME ", p.name);
-        /* console.log(value.asin);
-        console.log(value.fnsku);
-        console.log(value.upc);
-        console.log(value.notes); */
-        console.log("PRODUCTS NEEDED A ",p.products_needed_a);
-        return axios.put(BASE_URL+"/products/"+p.product_id, {
-            name: p.name,
-            asin: p.asin,
-            fnsku: p.fnsku,
-            upc: p.upc,
-            notes: p.notes,
-            'storage_cost_30_day': p['storage_cost_30_day'],
-            amz_fees_cost: p.amz_fees_cost,
-            amz_fulfilment_cost: p.amz_fulfilment_cost,
-            bag_cost: p.bag_cost,
-            bag_size: p.bag_size,
-            box_cost: p.box_cost,
-            box_type: p.box_type,
-            date_added: p.date_added,
-            do_we_carry: p.do_we_carry,
-            holiday_storage_cost: p.holiday_storage_cost,
-            in_shipping_cost: p.in_shipping_cost,
-            item_cost: p.item_cost,
-            item_num: p.item_num,
-            labor_cost: p.labor_cost,
-            map: p.map,
-            meltable: p.meltable,
-            misc_cost: p.misc_cost,
-            out_shipping_cost: p.out_shipping_cost,
-            price_2021: p.price_2021,
-            price_2022: p.price_2022,
-            price_2023: p.price_2023,
-            process_time_per_unit_sec: p.process_time_per_unit_sec,
-            products_needed_a: p.products_needed_a,
-            qty_1: p.qty_1,
-            products_needed_b: p.products_needed_b,
-            qty_2: p.qty_2,
-            products_needed_c: p.products_needed_c,
-            qty_3: p.qty_3,
-            products_needed_d: p.products_needed_d,
-            qty_4: p.qty_4,
-            products_needed_e: p.products_needed_e,
-            qty_5: p.qty_5,
-            products_needed_f: p.products_needed_f,
-            qty_6: p.qty_6,
-            total_cost: p.total_cost,
-            total_holiday_cost: p.total_holiday_cost,
-            vendor: p.vendor,
-            weight_lbs: p.weight_lbs,
-            unit_box_cost: p.unit_box_cost,
+        console.log('Product: ', p, 'Recipe: ', r);
 
-        }).then((res) => {
-            console.log(res);
+        let record_array = [
+            p.product_id,
+            p.name, 
+            p.item_num, 
+            p.vendor_id, 
+            p.weight_lbs, 
+            p.box_type, 
+            p.box_cost, 
+            p.bag_size, 
+            p.bag_cost, 
+            p.price_2021, 
+            p.price_2022, 
+            p.price_2023, 
+            p.notes, 
+            p.date_added, 
+            p.upc, 
+            p.fnsku, 
+            p.asin, 
+            p.do_we_carry, 
+            p.process_time_per_unit_sec, 
+            p.meltable, 
+            p.map, 
+            p.in_shipping_cost,
+            p.out_shipping_cost, 
+            p.labor_cost, 
+            p.item_cost, 
+            p.misc_cost, 
+            p.amz_fees_cost, 
+            p.amz_fulfilment_cost, 
+            p.storage_cost_30_day, 
+            p.holiday_storage_cost, 
+            p.total_cost, 
+            p.total_holiday_cost, 
+            p.default_units_per_case, 
+            p.status, 
+            p.unit_box_cost
+        ];
 
-            if(r){
-                for(let recIdx = 0; recIdx < r.length; recIdx++){
-                    axios.put(BASE_URL+"/recipes/" + r[recIdx].recipe_id,{
-                        product_needed: r[recIdx].product_needed,
-                        units_needed: r[recIdx].units_needed,
-                    })
-                }
+        let recipe_elements = r;
+
+        console.log('Recipe Elements: ', recipe_elements);
+
+        let element_array = [] as any[];
+
+        if(recipe_elements){
+            recipe_elements.forEach((element: any) => {
+                console.log(element.product_id);
+                if(element.product_id)
+                    element_array.push(element);
+            });
+        }
+        
+
+        if(element_array.length >0){
+            console.log('Updated Processed Product')
+
+            console.log('Created processed product');
+
+            let recipe_2Darray = [] as any[];
+
+            element_array.forEach((recipe_element: any) => {
+                recipe_2Darray.push([
+                    recipe_element.recipe_element_id,
+                    recipe_element.product_id,
+                    recipe_element.qty,
+                    recipe_element.recipe_id
+                ])
+            })
+
+            const {data, error} = await supabase.rpc('edit_processed_product_text', {
+                product_record: record_array,
+                recipe_array: recipe_2Darray
+            })
+            if(error){
+                console.error('Error calling RPC: ', error);
+                throw error;
+            } else {
+                console.log('Processed Product Key updated: ', data);
             }
-        }).catch(error => {
-            console.log(error);
-        });
-    },
 
-    //Batch insert products
-    async batchInsertProduct(p: any){
-        console.log("BATCH PRODUCT ", p)
-        return axios.post(BASE_URL+"/products/batchInsert", p).catch(error => {
-            console.log(error);
-            throw error;
-        });
-    },
-
-    //Batch insert raw products
-    async batchInsertRawProducts(p: any[]){
-        let productArray = [] as any[];
-        p.filter(p => p.name).forEach(product => {
-            if(!product.notes)
-                product.notes = null;
-            if(!product.map)
-                product.map = null;
-            if(!product.price_2021)
-                product.price_2021 = null;
-            if(!product.price_2022)
-                product.price_2022 = null;
-            if(!product.price_2023)
-                product.price_2023 = 0;
-            let tempArray = [product.name, 
-                product.upc, product.notes, 
-                product.default_units_per_case, 
-                product.item_num, product.map, 
-                product.price_2021, product.price_2022, product.price_2023, 
-                product.vendor]
-            productArray.push(tempArray);
-        })
-        console.log("BATCH PRODUCT ", p)
-        return axios.post(BASE_URL+"/products/batchInsertRaw", productArray).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        } else {
+            console.log('Updated Raw Product')
+            const {data, error} = await supabase.rpc('edit_raw_product_text',{product_record: record_array})
+            if(error){
+                console.error('Error calling RPC: ', error);
+                throw error;
+            } else {
+                console.log('Raw Product key updated: ', data);
+            }
+        }
     },
 
     //Batch delete products
@@ -519,21 +356,24 @@ var action = {
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
 
-            console.log(p);
+        console.log(p);
 
-            return axios.post(BASE_URL+"/products/batchDelete", p)
-            .then(res => {
-                //location.reload();
-                //this.refreshData();
-            })
-            .catch(error => {
-                console.log(error.response.data);
-                console.log(error.request.data);
-                console.log(error);
-                //console.log("########################AXIOS ERROR##############################")
-                throw error.response.data;
-            })
-        //}
+        let id_array = [] as any[];
+
+        p.forEach((record: any) => {
+            if(record.product_id)
+                id_array.push(record.product_id)
+        });
+
+        console.log('id array: ', id_array);
+
+        const {data, error} = await supabase.rpc('batch_delete_products_by_id', {id_array: id_array});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Batch Product(s) deleted: ', data);
+        }
     },
     
     //RECIPE COMMANDS---------------------------------------------------------------------------------------
