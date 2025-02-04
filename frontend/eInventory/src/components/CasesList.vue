@@ -62,7 +62,7 @@
                 <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                     <Column expander header="Individual Boxes" style="width: 5rem" />
                 </div>
-                <Column field="name" header="Name" sortable />
+                <Column field="product_name" header="Name" sortable />
                 
                 <Column field="status" header="Status" sortable>
                     <template #body="slotProps">
@@ -103,7 +103,7 @@
                                 {{ getPoName(data.purchase_order_id) }}
                             </template>
                         </Column>
-                        <Column field="name" header="Name"  />
+                        <Column field="product_name" header="Name"  />
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
                             <Column field="units_per_case" header="Units per case" />
                         </div>
@@ -118,7 +118,7 @@
                         </Column>
                         <Column field="location_name" header="Location">
                             <template #body="slotProps">
-                                {{ getIndivLocation(slotProps.data.location) }}
+                                {{ getIndivLocation(slotProps.data.location_id) }}
                             </template>
                         </Column>
                         <Column field="status" header="Status" sortable>
@@ -598,13 +598,14 @@ export default {
         //Date Created: 6-12-2024
         //Date Last Edited: 6-12-2024
         formatLocations(locations: any[]){
+            // console.log(locations)
             if(locations){
                 let locationNames = [] as any[];
                 locations.forEach(loc => {
                     if (loc){
                         let curLoc = this.locations.find(l => l.location_id === loc);
                         //console.log(loc)
-                        //console.log(curLoc)
+                        // console.log(curLoc)
                         locationNames.push(curLoc.name);
                     }
                 })
@@ -1039,14 +1040,14 @@ export default {
                 const key = product.product_id + ':' + product.units_per_case;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
-                    if(map[key].location.find((l: any) => l === product.location) === undefined){
+                    if(map[key].location.find((l: any) => l === product.location_id) === undefined){
                         //console.log("DIFFERENT LOCATION");
                         map[key].location.push(product.location);
-                        console.log(map[key].location);
+                        // console.log(map[key].location);
                     } 
                 }
                 else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location], amount: 1 };
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location_id], amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 

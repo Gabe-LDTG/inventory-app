@@ -2,6 +2,7 @@ import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 import { supabase } from "@/clients/supabase";
 import type { NumericLiteral } from "typescript";
+// import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -378,7 +379,7 @@ var action = {
     
     //RECIPE COMMANDS---------------------------------------------------------------------------------------
     //Removes a product from the database using API
-    async deleteRecipe(id: string){
+    /* async deleteRecipe(id: string){
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
             return axios.delete(BASE_URL+"/recipes/"+id)
@@ -394,94 +395,70 @@ var action = {
                 throw error.response.data;
             })
         //}
-    },
+    }, */
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
     //Get all cases
     async getCases(){
-        let cases;
         console.log("IN GET CASES");
 
-        return axios.get(BASE_URL+"/cases").then(res => {
-            cases = res.data;
-
-            //console.log('TESTING-------------------')
-            //console.log("Case List received\n",cases);
-            //console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
-    },
-    
-    async getCasesIds(){
-        let cases;
-        console.log("IN GET CASES");
-
-        return axios.get(BASE_URL+"/cases/id").then(res => {
-            cases = res.data;
-
-            console.log('TESTING-------------------')
-            console.log("Case List received\n",cases);
-            console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
+        const {data, error} = await supabase.rpc('get_boxes_and_cases');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes and cases: ', data)
+            return data;
+        }
     },
 
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //
     async getProcCases(){
-        let cases;
-
-        return axios.get(BASE_URL+"/cases/processed").then(res => {
-            cases = res.data;
-
-            /* if(cases){
-                console.log(cases);
-
-                //console.log(cases[0].date_received);
-            } */
-
-            //console.log('TESTING-------------------')
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
+        const {data, error} = await supabase.rpc('get_cases_by_type', {processed: true});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Processed cases: ', data);
+            return data;
+        }
     },
 
     async getUnprocCases(){
-        let cases;
-            
-        return axios.get(BASE_URL+"/cases/unprocessed").then(res => {
-            cases = res.data;
-            //console.log(cases);
-            return cases;
-        });
+        const {data, error} = await supabase.rpc('get_cases_by_type', {processed: false});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Raw boxes: ', data);
+            return data;
+        }
     },
 
     //
     async getUnprocDeliveredBoxes(){
-        let boxes;
-            
-        return axios.get(BASE_URL+"/cases/unprocessed/delivered").then(res => {
-            boxes = res.data;
-            //console.log(cases);
-            return boxes;
-        });
+        const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: false});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Raw boxes (Delivered): ', data);
+            return data;
+        }
     },
 
      //
      async getProcDeliveredCases(){
-        let boxes;
-            
-        return axios.get(BASE_URL+"/cases/processed/delivered").then(res => {
-            boxes = res.data;
-            //console.log(cases);
-            return boxes;
-        });
+        const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: true});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Processed Cases (In house): ', data);
+            return data;
+        }
     },
 
     //
@@ -577,19 +554,14 @@ var action = {
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
-        let purchaseOrders;
-            // console.log("IN GET PURCHASE ORDERS");
-
-            return axios.get(BASE_URL+"/purchaseOrders").then(res => {
-                purchaseOrders = res.data;
-
-                // console.log('TESTING-------------------')
-                // console.log("Purchase Order List received\n",purchaseOrders);
-                //console.log("Keys", Object.keys(purchaseOrders[1]));
-                //console.log(this.cases.date_received.getMonth());
-
-                return purchaseOrders;
-            })
+        const {data, error} = await supabase.rpc('get_purchase_orders');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Orders: ', data);
+            return data;
+        }
     },
 
     //Create a purchase order
@@ -776,11 +748,13 @@ var action = {
     //LOCATIONS------------------------------------------------------------------------------------------
     //Get locations
     async getLocations(){
-        return axios.get(BASE_URL+"/locations").then(res => {
-            let locations = res.data;
-            //console.log("LOCATIONS ", locations)
-            return locations;
-        })
+        const {data, error} = await supabase.rpc('get_locations');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('LOCATIONS:', data);
+            return data;
+        }
     },
 
     //Add a location
