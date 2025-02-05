@@ -27,7 +27,7 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
-                :globalFilterFields="['name', 'status']"
+                :globalFilterFields="['name']"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -197,7 +197,7 @@
             <div class="field">
                 <label for="location">Location:</label>
                 <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                <Dropdown v-model="eCase.location"
+                <Dropdown v-model="eCase.location_id"
                 placeholder="Select a Location" class="w-full md:w-14rem" editable
                 :options="locations"
                 filter
@@ -225,6 +225,9 @@
 
             <div class="field">
                 <label>Status:</label>
+                <Dropdown v-model="eCase.status"
+                placeholder="Select a Status" class="w-full md:w-14rem" editable
+                :options="statuses"/>
                 <InputText id="status" v-model="eCase.status" rows="3" cols="20" />
             </div>
 
@@ -315,7 +318,7 @@
 
                 <div class="field">
                     <label for="location">Location:</label>
-                    <InputText id="location" v-model="bCase.location" rows="3" cols="20" />
+                    <InputText id="location" v-model="bCase.location_id" rows="3" cols="20" />
                 </div>
 
                 <div class="field">
@@ -359,7 +362,6 @@ _____________________________________________________________
 
 <script lang="ts">
 //import { ProductService } from '@/components/service/ProductService';
-import axios from 'axios';
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
@@ -400,6 +402,14 @@ export default {
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
             expandedRows: [],
+            statuses: [
+                'Draft',
+                'Submitted',
+				'Ordered',
+                'Inbound',
+                'Partially Delivered',
+				'Delivered',
+            ],
 
             purchase_orders: [] as any[],
 
@@ -418,14 +428,13 @@ export default {
 
             filters: {
                 global: { value: "", matchMode: FilterMatchMode.CONTAINS },
-                status: { value: null, matchMode: FilterMatchMode.EQUALS },
             } as any,
             submitted: false,
-            statuses: [
+            /* statuses: [
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
-            ],
+            ], */
 
             /* filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -598,7 +607,7 @@ export default {
         //Date Created: 6-12-2024
         //Date Last Edited: 6-12-2024
         formatLocations(locations: any[]){
-            // console.log(locations)
+            console.log(locations)
             if(locations){
                 let locationNames = [] as any[];
                 locations.forEach(loc => {
@@ -748,10 +757,11 @@ export default {
                 if(this.eCase.date_received)
                 this.eCase.date_received = this.eCase.date_received.split('T')[0];
 
-                let boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location === this.oldCaseValues.location && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
+                let boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location_id === this.oldCaseValues.location_id && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
                 console.log("BOXES TO EDIT", boxesToEdit);
                 let editBoxArray = [] as any[];
 
+                console.log(this.eCase.amount);
                 for(let boxIdx = 0; boxIdx < this.eCase.amount; boxIdx++){
                     if(boxesToEdit[boxIdx]){
                         let boxMap = [] as any[];
@@ -760,23 +770,23 @@ export default {
                         boxesToEdit[boxIdx].date_received = this.eCase.date_received;
                         boxesToEdit[boxIdx].notes = this.eCase.notes;
                         boxesToEdit[boxIdx].product_id = this.eCase.product_id;
-                        boxesToEdit[boxIdx].location = this.eCase.location;
+                        boxesToEdit[boxIdx].location_id = this.eCase.location_id;
                         boxesToEdit[boxIdx].status = this.eCase.status;
                         boxesToEdit[boxIdx].purchase_order_id = this.eCase.purchase_order_id;
 
                         boxMap = [
-                            boxesToEdit[boxIdx].case_id, 
-                            boxesToEdit[boxIdx].product_id,
-                            boxesToEdit[boxIdx].units_per_case, 
-                            boxesToEdit[boxIdx].location,
-                            boxesToEdit[boxIdx].notes,
+                            boxesToEdit[boxIdx].units_per_case,
                             boxesToEdit[boxIdx].date_received,
+                            boxesToEdit[boxIdx].notes,
+                            boxesToEdit[boxIdx].product_id,
+                            boxesToEdit[boxIdx].location_id,
                             boxesToEdit[boxIdx].status,
-                            boxesToEdit[boxIdx].purchase_order_id
+                            boxesToEdit[boxIdx].case_id
                         ];
                         editBoxArray.push(boxMap);
                     }
                 }
+                console.log(editBoxArray);
                 //await action.editCase(this.eCase);
                 await action.bulkEditCases(editBoxArray);
 
@@ -806,6 +816,7 @@ export default {
             try {
                 console.log("NEW CASE", this.eCase);
 
+                // TODO: MOVE LOOP TO BACKEND
                 for(let i = 0; i < this.amount; i++){
                     await action.addCase(this.eCase);
                     console.log("LOOP CASE ",this.eCase);
@@ -1042,7 +1053,7 @@ export default {
                     map[key].amount++;
                     if(map[key].location.find((l: any) => l === product.location_id) === undefined){
                         //console.log("DIFFERENT LOCATION");
-                        map[key].location.push(product.location);
+                        map[key].location.push(product.location_id);
                         // console.log(map[key].location);
                     } 
                 }
@@ -1062,12 +1073,12 @@ export default {
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.location + ':' + product.status + ':' + product.purchase_order_id;
+                const key = product.product_id + ':' + product.location_id + ':' + product.status + ':' + product.purchase_order_id;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                 }
                 else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, status: product.status, amount: 1 };
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location_id, status: product.status, amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 

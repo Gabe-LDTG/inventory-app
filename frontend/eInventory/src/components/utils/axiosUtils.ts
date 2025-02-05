@@ -463,22 +463,21 @@ var action = {
 
     //
     async addCase(c: any){
-        //console.log(this.product);
-        return axios.post(BASE_URL+"/cases/create", {
-            product_id: c.product_id,
-            units_per_case: c.units_per_case,
-            location: c.location,
-            notes: c.notes,
-            date_received: c.date_received,
-            status: c.status,
-            purchase_order_id: c.purchase_order_id,
-        }).then((res) => {
-            //location.reload();
-            //this.refreshData();
-
-        }).catch(error => {
-            console.log(error);
-        });
+        const {data, error} = await supabase.rpc('create_case',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.purchase_order_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case created: ', data);
+        }
     },
 
     //Add multiple cases at the same time
@@ -503,30 +502,33 @@ var action = {
 
     //
     async editCase(c: any){
-
-        return axios.put(BASE_URL+"/cases/"+c.case_id, {
-            product_id: c.product_id,
-            units_per_case: c.units_per_case,
-            location: c.location,
-            notes: c.notes,
-            date_received: c.date_received,
-            status: c.status,
-
-        }).then((res) => {
-            //console.log(product_id);
-            //location.reload();
-            //this.refreshData();
-            //this.editId = '';
-        }).catch(error => {
-            console.log(error);
-        });
+        const {data, error} = await supabase.rpc('update_case',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.case_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
     },
 
      //Edit multiple cases at the same time
      async bulkEditCases(c: any){
-        return axios.post(BASE_URL+"/cases/bulkUpdate",c).catch(error => {
-            console.log(error);
-        });
+        console.log(c);
+        const {data, error} = await supabase.rpc('bulk_update_case',{record_array: c})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
     },
 
     //Batch delete products
