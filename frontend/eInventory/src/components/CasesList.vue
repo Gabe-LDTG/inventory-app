@@ -227,7 +227,6 @@
                 <Dropdown v-model="eCase.status"
                 placeholder="Select a Status" class="w-full md:w-14rem" editable
                 :options="statuses"/>
-                <InputText id="status" v-model="eCase.status" rows="3" cols="20" />
             </div>
 
             <template #footer>
@@ -826,10 +825,13 @@ export default {
                 console.log("NEW CASE", this.eCase);
 
                 // TODO: MOVE LOOP TO BACKEND
-                for(let i = 0; i < this.amount; i++){
+                /* for(let i = 0; i < this.amount; i++){
                     await action.addCase(this.eCase);
                     console.log("LOOP CASE ",this.eCase);
-                }
+                } */
+               this.eCase.amount = this.amount;
+
+                await action.bulkCreateCases(this.eCase);
                 //Had to regrab the list of cases because of weird formatting.
                 //ASK MICHAEL IF THERES A BETTER WAY
                 if(this.displayValue == 'processed'){
@@ -844,7 +846,7 @@ export default {
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Created', life: 3000});
             } catch (err: any) {
                 console.log(err);
-                console.log("CREATE CATCH")
+                // console.log("CREATE CATCH")
                 this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
             }
         },

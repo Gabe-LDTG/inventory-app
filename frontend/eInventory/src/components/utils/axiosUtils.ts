@@ -481,10 +481,23 @@ var action = {
     },
 
     //Add multiple cases at the same time
-    async bulkAddCases(c: any){
-        return axios.post(BASE_URL+"/cases/bulk",c).catch(error => {
-            console.log(error);
-        });
+    async bulkCreateCases(c: any){
+        const {data, error} = await supabase.rpc('bulk_create_cases',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.purchase_order_id,
+            c.amount
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes/Cases created: ', data);
+        }
     },
 
     //
