@@ -5,7 +5,7 @@
             <Toolbar class="mb-4">
                 <template #start>
                     <Button label=" New" icon="pi pi-plus" severity="success" class="mr-2 inline-block" @click="openNew" />
-                    <Button label=" Delete" icon="pi pi-trash" class="mr-2 inline-block" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" />
+                    <!-- <Button label=" Delete" icon="pi pi-trash" class="mr-2 inline-block" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" /> -->
                     <!-- <Button label=" New Purchase Order" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  /> -->
                 </template>
 
@@ -39,10 +39,9 @@
 
                         <!-- <Button type="button"  label="Display Ordered Cases" outlined @click="ordersFiltered = !ordersFiltered; onFilter()" /> -->
 
-						<span class="p-input-icon-right">
-                            <!-- <i class="pi pi-search" /> -->
+						<!-- <span class="p-input-icon-right">
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
-                        </span>
+                        </span> -->
 					</div>
                 </template>
 
@@ -136,7 +135,7 @@
                         </Column> -->
                         <Column :exportable="false" style="min-width:8rem">
                             <template #body="slotProps">
-                                <Button icon="pi pi-pencil"  v-tooltip.top="'Edit'" outlined rounded class="mr-2" @click="editCase(slotProps.data); console.log(slotProps.data)" />
+                                <Button icon="pi pi-pencil"  v-tooltip.top="'Edit'" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
                                 <Button icon="pi pi-trash"  v-tooltip.top="'Delete'" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
                             </template>
                         </Column>
@@ -247,11 +246,13 @@
         <Dialog v-model:visible="deleteCaseDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
             <div class="confirmation-content">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                <span v-if="eCase">Are you sure you want to delete <b>{{eCase.name}}</b>?</span>
+                <label for="amount">How many to delete?</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    v-model="eCase.amount" showButtons/>
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="deleteCaseDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" text @click="deleteCase" />
+                <Button label="Yes" icon="pi pi-check" text @click="bulkDeleteCase" />
             </template>
         </Dialog>
 
@@ -403,12 +404,15 @@ export default {
             expandedRowGroups: null,
             expandedRows: [],
             statuses: [
-                'Draft',
-                'Submitted',
-				'Ordered',
-                'Inbound',
-                'Partially Delivered',
-				'Delivered',
+                'Partial Reserved',
+                'On RTP',
+				'FBM',
+                'Do Not Ship',
+                'JUST ARRIVED',
+				'Pool',
+                'NEEDS PLAN',
+                'Reserved',
+                'NEED TO CHECK'
             ],
 
             purchase_orders: [] as any[],
@@ -487,7 +491,7 @@ export default {
                 if (c.date_received){ c.date_received = helper.formatDate(c.date_received)};
             })
 
-            console.log(this.cases);
+            // console.log(this.cases);
             this.loading = false;
             console.log(this.loading);
         },
@@ -607,7 +611,7 @@ export default {
         //Date Created: 6-12-2024
         //Date Last Edited: 6-12-2024
         formatLocations(locations: any[]){
-            console.log(locations)
+            // console.log(locations)
             if(locations){
                 let locationNames = [] as any[];
                 locations.forEach(loc => {
@@ -735,34 +739,37 @@ export default {
             }
         },
 
-        //Description: 
+        //Description: Grabs the requested amount of boxes/cases by linking the database variables by 
+        // product type, location, box/case unit quantity, and status. Then, the filtered 2d array of 
+        // boxes/cases to edit is sent to the backend for updating.
         //
         //Created by: Gabe de la Torre
-        //Date Created: ???
+        //Date Created: 2-6-2025
         //Date Last Edited: 6-12-2024
         async confirmEdit(){
             try {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
-                console.log(this.eCase);
-                console.log(this.dbCases);
-                const idx = this.dbCases.findIndex(c => c.case_id === this.eCase.case_id)
-                if(idx >= 0)
-                    this.dbCases[idx] = this.eCase;
-                else
-                    throw new Error('Could not find case we were editing :(')
-                //alert("Testing");
+                // console.log("eCase: ",this.eCase);
+                // console.log("DB cases: ", this.dbCases);
 
-                console.log(this.eCase);
+                // console.log(this.eCase);
 
                 if(this.eCase.date_received)
                 this.eCase.date_received = this.eCase.date_received.split('T')[0];
 
+                // console.log('Old case values ', this.oldCaseValues);
+
+                // Match database boxes/cases by product type, location, unit quantity, and status
                 let boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location_id === this.oldCaseValues.location_id && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
-                console.log("BOXES TO EDIT", boxesToEdit);
+    
+                // console.log("BOXES TO EDIT", boxesToEdit);
                 let editBoxArray = [] as any[];
 
-                console.log(this.eCase.amount);
+                // console.log("Box amount: ",this.eCase.amount);
+
+                // Loop through based on the user-inputted amount before updating and formatting the values
                 for(let boxIdx = 0; boxIdx < this.eCase.amount; boxIdx++){
+                    console.log('Box to Edit in loop', boxesToEdit[boxIdx]);
                     if(boxesToEdit[boxIdx]){
                         let boxMap = [] as any[];
                         console.log(boxesToEdit[boxIdx]);
@@ -786,8 +793,11 @@ export default {
                         editBoxArray.push(boxMap);
                     }
                 }
-                console.log(editBoxArray);
+                console.log("Edit Box Array: ",editBoxArray);
                 //await action.editCase(this.eCase);
+
+                // Send the updated values to the backend before grabbing the database records again.
+
                 await action.bulkEditCases(editBoxArray);
 
                 if(this.displayValue == 'processed'){
@@ -799,7 +809,6 @@ export default {
                     console.log('Unprocessed');
                     await this.getUnprocCases();
                 }
-                console.log(this.eCase);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
             } catch (err) {
                 console.log(err);
@@ -857,10 +866,24 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 6-12-2024
-        async deleteCase() {
+        async bulkDeleteCase() {
             try {
                 //this.dbCases = this.dbCases.filter(c => c.case_id !== this.eCase.case_id);
-                await action.deleteCase(this.eCase.case_id);
+                let id_array = [] as number[];
+                let boxesToDelete = this.dbCases.filter(box => box.product_id === this.eCase.product_id &&  box.location_id === this.eCase.location_id && box.status === this.eCase.status && box.units_per_case === this.eCase.units_per_case)
+                console.log('Boxes to delete: ', boxesToDelete);
+
+                console.log(this.eCase.amount);
+
+                for (let delIdx=0; delIdx < this.eCase.amount; delIdx++){
+                    let boxMap = boxesToDelete[delIdx];
+                    // console.log("Box Map: ", boxMap);
+                    id_array.push(boxMap.case_id);
+                }
+
+                console.log("ID array", id_array);
+
+                await action.bulkDeleteCase(id_array);
 
                 if(this.displayValue == 'processed'){
                     console.log('Processed');
@@ -874,7 +897,7 @@ export default {
 
                 this.deleteCaseDialog = false;
                 this.eCase = {};
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Deleted', life: 3000});
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Deleted', life: 3000});
             } catch (err: any) {
                 console.log(err);
             }
@@ -914,7 +937,7 @@ export default {
                     this.cases = this.cases.filter(val => !this.selectedCases.includes(val));
             
                 for(let i = 0; i < this.selectedCases.length; i++){
-                   await action.deleteCase(this.selectedCases[i].case_id);
+                //    await action.deleteCase(this.selectedCases[i].case_id);
                 }
                 this.deleteCasesDialog = false;
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Cases Deleted', life: 3000});

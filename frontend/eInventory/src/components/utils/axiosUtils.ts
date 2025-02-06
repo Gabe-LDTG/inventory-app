@@ -488,16 +488,14 @@ var action = {
     },
 
     //
-    async deleteCase(id: string){
-        //console.log(id);
-        //if(confirm("Do you really want to delete?")){
-        return axios.delete(BASE_URL+"/cases/"+id)
-        .catch(error => {
-            console.log(error);
-        })
-        //}
-        //location.reload();
-        //this.refreshData();
+    async bulkDeleteCase(id_array: number[]){
+        const {data, error} = await supabase.rpc('bulk_delete_cases', {id_array: id_array})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box(es)/Case(s) deleted: ', data);
+        }
     },
 
     //
