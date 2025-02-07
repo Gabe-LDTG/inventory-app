@@ -52,7 +52,7 @@
     </Dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { supabase } from "../clients/supabase"
 import { useToast } from "primevue/usetoast";
@@ -73,7 +73,7 @@ let submitted = ref(false);
 
 async function onSignUp() {
   try {
-    submitted = true;
+    submitted = ref(true);
 
     // console.log(email.value, firstName.value, lastName.value, password.value, retypedPassword.value)
 
@@ -86,8 +86,8 @@ async function onSignUp() {
       lastName.value = "";
       retypedPassword.value = "";
       toast.add({severity:'success', summary: 'Confirmation Email Sent!', life: 3000});
-      showDialog = false;
-      submitted = false;
+      showDialog = ref(false);
+      submitted = ref(false);
     }
   } catch (error) {
     console.log(error);
@@ -95,7 +95,7 @@ async function onSignUp() {
 }
 
 async function createAccount() {
-	const { user, error } = await supabase.auth.signUp({
+	const { data:{user}, error } = await supabase.auth.signUp({
 		email: email.value,
 		password: password.value,
 		options: {

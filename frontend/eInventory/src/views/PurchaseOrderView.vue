@@ -2209,7 +2209,7 @@ export default {
                 console.log("FINAL ARRAY", finalCaseArray);
 
                 if(finalCaseArray.length > 0)
-                    await action.bulkAddCases(finalCaseArray);
+                    await action.bulkCreateCases(finalCaseArray);
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
                 console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
