@@ -23,7 +23,7 @@
     </Card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { supabase } from "../clients/supabase"
 import { useToast } from "primevue/usetoast";
@@ -39,7 +39,7 @@ let firstName = ref("");
 let errMSG = ref("");
 
 async function createAccount() {
-	const { user, error } = await supabase.auth.signUp({
+	const { data:{user}, error } = await supabase.auth.signUp({
 		email: email.value,
 		password: password.value,
 		options: {
