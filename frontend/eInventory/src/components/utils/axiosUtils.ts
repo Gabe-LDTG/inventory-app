@@ -1,5 +1,8 @@
 import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
+import { supabase } from "@/clients/supabase";
+import type { NumericLiteral } from "typescript";
+// import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -67,9 +70,20 @@ var action = {
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
-        let products;
+        let products = [] as any[];
+
+        // const {data, error} = await supabase.rpc('get_all_product_keys_with_vendors');
+        const {data, error} = await supabase.rpc('get_all_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Products:', data);
+            products = data;
+        }
+
+        return products;
             
-        return axios.get(BASE_URL+"/products",{
+        /* return axios.get(BASE_URL+"/products",{
             withCredentials: true, // Now this is was the missing piece in the client side 
           }).then(res => {
             products = res.data;
@@ -82,32 +96,40 @@ var action = {
             //console.log("Keys", Object.keys(products[1]));
 
             return products;
-        })
+        }) */
     },
 
     async getProcProducts(){
-        let products;
+        let products = [] as any[];
 
-        return axios.get(BASE_URL+"/products/processed").then(res => {
-            products = res.data
-            console.log(products);
-            return products;
-        });
+        const {data, error} = await supabase.rpc('get_proc_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Function executed successfully:', data);
+            products = data;
+        }
 
+        return products;
     },
 
     async getUnprocProducts(){
-        let products;
+        let products = [] as any[];
 
-        return axios.get(BASE_URL+"/products/unprocessed").then(res => {
-            products = res.data
-            console.log(products);
-            return products;
-        })
+        const {data, error} = await supabase.rpc('get_raw_product_keys');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Function executed successfully:', data);
+            products = data;
+        }
+
+        return products;
     },
 
+    // !!!!!!!!!!!!!!UNUSED!!!!!!!!!!!!!!!!!!!!!!
     //Used to search for a specific product by Id
-    async getProductById(id: string){
+    /* async getProductById(id: string){
         let specificProduct;
         //console.log(id);
         axios.get(BASE_URL+"/products/"+id)
@@ -120,264 +142,214 @@ var action = {
         })
 
         return specificProduct;
-    },
+    }, */
 
     //Posts a newly added product into the database using API
-    async addProduct(p: any, r: any){            
-        //console.log("UPC ______ ", this.upc);
-        //console.log(this.fnsku);
-        let addedProductId = await axios.post(BASE_URL+"/products/create", {
-            name: p.name,
-            asin: p.asin,
-            fnsku: p.fnsku,
-            upc: p.upc,
-            notes: p.notes,
-            storage_cost_30_day: p.storage_cost_30_day,
-            amz_fees_cost: p.amz_fees_cost,
-            amz_fulfilment_cost: p.amz_fulfilment_cost,
-            bag_cost: p.bag_cost,
-            bag_size: p.bag_size,
-            box_cost: p.box_cost,
-            box_type: p.box_type,
-            date_added: p.date_added,
-            do_we_carry: p.do_we_carry,
-            default_units_per_case: p.default_units_per_case,
-            holiday_storage_cost: p.holiday_storage_cost,
-            in_shipping_cost: p.in_shipping_cost,
-            item_cost: p.item_cost,
-            item_num: p.item_num,
-            labor_cost: p.labor_cost,
-            map: p.map,
-            meltable: p.meltable,
-            misc_cost: p.misc_cost,
-            out_shipping_cost: p.out_shipping_cost,
-            price_2021: p.price_2021,
-            price_2022: p.price_2022,
-            price_2023: p.price_2023,
-            process_time_per_unit_sec: p.process_time_per_unit_sec,
-            total_cost: p.total_cost,
-            total_holiday_cost: p.total_holiday_cost,
-            vendor: p.vendor,
-            weight_lbs: p.weight_lbs,
-            unit_box_cost: p.unit_box_cost,
+    async addProduct(p: any, r: any){ 
 
-        }).catch(error => {
-            console.log(error);
-            throw error;
+        console.log('Product: ', p, 'Recipe: ', r);
+
+        let recipe_elements = r['recipeElements'];
+
+        console.log('Recipe Elements: ', recipe_elements);
+
+        let element_array = [] as any[];
+
+        recipe_elements.forEach((element: any) => {
+            console.log(element.product_id);
+            if(element.product_id)
+                element_array.push(element);
         });
 
-        //console.log(addedProductId.data[0]['LAST_INSERT_ID()']);
+        console.log('Recipe Element Array: ', element_array);
+
+        let record_array = [
+            p.name, 
+            p.item_num, 
+            p.vendor_id, 
+            p.weight_lbs, 
+            p.box_type, 
+            p.box_cost, 
+            p.bag_size, 
+            p.bag_cost, 
+            p.price_2021, 
+            p.price_2022, 
+            p.price_2023, 
+            p.notes, 
+            p.date_added, 
+            p.upc, 
+            p.fnsku, 
+            p.asin, 
+            p.do_we_carry, 
+            p.process_time_per_unit_sec, 
+            p.meltable, 
+            p.map, 
+            p.in_shipping_cost,
+            p.out_shipping_cost, 
+            p.labor_cost, 
+            p.item_cost, 
+            p.misc_cost, 
+            p.amz_fees_cost, 
+            p.amz_fulfilment_cost, 
+            p.storage_cost_30_day, 
+            p.holiday_storage_cost, 
+            p.total_cost, 
+            p.total_holiday_cost, 
+            p.default_units_per_case, 
+            p.status, 
+            p.unit_box_cost
+        ];
+
+        let new_product = {} as any;
+
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
-        if(r){
-            console.log(r);
+        if(element_array.length > 0){
+            console.log('Created processed product');
 
-            /*
-            * r['label' as any] = p.name + ' - ' + p.fnsku;
-            * r['vendor_id' as any] = p.vendor;
-            */
-            
-            r['label' as any] = p.name + ' - ' + p.fnsku;
-            r['vendor_id' as any] = p.vendor;
+            let recipe_2Darray = [] as any[];
 
-            let procRecEl = {} as any;
-            let recElArray = [] as any[];
-            procRecEl['product_id' as any] = addedProductId.data[0]['LAST_INSERT_ID()'];
-            procRecEl['qty' as any] = 1;
-            procRecEl['type' as any] = 'output';
-
-            r.recipeElements.push(procRecEl);
-
-            procRecEl = {};
-
-            let addedRecipeId = await axios.post(BASE_URL+"/recipes/create",{
-                label: r.label,
-                vendor_id: r.vendor_id
+            element_array.forEach((recipe_element: any) => {
+                recipe_2Darray.push([
+                    recipe_element.product_id,
+                    recipe_element.qty
+                ])
             })
 
-            r.recipeElements.forEach(async (recEl: any) => {
-                recEl['recipe_id' as any] = addedRecipeId.data[0]['LAST_INSERT_ID()']
+            console.log('2D Array', recipe_2Darray);
 
-                let result = {} as any;
-                result = Object.values(recEl);
-                console.log("RESULT ", result);
-
-                recElArray.push(result);
-
-                result = {};
-            })
-
-            await axios.post(BASE_URL+"/recipeElements/batchInsert", recElArray).catch(error => {
-                console.log(error);
-                throw error;
+            const {data, error} = await supabase.rpc('add_processed_product_text', {
+                product_record: record_array,
+                recipe_array: recipe_2Darray
             });
-            /* for(let recIdx = 0; recIdx < r.length; recIdx++){
-                axios.post(BASE_URL+"/recipes/create",{
-                    product_needed: r[recIdx].product_needed,
-                    units_needed: r[recIdx].units_needed,
-                    product_made: addedProductId.data[0]['LAST_INSERT_ID()'],
-                })
-            } */
+            if(error){
+                console.error(error);
+                throw error;
+            } else {
+                console.log('Successfully Added Processed Product: ', data);
+                new_product = data;
+            }
+        } else {    
+            console.log('Creating raw product');
+            const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
+            if(error){
+                console.error('Error calling RPC:', error);
+                throw error;
+            } else {
+                console.log('Newly Added Raw Product:', data);
+                new_product = data;
+            }
         }
-        return addedProductId.data[0]['LAST_INSERT_ID()'];
-    },
 
-    //Posts a newly added product into the database using API
-    async addRawProductKey(p: any){
-            
-        //console.log("UPC ______ ", this.upc);
-        //console.log(this.fnsku);
-            return axios.post(BASE_URL+"/products/create", {
-                vendor: p.vendor,
-                name: p.name,
-                item_num: p.item_num,
-                price_2023: p.price_2023,
-                price_2022: p.price_2022,
-                price_2021: p.price_2021,
-                default_units_per_case: p.default_units_per_case,
-                map: p.map,
-                notes: p.notes,
-                upc: p.upc,
-
-            }).then((res) => {
-                //location.reload();
-                //setInterval(this.refreshData, 1000);
-
-                // if ANY fail validation
-                //this.displayCreate = false;
-                //alert('Form successfully submitted.')
-                //this.refreshData();
-            }).catch(error => {
-                console.log(error);
-                throw error;
-            });
+        return new_product;
     },
 
     //Removes a product from the database using API
     async deleteProduct(id: string){
-        //console.log(id);
-        //if(confirm("Do you really want to delete?")){
-            return axios.delete(BASE_URL+"/products/"+id)
-            .then(res => {
-                //location.reload();
-                //this.refreshData();
-            })
-            .catch(error => {
-                console.log(error.response.data);
-                console.log(error.request.data);
-                console.log(error);
-                //console.log("########################AXIOS ERROR##############################")
-                throw error.response.data;
-            })
-        //}
+
+        const {data, error} = await supabase.rpc('delete_product_by_id', {record_id: id});
+        if (error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Record deleted ', data);
+        }
     },
 
     //Updates an already existing product in the database using API
     async editProduct(p: any, r: any){
 
-        console.log("PRODUCT NAME ", p.name);
-        /* console.log(value.asin);
-        console.log(value.fnsku);
-        console.log(value.upc);
-        console.log(value.notes); */
-        console.log("PRODUCTS NEEDED A ",p.products_needed_a);
-        return axios.put(BASE_URL+"/products/"+p.product_id, {
-            name: p.name,
-            asin: p.asin,
-            fnsku: p.fnsku,
-            upc: p.upc,
-            notes: p.notes,
-            'storage_cost_30_day': p['storage_cost_30_day'],
-            amz_fees_cost: p.amz_fees_cost,
-            amz_fulfilment_cost: p.amz_fulfilment_cost,
-            bag_cost: p.bag_cost,
-            bag_size: p.bag_size,
-            box_cost: p.box_cost,
-            box_type: p.box_type,
-            date_added: p.date_added,
-            do_we_carry: p.do_we_carry,
-            holiday_storage_cost: p.holiday_storage_cost,
-            in_shipping_cost: p.in_shipping_cost,
-            item_cost: p.item_cost,
-            item_num: p.item_num,
-            labor_cost: p.labor_cost,
-            map: p.map,
-            meltable: p.meltable,
-            misc_cost: p.misc_cost,
-            out_shipping_cost: p.out_shipping_cost,
-            price_2021: p.price_2021,
-            price_2022: p.price_2022,
-            price_2023: p.price_2023,
-            process_time_per_unit_sec: p.process_time_per_unit_sec,
-            products_needed_a: p.products_needed_a,
-            qty_1: p.qty_1,
-            products_needed_b: p.products_needed_b,
-            qty_2: p.qty_2,
-            products_needed_c: p.products_needed_c,
-            qty_3: p.qty_3,
-            products_needed_d: p.products_needed_d,
-            qty_4: p.qty_4,
-            products_needed_e: p.products_needed_e,
-            qty_5: p.qty_5,
-            products_needed_f: p.products_needed_f,
-            qty_6: p.qty_6,
-            total_cost: p.total_cost,
-            total_holiday_cost: p.total_holiday_cost,
-            vendor: p.vendor,
-            weight_lbs: p.weight_lbs,
-            unit_box_cost: p.unit_box_cost,
+        console.log('Product: ', p, 'Recipe: ', r);
 
-        }).then((res) => {
-            console.log(res);
+        let record_array = [
+            p.product_id,
+            p.name, 
+            p.item_num, 
+            p.vendor_id, 
+            p.weight_lbs, 
+            p.box_type, 
+            p.box_cost, 
+            p.bag_size, 
+            p.bag_cost, 
+            p.price_2021, 
+            p.price_2022, 
+            p.price_2023, 
+            p.notes, 
+            p.date_added, 
+            p.upc, 
+            p.fnsku, 
+            p.asin, 
+            p.do_we_carry, 
+            p.process_time_per_unit_sec, 
+            p.meltable, 
+            p.map, 
+            p.in_shipping_cost,
+            p.out_shipping_cost, 
+            p.labor_cost, 
+            p.item_cost, 
+            p.misc_cost, 
+            p.amz_fees_cost, 
+            p.amz_fulfilment_cost, 
+            p.storage_cost_30_day, 
+            p.holiday_storage_cost, 
+            p.total_cost, 
+            p.total_holiday_cost, 
+            p.default_units_per_case, 
+            p.status, 
+            p.unit_box_cost
+        ];
 
-            if(r){
-                for(let recIdx = 0; recIdx < r.length; recIdx++){
-                    axios.put(BASE_URL+"/recipes/" + r[recIdx].recipe_id,{
-                        product_needed: r[recIdx].product_needed,
-                        units_needed: r[recIdx].units_needed,
-                    })
-                }
+        let recipe_elements = r;
+
+        console.log('Recipe Elements: ', recipe_elements);
+
+        let element_array = [] as any[];
+
+        if(recipe_elements){
+            recipe_elements.forEach((element: any) => {
+                console.log(element.product_id);
+                if(element.product_id)
+                    element_array.push(element);
+            });
+        }
+        
+
+        if(element_array.length >0){
+            console.log('Updated Processed Product')
+
+            console.log('Created processed product');
+
+            let recipe_2Darray = [] as any[];
+
+            element_array.forEach((recipe_element: any) => {
+                recipe_2Darray.push([
+                    recipe_element.recipe_element_id,
+                    recipe_element.product_id,
+                    recipe_element.qty,
+                    recipe_element.recipe_id
+                ])
+            })
+
+            const {data, error} = await supabase.rpc('edit_processed_product_text', {
+                product_record: record_array,
+                recipe_array: recipe_2Darray
+            })
+            if(error){
+                console.error('Error calling RPC: ', error);
+                throw error;
+            } else {
+                console.log('Processed Product Key updated: ', data);
             }
-        }).catch(error => {
-            console.log(error);
-        });
-    },
 
-    //Batch insert products
-    async batchInsertProduct(p: any){
-        console.log("BATCH PRODUCT ", p)
-        return axios.post(BASE_URL+"/products/batchInsert", p).catch(error => {
-            console.log(error);
-            throw error;
-        });
-    },
-
-    //Batch insert raw products
-    async batchInsertRawProducts(p: any[]){
-        let productArray = [] as any[];
-        p.filter(p => p.name).forEach(product => {
-            if(!product.notes)
-                product.notes = null;
-            if(!product.map)
-                product.map = null;
-            if(!product.price_2021)
-                product.price_2021 = null;
-            if(!product.price_2022)
-                product.price_2022 = null;
-            if(!product.price_2023)
-                product.price_2023 = 0;
-            let tempArray = [product.name, 
-                product.upc, product.notes, 
-                product.default_units_per_case, 
-                product.item_num, product.map, 
-                product.price_2021, product.price_2022, product.price_2023, 
-                product.vendor]
-            productArray.push(tempArray);
-        })
-        console.log("BATCH PRODUCT ", p)
-        return axios.post(BASE_URL+"/products/batchInsertRaw", productArray).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        } else {
+            console.log('Updated Raw Product')
+            const {data, error} = await supabase.rpc('edit_raw_product_text',{product_record: record_array})
+            if(error){
+                console.error('Error calling RPC: ', error);
+                throw error;
+            } else {
+                console.log('Raw Product key updated: ', data);
+            }
+        }
     },
 
     //Batch delete products
@@ -385,26 +357,29 @@ var action = {
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
 
-            console.log(p);
+        console.log(p);
 
-            return axios.post(BASE_URL+"/products/batchDelete", p)
-            .then(res => {
-                //location.reload();
-                //this.refreshData();
-            })
-            .catch(error => {
-                console.log(error.response.data);
-                console.log(error.request.data);
-                console.log(error);
-                //console.log("########################AXIOS ERROR##############################")
-                throw error.response.data;
-            })
-        //}
+        let id_array = [] as any[];
+
+        p.forEach((record: any) => {
+            if(record.product_id)
+                id_array.push(record.product_id)
+        });
+
+        console.log('id array: ', id_array);
+
+        const {data, error} = await supabase.rpc('batch_delete_products_by_id', {id_array: id_array});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Batch Product(s) deleted: ', data);
+        }
     },
     
     //RECIPE COMMANDS---------------------------------------------------------------------------------------
     //Removes a product from the database using API
-    async deleteRecipe(id: string){
+    /* async deleteRecipe(id: string){
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
             return axios.delete(BASE_URL+"/recipes/"+id)
@@ -420,162 +395,159 @@ var action = {
                 throw error.response.data;
             })
         //}
-    },
+    }, */
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
     //Get all cases
     async getCases(){
-        let cases;
         console.log("IN GET CASES");
 
-        return axios.get(BASE_URL+"/cases").then(res => {
-            cases = res.data;
-
-            //console.log('TESTING-------------------')
-            //console.log("Case List received\n",cases);
-            //console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
-    },
-    
-    async getCasesIds(){
-        let cases;
-        console.log("IN GET CASES");
-
-        return axios.get(BASE_URL+"/cases/id").then(res => {
-            cases = res.data;
-
-            console.log('TESTING-------------------')
-            console.log("Case List received\n",cases);
-            console.log("Keys", Object.keys(cases[1]));
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
+        const {data, error} = await supabase.rpc('get_boxes_and_cases');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes and cases: ', data)
+            return data;
+        }
     },
 
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //
     async getProcCases(){
-        let cases;
-
-        return axios.get(BASE_URL+"/cases/processed").then(res => {
-            cases = res.data;
-
-            /* if(cases){
-                console.log(cases);
-
-                //console.log(cases[0].date_received);
-            } */
-
-            //console.log('TESTING-------------------')
-            //console.log(this.cases.date_received.getMonth());
-
-            return cases;
-        })
+        const {data, error} = await supabase.rpc('get_cases_by_type', {processed: true});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Processed cases: ', data);
+            return data;
+        }
     },
 
     async getUnprocCases(){
-        let cases;
-            
-        return axios.get(BASE_URL+"/cases/unprocessed").then(res => {
-            cases = res.data;
-            //console.log(cases);
-            return cases;
-        });
+        const {data, error} = await supabase.rpc('get_cases_by_type', {processed: false});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Raw boxes: ', data);
+            return data;
+        }
     },
 
     //
     async getUnprocDeliveredBoxes(){
-        let boxes;
+        const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: false});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Raw boxes (Delivered): ', data);
             
-        return axios.get(BASE_URL+"/cases/unprocessed/delivered").then(res => {
-            boxes = res.data;
-            //console.log(cases);
-            return boxes;
-        });
+            const {count, error} = await supabase.rpc('get_table_count', {select_function: 'get_boxes_and_cases'});
+                if(error){
+                    console.error('Error calling RPC: ', error);
+                    throw error;
+                } else {
+                    console.log('Boxes and cases Count: ', count)
+                }
+            return data;
+        }
     },
 
      //
      async getProcDeliveredCases(){
-        let boxes;
-            
-        return axios.get(BASE_URL+"/cases/processed/delivered").then(res => {
-            boxes = res.data;
-            //console.log(cases);
-            return boxes;
-        });
+        const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: true});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Processed Cases (In house): ', data);
+            return data;
+        }
     },
 
     //
     async addCase(c: any){
-        //console.log(this.product);
-        return axios.post(BASE_URL+"/cases/create", {
-            product_id: c.product_id,
-            units_per_case: c.units_per_case,
-            location: c.location,
-            notes: c.notes,
-            date_received: c.date_received,
-            status: c.status,
-            purchase_order_id: c.purchase_order_id,
-        }).then((res) => {
-            //location.reload();
-            //this.refreshData();
-
-        }).catch(error => {
-            console.log(error);
-        });
+        const {data, error} = await supabase.rpc('create_case',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.purchase_order_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case created: ', data);
+        }
     },
 
     //Add multiple cases at the same time
-    async bulkAddCases(c: any){
-        return axios.post(BASE_URL+"/cases/bulk",c).catch(error => {
-            console.log(error);
-        });
+    async bulkCreateCases(c: any){
+        const {data, error} = await supabase.rpc('bulk_create_cases',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.purchase_order_id,
+            c.amount
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes/Cases created: ', data);
+        }
     },
 
     //
-    async deleteCase(id: string){
-        //console.log(id);
-        //if(confirm("Do you really want to delete?")){
-        return axios.delete(BASE_URL+"/cases/"+id)
-        .catch(error => {
-            console.log(error);
-        })
-        //}
-        //location.reload();
-        //this.refreshData();
+    async bulkDeleteCase(id_array: number[]){
+        const {data, error} = await supabase.rpc('bulk_delete_cases', {id_array: id_array})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box(es)/Case(s) deleted: ', data);
+        }
     },
 
     //
     async editCase(c: any){
-
-        return axios.put(BASE_URL+"/cases/"+c.case_id, {
-            product_id: c.product_id,
-            units_per_case: c.units_per_case,
-            location: c.location,
-            notes: c.notes,
-            date_received: c.date_received,
-            status: c.status,
-
-        }).then((res) => {
-            //console.log(product_id);
-            //location.reload();
-            //this.refreshData();
-            //this.editId = '';
-        }).catch(error => {
-            console.log(error);
-        });
+        const {data, error} = await supabase.rpc('update_case',{record_array: [
+            c.units_per_case,
+            c.date_received,
+            c.notes,
+            c.product_id,
+            c.location_id,
+            c.status,
+            c.case_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
     },
 
      //Edit multiple cases at the same time
      async bulkEditCases(c: any){
-        return axios.post(BASE_URL+"/cases/bulkUpdate",c).catch(error => {
-            console.log(error);
-        });
+        console.log(c);
+        const {data, error} = await supabase.rpc('bulk_update_case',{record_array: c})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
     },
 
     //Batch delete products
@@ -603,19 +575,14 @@ var action = {
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
-        let purchaseOrders;
-            // console.log("IN GET PURCHASE ORDERS");
-
-            return axios.get(BASE_URL+"/purchaseOrders").then(res => {
-                purchaseOrders = res.data;
-
-                // console.log('TESTING-------------------')
-                // console.log("Purchase Order List received\n",purchaseOrders);
-                //console.log("Keys", Object.keys(purchaseOrders[1]));
-                //console.log(this.cases.date_received.getMonth());
-
-                return purchaseOrders;
-            })
+        const {data, error} = await supabase.rpc('get_purchase_orders');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Orders: ', data);
+            return data;
+        }
     },
 
     //Create a purchase order
@@ -717,11 +684,13 @@ var action = {
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
-        return axios.get(BASE_URL+"/vendors").then(res => {
-            let vendors = res.data;
-            //console.log("VENDORS ", vendors)
-            return vendors;
-        })
+        const {data, error} = await supabase.rpc('get_vendors');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Vendors:', data);
+            return data;
+        }
     },
 
     //Add a vendor
@@ -761,20 +730,24 @@ var action = {
     //RECIPES--------------------------------------------------------------------------------------------
     //Get recipes
     async getRecipes(){
-        return axios.get(BASE_URL+"/recipes").then(res => {
-            let recipes = res.data;
-            //console.log("RECIPES ", recipes)
-            return recipes;
-        })
+        const {data, error} = await supabase.rpc('get_recipes');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('RECIPES:', data);
+            return data;
+        }
     },
 
     //Get recipe elements
     async getRecipeElements(){
-        return axios.get(BASE_URL+"/recipeElements").then(res => {
-            let recipeElements = res.data;
-            // console.log("RECIPE ELEMENTS", recipeElements);
-            return recipeElements;
-        })
+        const {data, error} = await supabase.rpc('get_recipe_elements');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('RECIPE ELEMENTS: ', data);
+            return data;
+        }
     },
 
     /* //Add a new recipe
@@ -796,11 +769,13 @@ var action = {
     //LOCATIONS------------------------------------------------------------------------------------------
     //Get locations
     async getLocations(){
-        return axios.get(BASE_URL+"/locations").then(res => {
-            let locations = res.data;
-            //console.log("LOCATIONS ", locations)
-            return locations;
-        })
+        const {data, error} = await supabase.rpc('get_locations');
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('LOCATIONS:', data);
+            return data;
+        }
     },
 
     //Add a location

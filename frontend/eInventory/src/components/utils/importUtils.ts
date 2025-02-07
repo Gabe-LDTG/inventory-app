@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import action from "./axiosUtils";
+import { supabase } from "@/clients/supabase";
 
 interface test {
     fnsku: any;
@@ -16,10 +17,10 @@ var importAction = {
 
         let fileData = [];
 
-        let products = await action.getProducts();
+        //let products = await action.getProducts();
 
         if (fileType == 'Processed Product Key'){
-            await this.processedProductKeyParse(fileUp, products);
+            await this.processedProductKeyParse(fileUp);
         }
 
         else if(fileType == 'Raw Product Key'){
@@ -27,672 +28,173 @@ var importAction = {
         }
 
         else if(fileType == 'Processed Product List'){
-            await this.ProcessedProductListParse(fileUp, products);
+           await this.ProcessedProductListParse(fileUp);
         }
 
         else if(fileType == 'Unprocessed Product List'){
-            await this.UnprocessedProductListParse(fileUp, products);
+            await this.UnprocessedProductListParse(fileUp);
         }
 
         //console.log("FILE DATA: ", fileData);
-        console.log("PRODUCTS: ", products);
+        //console.log("PRODUCTS: ", products);
 
         return 0;
     },
 
-    async processedProductKeyParse(file: any, products: any){
+    async processedProductKeyParse(file: any){
         console.log(file);
         //return file;
         return Papa.parse(file, {
-            header: true,
+            header: false,
             complete: async function( results: any){
-                console.log(results);
+                console.log(results.data);
                 
-                console.log(results.data[0]);
+                // console.log(results.data[0]);
 
-                let unusedFields=[];
-                let content = [];
-                let recipes = [] as any[];
-                let recipeElements = [] as any[];
+                let multiArray = [] as any[];
 
-                let vendors = await action.getVendors();
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
 
-                //objectLength = Object.keys(exampleObject).length
-                console.log(Object.keys(results.data[0]))
-                //let mapLength = Object.keys(results.data[0]).length; 
+                // In case any of the records in the array need to be edited
+                /* multiArray.forEach((record: any[]) => {
+                    record.forEach((field: any) => {
+                        if(field == "")
+                            field = null;
+                    })
+                    console.log(record.length);
+                    //record[0] = new Date(record[0]);
+                }); */
 
-                //let keys = Object.keys(results.data[0])
+                let filteredArray = multiArray.filter(record => record.length == 51);
+                console.log(filteredArray);
 
-                
-                //results.data.length
-                for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
-                    console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
-                    //console.log(results.data[0][this.columns[k].header]);
-                    //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
-                    let map = [] as any[];
-                    let recMap = {} as any;
-                    let recElMap = {} as any;
-
-                    if (results.data[dataIdx]['Name']) {
-                        map['name' as any] = results.data[dataIdx]['Name'];
+                const {data , error} = await supabase.rpc('import_processed_product_keys_batch', { record_array: filteredArray });
+                    if(error){
+                        console.error('Error calling RPC:', error);
+                        throw error;
+                    } else {
+                        console.log('Function executed successfully:', data);
                     }
-                    
-                    if (results.data[dataIdx]['Date Added']) {
-                        map['date_added' as any] = results.data[dataIdx]['Date Added'];
-                    }
-                    
-                    if (results.data[dataIdx]['Do We Carry?']) {
-                        map['do_we_carry' as any] = results.data[dataIdx]['Do We Carry?'];
-                    }
-                    
-                    if (results.data[dataIdx]['Vendor']) {
-                        //console.log(results.data[dataIdx]['Vendor']);
-                        //console.log(vendors.length);
-                        //console.log(vendors);
-
-                        let vendorExists = false;
-                        
-                        if (vendors.length > 0){
-                            
-                            for (let venIdx = 0; venIdx < vendors.length; venIdx++){
-                                if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
-                                    //console.log("VENDOR EXISTS");
-                                    //console.log(vendors[venIdx].vendor_id);
-                                    map['vendor' as any] = vendors[venIdx].vendor_id;
-                                    vendorExists = true;
-                                }    
-                            }
-                            if (vendorExists == false){
-                                console.log("NEW VENDOR");
-                                let ven = [] as any[];
-                                ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
-                                console.log("VEN BEFORE INSERT ", ven);
-                                
-                                let vendor = await action.addVendor(ven);
-                                vendors.push(ven);
-                                console.log("VEN AFTER INSERT ", vendor);
-                                map['vendor' as any] = vendor[0].vendor_id;
-                            }
-                        } else {
-                            console.log("NEW VENDOR");
-                            let ven = [] as any[];
-                            ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
-                            console.log("VEN BEFORE INSERT ", ven);
-                            
-                            let vendor = await action.addVendor(ven);
-                            vendors.push(ven);
-                            console.log("VEN AFTER INSERT ", vendor);
-                            map['vendor' as any] = vendor[0].vendor_id;
-                        }
-
-                        //console.log(map['vendor' as any]);
-                    }
-                    
-                    if (results.data[dataIdx]['FNSKU']) {
-                        map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
-                    }
-                    
-                    if (results.data[dataIdx]['ASIN']) {
-                        map['asin' as any] = results.data[dataIdx]['ASIN'];
-                    }
-                    
-                    if (results.data[dataIdx]['Default Units per Case']) {
-                        map['default_units_per_case' as any] = results.data[dataIdx]['Default Units per Case']; 
-                    }
-                    
-                    if (results.data[dataIdx]['Weight (Lbs)']) {
-                        map['weight_lbs' as any] = results.data[dataIdx]['Weight (Lbs)'];
-                    }
-                    
-                    if (results.data[dataIdx]['Box Type']) {
-                        map['box_type' as any] = results.data[dataIdx]['Box Type'];
-                    }
-                    
-                    if (results.data[dataIdx]['Box Cost']) {
-                        map['box_cost' as any] = results.data[dataIdx]['Box Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Bag Size']) {
-                        map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
-                    }
-                    
-                    if (results.data[dataIdx]['Process Time per Unit Sec']) {
-                        map['process_time_per_unit_sec' as any] = results.data[dataIdx]['Process Time per Unit Sec'];
-                    }
-                    
-                    if (results.data[dataIdx]['Meltable?']) {
-                        map['meltable' as any] = results.data[dataIdx]['Meltable?'];
-                    }
-
-                    if(results.data[dataIdx]['Products needed A'] != '' && results.data[dataIdx]['Products needed A']){
-                        //console.log(results.data[dataIdx]['Products needed A']);
-                        map['products_needed_a' as any] = results.data[dataIdx]['Products needed A'].toLowerCase();
-                    }
-
-                    if (results.data[dataIdx]['Item Number #1']) {
-                        map['item_num_1' as any] = results.data[dataIdx]['Item Number #1'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #1']) {
-                        map['qty_1' as any] = results.data[dataIdx]['Quantity #1'];
-                    }
-
-                    if(results.data[dataIdx]['Products needed B'] != ''&& results.data[dataIdx]['Products needed B']){
-                        console.log(results.data[dataIdx]['Products needed B']);
-
-                        map['products_needed_b' as any] = results.data[dataIdx]['Products needed B'].toLowerCase();
-                    }
-
-                    if (results.data[dataIdx]['Item Number #2']) {
-                        map['item_num_2' as any] = results.data[dataIdx]['Item Number #2'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #2']) {
-                        map['qty_2' as any] = results.data[dataIdx]['Quantity #2'];
-                    }
-
-                    if(results.data[dataIdx]['Products needed C'] != ''&& results.data[dataIdx]['Products needed C']){
-                        map['products_needed_c' as any] = results.data[dataIdx]['Products needed C'].toLowerCase();
-                    }
-
-                    if (results.data[dataIdx]['Item Number #3']) {
-                        map['item_num_3' as any] = results.data[dataIdx]['Item Number #3'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #3']) {
-                        map['qty_3' as any] = results.data[dataIdx]['Quantity #3'];
-                    }
-                    
-                    if(results.data[dataIdx]['Products needed D'] != ''&& results.data[dataIdx]['Products needed D']){
-                        map['products_needed_d' as any] = results.data[dataIdx]['Products needed D'].toLowerCase();
-                    }
-
-                    if (results.data[dataIdx]['Item Number #4']) {
-                        map['item_num_4' as any] = results.data[dataIdx]['Item Number #4'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #4']) {
-                        map['qty_4' as any] = results.data[dataIdx]['Quantity #4'];
-                    }
-                    
-                    if(results.data[dataIdx]['Products needed E'] != ''&& results.data[dataIdx]['Products needed E']){
-                        map['products_needed_e' as any] = results.data[dataIdx]['Products needed E'].toLowerCase();
-                    }
-
-                    if (results.data[dataIdx]['Item Number #5']) {
-                        map['item_num_5' as any] = results.data[dataIdx]['Item Number #5'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #5']) {
-                        map['qty_5' as any] = results.data[dataIdx]['Quantity #5'];
-                    }
-
-                    if(results.data[dataIdx]['Products needed F'] != ''&& results.data[dataIdx]['Products needed F']){
-                        map['products_needed_f' as any] = results.data[dataIdx]['Products needed F'].toLowerCase();
-                    }
-                    if (results.data[dataIdx]['Item Number #6']) {
-                        map['item_num_6' as any] = results.data[dataIdx]['Item Number #6'];
-                    }
-                    
-                    if (results.data[dataIdx]['Quantity #6']) {
-                        map['qty_6' as any] = results.data[dataIdx]['Quantity #6'];
-                    }
-
-                    if (results.data[dataIdx]['Bag Cost']) {
-                        map['bag_cost' as any] = results.data[dataIdx]['Bag Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['In-shipping Cost']) {
-                        map['in_shipping_cost' as any] = results.data[dataIdx]['In-shipping Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Out-shipping Cost']) {
-                        map['out_shipping_cost' as any] = results.data[dataIdx]['Out-shipping Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Labor Cost']) {
-                        map['labor_cost' as any] = results.data[dataIdx]['Labor Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Item Cost']) {
-                        map['item_cost' as any] = results.data[dataIdx]['Item Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Misc Cost']) {
-                        map['misc_cost' as any] = results.data[dataIdx]['Misc Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Amz Fees Cost']) {
-                        map['amz_fees_cost' as any] = results.data[dataIdx]['Amz Fees Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Amz Fulfilment Cost']) {
-                        map['amz_fulfiment_cost' as any] = results.data[dataIdx]['Amz Fulfilment Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['30 Day Storage Cost']) {
-                        map['30_day_storage_cost' as any] = results.data[dataIdx]['30 Day Storage Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Holiday Storage Cost']) {
-                        map['holiday_storage_cost' as any] = results.data[dataIdx]['Holiday Storage Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Total Cost']) {
-                        map['total_cost' as any] = results.data[dataIdx]['Total Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Total Holiday Cost']) {
-                        map['total_holiday_cost' as any] = results.data[dataIdx]['Total Holiday Cost'];
-                    }
-                    
-                    if (results.data[dataIdx]['Notes']) {
-                        map['notes' as any] = results.data[dataIdx]['Notes'];
-                    }
-                    
-                    if (results.data[dataIdx]['Unit Box Cost']) {
-                        map['unit_box_cost' as any] = results.data[dataIdx]['Unit Box Cost'];
-                    }
-                    
-
-                    //console.log(map);
-                    //console.log(map['products_needed_a' as any]);
-                    //console.log(map['products_needed_a' as any].toLowerCase());
-
-                    //products.length
-
-                    if (map['products_needed_a' as any] && map['qty_1' as any]){
-                        let pa = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_a' as any] && p.item_num == map[<any>'item_num_1'])
-                        
-                        recElMap['product_id' as any] = pa.product_id;
-                        recElMap['qty' as any] = map['qty_1' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pa = {};
-                        recElMap = {};
-                    }
-                    if (map['products_needed_b' as any] && map['qty_2' as any]){
-                        let pb = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_b' as any] && p.item_num == map[<any>'item_num_2'])
-                        
-                        recElMap['product_id' as any] = pb.product_id;
-                        recElMap['qty' as any] = map['qty_2' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pb = {};
-                        recElMap = {};
-                    }
-                    if (map['products_needed_c' as any] && map['qty_3' as any]){
-                        let pc = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_c' as any] && p.item_num == map[<any>'item_num_3'])
-                        
-                        recElMap['product_id' as any] = pc.product_id;
-                        recElMap['qty' as any] = map['qty_3' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pc = {};
-                        recElMap = {};
-                    }
-                    if (map['products_needed_d' as any] && map['qty_4' as any]){
-                        let pd = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_d' as any] && p.item_num == map[<any>'item_num_4'])
-                        
-                        recElMap['product_id' as any] = pd.product_id;
-                        recElMap['qty' as any] = map['qty_4' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pd = {};
-                        recElMap = {};
-                    }
-                    if (map['products_needed_e' as any] && map['qty_5' as any]){
-                        let pe = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_e' as any] && p.item_num == map[<any>'item_num_5'])
-                        
-                        recElMap['product_id' as any] = pe.product_id;
-                        recElMap['qty' as any] = map['qty_5' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pe = {};
-                        recElMap = {};
-                    }
-                    if (map['products_needed_f' as any] && map['qty_6' as any]){
-                        let pf = products.find((p: { name: string; item_num: any; }) => p.name.toLowerCase() == map['products_needed_f' as any] && p.item_num == map[<any>'item_num_6'])
-                        
-                        recElMap['product_id' as any] = pf.product_id;
-                        recElMap['qty' as any] = map['qty_6' as any];
-                        recElMap['type' as any] = 'input';
-
-                        console.log("REC MAP", recElMap);
-
-                        recipeElements.push(recElMap);
-
-                        pf = {};
-                        recElMap = {};
-                    }
-
-                    //recMap['label' as any] = map['name' as any] + ' - ' + map['fnsku' as any];
-                    //recMap['vendor_id' as any] = map['vendor' as any];
-                    recMap['recipeElements' as any] = recipeElements;
-
-                    console.log("RECIPE CONTENT ARRAY ", recipeElements);
-                    
-                    if (map['name' as any]){
-                        console.log("MAP: ", map, " AND RECIPE CONTENT: ", recMap);
-
-                        await action.addProduct(map, recMap);
-                        recipeElements = [];
-                    }
-
-                    //console.log(map.name);
-                    content.push(map); 
-                    recipes.push(recMap);
-                }
-
-                /* for(let contentIdx = 0; contentIdx<content.length; contentIdx++){
-                    
-                } */
-
-                //console.log("RESULTS: ", results);
-                //console.log("RESULTS LENGTH: ", results.data.length);
-                //console.log(Object.keys(content[0]).length)
-                console.log("CONTENT: ", content);
-                //console.log("TESTING: ", content[0].testing)
-                console.log("CONTENT LENGTH:", content.length);
-
-                console.log("RECIPE: ", recipes);
-
-                console.log("DATA IMPORTED")
-                return content;
-            },
+            }, 
         }); 
     },
 
     async rawProductKeyParse(file: any){
         console.log(file);
-        //return file;
+
         return Papa.parse(file, {
-            header: true,
+            header: false,
             complete: async function( results: any){
-                console.log(results);
-                
-                console.log(results.data[0]);
 
-                let unusedFields=[];
-                let content = [];
+                let multiArray = [] as any[];
 
-                //objectLength = Object.keys(exampleObject).length
-                console.log(Object.keys(results.data[0]))
-                let mapLength = Object.keys(results.data[0]).length; 
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
 
-                let keys = Object.keys(results.data[0])
+                let filteredArray = multiArray.filter(record => record.length == 10);
+                console.log(filteredArray);
 
-                let vendors = [];
-                vendors = await action.getVendors();
-
-                
-                //results.data.length
-                for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
-                    console.log("Progress ", Math.round((dataIdx/results.data.length)*100) + "%");
-                    //console.log(results.data[0][this.columns[k].header]);
-                    //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
-                    let map = [];
-
-                    if(results.data[dataIdx]['Vendor']){
-
-                        //console.log(results.data[dataIdx]['Vendor']);
-                        //console.log(vendors.length);
-                        //console.log(vendors);
-
-                        let vendorExists = false;
-                        
-                        if (vendors.length > 0){
-                            
-                            for (let venIdx = 0; venIdx < vendors.length; venIdx++){
-                                if(results.data[dataIdx]['Vendor'] == vendors[venIdx].vendor_name){
-                                    //console.log("VENDOR EXISTS");
-                                    //console.log(vendors[venIdx].vendor_id);
-                                    map['vendor' as any] = vendors[venIdx].vendor_id;
-                                    vendorExists = true;
-                                }    
-                            }
-                            if (vendorExists == false){
-                                console.log("NEW VENDOR");
-                                let ven = [] as any[];
-                                ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
-                                console.log("VEN BEFORE INSERT ", ven);
-                                
-                                let vendor = await action.addVendor(ven);
-                                vendors.push(ven);
-                                console.log("VEN AFTER INSERT ", vendor);
-                                map['vendor' as any] = vendor[0].vendor_id;
-                            }
-                        } else {
-                            console.log("NEW VENDOR");
-                            let ven = [] as any[];
-                            ven['vendor_name' as any] = results.data[dataIdx]['Vendor']
-                            console.log("VEN BEFORE INSERT ", ven);
-                            
-                            let vendor = await action.addVendor(ven);
-                            vendors.push(ven);
-                            console.log("VEN AFTER INSERT ", vendor);
-                            map['vendor' as any] = vendor[0].vendor_id;
-                        }
-
-                        //console.log(map['vendor' as any]);
-                    }
-                    
-                    if(results.data[dataIdx]['Product Name']){
-                        map['name' as any] = results.data[dataIdx]['Product Name'];
-                    }
-                    
-                    if(results.data[dataIdx]['item #']){
-                        map['item_num' as any] = results.data[dataIdx]['item #'];
-                    }
-                    
-                    if(results.data[dataIdx]['2023 Price']){
-                        map['price_2023' as any] = results.data[dataIdx]['2023 Price'];
-                    }
-                    
-                    if(results.data[dataIdx]['2022 AUG Price']){
-                        map['price_2022' as any] = results.data[dataIdx]['2022 AUG Price'];
-                    }
-                    
-                    if(results.data[dataIdx]['2021 Price']){
-                        map['price_2021' as any] = results.data[dataIdx]['2021 Price'];
-                    }
-                    
-                    if(results.data[dataIdx]['Units Per Case']){
-                        map['default_units_per_case' as any] = results.data[dataIdx]['Units Per Case'];
-                    }
-                    
-                    if(results.data[dataIdx]['MAP']){
-                        map['map' as any] = results.data[dataIdx]['MAP'];
-                    }
-                    if(results.data[dataIdx]['Notes']){
-                        map['notes' as any] = results.data[dataIdx]['Notes'];
-                    }
-                    if(results.data[dataIdx]['UPC']){
-                        map['upc' as any] = results.data[dataIdx]['UPC'];
-                    }
-
-                    if(results.data[dataIdx]['Product Name']){
-                        //console.log(map);
-
-                        //await action.addProduct(map, '');
-                    }
-                    
-
-                    content.push(map); 
+                const {data , error} = await supabase.rpc('import_raw_product_keys_batch', { record_array: filteredArray });
+                if(error){
+                    console.error('Error calling RPC:', error);
+                    throw error;
+                } else {
+                    console.log('Function executed successfully:', data);
                 }
-
-                console.log("RESULTS: ", results);
-                console.log("RESULTS LENGTH: ", results.data.length);
-                console.log(Object.keys(content[0]).length)
-                console.log("CONTENT: ", content);
-
-                await action.batchInsertRawProducts(content);
-
-                console.log("CONTENT LENGTH:", content.length);
-
-                console.log("DATA IMPORTED")
-                return content;
-            }.bind(this)
-        }); 
+            }
+        })
     },
 
-    async ProcessedProductListParse(file: any, products: any){
+    async ProcessedProductListParse(file: any){
         console.log(file);
-        //return file;
+
         return Papa.parse(file, {
-            header: true,
+            header: false,
             complete: async function( results: any){
-                console.log(results);
-                
-                console.log(results.data[0]);
 
-                let unusedFields=[];
-                let content: test[][] = [];
+                let multiArray = [] as any[];
 
-                //objectLength = Object.keys(exampleObject).length
-                console.log(Object.keys(results.data[0]))
-                let mapLength = Object.keys(results.data[0]).length; 
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
 
-                let keys = Object.keys(results.data[0])
+                let filteredArray = multiArray.filter(record => record.length == 16);
+                console.log(filteredArray);
 
-                let locations = [];
-                locations = await action.getLocations();
-
-                let totalCount = 0;
-
-                
-                //results.data.length
-                for (let dataIdx = 0; dataIdx<results.data.length; dataIdx++){
-                    //console.log(results.data[0][this.columns[k].header]);
-                    //results.data[dataIdx]['name'] = results.data[dataIdx]['Name'];
-                    let map = [] as any[];
-
-                    map['status' as any] = results.data[dataIdx]['Status'];
-
-
-                    if(results.data[dataIdx]['Location']){
-
-                        console.log(results.data[dataIdx]['Location']);
-                        console.log(locations.length);
-                        console.log(locations);
-
-                        let locationExists = false;
-                        
-                        if (locations.length > 0){
-                            
-                            for (let locIdx = 0; locIdx < locations.length; locIdx++){
-                                if(results.data[dataIdx]['Location'] == locations[locIdx].name){
-                                    console.log("LOCATION EXISTS");
-                                    //console.log(locations[locIdx].location_id);
-                                    map['location' as any] = locations[locIdx].location_id;
-                                    locationExists = true;
-                                }    
-                            }
-                            if (locationExists == false){
-                                console.log("NEW LOCATION");
-                                let loc = [] as any[];
-                                loc['name' as any] = results.data[dataIdx]['Location']
-                                console.log("LOC BEFORE INSERT ", loc);
-                                
-                                let location = await action.addLocation(loc);
-                                locations.push(loc);
-                                console.log("LOC AFTER INSERT ", location);
-                                map['location' as any] = location[0].location_id;
-                            }
-                        } else {
-                            console.log("NEW LOCATION");
-                            let loc = [] as any[];
-                            loc['name' as any] = results.data[dataIdx]['Location']
-                            console.log("LOC BEFORE INSERT ", loc);
-                            
-                            let location = await action.addLocation(loc);
-                            locations.push(loc);
-                            console.log("LOC AFTER INSERT ", location);
-                            map['location' as any] = location[0].location_id;
-                        }
-
-                        //console.log(map['location' as any]);
-
-                    }
-                    
-
-                    //map['space' as any] = results.data[dataIdx]['Space'];
-                    map['vendor' as any] = results.data[dataIdx]['Vendor'];
-                    map['asin' as any] = results.data[dataIdx]['ASIN'];
-                    map['name' as any] = results.data[dataIdx]['Description'];
-                    map['fnsku' as any] = results.data[dataIdx]['FNSKU'];
-                    map['notes' as any] = results.data[dataIdx]['Notes'];
-                    map['units_per_case' as any] = results.data[dataIdx]['Units per case'];
-                    map['number_of_cases' as any] = results.data[dataIdx]['Number of cases'];
-                    map['total_units' as any] = results.data[dataIdx]['Total Units'];
-                    map['cost' as any] = results.data[dataIdx]['Cost'];
-                    map['total' as any] = results.data[dataIdx]['Total'];
-                    map['weight_lbs' as any] = results.data[dataIdx]['Weight (lbs)'];
-                    map['box_type' as any] = results.data[dataIdx]['Box type'];
-                    map['bag_size' as any] = results.data[dataIdx]['Bag Size'];
-
-                    //console.log(map['number_of_cases']);
-
-                    //totalCount += map['number_of_cases'];
-        
-                    for(let caseIdx = 0; caseIdx<map[<any>'number_of_cases']; caseIdx++){
-                        content.push(map); 
-                    }
+                const {data , error} = await supabase.rpc('import_processed_product_list_batch', { record_array: filteredArray });
+                if(error){
+                    console.error('Error calling RPC:', error);
+                    throw error;
+                } else {
+                    console.log('Function executed successfully:', data);
                 }
-
-                console.log("RESULTS: ", results);
-                console.log("RESULTS LENGTH: ", results.data.length);
-                //console.log(Object.keys(content[0]).length)
-                console.log("CONTENT: ", content);
-                console.log("CONTENT LENGTH:", content.length);
-                //console.log("TOTAL COUNT: ", totalCount);
-
-                let importContent = [];
-
-                for (let contentIdx = 0; contentIdx < content.length; contentIdx++) {
-                    //console.log(content[contentIdx].name);
-
-                    for (let productIdx = 0; productIdx<products.length; productIdx++){
-                        if (products[productIdx].fnsku == content[contentIdx][<any>'fnsku']){
-                            //console.log(products[productIdx].name);
-                            content[contentIdx][<any>'product_id'] = products[productIdx].product_id;
-                            await action.addCase(content[contentIdx]);
-                            break;
-                        }
-                    }       
-                }
-
-                console.log("CONTENT AFTER LOOP: ", content);
-                console.log("DATA IMPORTED");
-                return content;
-            }.bind(this)
-        }); 
+            }
+        });
     },
 
-    async UnprocessedProductListParse(file: any, products: any){
+    async UnprocessedProductListParse(file: any){
         console.log(file);
-        //return file;
+
         return Papa.parse(file, {
+            header: false,
+            complete: async function( results: any){
+
+                let multiArray = [] as any[];
+
+                multiArray = results.data;
+                let keys = multiArray.shift();
+                console.log(keys);
+                console.log("results after shift ", multiArray);
+
+                let filteredArray = multiArray.filter(record => record.length == 12);
+
+                console.log(filteredArray);
+
+                filteredArray.forEach((record: any) => {
+                    // console.log('Number of boxes',record[7], 'Floor number of boxes', Math.floor(record[7]))
+                    if(Number(record[7]) !== Math.floor(record[7])){
+                        console.log(record);
+                        let units_per_box = record[6]*(record[7]-Math.floor(record[7]));
+
+                        record[7] = String(Math.floor(record[7]));
+
+                        filteredArray.push([
+                            record[0],
+                            record[1],
+                            record[2],
+                            record[3],
+                            record[4],
+                            record[5],
+                            String(Math.ceil(units_per_box)),
+                            '1',
+                            record[8],
+                            record[9],
+                            record[10],
+                            record[11]
+                        ])
+                    }
+                })
+
+                console.log(filteredArray);
+
+                const {data , error} = await supabase.rpc('import_raw_product_list_batch', { record_array: filteredArray });
+                if(error){
+                    console.error('Error calling RPC:', error);
+                    throw error;
+                } else {
+                    console.log('Function executed successfully:', data);
+                }
+            }
+        });
+
+        //return file;
+        /* return Papa.parse(file, {
             header: true,
             complete: async function( results: any):Promise<any[]>{
                 console.log(results);
@@ -809,7 +311,7 @@ var importAction = {
 
                 return content;
             }
-        }); 
+        });  */
     }
 
 }

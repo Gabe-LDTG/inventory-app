@@ -759,7 +759,7 @@ import importAction from "../components/utils/importUtils";
 
 /** @TODO Try to fix module later */
 // @ts-ignore
-import { supabase } from '../supabase';
+import { supabase } from '../clients/supabase';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
