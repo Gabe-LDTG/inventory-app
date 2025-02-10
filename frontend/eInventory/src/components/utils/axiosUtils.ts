@@ -445,14 +445,14 @@ var action = {
             throw error;
         } else {
             console.log('Raw boxes (Delivered): ', data);
-            
+/*             
             const {count, error} = await supabase.rpc('get_table_count', {select_function: 'get_boxes_and_cases'});
                 if(error){
                     console.error('Error calling RPC: ', error);
                     throw error;
                 } else {
                     console.log('Boxes and cases Count: ', count)
-                }
+                } */
             return data;
         }
     },
