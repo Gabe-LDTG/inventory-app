@@ -99,6 +99,16 @@ var action = {
         }) */
     },
 
+    // Currently broken
+    async nameFilter(){
+        const {data, error} = await supabase.rpc('name_filter_text',{name_string: 'yay', select_function: 'get_all_product_keys()'});
+                if(error){
+                    console.error('Error calling RPC:', error);
+                } else {
+                    console.log('Filtered Name Products:', data);
+                }
+    },
+
     async getProcProducts(){
         let products = [] as any[];
 
@@ -780,18 +790,13 @@ var action = {
 
     //Add a location
     async addLocation(location: any){
-        return axios.post(BASE_URL+"/locations/create", {
-            name: location.name,
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-            //return addedProductId.data[0]['LAST_INSERT_ID()'];
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        const {data, error} = await supabase.rpc('add_location', {location_record: [location.name]});
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('LOCATION ADDED:', data);
+            return data;
+        }
     },
 
     //Edit a location
