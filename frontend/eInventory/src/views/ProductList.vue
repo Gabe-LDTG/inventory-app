@@ -504,7 +504,6 @@ export default {
                 await this.getRecipes();
                 // await this.getUnprocessedProducts();
                 await this.getVendors();
-
                 
                 this.loading = false;
             } catch (error) {
@@ -910,6 +909,9 @@ export default {
             this.filters = {
                 'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
             }
+        },
+        globalFilter(filterString: string){
+
         },
         getStatusLabel(status: any) {
             switch (status) {
