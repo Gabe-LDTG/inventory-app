@@ -2,17 +2,11 @@
     <div>
         <div class="card">
             <Toast />
-            <!-- <div v-if="loading" style="z-index: 1"> LOADING <ProgressSpinner /> </div> -->
             <Toolbar class="mb-4">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
-                    <!-- <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" /> -->
-                </template>
+                    <Button label="New PO" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
+                 </template>
 
-                <!--<template #end>
-                    <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
-                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
-                </template>-->
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
@@ -139,7 +133,7 @@
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
-                                    <DataTable :value="displayRawInfo(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
+                                    <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
@@ -148,22 +142,22 @@
                                         </Column>
                                         <Column field="units_per_case" header="Units per Box"/>
                                         <Column field="amount" header="Total # of Boxes"/>
-                                        <Column field="" header="Total # of Units">
+                                        <Column header="Total # of Units">
                                             <template #body = {data}>
                                                 {{ data.units_per_case * data.amount }}
                                             </template>
                                         </Column>
-                                        <Column header="Location">
+                                        <!-- <Column header="Location">
                                             <template #body="{data}">
                                                 {{ formatSingleLocation(data.location) }}
                                             </template>
-                                        </Column>
+                                        </Column> -->
                                         <Column header="Total Price" class="font-bold">
                                             <template #body = {data}>
                                                 {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
                                             </template>
                                         </Column>
-                                        <Column field="status" header="Status" sortable>
+                                        <Column header="Status" sortable>
                                             <template #body="slotProps">
                                                 <div class="card flex flex-wrap  gap-2">
                                                     <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
@@ -175,8 +169,10 @@
 
                             </DataTable>
 
-                           <!--  <br><h4 class="font-bold">Raw Products with No Plan</h4>
-                            <DataTable :value="getPool(slotProps.data.purchase_order_id)">
+                            <br><h4 class="font-bold">Raw Products with No Plan</h4>
+                            <DataTable :value="getPoolNew(slotProps.data.purchase_order_id)" :rowStyle="rowStylePool">
+                                <template #empty> No unplanned products found. </template>
+
                                 <Column header="Name">
                                     <template #body = {data}>
                                         {{ data.name }}
@@ -192,9 +188,20 @@
                                         {{ data.amount }}
                                     </template>
                                 </Column>
-                                <Column field="status" header="Status" />
-                            </DataTable> -->
-                        </div>
+                                <Column field="total" header="Total # of Units">\
+                                    <template #body = {data}>
+                                        {{ data.amount * data.units_per_case }}
+                                    </template>
+                                </Column>
+                                <Column header="Status" sortable>
+                                    <template #body="slotProps">
+                                        <div class="card flex flex-wrap  gap-2">
+                                            <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
+                                        </div>
+                                    </template>
+                                </Column>
+                            </DataTable>
+                        </div> 
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
@@ -305,53 +312,6 @@
             </div>
 
             <div v-if="purchaseOrder.purchase_order_id">
-                <!-- EDITING/////////////////////////////////////////////////////////////////////////////////// -->
-
-                <!-- <div v-if="purchaseOrder.status === 'Delivered'">
-                <div class ="caseCard">
-                    <div class="field">
-                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Requested Product(s):</h3>
-                    </div>
-
-                    <DataTable :value="checkBoxes('All')" rowGroupMode="subheader" :rowStyle="rowStyleRequested">
-
-                        <Column field="name" header="Name"/>
-                        <Column field="amount" header="Total Number of Boxes"/>
-                        <Column header="Total Number of Units">
-                            <template #body={data}>
-                                {{ data.amount*data.units_per_case }}
-                            </template>
-                        </Column>
-    
-                    </DataTable> <br>
-                </div>
-
-                <div class="caseCard">
-                    <div class="field">
-                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Received Product(s):</h3>
-                    </div>
-
-                    <DataTable :value="checkBoxes('Received')" rowGroupMode="subheader" :rowStyle="rowStyleReceived">
-
-                        <Column field="name" header="Name"/>
-                        <Column field="amount" header="Total Number of Boxes"/>
-                        <Column header="Total Number of Units">
-                            <template #body={data}>
-                                {{ data.amount*data.units_per_case }}
-                            </template>
-                        </Column>
-
-                        <template #empty> No products received yet. </template>
-
-                    </DataTable> <br>
-                </div> 
-                </div>
-
-                <div v-if="purchaseOrder.status !== 'Delivered'">
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Purchase Order Product(s):</h3>
-                </div>
-                </div> -->
 
                 <div class="field">
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
@@ -360,6 +320,7 @@
                     rowGroupMode="subheader" groupRowsBy="name" 
                     editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
                     scrollable scrollHeight="400px"
+                    sortField="name" 
                     showGridlines
                     tableStyle="background-color: '#16a085'"
                     >
@@ -385,12 +346,6 @@
                                 @update:model-value="data.total = data.amount*data.units_per_case"
                                 />
                             </template>
-                            <!-- <template #editor={data}>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="data.amount" showButtons
-                                @update:model-value="data.total = data.amount*data.units_per_case"
-                                />
-                            </template> -->
                         </Column>
                         <Column header="Total Number of Units">
                             <template #body={data}>
@@ -403,12 +358,6 @@
                                 @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
                                 />
                             </template>
-                            <!-- <template #editor={data}>
-                                <InputNumber v-model="data.total" 
-                                inputId="stacked-buttons" showButtons
-                                @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
-                                />
-                            </template> -->
                         </Column>
 
                         <Column header="Location">
@@ -437,168 +386,13 @@
                     
                         <Column >
                             <template #body="{data}">
-                                <div v-if="data.moment === 'Awaiting'">
+                                <div v-if="data.moment === 'Awaiting' || data.moment === 'Back Ordered' || data.moment === 'Newly Arrived'">
                                     <Button  icon="pi pi-pencil" text style="color: gray" v-tooltip.top="'Inventory newly-received products'" @click="receivedDialogSetup(data.product_id)"/>
                                 </div>
                             </template>
                         </Column>
 
-                        <!-- <Column >
-                            <template #body="{data}">
-                                <div v-if="data.moment == 'Awaiting'">
-                                    <Button label="Received" severity="success" class="mr-2" @click=""/>
-                                </div>
-                            </template>
-                        </Column> -->
-
-                    </DataTable> <br>
-                <!-- <template class="caseCard" v-for="(poBox, counter) in checkBoxes('Awaited')">
-
-                    <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poCases, counter)"/>
-
-                        <h3 class="flex justify-content-start font-bold w-full">{{ poBox.name }}</h3><br>
-
-                        <DataTable :value="checkSpecificBoxes('All', poBox.product_id)" rowGroupMode="subheader" :rowStyle="rowStyleRequested"> 
-
-                            <template #header>
-                                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">Requested {{ poBox.name }}</h3>
-                                    In total there were {{ getRequestedTotal(poBox.product_id) }} ordered units.
-                                </div>
-                            </template>
-                            <Column field="amount" header="Total Number of Boxes"/>
-                            <Column header="Total Number of Units">
-                                <template #body={data}>
-                                    {{ data.amount*data.units_per_case }}
-                                </template>
-                            </Column>
-
-                            <!-- <template #footer> <div :style="rowStyleRequested">In total there are {{ getRequestedTotal(poBox.product_id) }} received units.</div> </template> 
-                        </DataTable>
-
-                        <DataTable :value="checkSpecificBoxes('Received', poBox.product_id)" rowGroupMode="subheader" :rowStyle="rowStyleReceived"> 
-
-                            <template #header>
-                                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">Received {{ poBox.name }}</h3>
-                                    In total there are {{ getReceivedTotal(poBox.product_id) }} received units.
-                                </div>
-                            </template>
-                            <template #empty>No units received yet.</template>
-                            <Column field="amount" header="Total Number of Boxes"/>
-                            <Column header="Total Number of Units">
-                                <template #body={data}>
-                                    {{ data.amount*data.units_per_case }}
-                                </template>
-                            </Column>
-
-                            <!-- <template #footer> In total there are {{ getReceivedTotal(poBox.product_id) }} received units. </template> 
-                        </DataTable>
-
-                        <DataTable :value="checkSpecificBoxes('Awaited', poBox.product_id)" v-model:editingRows="editingRows" rowGroupMode="subheader" editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleAwaiting"> 
-
-                            <template #header>
-                                <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
-                                    <h3 class="m-0 font-bold">{{ poBox.name }} Still Waiting On</h3>
-                                </div>
-                            </template>
-                            <template #empty>No more units being waited on.</template>
-                            <Column field="amount" header="Total Number of Boxes">
-                                <template #body={data}>
-                                    {{ data.amount }}
-                                </template>
-                                <template #editor={data}>
-                                    <InputNumber inputId="stacked-buttons" required="true" 
-                                    v-model="data.amount" showButtons
-                                    @update:model-value="data.total = data.amount*poBox.units_per_case"
-                                    />
-                                </template>
-                                <!-- <template #editor={data}>
-                                    <InputNumber inputId="stacked-buttons" required="true" 
-                                    v-model="data.amount" showButtons
-                                    @update:model-value="data.total = data.amount*data.units_per_case"
-                                    />
-                                </template> 
-                            </Column>
-                            <Column header="Total Number of Units">
-                                <template #body={data}>
-                                    {{ data.total }}
-                                </template>
-                                <template #editor={data}>
-                                    <InputNumber v-model="data.total" 
-                                    inputId="stacked-buttons" showButtons
-                                    @update:model-value="data.amount = onTotalUpdate(data.total, poBox.units_per_case)"
-                                    />
-                                </template>
-                                <!-- <template #editor={data}>
-                                    <InputNumber v-model="data.total" 
-                                    inputId="stacked-buttons" showButtons
-                                    @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
-                                    />
-                                </template> 
-                            </Column>
-                            <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
-                        </DataTable>
-
-                        <!-- <div class="flex flex-wrap gap-2 font-bold align-items-center justify-content-between">
-                            <h3 class="m-0 font-bold">Waiting On</h3>
-                        </div> --
-                        <div class="block-div">
-
-                            <!-- <div class="field">
-                                <label for="qty">QTY:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !poBox.units_per_case}"
-                                v-model="poBox.units_per_case" showButtons
-                                @input="poBox.total = poBox.amount*poBox.units_per_case"/>
-                                <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                            </div> 
-
-                            <div class="field">
-                                <label for="amount">How Many Boxes Arrived?</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                v-model="poBox.amount" showButtons
-                                @update:model-value="poBox.total = poBox.amount*poBox.units_per_case"/>
-                            </div>
-
-                            <div class="field">
-                                <label for="total">Total Units Received</label>
-                                <InputNumber v-model="poBox.total" 
-                                inputId="stacked-buttons" showButtons
-                                @update:model-value="poBox.amount = onTotalUpdate(poBox.total, poBox.units_per_case)"/>
-                            </div> 
-
-                            <!-- MAKE DROPDOWN WHEN LOCATION TABLE IS SET UP -->
-                            <!-- <div class="field">
-                                <label for="total">Location</label>
-                                <InputText id="notes" v-model="poBox.location" rows="3" cols="20" />
-                            </div> -->
-
-                            <!-- <InputText id="location" v-model="poBox.location" rows="3" cols="20" /> -->
-                             <!-- <div class="field">
-                                <label for="location">Location:</label>
-                                <Dropdown v-model="poBox.location"
-                                placeholder="Select a Location" class="w-full md:w-14rem" editable
-                                :options="locations"
-                                filter
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                optionLabel="name"
-                                optionValue="location_id" />
-                                <Button label="New Location" icon="pi pi-plus" @click="newLocation()"  />
-                            </div>  -->
-
-                            <!-- FUTURE PROJECT -->
-                            <!-- <div class="field">
-                                <Button label="Additional Location(s)" icon="pi pi-plus" @click="additionalLocation()"  />
-                            </div> 
-
-                        </div>
-
-                    </div>
-                </template> -->
-
-            
+                    </DataTable> <br>           
 
             </div>
 
@@ -963,6 +757,10 @@ import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
 
+/** @TODO Try to fix module later */
+// @ts-ignore
+import { supabase } from '../clients/supabase';
+
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
@@ -1030,6 +828,7 @@ export default {
             locationDialog: false,
             additionalLocationDialog: false,
             receivedLocationsArray: [] as any,
+            specificProductReceivedLocArray: [] as any[],
 
             //MISC VARIABLES
             today: "",
@@ -1070,6 +869,7 @@ export default {
         async initVariables(){
             try {
                 this.loading = true;
+
                 await this.getVendors();
                 await this.getPurchaseOrders();
                 await this.getProducts();
@@ -1365,30 +1165,199 @@ export default {
             return total;
         },
 
+        /** @TODO Overhaul so that the pool math is right. Check what boxes are being used to make cases */
+        getPoolNew(purchase_order_id: number){
+            let poolArray = [] as any[];
+            let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
+            let casesBeingUsed = [] as any[];
+            
+            linkedPoRecipes.forEach(poRec => {
+                let recipeOutput = this.recipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
+                console.log("recipeOutput", recipeOutput);
+                let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
+                console.log("outputKey", outputKey);
+
+                // console.log(this.poRecipes)
+                let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+                console.log("poRecipe",poRecipe);
+
+                // the input products given the recipe id
+                /** @TODO rename to "rawRecInputs" */
+                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+
+                let totals = [] as any[];
+
+                rawRecInputs.forEach(r => {
+                    let map = {} as any;
+                    map.product_id = r.product_id;
+                    r.totalUnits = poRecipe.qty*outputKey.default_units_per_case; 
+                    map.currentUnits = 0;
+                    totals.push(map);
+                });
+                console.log("rawRecInputs", rawRecInputs);
+
+
+                // get the input boxes that are being used as inputs. Use a filter-map for-loop
+                const inputBoxesAndRecEl = [] as any[];
+
+                // console.log(this.uBoxes);
+
+                let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+                console.log("boxArray", boxArray);
+
+                let filteredBoxArray = this.groupProducts(boxArray);
+                console.log("filteredBoxArray", filteredBoxArray);
+
+                let boxIdx = 0;
+
+                for(const b of this.uBoxes) {
+                    if(b.purchase_order_id !== purchase_order_id)
+                    continue;
+
+
+                    let inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
+                    if(inputEl){
+                        let total = totals.find(t => t.product_id === inputEl.product_id)
+
+                        let boxInArray = casesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
+                        console.log(boxInArray);
+                        // Box already being used
+                        if(boxInArray)
+                        continue;
+
+                        if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
+                            b.taken = true;
+                            inputBoxesAndRecEl.push({ box: b, rec: inputEl });
+                            casesBeingUsed.push(b);
+                            // console.log("INPUT BOXES", inputBoxesAndRecEl);
+                            total.currentUnits += b.units_per_case;
+                            console.log("TOTAL UNITS", inputEl.totalUnits);
+                        } else if (inputEl.totalUnits === total.currentUnits){
+                            continue;
+                        }
+
+
+                    }
+                    
+                }
+            })
+
+            console.log(casesBeingUsed);
+
+            for(const b of this.uBoxes) {
+                if(b.purchase_order_id !== purchase_order_id || b.taken === true)
+                continue;
+
+                /* let boxInArray = casesBeingUsed.find(boxLine => boxLine === b.case_id);
+                        console.log(boxInArray);
+                        // Box already being used
+                        if(boxInArray)
+                        continue; */
+
+
+                poolArray.push(b);
+            }
+            console.log("poolArray", poolArray);
+            return this.groupProducts(poolArray);
+        },
+
         //Description: Creates a pool of raw products that don't have a plan
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-31-2024
         //Date Last Edited: 5-31-2024
         getPool(poId: number){
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId);
-            let cases = this.pCases.filter(c => c.purchase_order_id === poId);
-
-            let recipeCombos = [] as any[];
-
             let poolProd = [] as any[];
 
-            let caseTypes = this.groupProducts(cases);
-            let boxTypes = this.groupProducts(boxes);
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId && b.status === 'Ready');
 
-            caseTypes.forEach((caseType: { product_id: any; }) => {
-                let recipes = this.recipes.filter(r => caseType.product_id === r.product_made);
-                //let rawBox = boxTypes.find()
-            });
+            console.log("boxes" , boxes);
 
-            let pool = this.groupProducts(poolProd);
+            if (boxes.length > 0){
 
-            return pool;
+                let cases = this.pCases.filter(c => c.purchase_order_id === poId);
+
+                let recipeInputArray = [] as any[];
+
+                let caseArray = this.groupProducts(cases);
+                let boxArray = this.groupProducts(boxes);
+
+                // console.log("boxArray",boxArray);
+
+                let totalArray = [] as any[];
+
+                caseArray.forEach((caseLine: { product_id: number; amount: number; units_per_case: number; }) => {
+                    // console.log("caseLine", caseLine);
+                    let recipeOutput = this.recipeElements.find(r => caseLine.product_id === r.product_id && r.type === "output");
+                    console.log(recipeOutput);
+
+
+                    let recipeInputs = this.recipeElements.filter(r => r.recipe_id === recipeOutput.recipe_id && r.type === "input");
+                    recipeInputs.forEach(input => {
+                        let totalMap = {} as any;
+                        input.totalAmount = input.qty * caseLine.amount;
+                        input.totalUnits = caseLine.amount * caseLine.units_per_case;
+                        totalMap.totalUnits = input.totalUnits;
+                        totalMap.product_id = input.product_id;
+                        totalArray.push(totalMap);
+                        recipeInputArray.push(input);
+                    });
+                    // console.log("recipeInputs",recipeInputs);
+                    // recipeInputArray.push(recipeInputs);
+                });
+                // console.log("recipeInputArray", recipeInputArray);
+                // console.log("totalArray", totalArray);
+                let idx = 0;
+
+                boxArray.forEach((boxLine: {product_id: number; amount: number; units_per_case: number;}) => {
+                    // console.log("START----------------------------------------------------------")
+                    idx++;
+                    // console.log("boxLine",boxLine);
+                    let arrivedLine = recipeInputArray.find((recInput: {product_id: number}) => boxLine.product_id === recInput.product_id);
+                    // console.log("arrivedLine",arrivedLine);
+
+                    if(arrivedLine){
+                        let totalLine = totalArray.find(line => line.product_id === arrivedLine.product_id)
+
+                        if(totalLine.totalUnits > 0){
+                            totalLine.totalUnits = totalLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
+                            if(totalLine.totalUnits < 0)
+                                totalLine.totalUnits = totalLine.totalUnits*(-1);
+
+                        }
+                        // console.log(arrivedLine.totalUnits);
+                        // if(arrivedLine.totalUnits > 0)
+                            // arrivedLine.totalUnits = arrivedLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
+                    } else {
+                        poolProd.push(boxLine);
+                    }
+                });
+                // console.log(idx);
+
+                // console.log("recipeInputArray after boxArray Loop", recipeInputArray);
+                // console.log("totalArray after boxArray Loop", totalArray);
+
+                totalArray.forEach(amountLine => {
+                    if(amountLine.totalUnits > 0) {
+                        let poolMap = {} as any;
+                        // console.log("amountLine" ,amountLine)
+                        console.log(boxArray);
+                        console.log(boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id));
+                        poolMap = boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id);
+                        // console.log("poolMap", poolMap);
+                        poolMap.amount = amountLine.totalUnits/poolMap.units_per_case;
+                        poolMap.total = poolMap.amount * poolMap.units_per_case;
+
+                        poolProd.push(poolMap);
+                    }
+                })
+
+                // let pool = this.groupProducts(poolProd);
+
+                // console.log("poolProd", poolProd);
+            }
+
+            return poolProd;
         },
 
         /**
@@ -1617,7 +1586,7 @@ export default {
             
 
             let errAmount = 0;
-            let errText = [];
+            let errText = [] as any[];
             //console.log("PO", this.purchaseOrder);
             //console.log("PO CASES: ", this.poCases);
             //console.log("PO BOXES: ", this.poBoxes);
@@ -1685,7 +1654,7 @@ export default {
                     this.purchaseOrder.date_received = this.purchaseOrders[0].date_received.split('T')[0];
                 }*/
 
-                if (this.purchaseOrder.status != 'Delivered')
+                // if (this.purchaseOrder.status != 'Delivered')
                     await this.alocateBoxes();
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
@@ -1717,342 +1686,190 @@ export default {
                 if (!this.purchaseOrder.date_received)
                     this.purchaseOrder.date_received = this.today;
 
-                if(this.purchaseOrder.status === "Partially Delivered"){
-                    this.purchaseOrder.status = 'Delivered';
-                    console.log("IN PARTIALLY DELIVERED");
 
-                    let boxesToInsert = [] as any[];
+                this.purchaseOrder.status = 'Delivered';
+                let boxesToInsert = [] as any[];
 
-                    this.reqPoBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status === "BO"));
+                let receivedBoxArray = this.checkBoxes("Received");
+                let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
 
-                    console.log(this.reqPoBoxes);
-
-                    this.reqPoBoxes.forEach(reqBox => {
-                        let receivedBoxArray = this.checkBoxes("Received");
-                        let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
-
-                        let awaitedBoxArray = this.checkBoxes("Awaited");
-                        let awaitedBox = awaitedBoxArray.find(ab => ab.product_id === reqBox.product_id)
-
-                        console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND AWAITED BOXES ", awaitedBox);
-
-                        if(!reqBox.total)
-                            reqBox.total = reqBox.amount * reqBox.units_per_case;
-
-                        if(!awaitedBox.total)
-                            awaitedBox.total = awaitedBox.amount * awaitedBox.units_per_case;
-
-                        let backorderUnits = reqBox.total - awaitedBox.total;
-                        let backorderBoxes = backorderUnits/awaitedBox.units_per_case;
-                        let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
-
-                        let poBoxUnitsPerCase = awaitedBox.units_per_case;
-
-                        console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
-                        console.log("REQ", reqBox.total, " - REC", awaitedBox.total, " = LEFT", backorderUnits);
-
-                        //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
-                        let actualReceivedBoxes = awaitedBox.total/poBoxUnitsPerCase;
-                        let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
-
-                        console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
-                        console.log("WHOLE BOX VIEW");
-                        console.log("REQ", reqBox.amount, " - REC", awaitedBox.amount, " = BO", wholeBackorderBoxAmount);
-
-                        console.log("DECIMAL BOX VIEW");
-                        console.log("REQ", reqBox.amount, " - REC", awaitedBox.total/awaitedBox.units_per_case , " = BO", backorderBoxes)
-                        
-                        //Gets the decimal value if one of the leftover boxes is partial
-                        let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
-
-                        let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
-
-                        let backOrderBoxAmount = 0;
-                        if (partialBoxAmount>0){
-                            backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
-                        }
-
-                        console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
-                        console.log("REM", remainder," * UNITS", awaitedBox.units_per_case," = PARTIAL",partialBoxAmount);
-
-                        console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
-
-                        let boxes = this.uBoxes.filter(box => box.purchase_order_id === awaitedBox.purchase_order_id && box.product_id === awaitedBox.product_id && box.status !== 'Ready');
-
-                        //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
-                        //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
-                        boxes.forEach(box => {
-                            if(wholeReceivedBoxAmount > 0){
-                                console.log("FULL BOX");
-                                box.status = 'Ready';
-
-                                if(!box.location)
-                                    box.location = awaitedBox.location;
-
-                                box.date_received = this.today;
-                                boxesToInsert.push(box);
-                                wholeReceivedBoxAmount--;
-                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
-                                console.log("PARTIAL FULL AND BACKORDER BOXES");
-                                //If a partial box arrives, update the last box amount to partial amount a create 
-                                // an additional box whose status is back ordered
-                                box.units_per_case = partialBoxAmount;
-                                box.status = 'Ready';
-                                box.date_received = this.today;
-
-                                boxesToInsert.push(box);
-
-                                let boBox = [] as any[];
-                                boBox[<any>'name'] = box.name;
-                                boBox[<any>'product_id'] = box.product_id
-                                boBox[<any>'purchase_order_id'] = box.purchase_order_id
-                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
-                                boBox[<any>'status'] = 'BO'
-
-                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
-                                boxesToInsert.push(boBox);
-
-                                partialBoxAmount = 0;
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
-                                console.log("BACKORDER BOX");
-                                //If no partial box arrives, update the remaining box amounts to backorder
-                                box.status = 'BO';
-                                box.location = null;
-                                boxesToInsert.push(box);
-                                this.purchaseOrder.status = 'Partially Delivered'
-                                wholeBackorderBoxAmount --;
-                            }
-                        })                    
-                    })
-
-                    console.log(boxesToInsert);
-
-                    let insertArray = [] as any[];
-
-                    //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
-                    //PREVIOUS FOREACH FUNCTION
-                    boxesToInsert.forEach(async box => {
-                        if (box.case_id){
-                            console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status)
-                            //await action.editCase(requestedBox);
-                            let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
-                            insertArray.push(tempArray);
-                        } else {
-                            console.log("BACK ORDERED PARTIAL BOX", box);
-                            await action.addCase(box);
-                        }
-                    })
-                    
-                    await action.bulkEditCases(insertArray);
-
-                    console.log("BOXES TO INSERT ", boxesToInsert);
-                }
-                else{
-                    this.purchaseOrder.status = 'Delivered';
-                    let boxesToInsert = [] as any[];
-
-                    this.reqPoBoxes.forEach(reqBox => {
-                        let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);
-
-                        console.log("REQUESTED BOX ", reqBox, " AND ACTUAL RECEIVED BOX ", poBox);
-
-                        if(!reqBox.total)
-                            reqBox.total = reqBox.amount * reqBox.units_per_case;
-
-                        if(!poBox.total)
-                            poBox.total = poBox.amount * poBox.units_per_case;
-
-                        let backorderUnits = reqBox.total - poBox.total;
-                        let backorderBoxes = backorderUnits/poBox.units_per_case;
-                        let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
-
-                        let poBoxUnitsPerCase = poBox.units_per_case;
-
-                        console.log("REQUESTED UNIT AMOUNT - RECEIVED UNIT AMOUNT = BACKORDER UNIT AMOUNT");
-                        console.log("REQ", reqBox.total, " - REC", poBox.total, " = LEFT", backorderUnits);
-
-                        //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
-                        let actualReceivedBoxes = poBox.total/poBoxUnitsPerCase;
-                        let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
-
-                        console.log("REQUESTED BOX AMOUNT - RECEIVED BOX AMOUNT = BACKORDER BOX AMOUNT");
-                        console.log("WHOLE BOX VIEW");
-                        console.log("REQ", reqBox.amount, " - REC", poBox.amount, " = BO", wholeBackorderBoxAmount);
-
-                        console.log("DECIMAL BOX VIEW");
-                        console.log("REQ", reqBox.amount, " - REC", poBox.total/poBox.units_per_case , " = BO", backorderBoxes)
-                        
-                        //Gets the decimal value if one of the leftover boxes is partial
-                        let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
-
-                        let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
-
-                        let backOrderBoxAmount = 0;
-                        if (partialBoxAmount>0){
-                            backOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
-                        }
-
-                        console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
-                        console.log("REM", remainder," * UNITS", poBox.units_per_case," = PARTIAL",partialBoxAmount);
-
-                        console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
-
-                        let boxes = this.uBoxes.filter(box => box.purchase_order_id === poBox.purchase_order_id && box.product_id === poBox.product_id && box.status !== 'Ready');
-
-                        //CHANGE THE WHOLEBACKORDERBOXAMOUNT TO WHOLE RECEIVED BOX AMOUNT. HAD IT SWITCHED BEFORE.
-                        //ALSO GET RID OF LOOP BECAUSE WE ARE ALREADY IN THE REQ BOXES LOOP
-                        boxes.forEach(box => {
-                            if(wholeReceivedBoxAmount > 0){
-                                console.log(poBox);
-                                console.log("FULL BOX");
-                                box.status = 'Ready';
-                                box.date_received = this.today;
-
-                                if(!box.location)
-                                    box.location = poBox.location;
-                                
-                                boxesToInsert.push(box);
-                                wholeReceivedBoxAmount--;
-                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
-                                console.log("PARTIAL FULL AND BACKORDER BOXES");
-                                //If a partial box arrives, update the last box amount to partial amount a create 
-                                // an additional box whose status is back ordered
-                                box.units_per_case = partialBoxAmount;
-                                box.status = 'Ready';
-                                box.date_received = this.today;
-
-                                boxesToInsert.push(box);
-
-                                let boBox = [] as any[];
-                                boBox[<any>'name'] = box.name;
-                                boBox[<any>'product_id'] = box.product_id
-                                boBox[<any>'purchase_order_id'] = box.purchase_order_id
-                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
-                                boBox[<any>'status'] = 'BO'
-
-                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
-                                boxesToInsert.push(boBox);
-
-                                partialBoxAmount = 0;
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0) {
-                                console.log("BACKORDER BOX");
-                                //If no partial box arrives, update the remaining box amounts to backorder
-                                box.status = 'BO';
-                                boxesToInsert.push(box);
-                                this.purchaseOrder.status = 'Partially Delivered'
-                                wholeBackorderBoxAmount --;
-                            }
-                        })                    
-                    })
-
-                    // console.log(boxesToInsert);
-
-                    let insertArray = [] as any[];
-
-                    //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
-                    //PREVIOUS FOREACH FUNCTION
-                    boxesToInsert.forEach(async box => {
-                        if (box.case_id){
-                            //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
-                            //await action.editCase(requestedBox);
-                            let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
-                            insertArray.push(tempArray);
-                        } else {
-                            console.log("BACK ORDERED PARTIAL BOX", box);
-                            await action.addCase(box);
-                        }
-                    })
-                    
-                    await action.bulkEditCases(insertArray);
-
-                    // console.log("BOXES TO INSERT ", boxesToInsert);
-                }
+                console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
+
+                this.reqPoBoxes.forEach(reqBox => {
+                    // let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
+
+                    /** @TODO Loop through the newlyArrivedBox array, function should still work as intended.
+                     * Try to find a more effecient way to work after getting it to work at all.
+                     */
+                    let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
+                    let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id)
+                    let newArriveLine = {} as any;
+
+                    console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
+
+                    if (newlyArrivedBoxes.length === 1){
+                        newArriveLine = newlyArrivedBoxes[0];
+                        console.log("ONLY ONE LOCATION");
+                        // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
+                        // Calculations
+                        boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArriveLine, true));
+                    } else if (newlyArrivedBoxes.length > 1) {
+                        console.log("MULTIPLE LOCATIONS");
+                        let lineIdx = 0;
+                        let lastLine = false;
+                        newlyArrivedBoxes.forEach(newLine => {
+                            newArriveLine = newLine;
+                            // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
+                            // Calculations
+                            if(lineIdx > newlyArrivedBoxes.length)
+                                lastLine = true;
+
+                            boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArriveLine, lastLine));
+                            lineIdx++;
+                        })
+                    }             
+                                       
+                })
+
+                console.log("BOXES TO INSERT ", boxesToInsert.flat());
+
+                let insertArray = [] as any[];
+
+                boxesToInsert.flat().forEach(async box => {
+                    if (box.case_id){
+                        //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
+                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
+                        insertArray.push(tempArray);
+                    } else {
+                        console.log("BACK ORDERED PARTIAL BOX", box);
+                        await action.addCase(box);
+                    }
+                })
+                
+                await action.bulkEditCases(insertArray);
+
+                // console.log("BOXES TO INSERT ", boxesToInsert);
+
+                    
             } catch (error) {
                 console.log(error);
-                //this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
             }
         },
 
-        async alocateBoxesOld(){
-            try {
-                console.log("BULK CASES IN ALOCATE ",this.poBoxes);
-                console.log("REQUESTED BOXES ", this.reqPoBoxes);
+        alocateBoxCalculation(requestedBoxLine: any, receivedBoxLine: any, newlyArrivedBoxLine: any, lastLocation: Boolean){
+            console.log("REQUESTED BOXES ", requestedBoxLine, " ACTUAL RECEIVED BOXES ", receivedBoxLine, "AND NEWLY RECEIVED BOXES ", newlyArrivedBoxLine);
+            let boxesToInsert = [] as any[];
 
-                //this.purchaseOrder.status = 'Delivered';
-
-                this.poBoxes.forEach(box => {
-                    let qty = box.units_per_case;
-                    let boxAmount = box.amount;
-
-                    let wholeBoxAmount = Math.floor(boxAmount);
-                    let remainder = boxAmount - wholeBoxAmount;
-                    let partialBox = Math.round(remainder*qty);
-                    let backOrderBoxAmount = 0;
-                    if (partialBox>0){
-                        backOrderBoxAmount = qty-partialBox;
-                    }
-                    console.log("BOX AMOUNT", boxAmount);
-                    console.log("WHOLE BOX AMOUNT", wholeBoxAmount);
-                    console.log("REMAINDER", remainder);
-                    console.log("PARTIAL BOX", partialBox);
-                    console.log("BACK ORDER BOX AMOUNT", backOrderBoxAmount);
-
-                    this.reqPoBoxes.forEach(requestedBox => {
-                        console.log(requestedBox)
-                        if (requestedBox.product_id == box.product_id){
-                            if(wholeBoxAmount > 0){
-                                requestedBox.status = 'Ready';
-                                requestedBox.date_received = this.today;
-                                wholeBoxAmount--;
-                            } else if (wholeBoxAmount == 0 && partialBox > 0){
-                                //If a partial box arrives, update the last box amount to partial amount a create 
-                                // an additional box whose status is back ordered
-                                let boBox = [] as any[];
-                                boBox[<any>'name'] = requestedBox.name;
-                                boBox[<any>'product_id'] = requestedBox.product_id
-                                boBox[<any>'purchase_order_id'] = requestedBox.purchase_order_id
-
-                                requestedBox.units_per_case = partialBox;
-                                requestedBox.status = 'Ready';
-                                requestedBox.date_received = this.today;
-
-                                boBox[<any>'units_per_case'] = backOrderBoxAmount;
-                                boBox[<any>'status'] = 'BO'
-
-                                //EVENTUALLY, JUST ADD THE BOBOX DIRECTLY HERE
-                                this.reqPoBoxes.push(boBox);
-
-                                partialBox = 0;
-
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            } else if (wholeBoxAmount == 0 && partialBox == 0) {
-                                //If no partial box arrives, update the remaining box amounts to backorder
-                                requestedBox.status = 'BO';
-                                this.purchaseOrder.status = 'Partially Delivered'
-                            }
-                        }
-                    })
-                })
-
-                console.log(this.reqPoBoxes);
-
-                //AT SOME POINT, CHANGE THE EDIT FUNCTION TO ALLOW BULK EDITS AND JUST ADD THE BO BOX IN THE 
-                //PREVIOUS FOREACH FUNCTION
-                this.reqPoBoxes.forEach(async requestedBox => {
-                    console.log("PRODUCT NAME: ", requestedBox.name, "BOX AMOUNT: ", requestedBox.units_per_case, "BOX STATUS: ", requestedBox.status)
-                    if (requestedBox.case_id){
-                        await action.editCase(requestedBox);
-                    } else {
-                        await action.addCase(requestedBox);
-                    }
-                })
-            } catch (error) {
-                console.log(error);
-                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+            if(!receivedBoxLine){
+                receivedBoxLine = {} as any;
+                receivedBoxLine.total = 0;
+                receivedBoxLine.amount = 0;
+                receivedBoxLine.units_per_case = 0;
             }
+
+            if(!requestedBoxLine.total)
+                requestedBoxLine.total = requestedBoxLine.amount * requestedBoxLine.units_per_case;
+
+            if(!receivedBoxLine.total)
+                receivedBoxLine.total = receivedBoxLine.amount * receivedBoxLine.units_per_case;
+
+            if(!newlyArrivedBoxLine.total)
+                newlyArrivedBoxLine.total = newlyArrivedBoxLine.amount * newlyArrivedBoxLine.units_per_case;
+
+            let backorderUnits = requestedBoxLine.total - (receivedBoxLine.total + newlyArrivedBoxLine.total);
+            let backorderBoxes = backorderUnits/newlyArrivedBoxLine.units_per_case;
+            let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
+
+            let poBoxUnitsPerCase = newlyArrivedBoxLine.units_per_case;
+
+            console.log("REQUESTED UNIT AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER UNIT AMOUNT");
+            // console.log("REQ", requestedBoxLine.total, " - (REC + NEW)", "(", receivedBoxLine.total, "+", newlyArrivedBoxLine.total, ")", " = LEFT", backorderUnits);
+
+            //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
+            let actualReceivedBoxes = newlyArrivedBoxLine.total/poBoxUnitsPerCase;
+            let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
+
+            console.log("REQUESTED BOX AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER BOX AMOUNT");
+            console.log("WHOLE BOX VIEW");
+            console.log("REQ", requestedBoxLine.amount, " - (REC + NEW)", "(", receivedBoxLine.amount, "+", newlyArrivedBoxLine.amount, ")", " = BO", wholeBackorderBoxAmount);
+
+            // console.log("DECIMAL BOX VIEW");
+            // console.log("REQ", requestedBoxLine.amount, " - (REC + NEW)", "(", receivedBoxLine.amount, "+", newlyArrivedBoxLine.total/newlyArrivedBoxLine.units_per_case, ")", " = BO", backorderBoxes)
+            
+            //Gets the decimal value if one of the leftover boxes is partial
+            let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
+
+            let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
+
+            let partialBackOrderBoxAmount = 0;
+            if (partialBoxAmount>0){
+                partialBackOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
+            }
+
+            // console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
+            // console.log("REM", remainder," * UNITS", newlyArrivedBoxLine.units_per_case," = PARTIAL",partialBoxAmount);
+
+            console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
+
+// ----------------------------------------------------------------------------------------
+
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrivedBoxLine.purchase_order_id && box.product_id === newlyArrivedBoxLine.product_id && box.status !== 'Ready');
+
+            boxes.forEach(box => {
+                if(wholeReceivedBoxAmount > 0){
+                    // console.log(newlyArrivedBoxLine);
+                    console.log("FULL BOX");
+                    box.status = 'Ready';
+                    box.date_received = this.today;
+
+                    if(!box.location)
+                        box.location = newlyArrivedBoxLine.location;
+                    
+                    // console.log(box);
+                    boxesToInsert.push(box);
+                    wholeReceivedBoxAmount--;
+                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
+                    console.log("PARTIAL FULL AND BACKORDER BOXES");
+
+                    //If a partial box arrives, update the last box amount to partial amount a create 
+                    // an additional box whose status is back ordered
+                    box.units_per_case = partialBoxAmount;
+                    box.status = 'Ready';
+                    box.date_received = this.today;
+
+                    if(!box.location)
+                        box.location = newlyArrivedBoxLine.location;
+
+                    console.log(box);
+                    boxesToInsert.push(box);
+
+                    let boBox = [] as any[];
+                    boBox[<any>'name'] = box.name;
+                    boBox[<any>'product_id'] = box.product_id
+                    boBox[<any>'purchase_order_id'] = box.purchase_order_id
+                    boBox[<any>'units_per_case'] = partialBackOrderBoxAmount;
+                    boBox[<any>'status'] = 'BO'
+
+                    console.log(boBox);
+                    //EVENTUALLY, JUST ADD THE BO BOX DIRECTLY HERE
+                    boxesToInsert.push(boBox);
+
+                    partialBoxAmount = 0;
+                    this.purchaseOrder.status = 'Partially Delivered'
+                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0 && lastLocation === true) {
+                    console.log("BACKORDER BOX");
+                    //If no partial box arrives, update the remaining box amounts to backorder
+                    box.status = 'BO';
+
+                    // console.log(box);
+                    boxesToInsert.push(box);
+                    this.purchaseOrder.status = 'Partially Delivered'
+                    wholeBackorderBoxAmount --;
+                }
+            }) 
+
+            return boxesToInsert;
         },
 
         //Description: 
@@ -2085,14 +1902,14 @@ export default {
 
                     let procCase = {} as any;
 
-                        procCase.product_id = processedCaseKey.product_id;
-                        procCase.units_per_case = processedCaseKey.default_units_per_case;
-                        procCase.purchase_order_id = addedPurchaseOrderId;
-                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                            procCase.status = this.purchaseOrder.status;
+                    procCase.product_id = processedCaseKey.product_id;
+                    procCase.units_per_case = processedCaseKey.default_units_per_case;
+                    procCase.purchase_order_id = addedPurchaseOrderId;
+                    if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
+                        procCase.status = this.purchaseOrder.status;
 
-                        if(this.purchaseOrder.status === 'Delivered')
-                            procCase.date_received = this.purchaseOrder.date_received;
+                    if(this.purchaseOrder.status === 'Delivered')
+                        procCase.date_received = this.purchaseOrder.date_received;
 
                     for (let recIdx = 0; recIdx < r.amount; recIdx++){
                         casesToInsert.push(procCase);
@@ -2127,54 +1944,6 @@ export default {
                 console.log("RECIPES TO INSERT ",recipesToInsert)
                 await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
 
-                /* this.poCases.filter(c => c.product_id).forEach(async (indivCase: any) => {
-                    if (indivCase.product_id){
-
-                        let indivProcKey = this.products.find(p => p.product_id === indivCase.product_id);
-
-                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                            indivCase.status = this.purchaseOrder.status;
-                        indivCase.units_per_case = indivProcKey.default_units_per_case;
-                        indivCase.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
-
-                        for(let amountIdx = 0; amountIdx < indivCase.amount; amountIdx++){
-                            console.log("INDIVCASE: ", indivCase);
-                            //await action.addCase(indivCase)
-                            casesToInsert.push(indivCase);
-
-                            let recipesUsed = this.recipes.filter(r => r.product_made === indivCase.product_id);
-
-                            console.log("RECIPES USED",recipesUsed);
-
-                            recipesUsed.forEach(async (recRawProd: any) => {
-                                let indivRawKey = this.products.find(p => p.product_id === recRawProd.product_needed);
-                                
-                                let indivRawProd = {} as any;
-
-                                if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                                    indivRawProd.status = this.purchaseOrder.status;
-
-                                indivRawProd.product_id = indivRawKey.product_id;
-                                if(indivCase.notes)
-                                    indivRawProd.notes = indivCase.notes;
-                                indivRawProd.units_per_case = indivRawKey.default_units_per_case;
-                                indivRawProd.purchase_order_id = addedPurchaseOrderId[0]['LAST_INSERT_ID()'];
-
-                                let loopAmount = this.getRawBoxTotal(indivRawKey, indivCase);
-
-                                console.log("LOOP AMOUNT", loopAmount);
-
-                                for(let prodIdx = 0; prodIdx < loopAmount; prodIdx++){
-                                    console.log("INDIVRAWPROD: ", indivRawProd);
-                                    //await action.addCase(recRawProd.product);
-                                    casesToInsert.push(indivRawProd);
-
-                                }
-                            })
-                        }
-                    }
-                }); */
-
                 //this.poBoxes = this.poBoxes.filter(b => b.product_id);
 
                 this.poBoxes.filter(b => b.product_id).forEach(async (rawProduct: any) => {
@@ -2203,7 +1972,7 @@ export default {
                             c.notes = null;
                         if(!c.date_received)
                             c.date_received = null;
-                        let tempArray = [c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id]
+                        let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id,  c.location, c.status, c.purchase_order_id]
                         finalCaseArray.push(tempArray);
                     })
                 console.log("FINAL ARRAY", finalCaseArray);
@@ -2235,17 +2004,22 @@ export default {
             this.poCases = [];
             this.poBoxes = [];
             this.reqPoBoxes = [];
+            this.editedLine = {};
+            this.deliveredDataTableArray = [];
 
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
             let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
-            this.deliveredDataTableArray = this.getDeliveredDataTable(purchaseOrder.purchase_order_id, boxes);
+            this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
 
             console.log("Boxes ",boxes);
             console.log("Cases ",cases);
-            this.reqPoBoxes = this.groupProducts(boxes);
+            this.reqPoBoxes = this.groupReqProducts(boxes);
             this.poBoxes = this.groupProducts(boxes);
             this.poCases = this.groupProducts(cases);
+
+            console.log("reqPoBoxes ", this.reqPoBoxes);
+            console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
 
             this.purchaseOrderDialog = true;
         },
@@ -2360,7 +2134,7 @@ export default {
             //Grab the linked po recipe for the inline processed product
             let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.recipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
             
-            let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
+            // let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
 
             //let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
             let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
@@ -2416,6 +2190,7 @@ export default {
          */
         displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
         console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
+
         // the recipe that is being used, determined by output product
         /**
          * @TODO rename to "recipeOutput"
@@ -2423,28 +2198,81 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        let recipeOutput = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        console.log("recipeOutput", recipeOutput);
+        let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
+        console.log("outputKey", outputKey);
+
+        // console.log(this.poRecipes)
+        let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+        console.log("poRecipe",poRecipe);
+
         // the input products given the recipe id
         /** @TODO rename to "rawRecInputs" */
-        let rawRecEls = this.recipeElements.filter(r => r.recipe_id === linkedRecEl.recipe_id && r.type === 'input');
+        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+
+        let totals = [] as any[];
+
+        rawRecInputs.forEach(r => {
+            let map = {} as any;
+            map.product_id = r.product_id;
+            r.totalUnits = poRecipe.qty*outputKey.default_units_per_case; 
+            map.currentUnits = 0;
+            totals.push(map);
+        });
+        console.log("rawRecInputs", rawRecInputs);
+
 
         // get the input boxes that are being used as inputs. Use a filter-map for-loop
         const inputBoxesAndRecEl = [] as any[];
+
+        // console.log(this.uBoxes);
+
+        let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+        console.log("boxArray", boxArray);
+
+        let filteredBoxArray = this.groupProducts(boxArray);
+        console.log("filteredBoxArray", filteredBoxArray);
+
+        let boxIdx = 0;
+
         for(const b of this.uBoxes) {
             if(b.purchase_order_id !== purchase_order_id)
             continue;
 
-            const inputEl = rawRecEls.find(r => r.product_id  === /* idk what field to use */ b.product_id);
-            if(inputEl)
-            inputBoxesAndRecEl.push({ box: b, rec: inputEl });
+
+            let inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
+            if(inputEl){
+                let total = totals.find(t => t.product_id === inputEl.product_id)
+
+                if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
+                    b.taken = true;
+                    inputBoxesAndRecEl.push({ box: b, rec: inputEl });
+                    total.currentUnits += b.units_per_case;
+                    console.log("TOTAL UNITS", inputEl.totalUnits);
+                } else if (inputEl.totalUnits === total.currentUnits){
+                    continue;
+                }
+
+
+            }
+            
         }
+
+        console.log(this.groupProducts(inputBoxesAndRecEl));
+
+        console.log("inputBoxesAndRecEl", inputBoxesAndRecEl);
         
-        const numRecipesProcessed = amount / /* idk the field */ linkedRecEl.amount;
-        return inputBoxesAndRecEl.map(({ box, rec }) => ({
+        const numRecipesProcessed = amount / /* idk the field */ recipeOutput.qty;
+        console.log("numRecipesProcessed", numRecipesProcessed);
+
+        let returnArray = inputBoxesAndRecEl.map(({ box, rec }) => ({
             ...box,
-            /* idk the field */ amount: rec.amount * numRecipesProcessed,
-            leftover: box.amount - rec.amount * numRecipesProcessed
         }));
+
+        console.log("returnArray", returnArray);
+
+        return this.groupProducts(returnArray);
         },
 
         //Description: Gets the unit cost for a specific product
@@ -2730,7 +2558,7 @@ export default {
         calculatePoUnitTotal(){
             let total=0;
 
-            console.log("PO Boxes",this.poBoxes)
+            // console.log("PO Boxes",this.poBoxes)
             //console.log("PO Cases",this.poCases);
 
             //If the PO is being edited
@@ -2860,12 +2688,17 @@ export default {
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
             // console.log("AWAITED BOXES", awaitedBoxes);
 
+            let newlyArrivedBoxes = this.poBoxes.filter(boxLine => boxLine.moment === 'Newly Arrived');
+            
+
             if(boxType === 'Received'){
                 boxArray = receivedBoxes;
             } else if (boxType === 'Awaited'){
                 boxArray = awaitedBoxes;
             } else if (boxType === 'All'){
                 boxArray = allBoxes;
+            } else if (boxType === 'Newly Arrived'){
+                boxArray = newlyArrivedBoxes;
             }
 
             //console.log("Box Array ",boxArray);
@@ -2918,7 +2751,7 @@ export default {
         },
         
         rowClass(data: any) {
-            console.log(data);
+            // console.log(data);
             return [{ '!font-bold !text-primary-contrast': data.status === 'BO' }];
         },
 
@@ -2929,8 +2762,10 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            } else if  (data.status === 'Ready') {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
             } else if (data.status === 'Draft') {
-                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Blue' };
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
             }
         },
 
@@ -2942,6 +2777,12 @@ export default {
         },
         rowStyleAwaiting() {
             return { font: 'bold', backgroundColor: '#FFD580'};
+        },
+        rowStyleUnprocessed() {
+            return { font: 'bold', backgroundColor: '#C0EEFF' };
+        },
+        rowStylePool() {
+            return { font: 'bold', backgroundColor: '#C0EEFF' };
         },
 
         rowStyleCompared(data: any){
@@ -3050,7 +2891,7 @@ export default {
          * Date Created: 8-05-2024 
          * Date Last Edited: 8-05-2024 
          */
-         getDeliveredDataTable(purchase_order_id: number, poBoxes: any[]){
+         getDeliveredDataTable(poBoxes: any[]){
             let tableData = [] as any[];
             // let boxes = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
 
@@ -3149,15 +2990,51 @@ export default {
         // 8/8
         receivedDialogSetup(product_id: number){
             this.receivedDialog = true;
-            this.receivedLocationsArray = [];
-            this.editedLine = {};
             console.log(this.poBoxes);
-
-            this.editedLine = this.poBoxes.find(box => box.product_id === product_id && (box.status === "BO" || box.status === "Draft"))
             
-            this.addReceivedArrayLine();
-            this.receivedLocationsArray[0].amount = this.editedLine.amount;
-            this.receivedLocationsArray[0].total = this.editedLine.total;
+            this.receivedLocationsArray = [];
+            this.editedLine ={};
+            // this.deliveredDataTableArray= this.deliveredDataTableArray.filter(box => box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered");
+            
+            this.editedLine = this.deliveredDataTableArray.find(box => box.product_id === product_id && box.moment === "Awaiting")
+            this.receivedLocationsArray = this.deliveredDataTableArray.filter(box => box.product_id === product_id && (box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
+
+            if (this.editedLine === undefined){
+                let bundleArray = this.deliveredDataTableArray.filter(box => box.product_id === product_id && box.moment === "Newly Arrived" || box.moment === "Back Ordered");
+                this.editedLine = {};
+                this.editedLine.amount = 0;
+                this.editedLine.total = 0;
+                
+                bundleArray.forEach(boxLine => {
+                    let map = {} as any;
+                    map.amount = boxLine.amount;
+                    map.total = boxLine.total;
+                    map.product_id = boxLine.product_id;
+
+                    console.log(map)
+
+                    this.editedLine.amount += map.amount;
+                    this.editedLine.total += map.total;
+                    
+
+                    if(!this.editedLine.product_id)
+                        this.editedLine.product_id = map.product_id;
+                });
+            }
+            
+            console.log("editedLine", this.editedLine);
+            console.log(this.editedLine.amount);
+
+            if(this.receivedLocationsArray.length === 0){
+                
+                console.log("IN ARRAY IF");
+
+                
+                this.addReceivedArrayLine();
+                console.log(this.editedLine.amount);
+                this.receivedLocationsArray[0].amount = this.editedLine.amount;
+                this.receivedLocationsArray[0].total = this.editedLine.total;
+            }
         },
 
         // 8/8
@@ -3235,29 +3112,30 @@ export default {
             if (this.locationSubmitted === true && numErr > 0) {
                 this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
             } else {
-                let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft"));
-                console.log(awaitedBoxes);
+                let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft") || box.moment === "Newly Arrived" );
+                console.log("awaitedBoxes", awaitedBoxes);
 
                 if (this.receivedLocationsArray.length === 1){
 
                     let receivedLocationKey = this.receivedLocationsArray[0];
 
                     this.poBoxes.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO')){
                             box.location = receivedLocationKey.location;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
-
+                            box.moment = "Newly Arrived";
                         }
                     })
 
-                    console.log(this.deliveredDataTableArray);
+                    console.log("deliveredDataTableArray",this.deliveredDataTableArray);
 
                     this.deliveredDataTableArray.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && box.moment==='Awaiting' ){
+                        if (box.product_id === receivedLocationKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
                             box.location = receivedLocationKey.location;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
+                            box.moment = "Newly Arrived";
 
                             arrivingTotalAmount += box.amount;
                             arrivingTotalUnits += box.total;
@@ -3271,7 +3149,7 @@ export default {
                         }
                     })
 
-                    console.log(this.poBoxes);
+                    console.log("poBoxes", this.poBoxes);
 
                 } else {
 
@@ -3296,7 +3174,7 @@ export default {
                             }
                         })
 
-                    console.log(this.deliveredDataTableArray);
+                    console.log("deliveredDataTableArray",this.deliveredDataTableArray);
 
                     this.deliveredDataTableArray.forEach(box => {
                         if (box.product_id === receivedLocationKey.product_id && box.moment==='Awaiting' ){
@@ -3363,18 +3241,27 @@ export default {
                     });
 
                 }
-                let key = this.uBoxes.find(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                // let key = this.uBoxes.find(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id);
                 
                 console.log("U Boxes after location setting",this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'Draft' || box.status === 'BO')))
 
-                let backOrderOBJ = {} as any;
-                backOrderOBJ.moment = "Back Ordered";
-                console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
-                backOrderOBJ.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
-                backOrderOBJ.total = requestedTotalOBJ.total - arrivingTotalUnits;
-                backOrderOBJ.name = key.name;
+                let backOrderLine = this.deliveredDataTableArray.find(line => line.moment === "Back Ordered")
 
-                this.deliveredDataTableArray.push(backOrderOBJ);
+                if(backOrderLine){
+                    console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
+                    console.log(backOrderLine.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                    backOrderLine.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
+                    backOrderLine.total = requestedTotalOBJ.total - arrivingTotalUnits;
+                } else {
+                    let backOrderOBJ = {} as any;
+                    backOrderOBJ.moment = "Back Ordered";
+                    console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                    backOrderOBJ.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
+                    backOrderOBJ.total = requestedTotalOBJ.total - arrivingTotalUnits;
+                    backOrderOBJ.name = this.editedLine.name;
+
+                    this.deliveredDataTableArray.push(backOrderOBJ);
+                }
 
                 console.log(this.poBoxes);
 

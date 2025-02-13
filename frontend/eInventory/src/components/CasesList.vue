@@ -178,7 +178,7 @@
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
                         </div>
                         <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                         </div>
                     </template>
                 </Dropdown>
@@ -831,7 +831,7 @@ export default {
                 } */
                this.eCase.amount = this.amount;
 
-                await action.bulkCreateCases(this.eCase);
+                await action.batchCreateCases(this.eCase);
                 //Had to regrab the list of cases because of weird formatting.
                 //ASK MICHAEL IF THERES A BETTER WAY
                 if(this.displayValue == 'processed'){

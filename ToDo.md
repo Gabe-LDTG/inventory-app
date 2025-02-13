@@ -17,6 +17,14 @@
 
 - Add a private common function for creating both raw and processed product keys [x]
 
-- Once the unprocessed and processed box pages done, host an alpha version for ben and katelin to look at while finishing up the other pages []
+- Once the unprocessed and processed box pages done, host an alpha version for ben and katelin to look at while finishing up the other pages [x]
 
 - Once pagination is moved to the back end, move the grabbing of the arrays of records to edit to the backend (IE send the one record with an amount, have the database grab record(s) base on matching field, loop through based on the amount field, and update the records, all in a database function) [x]
+
+- Switch UPC for item num in recipe select []
+
+- Display vendor and item num in product key page []
+
+- Work on DNS with ben []
+
+- Host dev on netlify []

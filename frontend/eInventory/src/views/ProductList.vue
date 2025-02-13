@@ -65,8 +65,10 @@
                 </template>
 
                 <Column field="name" header="Name" sortable></Column>
+                <Column field="vendor_name" header="Vendor" sortable/>
                 <Column field="asin" header="ASIN" sortable></Column>
                 <Column field="fnsku" header="FNSKU" sortable></Column>
+                <Column field="item_num" header="Item #" sortable/>
                 <Column field="upc" header="UPC" sortable></Column>
                 <Column field="notes" header="Notes" sortable></Column>
                 <Column :exportable="false" style="min-width:8rem">
@@ -280,7 +282,7 @@
                                         </span>
                                     </template>
                                     <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                                     </template>
                                 </Dropdown>
                                 <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
@@ -500,10 +502,10 @@ export default {
             try {
                 this.loading = true;
 
+                await this.getVendors();
                 await this.getProducts();
                 await this.getRecipes();
                 // await this.getUnprocessedProducts();
-                await this.getVendors();
                 
                 this.loading = false;
             } catch (error) {
