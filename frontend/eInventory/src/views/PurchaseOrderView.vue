@@ -72,7 +72,7 @@
 
                 <Column header="Total Cost">
                     <template #body="{data}">
-                        {{ formatCurrency(getCreatedCostTotal(data.purchase_order_id)) }}
+                        {{ formatCurrency(getCreatedCostTotal(data.purchase_order_id, data.discount)) }}
                     </template>
                 </Column>
 
@@ -117,7 +117,7 @@
                                 </div>
                             </template> -->
                                 <Column expander header="Raw Product Info" style="width: 5rem" />
-                                <Column field="name" header="Name" />
+                                <Column field="product_name" header="Name" />
                                 <Column header="FNSKU">
                                     <template #body="{data}">
                                         {{ getFNSKU(data.product_id) }}
@@ -132,12 +132,17 @@
                                 </Column>
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
-                                    <h4 class="font-bold">Raw Product(s) required for {{ data.name }}</h4>
+                                    <h4 class="font-bold">Raw Product(s) required for {{ data.product_name }}</h4>
                                     <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
-                                        <Column field="name" header="Name"/>
+                                        <Column field="product_name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
                                                 {{ getUPC(data.product_id) }}
+                                            </template>
+                                        </Column>
+                                        <Column header="Item #">
+                                            <template #body = {data}>
+                                                {{ getItemNum(data.product_id) }}
                                             </template>
                                         </Column>
                                         <Column field="units_per_case" header="Units per Box"/>
@@ -175,7 +180,7 @@
 
                                 <Column header="Name">
                                     <template #body = {data}>
-                                        {{ data.name }}
+                                        {{ data.product_name }}
                                     </template>
                                 </Column>
                                 <Column header="Units per Box">
@@ -188,7 +193,7 @@
                                         {{ data.amount }}
                                     </template>
                                 </Column>
-                                <Column field="total" header="Total # of Units">\
+                                <Column field="total" header="Total # of Units">
                                     <template #body = {data}>
                                         {{ data.amount * data.units_per_case }}
                                     </template>
@@ -207,12 +212,17 @@
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
                             <DataTable :value="displayInfo(slotProps.data)" :rowClass="rowClass" :rowStyle="rowStyle"
                             sortField="name" :sortOrder="-1">
-                                <Column field="name" header="Name" :sortable="true"/>
+                                <Column field="product_name" header="Name" :sortable="true"/>
                                 <Column header="UPC" :sortable="true">
                                     <template #body="{data}">
                                         {{ getUPC(data.product_id) }}
                                     </template>
                                 </Column >
+                                <Column header="Item #">
+                                    <template #body = {data}>
+                                        {{ getItemNum(data.product_id) }}
+                                    </template>
+                                </Column>
                                 <Column field="units_per_case" header="Units per Case"  sortable/>
                                 <Column field="amount" header="Total # of Boxes" sortable />
                                 <Column header="Total # of Units" :sortable="true">
@@ -222,12 +232,12 @@
                                 </Column >
                                 <Column header="Location">
                                             <template #body="{data}">
-                                                {{ formatSingleLocation(data.location) }}
+                                                {{ formatSingleLocation(data.location_id) }}
                                             </template>
                                         </Column>
                                 <Column header="Unit Price" :sortable="true">
                                     <template #body="{data}">
-                                        ${{ formatCurrency(getUnitCost(data.product_id)) }}
+                                        {{ formatCurrency(getUnitCost(data.product_id)) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Price" class="font-bold" :sortable="true">
@@ -317,7 +327,7 @@
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
                     </div>
                     <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" 
-                    rowGroupMode="subheader" groupRowsBy="name" 
+                    rowGroupMode="subheader" groupRowsBy="product_name" 
                     editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
                     scrollable scrollHeight="400px"
                     sortField="name" 
@@ -328,13 +338,13 @@
 
                         <template #groupheader="{data}">
                             <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                <h4 class="flex items-center font-bold gap-2">{{ data.name }}</h4>
+                                <h4 class="flex items-center font-bold gap-2">{{ data.product_name }}</h4>
                                 In total there are {{ getReceivedTotal(data.product_id) }} received units.
                             </div>
                         </template>
 
                         <Column class="font-bold" field="moment" header="Status" />
-                        <Column field="name" header="Name"/>
+                        <Column field="product_name" header="Name"/>
                         <Column field="amount" header="Total Number of Boxes">
                             <template #body={data}>
                                 {{ data.amount }}
@@ -363,7 +373,7 @@
                         <Column header="Location">
                             <template #body="{data}">
                                 <div v-if="data.moment == 'Received' || data.moment== 'Awaiting' || data.moment== 'Newly Arrived'">
-                                    {{ formatSingleLocation(data.location) }}
+                                    {{ formatSingleLocation(data.location_id) }}
                                 </div>
                             </template>
                             <template #editor="{data}">
@@ -713,7 +723,7 @@
 
                         <Column header="Location">
                             <template #body="{data}">
-                                {{ formatSingleLocation(data.location) }}
+                                {{ formatSingleLocation(data.location_id) }}
                             </template>
                             <template #editor="{data}">
                                 <div class="container">
@@ -1149,18 +1159,33 @@ export default {
             
             return total;
         },
-        getCreatedCostTotal(poID: number){
+        /**
+         * Takes the id and discount from a purchase order, grabs all boxes linked to the purchase order, then 
+         * calculates the total cost past on product price and unit amount
+         * 
+         * @param poID {number} The Purchase Order Id
+         * @param poDiscount {number} The urchase Order discount
+         * @returns Total cost for the purchase order, with discount applied if neccessary 
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * Created On: ???
+         * Last Edited: 2-14-2025
+         */
+        getCreatedCostTotal(poID: number, poDiscount: number){
             let total = 0;
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
+            // console.log("Used Boxes For Cost Total", usedBoxes);
             usedBoxes.forEach(b => {
                 let prod = this.products.find(p => p.product_id === b.product_id);
                 total+=(b.units_per_case*prod.price_2023);
+                // console.log("Total in for each: ", total);
             });
 
-            if (this.purchaseOrder.discount){
-                const discountDecimal = 1 - (this.purchaseOrder.discount/100);
+            if (poDiscount){
+                const discountDecimal = 1 - (poDiscount/100);
                 total = total * discountDecimal;
             }
+            console.log("Total after discount: ", total);
 
             return total;
         },
@@ -1220,10 +1245,10 @@ export default {
                         let total = totals.find(t => t.product_id === inputEl.product_id)
 
                         let boxInArray = casesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
-                        console.log(boxInArray);
+                        console.log("Box in array: ",boxInArray);
                         // Box already being used
                         if(boxInArray)
-                        continue;
+                            continue;
 
                         if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
                             b.taken = true;
@@ -1235,14 +1260,11 @@ export default {
                         } else if (inputEl.totalUnits === total.currentUnits){
                             continue;
                         }
-
-
                     }
-                    
                 }
             })
 
-            console.log(casesBeingUsed);
+            console.log("Cases being used: ",casesBeingUsed);
 
             for(const b of this.uBoxes) {
                 if(b.purchase_order_id !== purchase_order_id || b.taken === true)
@@ -1739,7 +1761,7 @@ export default {
                 boxesToInsert.flat().forEach(async box => {
                     if (box.case_id){
                         //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
-                        let tempArray = [box.case_id, box.product_id, box.units_per_case, box.location, box.notes, box.date_received, box.status, box.purchase_order_id];
+                        let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location, box.status, box.purchase_order_id, box.case_id];
                         insertArray.push(tempArray);
                     } else {
                         console.log("BACK ORDERED PARTIAL BOX", box);
@@ -1747,6 +1769,7 @@ export default {
                     }
                 })
                 
+                console.log('Insert Array: ', insertArray);
                 await action.bulkEditCases(insertArray);
 
                 // console.log("BOXES TO INSERT ", boxesToInsert);
@@ -2310,6 +2333,22 @@ export default {
 
             //console.log(prod.upc);
             return prod.upc;
+        },
+        /**
+         * Grabs the item number for a specific product
+         * 
+         * @param product_id {number} The output product ID
+         * @returns The product item number
+         * 
+         * Created by: Gabe de la Torre-Garcia
+         * Date Created: 2-14-2025 
+         * Date Last Edited: 2-14-2025  
+         */
+        getItemNum(product_id: number){
+            //console.log("PRODUCT ID: ", product_id);
+            let prod = this.products.find(p => product_id === p.product_id);
+
+            return prod.item_num;
         },
         calculateBoxTotal(name: any, purchase_order_id: any){
             let total = 0;
@@ -2907,7 +2946,7 @@ export default {
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
                     readyBox.location = location;
-                    readyBox.name = box.name;
+                    readyBox.product_name = box.product_name;
                     readyBox.notes = box.notes;
                     readyBox.product_id = box.product_id;
                     readyBox.purchase_order_id = box.purchase_order_id;
@@ -2924,7 +2963,7 @@ export default {
                     awaitedBox.case_id = box.case_id;
                     awaitedBox.date_received = box.data_received;
                     awaitedBox.location = location;
-                    awaitedBox.name = box.name;
+                    awaitedBox.product_name = box.product_name;
                     awaitedBox.notes = box.notes;
                     awaitedBox.product_id = box.product_id;
                     awaitedBox.purchase_order_id = box.purchase_order_id;
@@ -2961,7 +3000,7 @@ export default {
         },
 
         formatSingleLocation(location: any[]){
-            // console.log(location)
+             console.log("Location: ",location)
             if(location){
                 let curLoc = this.locations.find(l => l.location_id === location);
 

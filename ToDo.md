@@ -28,3 +28,5 @@
 - Work on DNS with ben []
 
 - Host dev on netlify []
+
+- Display item number in PO []

@@ -787,6 +787,7 @@ export default {
                             boxesToEdit[boxIdx].product_id,
                             boxesToEdit[boxIdx].location_id,
                             boxesToEdit[boxIdx].status,
+                            boxesToEdit[boxIdx].purchase_order_id,
                             boxesToEdit[boxIdx].case_id
                         ];
                         editBoxArray.push(boxMap);

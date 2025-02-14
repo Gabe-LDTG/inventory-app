@@ -600,19 +600,18 @@ var action = {
 
     //Add a vendor
     async addVendor(vendor: any){
-        return axios.post(BASE_URL+"/vendors/create", {
-            vendor_name: vendor.vendor_name,
-            vendor_nickname: vendor.vendor_nickname,
-            contact_email: vendor.contact_email,
-            contact_name: vendor.contact_name
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        const {data, error} = await supabase.rpc('create_vendor', { record_array: [
+            vendor.vendor_name,
+            vendor.vendor_nickname,
+            vendor.contact_email,
+            vendor.contact_name
+        ]});
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Vendor Created:', data);
+            return data;
+        }
     },
 
     //Edit a vendor
