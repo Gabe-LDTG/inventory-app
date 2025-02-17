@@ -27,6 +27,8 @@
 
 - Work on DNS with ben []
 
-- Host dev on netlify []
+- Host dev on netlify/github pages []
 
-- Display item number in PO []
+- Display item number in PO [x]
+
+- Allow the user the ability to add and remove items from the purchase order through any phase []
