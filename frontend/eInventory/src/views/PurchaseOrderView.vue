@@ -689,227 +689,105 @@
             </div>
             
             <div class="field">
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Boxes:</h3>
+            </div>
+            <DataTable :value="poBoxes" :rowStyle="editRowStyleRaw" editMode="row" @row-edit-save="">
+                <Column header="Name" field="product_name">
+                    <template #editor="{data, field}">
+                        <Dropdown v-model="data.product_id" required="true" 
+                                placeholder="Select a Product" class="md:w-14rem" editable
+                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
+                                optionLabel="name"
+                                filter
+                                @change="data.units_per_case = onProductSelection(data[field]); data.total = data.amount*data.units_per_case;"
+                                optionValue="product_id"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :class="{'p-invalid': submitted && !data.product_id}" 
+                                ></Dropdown>
+                        <!-- <InputText v-model="data[field]" /> -->
+                    </template>
+                </Column>
+                <Column header="Item #" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "item_num") }}
+                        </div>
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" />
+                    </template>
+                </Column>
+                <Column header="UPC" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "upc") }}
+                        </div>
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" />
+                    </template>
+                </Column>
+                <Column header="# of Boxes" field="amount">
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" />
+                    </template>
+                </Column>
+                <Column header="Units per Box" field="units_per_case">
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" />
+                    </template>
+                </Column>
+                <Column header="Total Units" >
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ data.amount * data.units_per_case }}
+                        </div>
+                        <div v-else>0</div>
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" />
+                    </template>
+                </Column>
+                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+            </DataTable> 
+            <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
+            <br>
+
+            <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
             </div>
-            
-            <DataTable :value="poBoxes" :rowStyle="rowStylePool">
-                <Column header="Name" field="product_name"></Column>
+            <DataTable :value="poCases" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="">
+                <Column header="Name" field="product_name">
+                    
+                </Column>
+                <Column header="ASIN" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "asin") }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="FNSKU" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "fnsku") }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="# of Cases" field="amount"></Column>
+                <Column header="Units per Case" field="units_per_case"></Column>
+                <Column header="Total Units" >
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ data.amount * data.units_per_case }}
+                        </div>
+                        <div v-else>0</div>
+                    </template>
+                </Column>
+                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
             </DataTable>
-
-            <DataTable :value="poCases" :rowStyle="rowStylePool">
-                <Column header="Name" field="product_name"></Column>
-            </DataTable>
-
-            <template class="caseCard" v-for="(poRecipe, counter) in recipeArray">
-
-            <div class ="caseCard">
-                <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(recipeArray, counter)"/>
-
-                <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
-                <div class="block-div">
-                    <div class="field">
-                        <label for="name">Name:</label>
-                        <Dropdown v-model="poRecipe.recipe_id" required="true" 
-                        placeholder="Select a Product" class="md:w-14rem" editable
-                        :options="selectVendorRecipes(purchaseOrder.vendor_id)"
-                        optionLabel="label"
-                        filter
-                        @change="onRecipeSelection(poRecipe.recipe_id, counter);"
-                        optionValue="recipe_id"
-                        :virtualScrollerOptions="{ itemSize: 38 }"
-                        :class="{'p-invalid': submitted && !poRecipe.recipe_id}" 
-                        />
-                        <small class="p-error" v-if="submitted && !poRecipe.recipe_id">Name is required.</small>
-                    </div>
-
-                    <div class="field">
-                        <label for="qty">Normal Case QTY:</label>
-                        <InputNumber inputId="stacked-buttons" required="true" 
-                        :class="{'p-invalid': submitted && !poCases[counter].default_units_per_case}"
-                        v-model="poCases[counter].default_units_per_case" disabled
-                        />
-                        <small class="p-error" v-if="submitted && !poCases[counter].default_units_per_case">Amount is required.</small>
-                    </div>
-
-                    <div class="field">
-                        <label for="amount">Cases Desired to Be Made</label>
-                        <InputNumber inputId="stacked-buttons" required="true" 
-                        v-model="poRecipe.amount" showButtons :min="1"
-                        @update=""/>
-                    </div>
-
-                    <div class="field">
-                        <label for="notes">Notes:</label>
-                        <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                    </div>
-
-                    <div v-if="poRecipe.amount && poRecipe.recipe_id" class="field">
-                        <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                        <div class="flex justify-content-end font-bold w-full">{{ poCases[counter].default_units_per_case * poRecipe.amount }}</div>
-                    </div>
-
-                </div>
-
-                <div v-if="poCases[counter].default_units_per_case">
-                    <DataTable :value="selectRecipeElements(poRecipe.recipe_id)">
-                        <Column field="name" header="Product Name" />
-                        <Column field="qty" header="Units per Box" >
-                            <template #body="{data}">
-                                {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                            </template>
-                        </Column>
-                        <Column field="qty" header="Unit(s) per Bundle" ></Column>
-                        <Column header="Total Units Needed">
-                            <template #body="{data}">
-                                {{  getTotalUnitsNeeded(data, poCases[counter], poRecipe.amount) }}
-                            </template>
-                        </Column>
-                        <Column header="Total Units Ordered" >
-                            <template #body="{data}">
-                                {{ getTotalUnitsOrdered(data, poCases[counter], poRecipe.amount) }}
-                            </template>
-                        </Column>
-                        <Column header="Raw Box Total" >
-                            <template #body="{data}">
-                                {{ getRawBoxTotal(data, poCases[counter], poRecipe.amount) }}
-                            </template>
-                        </Column>
-                        <Column header="Unit Price" >
-                            <template #body="{data}">
-                                ${{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                            </template>
-                        </Column>
-                        <Column header="Total Price" >
-                            <template #body="{data}">
-                                {{ formatCurrency(getTotalCost(data, poCases[counter], poRecipe.amount)) }}
-                            </template>
-                        </Column>
-                    </DataTable>
-                    <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                </div>
-            
-            </div>
-
-            </template>
-
-            <Button label="Add another product" text @click="addBulkLine(recipeArray)"/> 
-
-            
-            <!-- RAW ----------------------------------------------------------------------------------- -->
-            <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Box(s):</h3>
-            </div>
-
-            <div class="field">
-                <h4 for="purchaseOrder" class="flex justify-content-start font-bold w-full">How would you like to order the raw product?</h4>
-
-                <div v-for="type in rawOrderType" class="flex align-items-center">
-                    <RadioButton v-model="selectedOrderType" name="dynamic" :value="type"/>
-                    <label :for="type">{{ type }}</label>
-                </div>
-            </div>
-
-            <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
-
-                <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
-                <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
-
-                <div class ="caseCard">
-                    <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poBoxes, counter)"/>
-
-                    <h4 class="flex justify-content-start font-bold w-full">Raw Product #{{ counter + 1 }}</h4><br>
-                    <div class="block-div">
-                        <div class="field">
-                            <label for="name">Name:</label>
-                            <Dropdown v-model="poBox.product_id" required="true" 
-                            placeholder="Select a Product" class="md:w-14rem" editable
-                            :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
-                            optionLabel="name"
-                            filter
-                            @change="poBox.units_per_case = onProductSelection(poBox.product_id); poBox.total = poBox.amount*poBox.units_per_case;"
-                            optionValue="product_id"
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            :class="{'p-invalid': submitted && !poBox.product_id}" 
-                            >
-
-                            <template #value="slotProps">
-                                    <div v-if="slotProps.value" class="flex align-items-center">
-                                        <div>{{ slotProps.value.product_id }}</div>
-                                    </div>
-                                    <span v-else>
-                                        {{ slotProps.placeholder }}
-                                    </span>
-                                </template>
-                                <template #option="slotProps">
-                                    <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
-                                </template>
-                            </Dropdown>
-                            <small class="p-error" v-if="submitted && !poBox.product_id">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="qty">QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            :class="{'p-invalid': submitted && !poBox.units_per_case}"
-                            v-model="poBox.units_per_case" disabled
-                            @input="poBox.total = poBox.amount*poBox.units_per_case"/>
-                            <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                        </div>
-
-                        <div v-if="selectedOrderType === 'By Box'" v-show="!poBox.case_id" class="field">
-                            <label for="amount">How Many Boxes to Order?</label>
-                            <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                            v-model="poBox.amount" showButtons/>
-                        </div>
-
-                        <div v-else-if="selectedOrderType === 'By Unit'" v-show="!poBox.case_id" class="field">
-                            <label for="amount">REQUESTED Units to Order:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                            v-model="poBox.amount" showButtons/>
-                        </div>
-
-                        <div class="field">
-                            <label for="notes">Notes:</label>
-                            <InputText id="notes" v-model="poBox.notes" rows="3" cols="20" />
-                        </div>
-
-                        <div v-if="poBox.units_per_case && selectedOrderType === 'By Box'" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ poBox.units_per_case * poBox.amount }}</div>
-                        </div>
-
-                        <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case }}</div>
-                        </div>
-
-                        <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case) }}</div>
-                        </div>
-
-                        <div v-if="poBox.product_id" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Unit Cost:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ getUnitCost(poBox.product_id) }}</div>
-                        </div>
-
-                        <div v-if="poBox.product_id && selectedOrderType === 'By Box'" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(poBox.units_per_case * poBox.amount)) }}</div>
-                        </div>
-
-                        <div v-if="poBox.product_id && selectedOrderType === 'By Unit'" class="field">
-                            <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                            <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </template>
-
-            <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
+            <Button label="Add another product" text @click="addBulkLine(poCases)"/>
+            <br>
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
@@ -1365,11 +1243,17 @@ export default {
             return name;
         },
 
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 7-1-2024
-        //Date Last Edited: 7-1-2024
+        /**
+         * Takes a product id and field name that is inputted and returns the value for that field.
+         * 
+         * @param productId {number} The id of the product the user is looking for 
+         * @param field {string} The field in the product key the user is looking for
+         * @returns The value for the user-specified field
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 7-1-2024
+         * Date Last Edited: 7-1-2024
+         */
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
             //console.log(prodKey)
@@ -1686,10 +1570,11 @@ export default {
                 //console.log("MAP", map);
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
+                    map[key].case_ids.push(product.case_id);
                     //console.log(map[key].amount);
                 }
                 else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, status: product.status, amount: 1 };
+                    map[key] = { ...product, case_ids : [product.case_id], units_per_case: product.units_per_case, location: product.location, status: product.status, amount: 1 };
                 return map;
             }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
 
@@ -2349,11 +2234,14 @@ export default {
 
             this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
 
-            console.log("Boxes ",boxes);
-            console.log("Cases ",cases);
+            // console.log("Boxes ",boxes);
+            // console.log("Cases ",cases);
             this.reqPoBoxes = this.groupReqProducts(boxes);
             this.poBoxes = this.groupProducts(boxes);
             this.poCases = this.groupProducts(cases);
+
+            console.log("PO Boxes: ", this.poBoxes);
+            console.log("PO Cases: ", this.poCases);
 
             console.log("reqPoBoxes ", this.reqPoBoxes);
             console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
@@ -3120,6 +3008,22 @@ export default {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else if (data.status === 'Draft') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
+            }
+        },
+
+        editRowStyleRaw(data: any) {
+            if (data.product_id) {
+                return { font: 'bold', backgroundColor: '#C0EEFF' };
+            } else {
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            }
+        },
+
+        editRowStyleProc(data: any) {
+            if (data.product_id) {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
+            } else {
+                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             }
         },
 
