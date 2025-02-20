@@ -38,7 +38,7 @@ export default {
         <RouterLink :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink>
         <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
         <!-- SPOT FOR WORK ORDERS -->
-        <!-- <RouterLink :to="{ name: 'RequestToProcess' }">Request To Process</RouterLink> -->
+        <RouterLink :to="{ name: 'RequestToProcess' }">Request To Process</RouterLink>
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
         <!-- SPOT FOR SHIPPING LOGS -->
         <RouterLink :to="{ name: 'Import' }">Import</RouterLink>

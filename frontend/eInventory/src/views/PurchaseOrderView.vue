@@ -695,16 +695,15 @@
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field}">
                         <Dropdown v-model="data.product_id" required="true" 
-                                placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
-                                optionLabel="name"
-                                filter
-                                @change="data.units_per_case = onProductSelection(data.product_id); data.total = data.amount*data.units_per_case;"
-                                optionValue="product_id"
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !data.product_id}" 
-                                ></Dropdown>
-                        <!-- <InputText v-model="data[field]" /> -->
+                            placeholder="Select a Product" class="md:w-14rem" editable
+                            :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
+                            optionLabel="name"
+                            filter
+                            @change="data.units_per_case = onProductSelection(data.product_id); data.total = data.amount*data.units_per_case;"
+                            optionValue="product_id"
+                            :virtualScrollerOptions="{ itemSize: 38 }"
+                            :class="{'p-invalid': submitted && !data.product_id}" 
+                        ></Dropdown>
                     </template>
                 </Column>
                 <Column header="Item #" field="">
@@ -713,18 +712,12 @@
                             {{ getProductInfo(data.product_id, "item_num") }}
                         </div>
                     </template>
-                    <template #editor="{data, field}">
-                        <InputText v-model="data[field]" />
-                    </template>
                 </Column>
                 <Column header="UPC" field="">
                     <template #body={data}>
                         <div v-if="data.product_id">
                             {{ getProductInfo(data.product_id, "upc") }}
                         </div>
-                    </template>
-                    <template #editor="{data, field}">
-                        <InputText v-model="data[field]" />
                     </template>
                 </Column>
                 <Column header="# of Boxes" field="amount">
@@ -748,10 +741,11 @@
                         <InputNumber v-model="data[field]" />
                     </template>
                 </Column>
+                <Column header="Status" field="status"></Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
                     <template #body={data}>
-                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onRawProductCancel(data.product_id)"/>
+                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onRawProductCancel(data)"/>
                     </template>
                 </Column>
             </DataTable> 
@@ -1231,11 +1225,16 @@ export default {
             return inputProducts;
         },
 
-        //Description: Gets a product key from the id
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 5-30-2024
-        //Date Last Edited: 5-30-2024
+        /**
+         * Use a product ID to grab all of the key metadata
+         * 
+         * @param productId {number} The ID for the product key the user wants
+         * @returns An object containing the desired product key
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: 5-30-2024
+         * Date Last Edited: 5-30-2024
+         */
         getProductKey(productId: number){
             let foundProd = this.products.find(p => p.product_id === productId);
             console.log(foundProd);
@@ -3032,8 +3031,8 @@ export default {
         editRowStyleRaw(data: any) {
             // console.log(data);
             if (data.case_id) {
-                if (data.status == 'Partially Cancelled'){
-                    return { font: 'bold', backgroundColor: '#ff6c6c' };
+                if (data.status == 'Cancelled'){
+                    return { font: 'bold', backgroundColor: '#f19595' };
                 } else {
                     return { font: 'bold', backgroundColor: '#C0EEFF' };
                 }
@@ -3177,15 +3176,21 @@ export default {
         },
 
 
-        onRawProductCancel(product_id: number){
-            const index = this.poBoxes.findIndex(item => item.product_id === product_id);
-            this.poBoxes[index].status = "Partially Cancelled";
+        onRawProductCancel(raw_product: any){
+            // console.log("raw_product: ", raw_product);
+            const index = this.poBoxes.findIndex(item => item.product_id === raw_product.product_id 
+                && item.status === raw_product.status
+                && item.units_per_case === raw_product.units_per_case
+            );
+            this.poBoxes[index].status = "Cancelled";
             // console.log("Boxes after cancel: ", this.poBoxes);
+            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === raw_product.purchase_order_id && this.recipeElements.find(r => r.product_id === raw_product.product_id && r.type === 'input' && r.recipe_id === rec.recipe_id) !== undefined);
+            console.log("PO Recipe in cancel function: ", linkedPoRec);
         },
 
         onProcProductCancel(product_id: number){
             const index = this.poCases.findIndex(item => item.product_id === product_id);
-            this.poCases[index].status = "Partially Cancelled";
+            this.poCases[index].status = "Cancelled";
             // console.log("Cases after cancel: ", this.poCases);
         },
 

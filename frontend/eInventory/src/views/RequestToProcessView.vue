@@ -132,7 +132,7 @@
             <Column field="amount" header="Total QTY" class="font-bold"></Column>
             <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
             <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
-            <Column field="name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
+            <Column field="product_name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
             <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
@@ -523,7 +523,7 @@ export default {
                     asin: key.asin,
                     casesToPick: 0,
                 }));
-                // console.log("returnArray", returnArray);
+                console.log("returnArray", returnArray);
 
                 const keyStringArray = ['product_id', 'purchase_order_name', 'request_id']
 

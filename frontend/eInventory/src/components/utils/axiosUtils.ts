@@ -710,11 +710,19 @@ var action = {
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
     async getRequests(){
-        return axios.get(BASE_URL+"/requests").then(res => {
-            const requests = res.data;
-            //console.log("LOCATIONS ", locations)
-            return requests;
-        })
+        const query = supabase.from('requests_to_process').select('*');
+        /* 
+        if(filter_column)
+            query.eq(filter_column, filter_data);
+         */
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requests to Process: ', data);
+            return data;
+        }
     },
 
     // Create a request
@@ -730,25 +738,24 @@ var action = {
         deadline: Date; 
         warehouse_qty: number;
     }){
-        return axios.post(BASE_URL+"/requests/create", {
-            product_id: request.product_id,
-            purchase_order_id: request.purchase_order_id,
-            notes: request.notes,
-            status: request.status,
-            labels_printed: request.labels_printed,
-            ship_label: request.ship_label,
-            priority: request.priority,
-            ship_to_amz: request.ship_to_amz,
-            deadline: request.deadline,
-            warehouse_qty: request.warehouse_qty,
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
+        const {data,error} = await supabase.rpc('create_request', {record_array: [
+            request.product_id,
+            request.purchase_order_id,
+            request.notes,
+            request.status,
+            request.labels_printed,
+            request.ship_label,
+            request.priority,
+            request.ship_to_amz,
+            request.deadline,
+            request.warehouse_qty
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Request added: ', data);
+        }
     },
 
     // Update a request
@@ -765,33 +772,31 @@ var action = {
         deadline: Date; 
         warehouse_qty: number;
     }){
-        return axios.put(BASE_URL+"/requests/"+request.request_id, {
-            product_id: request.product_id,
-            purchase_order_id: request.purchase_order_id,
-            notes: request.notes,
-            status: request.status,
-            labels_printed: request.labels_printed,
-            ship_label: request.ship_label,
-            priority: request.priority,
-            ship_to_amz: request.ship_to_amz,
-            deadline: request.deadline,
-            warehouse_qty: request.warehouse_qty,
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
+        const {data,error} = await supabase.rpc('update_request', {record_array: [
+            request.product_id, request.purchase_order_id, request.notes,
+            request.status, request.labels_printed, request.ship_label,
+            request.priority, request.ship_to_amz, request.deadline,
+            request.warehouse_qty, request.request_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Request updated: ', data);
+        }
     },
 
     //Delete a request
     async deleteRequest(id: number){
-        return axios.delete(BASE_URL+"/requests/"+id)
-        .catch(error => {
-            console.log(error);
-        })
+        const query = supabase.from('requests_to_process').delete().eq('request_id', id).select();
+
+        const {data,error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Request deleted: ', data);
+        }
     },
 
     // Batch insert requests into the database
