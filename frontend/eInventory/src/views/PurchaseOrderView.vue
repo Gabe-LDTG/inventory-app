@@ -691,7 +691,7 @@
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Boxes:</h3>
             </div>
-            <DataTable :value="poBoxes" :rowStyle="editRowStyleRaw" editMode="row" @row-edit-save="">
+            <DataTable v-model:editingRows="editingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field}">
                         <Dropdown v-model="data.product_id" required="true" 
@@ -699,7 +699,7 @@
                                 :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
                                 optionLabel="name"
                                 filter
-                                @change="data.units_per_case = onProductSelection(data[field]); data.total = data.amount*data.units_per_case;"
+                                @change="data.units_per_case = onProductSelection(data.product_id); data.total = data.amount*data.units_per_case;"
                                 optionValue="product_id"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
                                 :class="{'p-invalid': submitted && !data.product_id}" 
@@ -729,12 +729,12 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputText v-model="data[field]" />
+                        <InputNumber v-model="data[field]" />
                     </template>
                 </Column>
                 <Column header="Units per Box" field="units_per_case">
                     <template #editor="{data, field}">
-                        <InputText v-model="data[field]" />
+                        <InputNumber v-model="data[field]" />
                     </template>
                 </Column>
                 <Column header="Total Units" >
@@ -745,10 +745,15 @@
                         <div v-else>0</div>
                     </template>
                     <template #editor="{data, field}">
-                        <InputText v-model="data[field]" />
+                        <InputNumber v-model="data[field]" />
                     </template>
                 </Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                <Column >
+                    <template #body={data}>
+                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onRawProductCancel(data.product_id)"/>
+                    </template>
+                </Column>
             </DataTable> 
             <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
             <br>
@@ -785,6 +790,11 @@
                     </template>
                 </Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                <Column >
+                    <template #body>
+                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onProcProductCancel"/>
+                    </template>
+                </Column>
             </DataTable>
             <Button label="Add another product" text @click="addBulkLine(poCases)"/>
             <br>
@@ -932,6 +942,7 @@ import importAction from "../components/utils/importUtils";
 /** @TODO Try to fix module later */
 // @ts-ignore
 import { supabase } from '../clients/supabase';
+import InputNumber from 'primevue/inputnumber';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -959,6 +970,7 @@ export default {
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
             editPurchaseOrderDialog: false,
+            editingRows: [] as any[],
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
             statusChangeDialog: false,
@@ -1746,7 +1758,7 @@ export default {
         },
 
         onProductSelection(productId: any){
-            //console.log("PRODUCT ID", productId);
+            console.log("PRODUCT ID", productId);
 
             let product = this.products.find(p => p.product_id === productId);
 
@@ -1797,7 +1809,7 @@ export default {
                     errAmount++;
             })
 
-            this.poCases.forEach((r: any) => {
+            this.poBoxes.forEach((r: any) => {
                 if (r.amount < 1)
                     errAmount++;
             })
@@ -1842,7 +1854,14 @@ export default {
                 console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
 
                 // if (this.purchaseOrder.status != 'Delivered')
-                await this.alocateBoxes();
+                if(this.reqPoBoxes.length > 0){
+                    console.log("IN ALOCATE");
+                    await this.alocateBoxes();
+                } else {
+                    console.log('Editing PO');
+                    console.log('Boxes to edit: ', this.poBoxes);
+                    console.log('Cases to edit: ', this.poCases);
+                }
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
@@ -2236,7 +2255,6 @@ export default {
 
             // console.log("Boxes ",boxes);
             // console.log("Cases ",cases);
-            this.reqPoBoxes = this.groupReqProducts(boxes);
             this.poBoxes = this.groupProducts(boxes);
             this.poCases = this.groupProducts(cases);
 
@@ -3012,9 +3030,14 @@ export default {
         },
 
         editRowStyleRaw(data: any) {
-            if (data.product_id) {
-                return { font: 'bold', backgroundColor: '#C0EEFF' };
-            } else {
+            // console.log(data);
+            if (data.case_id) {
+                if (data.status == 'Partially Cancelled'){
+                    return { font: 'bold', backgroundColor: '#ff6c6c' };
+                } else {
+                    return { font: 'bold', backgroundColor: '#C0EEFF' };
+                }
+            }  else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             }
         },
@@ -3118,6 +3141,54 @@ export default {
             //console.log(this.poBoxes.forEach(box => console.log(box.total)));
         },
 
+        /**
+         * When the user saves a row while editing a purchase order, this function places the updated data into the 
+         * poBox array.
+         * @param event {event} The data grabbed in the event of a user saving a row while editing a purchase order
+         * 
+         * Create By: Gabe de la Torre-Garcia
+         * Date Created: 2-19-2025
+         * Date Last Edited: 2-19-2025
+         */
+        onPOBoxRowEditSave(event: any){
+            const { newData, index } = event;
+            console.log("Old data: ", this.poBoxes[index]);
+            console.log("New data: ", newData);
+
+
+
+            this.poBoxes[index] = newData;
+            this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
+        },
+
+        /**
+         * When the user saves a row while editing a purchase order, this function places the updated data into the 
+         * poCase array.
+         * @param event {event} The data grabbed in the event of a user saving a row while editing a purchase order
+         * 
+         * Create By: Gabe de la Torre-Garcia
+         * Date Created: 2-19-2025
+         * Date Last Edited: 2-19-2025
+         */
+        onPOCaseRowEditSave(event: any){
+            const { newData, index } = event;
+
+            this.poCases[index] = newData;
+        },
+
+
+        onRawProductCancel(product_id: number){
+            const index = this.poBoxes.findIndex(item => item.product_id === product_id);
+            this.poBoxes[index].status = "Partially Cancelled";
+            // console.log("Boxes after cancel: ", this.poBoxes);
+        },
+
+        onProcProductCancel(product_id: number){
+            const index = this.poCases.findIndex(item => item.product_id === product_id);
+            this.poCases[index].status = "Partially Cancelled";
+            // console.log("Cases after cancel: ", this.poCases);
+        },
+
         getReceivedTotal(product_id: number) {
             let receivedArray = this.checkSpecificBoxes('Received', product_id);
             let total = 0;
@@ -3204,7 +3275,7 @@ export default {
                     line.total = line.amount*line.units_per_case;
             });
 
-            // console.log("DISPLAY ARRAY", displayArray);
+            console.log("DISPLAY ARRAY", displayArray);
 
             return displayArray;
         },

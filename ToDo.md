@@ -32,3 +32,5 @@
 - Display item number in PO [x]
 
 - Allow the user the ability to add and remove items from the purchase order through any phase []
+
+- Convert bulk update forms into cell edits that autosave []
