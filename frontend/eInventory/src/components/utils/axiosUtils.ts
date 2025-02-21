@@ -710,10 +710,14 @@ var action = {
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
     async getRequests(){
-        const query = supabase.from('requests_to_process').select('*');
+        const query = supabase
+            .from('requests_to_process')
+            .select('*');
         /* 
         if(filter_column)
             query.eq(filter_column, filter_data);
+        
+            .in('status', ['Ordered','Inbound','Ready'])
          */
         const {data, error} = await query;
         if(error){
@@ -722,6 +726,60 @@ var action = {
         } else {
             console.log('Requests to Process: ', data);
             return data;
+        }
+    },
+
+    async getRequestedCases(){
+        const query = supabase
+            .from('cases')
+            .select(`
+                *,  
+                products!inner(fnsku, asin, name)
+                `)
+            .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
+            // .filter('products.fnsku', 'neq', null)
+            // .filter('products.asin', 'neq', null)
+            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requested cases: ', data);
+            const flattenedData = data.map(caseItem => ({
+                ...caseItem,
+                product_name: caseItem.products.name
+            }));
+            console.log("Flattened cases: ", flattenedData);
+            return flattenedData;
+        }
+    },
+
+    async getRequestedBoxes(){
+        const query = supabase
+            .from('cases')
+            .select(`
+                *,  
+                products!inner(item_num, upc, name)
+                `)
+            .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
+            // .filter('products.fnsku', 'neq', null)
+            // .filter('products.asin', 'neq', null)
+            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requested boxes: ', data);
+            const flattenedData = data.map(boxItem => ({
+                ...boxItem,
+                product_name: boxItem.products.name
+            }));
+            console.log("Flattened boxes: ", flattenedData);
+            return flattenedData;
         }
     },
 

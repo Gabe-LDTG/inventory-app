@@ -1426,7 +1426,7 @@ export default {
                         let total = totals.find(t => t.product_id === inputEl.product_id)
 
                         let boxInArray = casesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
-                        console.log("Box in array: ",boxInArray);
+                        // console.log("Box in array: ",boxInArray);
                         // Box already being used
                         if(boxInArray)
                             continue;
@@ -1437,7 +1437,7 @@ export default {
                             casesBeingUsed.push(b);
                             // console.log("INPUT BOXES", inputBoxesAndRecEl);
                             total.currentUnits += b.units_per_case;
-                            console.log("TOTAL UNITS", inputEl.totalUnits);
+                            // console.log("TOTAL UNITS", inputEl.totalUnits);
                         } else if (inputEl.totalUnits === total.currentUnits){
                             continue;
                         }

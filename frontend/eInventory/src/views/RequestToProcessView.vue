@@ -430,8 +430,8 @@ export default {
             try {
                 //this.cases = await action.getUnprocCases();
                 //this.cases = await action.getCases();
-                this.uBoxes = await action.getUnprocCases();
-                this.pCases = await action.getProcCases();
+                this.uBoxes = await action.getRequestedBoxes();
+                this.pCases = await action.getRequestedCases();
 
                 //console.log("CASES: ",this.cases);
                 //console.log("BOXES: ", this.uBoxes);
