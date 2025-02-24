@@ -119,6 +119,7 @@
                                     <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name, slotProps.data.purchase_order_id) }}</div>
                                 </div>
                             </template> -->
+                                <template #empty> No planned cases found. </template>
                                 <Column expander header="Raw Product Info" style="width: 5rem" />
                                 <Column field="product_name" header="Name" />
                                 <Column header="FNSKU">
@@ -128,11 +129,7 @@
                                 </Column>
                                 <Column field="units_per_case" header="Units per Case" />
                                 <Column field="amount" header="Total # of Cases" />
-                                <Column header="Total # of Units">
-                                    <template #body = {data}>
-                                        {{ data.units_per_case * data.amount }}
-                                    </template>
-                                </Column>
+                                <Column field="totalUnits" header="Total # of Units" :sortable="true" />
                                 <Column field="status" header="Status" />
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.product_name }}</h4>
@@ -191,28 +188,23 @@
                                         {{ getItemNum(data.product_id) }}
                                     </template>
                                 </Column>
-                                <Column header="Units per Box">
-                                    <template #body = {data}>
-                                        {{ data.units_per_case }}
-                                    </template>
-                                </Column>
-                                <Column header="Total # of Boxes">
-                                    <template #body = {data}>
-                                        {{ data.amount }}
-                                    </template>
-                                </Column>
                                 <Column field="total" header="Total # of Units">
                                     <template #body = {data}>
-                                        {{ data.amount * data.units_per_case }}
+                                        {{ data.totalUnits }}
                                     </template>
                                 </Column>
-                                <Column header="Status" sortable>
+                                <Column header="Total Price" class="font-bold">
+                                    <template #body = {data}>
+                                        {{formatCurrency(getUnitCost(data.product_id)*(data.totalUnits))}}
+                                    </template>
+                                </Column>
+                                <!-- <Column header="Status" sortable>
                                     <template #body="slotProps">
                                         <div class="card flex flex-wrap  gap-2">
                                             <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
                                         </div>
                                     </template>
-                                </Column>
+                                </Column> -->
                             </DataTable>
                         </div> 
 
@@ -498,7 +490,7 @@
                             </Column>
                             <Column header="Unit Price" >
                                 <template #body="{data}">
-                                    ${{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
+                                    {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
                                 </template>
                             </Column>
                             <Column header="Total Price" >
@@ -587,7 +579,7 @@
                             <div v-else-if="selectedOrderType === 'By Unit'" v-show="!poBox.case_id" class="field">
                                 <label for="amount">REQUESTED Units to Order:</label>
                                 <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="poBox.amount" showButtons/>
+                                v-model="poBox.unitAmount" @input="poBox.amount = Math.ceil(poBox.unitAmount/poBox.units_per_case)" showButtons/>
                             </div>
 
                             <div class="field">
@@ -602,17 +594,17 @@
 
                             <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case }}</div>
                             </div>
 
                             <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.amount/poBox.units_per_case) }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case) }}</div>
                             </div>
 
                             <div v-if="poBox.product_id" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Unit Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ getUnitCost(poBox.product_id) }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)) }}</div>
                             </div>
 
                             <div v-if="poBox.product_id && selectedOrderType === 'By Box'" class="field">
@@ -622,7 +614,7 @@
 
                             <div v-if="poBox.product_id && selectedOrderType === 'By Unit'" class="field">
                                 <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.amount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
+                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
                             </div>
 
                         </div>
@@ -894,7 +886,7 @@
                             <template #editor="{data}">
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                                    <Dropdown v-model="data.location"
+                                    <Dropdown v-model="data.location_id"
                                     placeholder="Select a Location" class="w-full md:w-14rem" editable
                                     :options="locations"
                                     filter
@@ -931,6 +923,7 @@
 <script lang="ts">
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
+import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
 /** @TODO Try to fix module later */
@@ -1366,7 +1359,7 @@ export default {
                 const discountDecimal = 1 - (poDiscount/100);
                 total = total * discountDecimal;
             }
-            console.log("Total after discount: ", total);
+            // console.log("Total after discount: ", total);
 
             return total;
         },
@@ -1375,7 +1368,10 @@ export default {
         getPoolNew(purchase_order_id: number){
             let poolArray = [] as any[];
             let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
-            let casesBeingUsed = [] as any[];
+            let boxesBeingUsed = [] as any[];
+
+            let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+            console.log("boxArray", boxArray);
             
             linkedPoRecipes.forEach(poRec => {
                 let recipeOutput = this.recipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
@@ -1396,7 +1392,7 @@ export default {
                 rawRecInputs.forEach(r => {
                     let map = {} as any;
                     map.product_id = r.product_id;
-                    r.totalUnits = poRecipe.qty*outputKey.default_units_per_case; 
+                    r.totalUnits = poRecipe.qty; 
                     map.currentUnits = 0;
                     totals.push(map);
                 });
@@ -1408,15 +1404,12 @@ export default {
 
                 // console.log(this.uBoxes);
 
-                let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
-                console.log("boxArray", boxArray);
-
                 let filteredBoxArray = this.groupProducts(boxArray);
                 console.log("filteredBoxArray", filteredBoxArray);
 
                 let boxIdx = 0;
 
-                for(const b of this.uBoxes) {
+                for(const b of boxArray) {
                     if(b.purchase_order_id !== purchase_order_id)
                     continue;
 
@@ -1425,7 +1418,7 @@ export default {
                     if(inputEl){
                         let total = totals.find(t => t.product_id === inputEl.product_id)
 
-                        let boxInArray = casesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
+                        let boxInArray = boxesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
                         // console.log("Box in array: ",boxInArray);
                         // Box already being used
                         if(boxInArray)
@@ -1434,7 +1427,7 @@ export default {
                         if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
                             b.taken = true;
                             inputBoxesAndRecEl.push({ box: b, rec: inputEl });
-                            casesBeingUsed.push(b);
+                            boxesBeingUsed.push(b);
                             // console.log("INPUT BOXES", inputBoxesAndRecEl);
                             total.currentUnits += b.units_per_case;
                             // console.log("TOTAL UNITS", inputEl.totalUnits);
@@ -1445,13 +1438,13 @@ export default {
                 }
             })
 
-            console.log("Cases being used: ",casesBeingUsed);
+            console.log("Cases being used: ",boxesBeingUsed);
 
-            for(const b of this.uBoxes) {
+            for(const b of boxArray) {
                 if(b.purchase_order_id !== purchase_order_id || b.taken === true)
                 continue;
 
-                /* let boxInArray = casesBeingUsed.find(boxLine => boxLine === b.case_id);
+                /* let boxInArray = boxesBeingUsed.find(boxLine => boxLine === b.case_id);
                         console.log(boxInArray);
                         // Box already being used
                         if(boxInArray)
@@ -1461,104 +1454,23 @@ export default {
                 poolArray.push(b);
             }
             console.log("poolArray", poolArray);
-            return this.groupProducts(poolArray);
+            console.log("Grouped pool array", helper.groupProductsById(poolArray));
+            return helper.groupProductsById(poolArray);
         },
 
         //Description: Creates a pool of raw products that don't have a plan
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-31-2024
-        //Date Last Edited: 5-31-2024
+        //Date Last Edited: 2-24-2025
         getPool(poId: number){
             let poolProd = [] as any[];
 
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === poId && b.status === 'Ready');
+            let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === poId);
 
-            console.log("boxes" , boxes);
-
-            if (boxes.length > 0){
-
-                let cases = this.pCases.filter(c => c.purchase_order_id === poId);
-
-                let recipeInputArray = [] as any[];
-
-                let caseArray = this.groupProducts(cases);
-                let boxArray = this.groupProducts(boxes);
-
-                // console.log("boxArray",boxArray);
-
-                let totalArray = [] as any[];
-
-                caseArray.forEach((caseLine: { product_id: number; amount: number; units_per_case: number; }) => {
-                    // console.log("caseLine", caseLine);
-                    let recipeOutput = this.recipeElements.find(r => caseLine.product_id === r.product_id && r.type === "output");
-                    console.log(recipeOutput);
-
-
-                    let recipeInputs = this.recipeElements.filter(r => r.recipe_id === recipeOutput.recipe_id && r.type === "input");
-                    recipeInputs.forEach(input => {
-                        let totalMap = {} as any;
-                        input.totalAmount = input.qty * caseLine.amount;
-                        input.totalUnits = caseLine.amount * caseLine.units_per_case;
-                        totalMap.totalUnits = input.totalUnits;
-                        totalMap.product_id = input.product_id;
-                        totalArray.push(totalMap);
-                        recipeInputArray.push(input);
-                    });
-                    // console.log("recipeInputs",recipeInputs);
-                    // recipeInputArray.push(recipeInputs);
-                });
-                // console.log("recipeInputArray", recipeInputArray);
-                // console.log("totalArray", totalArray);
-                let idx = 0;
-
-                boxArray.forEach((boxLine: {product_id: number; amount: number; units_per_case: number;}) => {
-                    // console.log("START----------------------------------------------------------")
-                    idx++;
-                    // console.log("boxLine",boxLine);
-                    let arrivedLine = recipeInputArray.find((recInput: {product_id: number}) => boxLine.product_id === recInput.product_id);
-                    // console.log("arrivedLine",arrivedLine);
-
-                    if(arrivedLine){
-                        let totalLine = totalArray.find(line => line.product_id === arrivedLine.product_id)
-
-                        if(totalLine.totalUnits > 0){
-                            totalLine.totalUnits = totalLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
-                            if(totalLine.totalUnits < 0)
-                                totalLine.totalUnits = totalLine.totalUnits*(-1);
-
-                        }
-                        // console.log(arrivedLine.totalUnits);
-                        // if(arrivedLine.totalUnits > 0)
-                            // arrivedLine.totalUnits = arrivedLine.totalUnits - (boxLine.amount*boxLine.units_per_case);
-                    } else {
-                        poolProd.push(boxLine);
-                    }
-                });
-                // console.log(idx);
-
-                // console.log("recipeInputArray after boxArray Loop", recipeInputArray);
-                // console.log("totalArray after boxArray Loop", totalArray);
-
-                totalArray.forEach(amountLine => {
-                    if(amountLine.totalUnits > 0) {
-                        let poolMap = {} as any;
-                        // console.log("amountLine" ,amountLine)
-                        console.log(boxArray);
-                        console.log(boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id));
-                        poolMap = boxArray.find((boxLine: { product_id: number; }) => boxLine.product_id === amountLine.product_id);
-                        // console.log("poolMap", poolMap);
-                        poolMap.amount = amountLine.totalUnits/poolMap.units_per_case;
-                        poolMap.total = poolMap.amount * poolMap.units_per_case;
-
-                        poolProd.push(poolMap);
-                    }
-                })
-
-                // let pool = this.groupProducts(poolProd);
-
-                // console.log("poolProd", poolProd);
-            }
+            linkedPoRecipes.forEach(poRec => {
+                let linkedInputElements = this.recipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'input');
+            })
 
             return poolProd;
         },
@@ -2078,11 +1990,13 @@ export default {
             return boxesToInsert;
         },
 
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-5-2024
+        /**
+         * Creates a new purchase order, the recipe's required for the purchase order, and the raw boxes to order.
+         * 
+         * Created by: Gabe de la Torre
+         * Date Created: ???
+         * Date Last Edited: 2-24-2025
+         */
         async confirmCreate(){
             try {
                 this.purchaseOrders.push(this.purchaseOrder);
@@ -2091,7 +2005,7 @@ export default {
 
                 console.log("PO ID BEFORE VALUES", addedPurchaseOrderId);
 
-                let casesToInsert = [] as any[];
+                let boxesToInsert = [] as any[];
 
                 let recipesToInsert = [] as any[];
 
@@ -2099,14 +2013,18 @@ export default {
                 console.log("RECIPES ", this.recipeArray);
 
                 this.recipeArray.filter(r => r.recipe_id).forEach(r => {
-                    let tempArray = [addedPurchaseOrderId, r.recipe_id, r.amount];
-                    recipesToInsert.push(tempArray);
 
                     let processedRecEl = this.recipeElements.find(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'output');
 
                     let processedCaseKey = this.products.find(prod => prod.product_id === processedRecEl.product_id);
 
-                    let procCase = {} as any;
+                    let totalUnitQty = r.amount*processedCaseKey.default_units_per_case;
+
+                    console.log("Total Recipe QTY: ", totalUnitQty);
+                    let tempArray = [addedPurchaseOrderId, r.recipe_id, totalUnitQty];
+                    recipesToInsert.push(tempArray);
+
+                    /* let procCase = {} as any;
 
                     procCase.product_id = processedCaseKey.product_id;
                     procCase.units_per_case = processedCaseKey.default_units_per_case;
@@ -2119,14 +2037,14 @@ export default {
 
                     for (let recIdx = 0; recIdx < r.amount; recIdx++){
                         casesToInsert.push(procCase);
-                    }
+                    } */
 
                     let rawRecElArray = this.recipeElements.filter(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'input');
-
-                    //c.product_id, c.units_per_case, c.location, c.notes, c.date_received, c.status, c.purchase_order_id
+                    console.log("Raw Recipe Element Array: ", rawRecElArray);
 
                     rawRecElArray.forEach(rawRecEl => {
                         let rawKey = this.products.find(prod => prod.product_id === rawRecEl.product_id);
+                        console.log("Raw Product Key in Create: ", rawKey);
 
                         let rawBox = {} as any;
 
@@ -2139,20 +2057,23 @@ export default {
                         if(this.purchaseOrder.status === 'Delivered')
                             rawBox.date_received = this.purchaseOrder.date_received;
 
-                        let loopAmount = this.getRawBoxTotal(rawRecEl, procCase, r.amount);
+                        // let loopAmount = this.getRawBoxTotal(rawRecEl, procCase, r.amount);
+                        let loopAmount = Math.ceil(totalUnitQty / rawBox.units_per_case);
+                        console.log("Loop Amount in Linked Raw Box Create: ", loopAmount);
 
                         for (let recIdx = 0; recIdx < loopAmount; recIdx++){
-                            casesToInsert.push(rawBox);
+                            boxesToInsert.push(rawBox);
                         }
                     })
                 })
 
                 console.log("RECIPES TO INSERT ",recipesToInsert)
-                await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
+                if(recipesToInsert.length > 0)
+                    await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
 
                 //this.poBoxes = this.poBoxes.filter(b => b.product_id);
 
-                this.poBoxes.filter(b => b.product_id).forEach(async (rawProduct: any) => {
+                this.poBoxes.filter(b => b.product_id).forEach((rawProduct: any) => {
                     let rawKey = this.products.find(p => p.product_id === rawProduct.product_id);
 
                     if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
@@ -2164,14 +2085,14 @@ export default {
                     for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
                         console.log("RAWPRODUCT: ", rawProduct);
                         //await action.addCase(rawProduct);
-                        casesToInsert.push(rawProduct);
+                        boxesToInsert.push(rawProduct);
                     }
                 });
 
-                console.log("CASES TO INSERT: ", casesToInsert);
+                console.log("BOXES TO INSERT: ", boxesToInsert);
 
                 let finalCaseArray = [] as any[];
-                    casesToInsert.forEach(c =>{
+                    boxesToInsert.forEach(c =>{
                         if(!c.location)
                             c.location = null;
                         if(!c.notes)
@@ -2276,14 +2197,26 @@ export default {
 
         //Description: 
         //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-9-2024
+        //
+        //
+        //
+        /**
+         * Takes an inputed PO and displays both processed cases and raw boxes belonging to the PO. Builds cases
+         * to display, since cases are created later in the program lifecycle. 
+         * 
+         * @param po The purchase order the user is viewing. Multiple fields from this PO are used to display data.
+         * @returns An array of either cases or boxes belonging to the PO. Which type of container viewed is based on
+         * user input
+         * Created by: Gabe de la Torre
+         * Date Created: 7-9-2024
+         * Date Last Edited: 2-24-2025
+         */
         displayInfo(po: any){
-            console.log(po);
+            console.log("LOOP CHECK_____________________________________________________________");
+            console.log("Purchase Order to display: ",po);
             //console.log(this.cases);
             let displayArray = [] as any[];
-            let linkedCases = [] as any[]; 
+            // let linkedCases = [] as any[]; 
             let linkedBoxes = [] as any[];
             let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
             let poRecElements = [] as any[];
@@ -2296,64 +2229,29 @@ export default {
             poRecElements = poRecElements.flat();
             let total = 0;
 
-            linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
+            // linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
             linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
-            //console.log(total);
-
-            //console.log("LINKED CASES: ", linkedCases);
-            //console.log("LINKED BOXES: ", linkedBoxes);
-
-            //NOTE: NEED TO FIND A WAY TO SEPARATE THE OBJECTS BY STATUS. THAT WAY, IF SOME BOXES WERE
-            //DELEVERED, AND SOME ARE ON BACK ORDER, THE USER CAN SEE THAT
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(po.displayStatus === "Processed"){
 
-                if (linkedCases.length === 0){
-                    poRecElements.forEach(recEl => {
-                        let productKey = this.products.find(product => product.product_id === recEl.product_id);
-                        productKey.amount = recEl.amount;
-                        productKey.units_per_case = productKey.default_units_per_case;
-                        productKey.status = po.status;
-                        displayArray.push(productKey);
-                    });
-                } else {
-                    displayArray = this.groupProducts(linkedCases);
-                    /** @TODO Need to find a way to make sure that the display array is showing only the amount needed
-                     * for the processed boxes, even if there are more raw products of the same type.
-                     * IE: 30 Grinch boxes for Grinch/Cindy 2pk and 70 Grinch boxes for Grinch single,
-                     * instead of 100 Grinch boxes for both
-                     */
-                }
+                poRecElements.forEach(recEl => {
+                    let productKey = this.products.find(product => product.product_id === recEl.product_id);
+                    productKey.amount = recEl.amount/productKey.default_units_per_case;
+                    productKey.units_per_case = productKey.default_units_per_case;
+                    productKey.status = po.status;
+                    productKey.product_name = productKey.name;
+                    productKey.totalUnits = recEl.amount;
+                    productKey.purchase_order_id = po.purchase_order_id;
+                    displayArray.push(productKey);
+                });
 
-                console.log("RECIPE ELEMENTS", poRecElements);
-                /* Object.values(linkedCases.reduce((value, object) => {
-                    if (value[object.product_id]) {
-                        //value[object.product_id].amount += object.amount; 
-                        value[object.product_id].amount++;
-
-                    } else {
-                        value[object.product_id] = { ...object , amount : 1
-                        };
-                    }
-                    return value;
-                    }, {}));; */
+                // console.log("RECIPE ELEMENTS", poRecElements);
             } 
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (po.displayStatus === "Unprocessed"){
                 if (linkedBoxes.length > 0)
                     displayArray = this.groupProducts(linkedBoxes);
-                /* Object.values(linkedBoxes.reduce((value, object) => {
-                    if (value[object.product_id]) {
-                        //value[object.product_id].amount += object.amount; 
-                        value[object.product_id].amount++;
-
-                    } else {
-                        value[object.product_id] = { ...object , amount : 1
-                        };
-                    }
-                    return value;
-                    }, {}));; */
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -2432,11 +2330,11 @@ export default {
          * Date Last Edited: 7-18-2024 
          */
         displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
+        console.log("LOOP CHECK: ___________________________________________________");
         console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
         // the recipe that is being used, determined by output product
         /**
-         * @TODO rename to "recipeOutput"
          * @TODO What if there are multiple recipes that have this product as an output?
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
@@ -2459,11 +2357,15 @@ export default {
         rawRecInputs.forEach(r => {
             let map = {} as any;
             map.product_id = r.product_id;
-            r.totalUnits = poRecipe.qty*outputKey.default_units_per_case; 
             map.currentUnits = 0;
+
+            r.totalUnits = poRecipe.qty; 
+            // r.totalUnits = poRecipe.qty*outputKey.default_units_per_case; 
+
             totals.push(map);
         });
         console.log("rawRecInputs", rawRecInputs);
+        console.log("totals: ", totals);
 
 
         // get the input boxes that are being used as inputs. Use a filter-map for-loop
@@ -2479,14 +2381,11 @@ export default {
 
         let boxIdx = 0;
 
-        for(const b of this.uBoxes) {
-            if(b.purchase_order_id !== purchase_order_id)
-            continue;
-
-
+        for(const b of boxArray) {
             let inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
             if(inputEl){
                 let total = totals.find(t => t.product_id === inputEl.product_id)
+                console.log("Current Total: ", total.currentUnits);
 
                 if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
                     b.taken = true;
@@ -2496,18 +2395,12 @@ export default {
                 } else if (inputEl.totalUnits === total.currentUnits){
                     continue;
                 }
-
-
             }
-            
         }
 
         console.log(this.groupProducts(inputBoxesAndRecEl));
 
         console.log("inputBoxesAndRecEl", inputBoxesAndRecEl);
-        
-        const numRecipesProcessed = amount / /* idk the field */ recipeOutput.qty;
-        console.log("numRecipesProcessed", numRecipesProcessed);
 
         let returnArray = inputBoxesAndRecEl.map(({ box, rec }) => ({
             ...box,
@@ -2793,7 +2686,7 @@ export default {
                             totalUnitCost = this.getUnitCost(b.product_id)*(b.units_per_case * b.amount)
                         }
                         else if(this.selectedOrderType === 'By Unit'){
-                            totalUnitCost = this.getUnitCost(b.product_id)*(Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                            totalUnitCost = this.getUnitCost(b.product_id)*(Math.ceil(b.unitAmount/b.units_per_case)*b.units_per_case)
                         }
                         total += totalUnitCost;
                     }
@@ -2854,7 +2747,7 @@ export default {
                             totalUnitCost = (b.units_per_case * b.amount)
                         }
                         else if(this.selectedOrderType === 'By Unit'){
-                            totalUnitCost = (Math.ceil(b.amount/b.units_per_case)*b.units_per_case)
+                            totalUnitCost = (Math.ceil(b.unitAmount/b.units_per_case)*b.units_per_case)
                         }
                         total += totalUnitCost;
                     }
@@ -3418,10 +3311,10 @@ export default {
             let numErr = 0;
             let errMSG = [] as any[];
             this.locationSubmitted = true;
-            this.receivedLocationsArray.forEach((line: { amount: number; location: number; }) => {
+            this.receivedLocationsArray.forEach((line: { amount: number; location_id: number; }) => {
                 total += line.amount
 
-                if (!line.location){
+                if (!line.location_id){
                     numErr++;
                     errMSG.push("Location Required");
                 }
@@ -3455,7 +3348,7 @@ export default {
 
                     this.poBoxes.forEach(box => {
                         if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO')){
-                            box.location = receivedLocationKey.location;
+                            box.location_id = receivedLocationKey.location_id;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
                             box.moment = "Newly Arrived";
@@ -3466,7 +3359,7 @@ export default {
 
                     this.deliveredDataTableArray.forEach(box => {
                         if (box.product_id === receivedLocationKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
-                            box.location = receivedLocationKey.location;
+                            box.location_id = receivedLocationKey.location_id;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
                             box.moment = "Newly Arrived";
@@ -3490,9 +3383,9 @@ export default {
                     let receivedLocationKey = this.receivedLocationsArray[0];
                     let boxKey = {} as any;
                     let locationAmountArray = [] as any[];
-                    this.receivedLocationsArray.forEach((line: { location: any; amount: any; }) => {
+                    this.receivedLocationsArray.forEach((line: { location_id: number; amount: number; }) => {
                         let locationAmountOBJ = {} as any;
-                        locationAmountOBJ.location = line.location;
+                        locationAmountOBJ.location_id = line.location_id;
                         locationAmountOBJ.amount = line.amount;
 
                         locationAmountArray.push(locationAmountOBJ);

@@ -72,6 +72,37 @@ var helper = {
     },
 
     /**
+     * Groups products together to get the total amount per product based on a specified key. 
+     * Displays the largest box quantity
+     * @param prodArray {any[]} An array of individual records that needs to be grouped
+     * @returns Gets an array where the values are records grouped together by product_id
+     * 
+     * Created by: Gabe de la Torre
+     * Date Created: 2-24-2025
+     * Date Last Edited: 2-24-2025
+     */
+    groupProductsById(prodArray: any[]){
+        // get the products in the pool along with their amount
+        let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+
+            const key = product.product_id
+            if (map[key]) { // if it already exists, incremenet
+                console.log("Amount: ", map[key].amount);
+                console.log("Total Units: ", map[key].totalUnits);
+                map[key].amount++;
+                map[key].totalUnits += product.units_per_case;
+                if(map[key].units_per_case < product.units_per_case)
+                    map[key].units_per_case = product.units_per_case;
+            }
+            else // otherwise, add it to the map
+                map[key] = { ...product, units_per_case: product.units_per_case, location: product.location, amount: 1, totalUnits: product.units_per_case};
+            return map;
+        }, { } as { [product_id: number]: (typeof prodArray)[number] & { amount: number } }));
+
+        return pool;
+    },
+
+    /**
      * Description: Groups products together to get the total amount per product based on a specified key
      * @param itemArray {any[]} An array of individual records that needs to be grouped
      * @param keyString {string} A string of fields that is used to group records together
