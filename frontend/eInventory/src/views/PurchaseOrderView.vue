@@ -714,23 +714,14 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" />
+                        <InputNumber v-model="data[field]" @update:model-value="data.total = data.amount*data.units_per_case"/>
                     </template>
                 </Column>
-                <Column header="Units per Box" field="units_per_case">
+                <Column header="Units per Box" field="units_per_case"></Column>
+                <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" />
-                    </template>
-                </Column>
-                <Column header="Total Units" >
-                    <template #body={data}>
-                        <div v-if="data.product_id">
-                            {{ data.amount * data.units_per_case }}
-                        </div>
-                        <div v-else>0</div>
-                    </template>
-                    <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" />
+                        <InputNumber v-model="data[field]" @update:model-value="data.amount = data.total/data.units_per_case"/>
+                        <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
                 <Column header="Status" field="status"></Column>
@@ -745,9 +736,9 @@
             <br>
 
             <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
             </div>
-            <DataTable :value="poCases" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="">
+            <DataTable :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
                 <Column header="Name" field="product_name">
                     
                 </Column>
@@ -767,20 +758,13 @@
                 </Column>
                 <Column header="# of Cases" field="amount"></Column>
                 <Column header="Units per Case" field="units_per_case"></Column>
-                <Column header="Total Units" >
-                    <template #body={data}>
-                        <div v-if="data.product_id">
-                            {{ data.amount * data.units_per_case }}
-                        </div>
-                        <div v-else>0</div>
-                    </template>
-                </Column>
+                <Column header="Total Units" field="qty"></Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
-                <Column >
+                <!-- <Column >
                     <template #body>
                         <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onProcProductCancel"/>
                     </template>
-                </Column>
+                </Column> -->
             </DataTable>
             <Button label="Add another product" text @click="addBulkLine(poCases)"/>
             <br>
@@ -994,6 +978,7 @@ export default {
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
+            singlePoRecipes: [] as any[],
 
             //LOCATION VARIABLES
             locations: [] as any[],
@@ -2167,19 +2152,33 @@ export default {
             this.editedLine = {};
             this.boxesToDelete = [];
             this.deliveredDataTableArray = [];
+            this.singlePoRecipes = [];
 
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
-            let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
+
+            poRecs.forEach(recLine => {
+                let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
+                let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
+                recLine.product_name = elementKey.name;
+                recLine.product_id = elementKey.product_id;
+                recLine.units_per_case = elementKey.default_units_per_case;
+                recLine.amount = recLine.qty/recLine.units_per_case;
+            })
+            
+
+            console.log("PO Recs: ",poRecs);
 
             this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
 
             // console.log("Boxes ",boxes);
             // console.log("Cases ",cases);
             this.poBoxes = this.groupProducts(boxes);
-            this.poCases = this.groupProducts(cases);
+            this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
+            this.singlePoRecipes = poRecs;
 
             console.log("PO Boxes: ", this.poBoxes);
-            console.log("PO Cases: ", this.poCases);
+            console.log("PO Recipes: ", this.singlePoRecipes);
 
             console.log("reqPoBoxes ", this.reqPoBoxes);
             console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
@@ -3040,14 +3039,54 @@ export default {
          * 
          * Create By: Gabe de la Torre-Garcia
          * Date Created: 2-19-2025
-         * Date Last Edited: 2-19-2025
+         * Date Last Edited: 2-25-2025
          */
         onPOBoxRowEditSave(event: any){
             const { newData, index } = event;
             console.log("Old data: ", this.poBoxes[index]);
             console.log("New data: ", newData);
 
+            let total = newData.total;
+            let units_per_case = newData.units_per_case;
+            let amount = newData.amount;
 
+            console.log(total, '/', units_per_case, '=', amount);
+
+            let editedBoxes = this.uBoxes.filter(box => 
+                box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
+                box.product_id === this.poBoxes[index].product_id &&
+                box.status !== 'Ready'
+            );
+
+            console.log("Boxes to edit: ", editedBoxes);
+
+            let cancelledTotal = 0;
+
+            const partialIdx = editedBoxes.findIndex(box => Number.isInteger(box.units_per_case/this.poBoxes[index].units_per_case) === false);
+            
+            if (partialIdx !== -1)
+                editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
+
+            if(Number.isInteger(amount) === false){
+                cancelledTotal = (Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case;
+                let decimalAmount = amount - Math.floor(amount);
+                let partialBoxUnits = Math.floor(decimalAmount * this.poBoxes[index].units_per_case);
+                editedBoxes[0].units_per_case = partialBoxUnits;
+            } 
+
+            let currentTotal = 0;
+
+            editedBoxes.forEach(box => {
+                if(currentTotal < total && total >= (currentTotal + box.units_per_case)){
+                    currentTotal += box.units_per_case;
+                    box.status = this.poBoxes[index].status;
+                } else {
+                    cancelledTotal += box.units_per_case;
+                    box.status = 'Cancelled';
+                }
+            });
+
+            console.log("Boxes after edit: ", editedBoxes);
 
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
@@ -3062,7 +3101,7 @@ export default {
          * Date Created: 2-19-2025
          * Date Last Edited: 2-19-2025
          */
-        onPOCaseRowEditSave(event: any){
+        onPORecipeRowEditSave(event: any){
             const { newData, index } = event;
 
             this.poCases[index] = newData;

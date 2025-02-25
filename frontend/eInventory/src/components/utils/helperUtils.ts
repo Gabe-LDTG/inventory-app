@@ -87,8 +87,8 @@ var helper = {
 
             const key = product.product_id
             if (map[key]) { // if it already exists, incremenet
-                console.log("Amount: ", map[key].amount);
-                console.log("Total Units: ", map[key].totalUnits);
+                // console.log("Amount: ", map[key].amount);
+                // console.log("Total Units: ", map[key].totalUnits);
                 map[key].amount++;
                 map[key].totalUnits += product.units_per_case;
                 if(map[key].units_per_case < product.units_per_case)
