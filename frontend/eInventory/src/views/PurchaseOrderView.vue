@@ -756,9 +756,18 @@
                         </div>
                     </template>
                 </Column>
-                <Column header="# of Cases" field="amount"></Column>
+                <Column header="# of Cases" field="amount">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @update:model-value="data.qty = data.amount*data.units_per_case"/>
+                    </template>
+                </Column>
                 <Column header="Units per Case" field="units_per_case"></Column>
-                <Column header="Total Units" field="qty"></Column>
+                <Column header="Total Units" field="qty">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @update:model-value="data.amount = data.qty/data.units_per_case"/>
+                        <!-- Math.ceil(data.total/data.units_per_case) -->
+                    </template>
+                </Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <!-- <Column >
                     <template #body>
@@ -3090,6 +3099,8 @@ export default {
 
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
+
+
         },
 
         /**
@@ -3099,12 +3110,34 @@ export default {
          * 
          * Create By: Gabe de la Torre-Garcia
          * Date Created: 2-19-2025
-         * Date Last Edited: 2-19-2025
+         * Date Last Edited: 3-3-2025
          */
         onPORecipeRowEditSave(event: any){
             const { newData, index } = event;
+            console.log("Old data: ", this.singlePoRecipes[index]);
+            console.log("New data: ", newData);
 
-            this.poCases[index] = newData;
+            let total = newData.total;
+            let units_per_case = newData.units_per_case;
+            let amount = newData.amount;
+
+            console.log(total, '/', units_per_case, '=', amount);
+
+            let editedRecipe = this.poRecipes.find(recipe => 
+                recipe.purchase_order_id === this.purchaseOrder.purchase_order_id &&
+                recipe.recipe_id === this.singlePoRecipes[index].recipe_id 
+            );
+
+            console.log("Recipe to edit: ", editedRecipe);
+
+            editedRecipe.qty = newData.qty;
+
+            console.log("Recipe after edit: ")
+
+            this.singlePoRecipes[index] = newData;
+            this.singlePoRecipes[index].product_name = this.getProductInfo(this.singlePoRecipes[index].product_id, 'name');
+
+            // this.singlePoRecipes
         },
 
 
