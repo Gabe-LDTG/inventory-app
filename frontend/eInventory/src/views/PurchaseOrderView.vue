@@ -923,6 +923,7 @@ import importAction from "../components/utils/importUtils";
 // @ts-ignore
 import { supabase } from '../clients/supabase';
 import InputNumber from 'primevue/inputnumber';
+import { create } from 'node_modules/axios/index.cjs';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -2267,7 +2268,7 @@ export default {
         },
         
         /** 
-         * Description: Displays the raw product info that pertains to each processed case in the PO
+         * Displays the raw product info that pertains to each processed case in the PO
          * @param purchase_order_id {number} The purchase order ID
          * @param product_id {number} The ID of the output product
          * @param amount {number} The amount of output boxes made
@@ -3067,35 +3068,57 @@ export default {
                 box.status !== 'Ready'
             );
 
-            console.log("Boxes to edit: ", editedBoxes);
+            if(editedBoxes.length > 0){
+                console.log("Boxes to edit: ", editedBoxes);
 
-            let cancelledTotal = 0;
+                let cancelledTotal = 0;
 
-            const partialIdx = editedBoxes.findIndex(box => Number.isInteger(box.units_per_case/this.poBoxes[index].units_per_case) === false);
-            
-            if (partialIdx !== -1)
-                editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
+                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(box.units_per_case/this.poBoxes[index].units_per_case) === false);
+                
+                if (partialIdx !== -1)
+                    editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
 
-            if(Number.isInteger(amount) === false){
-                cancelledTotal = (Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case;
-                let decimalAmount = amount - Math.floor(amount);
-                let partialBoxUnits = Math.floor(decimalAmount * this.poBoxes[index].units_per_case);
-                editedBoxes[0].units_per_case = partialBoxUnits;
-            } 
+                if(Number.isInteger(amount) === false){
+                    cancelledTotal = (Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case;
+                    let decimalAmount = amount - Math.floor(amount);
+                    let partialBoxUnits = Math.floor(decimalAmount * this.poBoxes[index].units_per_case);
+                    editedBoxes[0].units_per_case = partialBoxUnits;
+                } 
 
-            let currentTotal = 0;
+                let currentTotal = 0;
 
-            editedBoxes.forEach(box => {
-                if(currentTotal < total && total >= (currentTotal + box.units_per_case)){
-                    currentTotal += box.units_per_case;
-                    box.status = this.poBoxes[index].status;
-                } else {
-                    cancelledTotal += box.units_per_case;
-                    box.status = 'Cancelled';
+                editedBoxes.forEach(box => {
+                    if(currentTotal < total && total >= (currentTotal + box.units_per_case)){
+                        currentTotal += box.units_per_case;
+                        box.status = this.poBoxes[index].status;
+                    } else {
+                        cancelledTotal += box.units_per_case;
+                        box.status = 'Cancelled';
+                    }
+                });
+
+                console.log("Boxes after edit but before update: ", editedBoxes);
+            } else {
+                
+                type boxRow = {
+                    [key: string]: string | number;
+                };
+
+                let createdBoxes: Array<boxRow> = [];             
+                
+                for(let boxIdx = 0; boxIdx < newData.amount; boxIdx++){
+                    createdBoxes.push({
+                        product_id: newData.product_id,
+                        purchase_order_id: this.purchaseOrder.purchase_order_id,
+                        units_per_case: newData.units_per_case,
+                        status: this.purchaseOrder.status
+                    });
                 }
-            });
 
-            console.log("Boxes after edit: ", editedBoxes);
+                console.log("Boxes to create: ", createdBoxes);
+            }
+
+            
 
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
