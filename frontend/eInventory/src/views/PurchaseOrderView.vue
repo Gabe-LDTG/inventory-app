@@ -3052,6 +3052,13 @@ export default {
          * Date Last Edited: 2-25-2025
          */
         onPOBoxRowEditSave(event: any){
+            /* 
+            For a day when I can learn typescript
+            event: SubmitEvent
+            const { newData, index } = event.target as HTMLFormElement;
+
+            */
+            console.log(event);
             const { newData, index } = event;
             console.log("Old data: ", this.poBoxes[index]);
             console.log("New data: ", newData);
@@ -3059,10 +3066,17 @@ export default {
             let total = newData.total;
             let units_per_case = newData.units_per_case;
             let amount = newData.amount;
+            let cancelledTotal = 0;
+
+            type boxRow = {
+                    [key: string]: string | number;
+                };
+
+                let createdBoxes: Array<boxRow> = [];   
 
             console.log(total, '/', units_per_case, '=', amount);
 
-            let editedBoxes = this.uBoxes.filter(box => 
+            let editedBoxes: Array<boxRow> = this.uBoxes.filter(box => 
                 box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
                 box.product_id === this.poBoxes[index].product_id &&
                 box.status !== 'Ready'
@@ -3071,15 +3085,13 @@ export default {
             if(editedBoxes.length > 0){
                 console.log("Boxes to edit: ", editedBoxes);
 
-                let cancelledTotal = 0;
-
-                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(box.units_per_case/this.poBoxes[index].units_per_case) === false);
+                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(Number(box.units_per_case)/this.poBoxes[index].units_per_case) === false);
                 
                 if (partialIdx !== -1)
                     editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
 
-                if(Number.isInteger(amount) === false){
-                    cancelledTotal = (Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case;
+                if(Number.isInteger(amount) === false && this.poBoxes[index].total > newData.total){
+                    cancelledTotal = Math.ceil((Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case);
                     let decimalAmount = amount - Math.floor(amount);
                     let partialBoxUnits = Math.floor(decimalAmount * this.poBoxes[index].units_per_case);
                     editedBoxes[0].units_per_case = partialBoxUnits;
@@ -3088,23 +3100,29 @@ export default {
                 let currentTotal = 0;
 
                 editedBoxes.forEach(box => {
-                    if(currentTotal < total && total >= (currentTotal + box.units_per_case)){
-                        currentTotal += box.units_per_case;
+                    if(currentTotal < total && total >= (currentTotal + Number(box.units_per_case))){
+                        currentTotal += Number(box.units_per_case);
                         box.status = this.poBoxes[index].status;
                     } else {
-                        cancelledTotal += box.units_per_case;
+                        cancelledTotal += Number(box.units_per_case);
                         box.status = 'Cancelled';
                     }
                 });
+                 
+                if(currentTotal < total){
+                    while (currentTotal < total){
+                        currentTotal += newData.units_per_case;
+                        createdBoxes.push({
+                            product_id: newData.product_id,
+                            purchase_order_id: this.purchaseOrder.purchase_order_id,
+                            units_per_case: newData.units_per_case,
+                            status: this.purchaseOrder.status
+                        });
+                    }
+                }
 
-                console.log("Boxes after edit but before update: ", editedBoxes);
-            } else {
-                
-                type boxRow = {
-                    [key: string]: string | number;
-                };
-
-                let createdBoxes: Array<boxRow> = [];             
+                // console.log("Boxes after edit but before update: ", editedBoxes);
+            } else {         
                 
                 for(let boxIdx = 0; boxIdx < newData.amount; boxIdx++){
                     createdBoxes.push({
@@ -3115,8 +3133,25 @@ export default {
                     });
                 }
 
-                console.log("Boxes to create: ", createdBoxes);
+                // console.log("Boxes to create: ", createdBoxes);
             }
+
+            console.log("Boxes after edit but before update: ", editedBoxes);
+            console.log("Boxes after create but before update:: ", createdBoxes);
+
+            if(editedBoxes.length > 0){
+                // editBoxes(editedBoxes)
+                this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
+                if(cancelledTotal > 0){
+                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
+                }
+               }        
+
+            if(createdBoxes.length > 0){
+                // addBoxes(createdBoxes)
+                this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
+            }
+                
 
             
 
