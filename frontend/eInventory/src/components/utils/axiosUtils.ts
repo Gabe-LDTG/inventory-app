@@ -731,15 +731,16 @@ var action = {
 
     async getRequestedCases(){
         const query = supabase
-            .from('cases')
-            .select(`
-                *,  
-                products!inner(fnsku, asin, name)
-                `)
-            .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
-            // .filter('products.fnsku', 'neq', null)
-            // .filter('products.asin', 'neq', null)
-            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+        .from('po_recipes')
+        .select(`
+            *,  
+            purchase_orders!inner(status, purchase_order_name),
+            recipes!inner(*, recipe_elements!inner(*, products!inner(*)))
+            `)
+        // .filter('products.fnsku', 'neq', null)
+        // .filter('products.asin', 'neq', null)
+        .eq('recipes.recipe_elements.type', 'input')
+        .in('purchase_orders.status', ['Submitted','Ordered','Inbound', 'Partially Delivered', 'Delivered']);
 
         const {data, error} = await query;
         if(error){
@@ -747,9 +748,10 @@ var action = {
             throw error;
         } else {
             console.log('Requested cases: ', data);
-            const flattenedData = data.map(caseItem => ({
-                ...caseItem,
-                product_name: caseItem.products.name
+            const flattenedData = data.map(recipeItem => ({
+                ...recipeItem,
+                product_name: recipeItem.recipes.recipe_elements[0].products.name,
+                product_id: recipeItem.recipes.recipe_elements[0].products.product_id,
             }));
             console.log("Flattened cases: ", flattenedData);
             return flattenedData;
@@ -784,18 +786,7 @@ var action = {
     },
 
     // Create a request
-    async addRequest(request: {
-        product_id: number; 
-        purchase_order_id: number;
-        notes: string, 
-        status: string,
-        labels_printed: boolean; 
-        ship_label: boolean; 
-        priority: string; 
-        ship_to_amz: number; 
-        deadline: Date; 
-        warehouse_qty: number;
-    }){
+    async addRequest(request: {[key: string]: string | number | boolean | Date }){
         const {data,error} = await supabase.rpc('create_request', {record_array: [
             request.product_id,
             request.purchase_order_id,
@@ -817,19 +808,7 @@ var action = {
     },
 
     // Update a request
-    async editRequest(request: {
-        request_id: number; 
-        product_id: number; 
-        purchase_order_id: number; 
-        notes: string, 
-        status: string,
-        labels_printed: boolean; 
-        ship_label: boolean; 
-        priority: string; 
-        ship_to_amz: number; 
-        deadline: Date; 
-        warehouse_qty: number;
-    }){
+    async editRequest(request: {[key: string]: string | number | boolean | Date }){
         const {data,error} = await supabase.rpc('update_request', {record_array: [
             request.product_id, request.purchase_order_id, request.notes,
             request.status, request.labels_printed, request.ship_label,

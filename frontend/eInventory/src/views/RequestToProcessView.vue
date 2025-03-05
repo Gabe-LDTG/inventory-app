@@ -23,21 +23,6 @@
             <template #empty>No cases in the request to process</template>
             <template #loading>Loading Requests</template>
 
-
-            <template #footer>
-                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <h4 class="m-0">There is 1 request to update.</h4>
-                    </div>
-                    <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
-                    </div>
-
-                    <Button label="Save" v-tooltip.top="'Save the edited requests'" @click="saveUpdatedRequests" severity="success" class="mr-2" :disabled="requestsUpdateArray.length < 1" />
-                </div>
-            </template>
-
-
             <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
                 <template #body="{data}">
@@ -602,7 +587,7 @@ export default {
             }
         },
 
-        onRequestCellEdit(event: any){
+        async onRequestCellEdit(event: any){
             console.log(event);
 
             let {data, index, newData} = event;
@@ -612,70 +597,96 @@ export default {
             else{
                 console.log("EDITS");
                 this.R2Parray[index] = newData;
-                const request = this.requestsUpdateArray.find(req => req.case_id === newData.case_id && req.purchase_order_id === newData.purchase_order_id);
-
-                if (!request)
-                    this.requestsUpdateArray.push(newData);
+                
+                await this.saveUpdatedRequests(newData);
             }
                 
         },
 
-        async saveUpdatedRequests(){
+        async saveUpdatedRequests(request_data: {[key: string]: string | number | boolean | Date }){
             try {
                 console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
                 let newRequests = [] as any[];
                 let editedRequests = [] as any[];
 
-                for(const request of this.requestsUpdateArray){
-                    let requestMap = [] as any[];
+                let requestMap = [] as any[];
 
-                    if(request.request_id){
-                        requestMap = [
-                            request.request_id,
-                            request.product_id, 
-                            request.purchase_order_id,
-                            request.notes, 
-                            request.status, 
-                            request.labels_printed, 
-                            request.ship_label, 
-                            request.priority, 
-                            request.ship_to_amz, 
-                            request.deadline, 
-                            request.warehouse_qty
-                        ];
-                        editedRequests.push(requestMap);
-                    }
-                    else{
-                        requestMap = [
-                            request.product_id, 
-                            request.purchase_order_id, 
-                            request.notes, 
-                            request.status, 
-                            request.labels_printed, 
-                            request.ship_label, 
-                            request.priority, 
-                            request.ship_to_amz, 
-                            request.deadline, 
-                            request.warehouse_qty
-                        ];
-                        newRequests.push(requestMap);
-                    }
-                        
-                };
+                if(request_data.request_id){
+                    requestMap = [
+                        request_data.request_id,
+                        request_data.product_id, 
+                        request_data.purchase_order_id,
+                        request_data.notes, 
+                        request_data.status, 
+                        request_data.labels_printed, 
+                        request_data.ship_label, 
+                        request_data.priority, 
+                        request_data.ship_to_amz, 
+                        request_data.deadline, 
+                        request_data.warehouse_qty
+                    ];
+                    editedRequests.push(requestMap);
+
+                    const editedRequest: {[key: string]: string | number | boolean | Date } = {
+                        request_id: Number(request_data.request_id),
+                        product_id: Number(request_data.product_id), 
+                        purchase_order_id: Number(request_data.purchase_order_id),
+                        notes: request_data.notes, 
+                        status: request_data.status, 
+                        labels_printed: request_data.labels_printed, 
+                        ship_label: request_data.ship_label, 
+                        priority: request_data.priority, 
+                        ship_to_amz: request_data.ship_to_amz, 
+                        deadline: request_data.deadline, 
+                        warehouse_qty: request_data.warehouse_qty
+                    };
+                    await action.editRequest(editedRequest)
+                }
+                else{
+                    requestMap = [
+                        request_data.product_id, 
+                        request_data.purchase_order_id, 
+                        request_data.notes, 
+                        request_data.status, 
+                        request_data.labels_printed, 
+                        request_data.ship_label, 
+                        request_data.priority, 
+                        request_data.ship_to_amz, 
+                        request_data.deadline, 
+                        request_data.warehouse_qty
+                    ];
+                    newRequests.push(requestMap);
+
+                    const createdRequest: {[key: string]: string | number | boolean | Date } = {
+                        product_id: Number(request_data.product_id), 
+                        purchase_order_id: Number(request_data.purchase_order_id),
+                        notes: request_data.notes, 
+                        status: request_data.status, 
+                        labels_printed: request_data.labels_printed, 
+                        ship_label: request_data.ship_label, 
+                        priority: request_data.priority, 
+                        ship_to_amz: request_data.ship_to_amz, 
+                        deadline: request_data.deadline, 
+                        warehouse_qty: request_data.warehouse_qty
+                    };
+
+                    await action.addRequest(createdRequest);
+                }
+
 
                 console.log("New requests", newRequests, " and edited requests", editedRequests);
 
                 if(newRequests.length > 0){
-                    await action.batchInsertRequests(newRequests);
+                    // await action.batchInsertRequests(newRequests);
                     newRequests = [];
                 }
 
                 if(editedRequests.length > 0){
-                    await action.batchUpdateRequests(editedRequests);
+                    // await action.batchUpdateRequests(editedRequests);
                     editedRequests = [];
                 }
                 
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request(s) Updated', life: 3000});
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request Updated', life: 10000});
                 
                 this.requestsUpdateArray = [];
 

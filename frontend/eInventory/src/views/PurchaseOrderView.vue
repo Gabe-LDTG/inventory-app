@@ -738,7 +738,7 @@
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
             </div>
-            <DataTable :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
+            <DataTable v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
                 <Column header="Name" field="product_name">
                     
                 </Column>
@@ -3049,9 +3049,9 @@ export default {
          * 
          * Create By: Gabe de la Torre-Garcia
          * Date Created: 2-19-2025
-         * Date Last Edited: 2-25-2025
+         * Date Last Edited: 3-5-2025
          */
-        onPOBoxRowEditSave(event: any){
+        async onPOBoxRowEditSave(event: any){
             /* 
             For a day when I can learn typescript
             event: SubmitEvent
@@ -3069,7 +3069,7 @@ export default {
             let cancelledTotal = 0;
 
             type boxRow = {
-                    [key: string]: string | number;
+                    [key: string]: string | number | null;
                 };
 
                 let createdBoxes: Array<boxRow> = [];   
@@ -3141,6 +3141,23 @@ export default {
 
             if(editedBoxes.length > 0){
                 // editBoxes(editedBoxes)
+                let boxMap = [] as any[];
+                let boxesToUpdate = [] as any[];
+                editedBoxes.forEach(box => {
+                    boxMap = [
+                        box.units_per_case,
+                        box.date_received,
+                        box.notes,
+                        box.product_id,
+                        box.location_id,
+                        box.status,
+                        box.purchase_order_id,
+                        box.case_id
+                    ];
+
+                    boxesToUpdate.push(boxMap);
+                })
+                await action.bulkEditCases(boxesToUpdate);
                 this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
                 if(cancelledTotal > 0){
                     this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
@@ -3149,6 +3166,18 @@ export default {
 
             if(createdBoxes.length > 0){
                 // addBoxes(createdBoxes)
+                let finalBoxArray = [] as any[];
+                createdBoxes.forEach(b =>{
+                        if(!b.location)
+                            b.location = null;
+                        if(!b.notes)
+                            b.notes = null;
+                        if(!b.date_received)
+                            b.date_received = null;
+                        let tempArray = [b.units_per_case, b.date_received, b.notes, b.product_id,  b.location, b.status, b.purchase_order_id]
+                        finalBoxArray.push(tempArray);
+                    })
+                await action.bulkCreateCases(finalBoxArray);
                 this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
             }
                 
@@ -3170,7 +3199,7 @@ export default {
          * Date Created: 2-19-2025
          * Date Last Edited: 3-3-2025
          */
-        onPORecipeRowEditSave(event: any){
+        async onPORecipeRowEditSave(event: any){
             const { newData, index } = event;
             console.log("Old data: ", this.singlePoRecipes[index]);
             console.log("New data: ", newData);
@@ -3191,6 +3220,10 @@ export default {
             editedRecipe.qty = newData.qty;
 
             console.log("Recipe after edit: ")
+
+            await action.editPurchaseOrderRecipe(editedRecipe);
+            this.$toast.add({severity:'success', summary: 'CASES UPDATED', detail: newData.amount + ' cases edited', life: 10000});
+
 
             this.singlePoRecipes[index] = newData;
             this.singlePoRecipes[index].product_name = this.getProductInfo(this.singlePoRecipes[index].product_id, 'name');
