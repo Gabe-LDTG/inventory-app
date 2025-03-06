@@ -114,8 +114,11 @@
                     <InputNumber v-model="data.warehouse_qty" />
                 </template>
             </Column>
-            <Column field="amount" header="Total QTY" class="font-bold"></Column>
-            <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
+            <Column header="Total QTY" class="font-bold">
+                <template #body="{data}">
+                    {{ data.qty/data.units_per_case }}
+                </template>
+            </Column>
             <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
             <Column field="product_name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
@@ -257,6 +260,7 @@ export default {
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
+            reqRecipes: [] as any[],
 
             // REQUEST TO PROCESS VARIABLES
             requestToProcess: {} as {
@@ -417,6 +421,7 @@ export default {
                 //this.cases = await action.getCases();
                 this.uBoxes = await action.getRequestedBoxes();
                 this.pCases = await action.getRequestedCases();
+                this.reqRecipes = await action.getRequestedRecipes();
 
                 //console.log("CASES: ",this.cases);
                 //console.log("BOXES: ", this.uBoxes);
@@ -458,6 +463,13 @@ export default {
             }
         }, 
 
+        /**
+         * Grabs all requests to process, and parses an array of cases or recipes in the RTP to display
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * Date Created: ???
+         * Date Last Edited: 3-6-2025
+         */
         async getRequestsToProccess(){
             try {
                 this.requestsToProcess = await action.getRequests();
@@ -467,15 +479,16 @@ export default {
 
                 const casesWithR2PsAndPOs = [] as any[];
 
-                for(const c of this.pCases) {
+                for(const reqRec of this.reqRecipes) {
                     // let location = this.locations.find(l => l.location_id  === c.location);
-                    if (c.location)
+                    if (reqRec.location)
                         continue;
 
-                    let productKey = this.products.find(p => p.product_id === c.product_id);
-                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === c.purchase_order_id);
+                    let productKey = this.products.find(p => p.product_id === reqRec.product_id);
+                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === reqRec.purchase_order_id);
                     // console.log("purchase order", purchaseOrder);
-                    let request = this.requestsToProcess.find(req => req.purchase_order_id === c.purchase_order_id && req.product_id === c.product_id);
+                    // let cases = this.pCases;
+                    let request = this.requestsToProcess.find(req => req.purchase_order_id === reqRec.purchase_order_id && req.product_id === reqRec.product_id);
                     // console.log("request", request);
                     // if(!location)
                     //     location = {};
@@ -493,13 +506,13 @@ export default {
                             warehouse_qty: 0
                         };
 
-                    casesWithR2PsAndPOs.push({ box: c, key: productKey, po: purchaseOrder, req: request });
+                    casesWithR2PsAndPOs.push({ reqCase: reqRec, key: productKey, po: purchaseOrder, req: request });
                 }
 
                 // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
-                let returnArray = casesWithR2PsAndPOs.map(({ box, key, po, req }) => ({
-                    ...box,
+                let returnArray = casesWithR2PsAndPOs.map(({ reqCase, key, po, req }) => ({
+                    ...reqCase,
                     purchase_order_name: po.purchase_order_name,
                     ...req,
                     bag_size: key.bag_size,
@@ -671,6 +684,9 @@ export default {
                     };
 
                     await action.addRequest(createdRequest);
+
+                    // create the necessary cases here
+
                 }
 
 

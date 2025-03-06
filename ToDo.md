@@ -34,3 +34,15 @@
 - Allow the user the ability to add and remove items from the purchase order through any phase []
 
 - Convert bulk update forms into cell edits that autosave []
+
+PURCHASE ORDERS: 
+- Separate boxes by notes (incase Products are being ordered for FBM) []
+
+REQUEST TO PROCESS:
+- Automatically populate the request to process page when a purchase order's status is at least "Ordered" []
+
+- Create cases to process in this page []
+
+- Add a drop down so that users can see all available raw products to be used for the processed product []
+
+- When looping through all of the reqRecipes, search for cases by product type, and purchase order. If they exist, display them, if not, show the recipe instead []
