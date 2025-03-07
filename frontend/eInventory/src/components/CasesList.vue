@@ -832,6 +832,9 @@ export default {
                 } */
                this.eCase.amount = this.amount;
 
+                /** @TODO Add a field in the form for request id's possibly, for now, just setting to null */
+                this.eCase.request_id = null;
+
                 await action.batchCreateCases(this.eCase);
                 //Had to regrab the list of cases because of weird formatting.
                 //ASK MICHAEL IF THERES A BETTER WAY

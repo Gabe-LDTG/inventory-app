@@ -369,7 +369,10 @@ var action = {
         }
     },
 
-    //
+    /**
+     * Inserts a single case or box into the database
+     * @param c An object containing either case or box data
+     */
     async addCase(c: any){
         const {data, error} = await supabase.rpc('create_case',{record_array: [
             c.units_per_case,
@@ -378,7 +381,8 @@ var action = {
             c.product_id,
             c.location_id,
             c.status,
-            c.purchase_order_id
+            c.purchase_order_id,
+            c.request_id
         ]})
         if(error){
             console.error('Error calling RPC: ', error);
@@ -389,6 +393,10 @@ var action = {
     },
 
     // Adds multiple cases at the same time (Loops through an inputted amount)
+    /**
+     * Inserts the same case or box value into the database c.amount of times 
+     * @param c An object containing case or box data to be inserted multiple times
+     */
     async batchCreateCases(c: any){
         const {data, error} = await supabase.rpc('batch_create_cases',{record_array: [
             c.units_per_case,
@@ -398,7 +406,8 @@ var action = {
             c.location_id,
             c.status,
             c.purchase_order_id,
-            c.amount
+            c.amount,
+            c.request_id
         ]})
         if(error){
             console.error('Error calling RPC: ', error);
@@ -408,7 +417,10 @@ var action = {
         }
     },
 
-    // Adds a 2D array of cases or boxes
+    /**
+     * Takes a 2D Array of cases or boxes and bulk inserts them into the database
+     * @param c A 2D Array of cases or boxes
+     */
     async bulkCreateCases(c: any){
         const {data, error} = await supabase.rpc('bulk_create_cases',{record_array: c})
         if(error){

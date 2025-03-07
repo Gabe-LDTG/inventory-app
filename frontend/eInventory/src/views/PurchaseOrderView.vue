@@ -1851,7 +1851,7 @@ export default {
                 boxesToInsert.flat().forEach(async box => {
                     if (box.case_id){
                         //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
-                        let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location, box.status, box.purchase_order_id, box.case_id];
+                        let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location, box.status, box.purchase_order_id, box.request_id, box.case_id];
                         insertArray.push(tempArray);
                     } else {
                         console.log("BACK ORDERED PARTIAL BOX", box);
@@ -2094,7 +2094,7 @@ export default {
                             c.notes = null;
                         if(!c.date_received)
                             c.date_received = null;
-                        let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id,  c.location, c.status, c.purchase_order_id]
+                        let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id,  c.location, c.status, c.purchase_order_id, c.request_id];
                         finalCaseArray.push(tempArray);
                     })
                 console.log("FINAL ARRAY", finalCaseArray);
@@ -3174,7 +3174,7 @@ export default {
                             b.notes = null;
                         if(!b.date_received)
                             b.date_received = null;
-                        let tempArray = [b.units_per_case, b.date_received, b.notes, b.product_id,  b.location, b.status, b.purchase_order_id]
+                        let tempArray = [b.units_per_case, b.date_received, b.notes, b.product_id,  b.location, b.status, b.purchase_order_id, b.request_id]
                         finalBoxArray.push(tempArray);
                     })
                 await action.bulkCreateCases(finalBoxArray);
@@ -3657,6 +3657,13 @@ export default {
 
                 this.receivedDialog = false;
             }
+        },
+
+        /**
+         * If requests haven't been made for the purchase order, add them
+         */
+        async addRequestsToProcess(){
+            
         },
     }
 }
