@@ -624,6 +624,9 @@ export default {
 
                 let requestMap = [] as any[];
 
+                //Typescript request a default minutes part
+                request_data.deadline =+ ':00';
+
                 if(request_data.request_id){
                     requestMap = [
                         request_data.request_id,
@@ -640,18 +643,30 @@ export default {
                     ];
                     editedRequests.push(requestMap);
 
-                    const editedRequest: {[key: string]: string | number | boolean | Date } = {
+                    const editedRequest: {
+                        product_id: number; 
+                        purchase_order_id: number;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date; 
+                        warehouse_qty: number;
+                        request_id: number;
+                    } = {
                         request_id: Number(request_data.request_id),
                         product_id: Number(request_data.product_id), 
                         purchase_order_id: Number(request_data.purchase_order_id),
-                        notes: request_data.notes, 
-                        status: request_data.status, 
-                        labels_printed: request_data.labels_printed, 
-                        ship_label: request_data.ship_label, 
-                        priority: request_data.priority, 
-                        ship_to_amz: request_data.ship_to_amz, 
-                        deadline: request_data.deadline, 
-                        warehouse_qty: request_data.warehouse_qty
+                        notes: String(request_data.notes), 
+                        status: String(request_data.status), 
+                        labels_printed: Boolean(request_data.labels_printed), 
+                        ship_label: Boolean(request_data.ship_label), 
+                        priority: String(request_data.priority), 
+                        ship_to_amz: Number(request_data.ship_to_amz), 
+                        deadline: new Date(request_data.deadline), 
+                        warehouse_qty: Number(request_data.warehouse_qty)
                     };
                     await action.editRequest(editedRequest)
                 }
@@ -670,17 +685,28 @@ export default {
                     ];
                     newRequests.push(requestMap);
 
-                    const createdRequest: {[key: string]: string | number | boolean | Date } = {
+                    const createdRequest: {
+                        product_id: number; 
+                        purchase_order_id: number;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date; 
+                        warehouse_qty: number;
+                    } = {
                         product_id: Number(request_data.product_id), 
                         purchase_order_id: Number(request_data.purchase_order_id),
-                        notes: request_data.notes, 
-                        status: request_data.status, 
-                        labels_printed: request_data.labels_printed, 
-                        ship_label: request_data.ship_label, 
-                        priority: request_data.priority, 
-                        ship_to_amz: request_data.ship_to_amz, 
-                        deadline: request_data.deadline, 
-                        warehouse_qty: request_data.warehouse_qty
+                        notes: String(request_data.notes), 
+                        status: String(request_data.status), 
+                        labels_printed: Boolean(request_data.labels_printed), 
+                        ship_label: Boolean(request_data.ship_label), 
+                        priority: String(request_data.priority), 
+                        ship_to_amz: Number(request_data.ship_to_amz), 
+                        deadline: new Date(request_data.deadline), 
+                        warehouse_qty: Number(request_data.warehouse_qty)
                     };
 
                     await action.addRequest(createdRequest);

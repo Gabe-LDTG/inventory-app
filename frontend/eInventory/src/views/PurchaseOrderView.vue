@@ -245,6 +245,7 @@
                                         {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
                                     </template>
                                 </Column >
+                                <Column field="notes" header="Notes" class="font-bold"></Column>
                                 <Column field="status" header="Status" :sortable="true">
                                     <template #body="slotProps">
                                         <div class="card flex flex-wrap  gap-2">
@@ -2260,7 +2261,8 @@ export default {
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (po.displayStatus === "Unprocessed"){
                 if (linkedBoxes.length > 0)
-                    displayArray = this.groupProducts(linkedBoxes);
+                    // displayArray = this.groupProducts(linkedBoxes);
+                    displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes']);
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -2772,11 +2774,17 @@ export default {
 
         },
 
-        //Description: When a user wants to update their status, a dialog is opened.
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 6-06-2024
-        //Date Last Edited: 6-06-2024
+        /**
+         * When a user wants to update their status, a dialog is opened.
+         * 
+         * @param purchaseOrder The PO that will have its status updated
+         * 
+         * Created by: Gabe de la Torre
+         * 
+         * Date Created: 6-06-2024
+         * 
+         * Date Last Edited: 6-06-2024
+         */
         openStatusChangeDialog(purchaseOrder: any) {
             this.purchaseOrder = purchaseOrder;
             this.statusChangeDialog = true;
@@ -2799,7 +2807,9 @@ export default {
          * edits to the database
          * 
          * Created by: Gabe de la Torre
+         * 
          * Date Created: 7-23-2024 
+         * 
          * Date Last Edited: 7-23-2024 
          */
         async confirmStatusChange(){
@@ -2808,11 +2818,79 @@ export default {
                 if (this.purchaseOrder.status === 'Ordered')
                 this.purchaseOrder.date_ordered = this.today;
 
+                console.log("PO in status change: ", this.purchaseOrder);
+
                 await action.editPurchaseOrder(this.purchaseOrder);
+
+                if(this.purchaseOrder.status !== 'Draft' || this.purchaseOrder.status !== 'Submitted'){
+                    console.log("Check for Requests");
+                    await this.checkForRequests();
+                }   
                 this.statusChangeDialog = false;
             } catch (error) {
                 console.log(error);
             }
+        },
+
+        /**
+         * Checks the current PO to see if all of the recipes have requests already. If not, add them.
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * 
+         * Date Created: 3-10-2025
+         * 
+         * Date Last Edited: 3-10-2025
+         */
+        async checkForRequests(){
+            // Check to see if there are any requests for the PO recipes, if not, create them
+            let requests = await action.getRequests();
+
+            console.log("IN REQUEST CHECK");
+
+            console.log(this.purchaseOrder);
+            console.log(this.poRecipes);
+
+            let neededPoRecipes = this.poRecipes.filter(recipe => recipe.purchase_order_id === this.purchaseOrder.purchase_order_id)
+            console.log("Needed Po Recipes: ", neededPoRecipes);
+
+            neededPoRecipes.forEach(async (recipe) =>  {
+
+                let neededRecElement = this.recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
+                console.log("Needed Recipe Element: ", neededRecElement);
+
+                let recRequest = requests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                console.log("Recipe Request: ", recRequest);
+                if(!recRequest){
+                    // No request made for this recipe yet, make one
+                    const createdRequest: {
+                        product_id: number; 
+                        purchase_order_id: number;
+                        notes: string | null, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date | null; 
+                        warehouse_qty: number;
+                    } = {
+                        product_id: Number(neededRecElement.product_id),
+                        purchase_order_id: Number(this.purchaseOrder.purchase_order_id),
+                        notes: null, 
+                        status: '5 ON ORDER', 
+                        labels_printed: false, 
+                        ship_label: false, 
+                        priority: '6 Prep For Later', 
+                        ship_to_amz: 0, 
+                        deadline: null, 
+                        warehouse_qty: 0
+                        };
+
+                    console.log("Created Request: ", createdRequest);
+
+                    await action.addRequest(createdRequest);
+                }
+            });
         },
 
         initFilters() {
@@ -3663,7 +3741,7 @@ export default {
          * If requests haven't been made for the purchase order, add them
          */
         async addRequestsToProcess(){
-            
+
         },
     }
 }

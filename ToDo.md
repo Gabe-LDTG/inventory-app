@@ -36,7 +36,7 @@
 - Convert bulk update forms into cell edits that autosave []
 
 PURCHASE ORDERS: 
-- Separate boxes by notes (incase Products are being ordered for FBM) []
+- Separate boxes by notes (incase Products are being ordered for FBM) [x]
 
 REQUEST TO PROCESS:
 - Automatically populate the request to process page when a purchase order's status is at least "Ordered" []
