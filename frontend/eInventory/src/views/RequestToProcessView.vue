@@ -4,7 +4,7 @@
 
         <!-- Sorting was messing with the cell saving function. Might implement later -->
         <!-- sortMode="single" sortField="priority" :sortOrder=1 -->
-        <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
+        <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedRecipeLines"
         showGridlines stripedRows :filters="filters"
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
         scrollable scrollHeight="650px" removableSort
@@ -13,7 +13,7 @@
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
-                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
+                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" />
                     <span class="p-input-icon-right">
                         <!-- <i class="pi pi-search" /> -->
                         <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -99,7 +99,8 @@
                 </template>
             </Column>
             <Column field="deadline" header="Deadline" >
-                <template #body="{data}">
+                <!-- NOTE: FIX THE 'NaN' thing -->
+                <template v-show="data.deadline !== NaN" #body="{data}">
                     {{ data.deadline }}
                 </template>
                 <template #editor="{data}">
@@ -132,12 +133,16 @@
     </div>
 
     <Dialog v-model:visible="picklistAmountDialog" :style="{width: '800px'}" header="How many cases to create?" :modal="true">
-        <DataTable ref="dt" :value="picklistCases" 
+        <DataTable ref="dt" :value="picklistRecipes" 
         showGridlines stripedRows 
         editMode="cell" @cell-edit-complete="onAmountCellEdit"
         >
-            <Column field="name" header="Name" style="min-width: 250px;" class="font-bold"></Column>
-            <Column field="amount" header="Total QTY" class="font-bold"></Column>
+            <Column field="product_name" header="Name" style="min-width: 250px;" class="font-bold"></Column>
+            <Column field="amount" header="Total QTY" class="font-bold">
+                <template #body="{data}">
+                    {{ data.qty/data.units_per_case }}
+                </template>
+            </Column>
             <Column header="Cases to Pick">
                 <template #body="{data}">
                     {{ data.casesToPick }}
@@ -174,7 +179,7 @@
                     {{ data.procUnitsPerCase }} {{ data.procName }} (x{{ data.procAmount }})
                     </template>
                 </Column>
-                <Column field="name" header=" Box Name" />
+                <Column field="product_name" header=" Box Name" />
                 <Column field="units_per_case" header="Units per Box" />
                 <Column field="locationName" header="Location" />
                 <Column field="amount" header="# of Boxes" />
@@ -223,7 +228,7 @@ export default {
             selectedProducts: [] as any[],
 
             // CASE VARIABLES
-            selectedCaseLines: [] as any[],
+            selectedRecipeLines: [] as any[],
             cases: [] as any[],
             uBoxes: [] as any[],
             pCases: [] as any[],
@@ -281,7 +286,7 @@ export default {
 
             // PICKLIST VARIABLES
             picklists: [] as any[],
-            picklistCases: [] as any[],
+            picklistRecipes: [] as any[],
             picklistBoxes: [] as any[],
             picklistAmountDialog: false,
             picklistDialog: false,
@@ -519,7 +524,7 @@ export default {
                     box_type: key.box_type,
                     fnsku: key.fnsku,
                     asin: key.asin,
-                    casesToPick: 0,
+                    casesToPick: reqCase.qty/reqCase.units_per_case,
                 }));
                 console.log("returnArray", returnArray);
 
@@ -748,10 +753,10 @@ export default {
         openPicklistAmountDialog(){
             this.picklistAmountDialog = true;
 
-            this.picklistCases = this.selectedCaseLines;
-            this.selectedCaseLines = [];
+            this.picklistRecipes = this.selectedRecipeLines;
+            this.selectedRecipeLines = [];
 
-            console.log("Picklist Cases", this.picklistCases);
+            console.log("Picklist Recipe", this.picklistRecipes);
         },
 
         onAmountCellEdit(event: any){
@@ -759,7 +764,7 @@ export default {
 
             let {data, index, newData} = event;
 
-            this.picklistCases[index] = newData; 
+            this.picklistRecipes[index] = newData; 
         },
 
         onPicklistCellEdit(event: any){
@@ -779,9 +784,9 @@ export default {
 
             console.log("uBoxes", this.uBoxes);
 
-            for(const pickCase of this.picklistCases){
-                pickListOutputOBJ = pickCase;
-                const recOutput = this.recipeElements.find(rec => rec.product_id === pickCase.product_id && rec.type === 'output');
+            for(const pickRecipe of this.picklistRecipes){
+                pickListOutputOBJ = pickRecipe;
+                const recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
                 const recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
 
                 console.log("recInputs", recInputs);
@@ -789,10 +794,10 @@ export default {
                 // pickListInputArray = [];
 
                 for(const box of this.uBoxes){
-                    if (box.purchase_order_id !== pickCase.purchase_order_id)
+                    if (box.purchase_order_id !== pickRecipe.purchase_order_id)
                     continue;
 
-                    // console.log("Box", box);
+                    console.log("Box", box);
                     let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
                     let recInput = recInputs.find(rec => rec.product_id === box.product_id);
                     if (recInput === undefined)
@@ -815,26 +820,26 @@ export default {
                             continue;
 
                         totalArray[recIdx].currAmount += box.units_per_case;
-                        box.procName = pickCase.name;
-                        box.procAmount = pickCase.casesToPick;
-                        box.procUnitsPerCase = pickCase.units_per_case;
-                        box.notes = pickCase.notes;
+                        box.procName = pickRecipe.product_name;
+                        box.procAmount = pickRecipe.casesToPick;
+                        box.procUnitsPerCase = pickRecipe.units_per_case;
+                        box.notes = pickRecipe.notes;
                         console.log("BOX PROC NAME", box.procName);
                         console.log("BOX ID", box.case_id);
                         pickListInputArray.push(box);
                         // this.pickListArray.push(box);
                     } else {
                         // The total does not exist in the array. Add it.
-                        const totalUnits = pickCase.casesToPick * pickCase.units_per_case * recInput.qty;
+                        const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
                         const product_id = box.product_id;
-                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: 0 };
+                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
                         totalArray.push(recipeTotalOBJ);
                         console.log("totalArray", totalArray);
                         // Push the first box into the array
-                        box.procName = pickCase.name;
-                        box.procAmount = pickCase.casesToPick;
-                        box.procUnitsPerCase = pickCase.units_per_case;
-                        box.notes = pickCase.notes;
+                        box.procName = pickRecipe.product_name;
+                        box.procAmount = pickRecipe.casesToPick;
+                        box.procUnitsPerCase = pickRecipe.units_per_case;
+                        box.notes = pickRecipe.notes;
                         console.log("BOX PROC NAME", box.procName);
                         console.log("BOX ID", box.case_id);
                         pickListInputArray.push(box);
@@ -843,13 +848,13 @@ export default {
                     // console.log("Box", box);
                 }
                 console.log("INPUT ARRAY", pickListInputArray);
-                // this.pickListArray.push({ caseName: pickCase.name, pickListInputArray});
+                // this.pickListArray.push({ caseName: pickRecipe.product_name, pickListInputArray});
             }
             const keyArray = ['product_id', 'units_per_case', 'location', 'procName'];
             this.pickListArray = helper.groupItemsByKey(pickListInputArray, keyArray);
             
             this.pickListArray.forEach(inputLine => {
-                const locKey = this.locations.find(loc => loc.location_id === inputLine.location);
+                const locKey = this.locations.find(loc => loc.location_id === inputLine.location_id);
                 
                 if(locKey)
                 inputLine.locationName = locKey.name;

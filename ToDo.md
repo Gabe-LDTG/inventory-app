@@ -1,8 +1,23 @@
 # TODO
+MISC
 - VITE environmental variables [x]
 
 - Supabase db functions [x]
 
+- Once the unprocessed and processed box pages done, host an alpha version for ben and katelin to look at while finishing up the other pages [x]
+
+- Move the grabbing of the arrays of records to edit to the backend (IE send the one record with an amount, have the database grab record(s) base on matching field, loop through based on the amount field, and update the records, all in a database function) [x]
+
+- Work on DNS with ben []
+
+- Host dev on netlify/github pages []
+
+- Convert bulk update forms into cell edits that autosave []
+
+- Add a price table that holds the fields [price_start_date, price_end_date, price]. For the current price, grab the 
+price that has no end date []
+
+LOGIN
 - Supabase authentication [x]
 
 - Find a way to alert a user of their login while pushing them to the home page []
@@ -11,32 +26,25 @@
 
 - Add error messages below username and password to help the user understand why they can't log in []
 
-- FOR PRODUCTS PAGE: Look into making the product array into an object with the appropriate fields [x]
+PRODUCTS: 
+- Look into making the product array into an object with the appropriate fields [x]
 
-- FOR PRODUCT PAGE: Make sure the newly added product records get added to the inventory without the user having to refresh [x]
-
+- Make sure the newly added product records get added to the inventory without the user having to refresh [x]
+  
 - Add a private common function for creating both raw and processed product keys [x]
 
-- Once the unprocessed and processed box pages done, host an alpha version for ben and katelin to look at while finishing up the other pages [x]
-
-- Once pagination is moved to the back end, move the grabbing of the arrays of records to edit to the backend (IE send the one record with an amount, have the database grab record(s) base on matching field, loop through based on the amount field, and update the records, all in a database function) [x]
-
-- Switch UPC for item num in recipe select []
-
-- Display vendor and item num in product key page []
-
-- Work on DNS with ben []
-
-- Host dev on netlify/github pages []
-
-- Display item number in PO [x]
-
-- Allow the user the ability to add and remove items from the purchase order through any phase []
-
-- Convert bulk update forms into cell edits that autosave []
+- Display vendor and item num in product key page [x]
 
 PURCHASE ORDERS: 
 - Separate boxes by notes (incase Products are being ordered for FBM) [x]
+
+- Allow the user the ability to add and remove items from the purchase order through any phase []
+  
+- Display item number in PO [x]
+
+- Switch UPC for item num in recipe select [x]
+
+- Place the totalChecking into its own function []
 
 REQUEST TO PROCESS:
 - Automatically populate the request to process page when a purchase order's status is at least "Ordered" []
