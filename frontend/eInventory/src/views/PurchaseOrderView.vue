@@ -3293,7 +3293,7 @@ export default {
 
         /**
          * Compares raw product totals with the planned recipe totals in a PO. 
-         * If the raw total is less, an error is thrown.
+         * If the raw total is less, a warning is thrown.
          * @param rawProductId The product ID of the raw product that has a new total
          * @param rawTotal The new total to be compared to the recipe total
          * 
@@ -3302,33 +3302,52 @@ export default {
          * Lasted Edited: 3-13-25
          */
          checkPoTotals(){
-            let poTotals: {raw_id: number, recipe_id: number | null, raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
+            /* 
+            * Create an array of objects that tracks a raw box type, the recipes it is used in, 
+            * the raw total units, and the needed total units
+            */
+            let poTotals: {raw_id: number, recipe_id: number[], raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
                 const key = box.product_id;
 
-                // console.log("Box in reduce: ", box);
+                console.log("Box in reduce: ", box);
 
+                //If the product already exists in the map, increase the raw total
                 if(map[key]){
-                    map[key].raw_total += box.total;
-                } else {
+                    // Make sure the box is not a cancelled box
+                    if(box.status !== 'Cancelled'){
+                        map[key].raw_total += box.total;
+                    }
+                } else { // Else, add the box type to the map
                     map[key] = {raw_id: box.product_id, recipe_id: null, raw_total: box.total, needed_total: 0}
                 }
                 return map;
-            }, { } as { raw_id: number, recipe_id: number | null, raw_total: number, needed_total: number }));
+            }, { } as { raw_id: number, recipe_id: number[], raw_total: number, needed_total: number }));
 
             console.log("PO Totals before check: ", poTotals);
 
+            // Loop through the recipes used in this PO
             this.singlePoRecipes.forEach(poRecipe => {
                 // console.log("PO Recipe in forEach: ", poRecipe);
 
+                // Grab each recipe element that is used in this PO
                 let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.type === 'input');
 
-                // console.log("Used Recipe Elements: ", usedRecElements);
+                // Go through each recipe element
                 usedRecElements.forEach(recElement => {
+                    // Find the array index in the total array for the product type that matched the input recipe element
                     const totalIdx = poTotals.findIndex(total => total.raw_id === recElement.product_id);
 
+                    // If the index exist
                     if(totalIdx > -1){
+                        /**
+                         * That means that the outer loop recipe uses this raw product, add the total recipe qty
+                         * to the needed total.
+                         */
                         poTotals[totalIdx].needed_total += poRecipe.qty; 
-                        poTotals[totalIdx].recipe_id = poRecipe.recipe_id;
+                        if(poTotals[totalIdx].recipe_id) // Add the used recipe to the recipe array in the total array
+                            poTotals[totalIdx].recipe_id = [...poTotals[totalIdx].recipe_id, poRecipe.recipe_id];
+                        else
+                            poTotals[totalIdx].recipe_id = [poRecipe.recipe_id];
                     }                       
                 });
             });
@@ -3336,20 +3355,27 @@ export default {
 
             let recipeIdxArray: number[] = [];
 
+            // Loop through the total array 
             poTotals.forEach(totalLine => {
+                // If there are less raw units than needed units, throw up a warning
                 if(totalLine.raw_total < totalLine.needed_total){
                     this.totalErrorMSG = 'The highlighted planned cases must be edited if the raw total remains'
-                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === totalLine.recipe_id)
-                    recipeIdxArray.push(singlePoRecipeIdx);
+
+                    // Grab the recipe indexes that now need highlighting
+                    totalLine.recipe_id.forEach(recipe_id_line => {
+                        const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === recipe_id_line)
+                        recipeIdxArray.push(singlePoRecipeIdx);
+                    })
                     this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
                 
-                } else {
+                } else { // Clear the warning off all current line items
                     this.singlePoRecipes.forEach(poRecipe => {
                         poRecipe.warning = false;
                     });
                 }
             });
 
+            // Loop through the different recipe lines and apply the warning
             for(const recipeIdx in recipeIdxArray){
                 this.singlePoRecipes[recipeIdx].warning = true;
             }
