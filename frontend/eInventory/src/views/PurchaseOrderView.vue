@@ -739,6 +739,7 @@
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
             </div>
+            <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
             <DataTable v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
                 <Column header="Name" field="product_name">
                     
@@ -777,7 +778,6 @@
                 </Column> -->
             </DataTable>
             <Button label="Add another product" text @click="addBulkLine(poCases)"/>
-            <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
             <br>
 
             <template #footer>
@@ -966,7 +966,7 @@ export default {
             procProducts: [] as any[],
             product: {} as any,
             selectedProducts: [] as any[],
-            totalErrorMSG: [] as string[],
+            totalErrorMSG: "" as string,
 
             //CASE VARIABLES
             cases: [] as any[],
@@ -2186,6 +2186,7 @@ export default {
             console.log("reqPoBoxes ", this.reqPoBoxes);
             console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
 
+            this.checkPoTotals();
             this.editPurchaseOrderDialog = true;
         },
 
@@ -2197,11 +2198,6 @@ export default {
             this.displayStatus = "";
         },
 
-        //Description: 
-        //
-        //
-        //
-        //
         /**
          * Takes an inputed PO and displays both processed cases and raw boxes belonging to the PO. Builds cases
          * to display, since cases are created later in the program lifecycle. 
@@ -2209,8 +2205,11 @@ export default {
          * @param po The purchase order the user is viewing. Multiple fields from this PO are used to display data.
          * @returns An array of either cases or boxes belonging to the PO. Which type of container viewed is based on
          * user input
+         * 
          * Created by: Gabe de la Torre
+         * 
          * Date Created: 7-9-2024
+         * 
          * Date Last Edited: 2-24-2025
          */
         displayInfo(po: any){
@@ -2269,7 +2268,9 @@ export default {
          * @returns An array with the information of each input box required for the output boxes recipe
          *
          * Created by: Gabe de la Torre
+         * 
          * Date Created: ???
+         * 
          * Date Last Edited: 7-19-2024 
          */
         displayRawInfo(purchase_order_id: number, product_id: number, amount: number){
@@ -2330,7 +2331,7 @@ export default {
          * 
          * Created by: Micheal Chapell
          * Date Created: 7-18-2024 
-         * Date Last Edited: 7-18-2024 
+         * Date Last Edited: 3-12-2025
          */
         displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
         console.log("LOOP CHECK: ___________________________________________________");
@@ -2390,7 +2391,12 @@ export default {
                 let total = totals.find(t => t.product_id === inputEl.product_id)
                 console.log("Current Total: ", total.currentUnits);
 
-                if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
+                /*
+                 3-12-2025: Removed the "(inputEl.totalUnits - b.units_per_case) >= total.currentUnits" portion
+                 of the if statement. Some packs (i.e. Grinch/Max 2pk) require uneven amounts of units, and so some 
+                 units will be left over.
+                */
+                if(inputEl.totalUnits > total.currentUnits){
                     b.taken = true;
                     inputBoxesAndRecEl.push({ box: b, rec: inputEl });
                     total.currentUnits += b.units_per_case;
@@ -3015,7 +3021,11 @@ export default {
 
         editRowStyleProc(data: any) {
             if (data.product_id) {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
+                if(data.warning === true){
+                    return { font: 'bold', backgroundColor: '#ffb439' };
+                } else {
+                    return { font: 'bold', backgroundColor: '#bbffb5' };
+                }
             } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             }
@@ -3118,7 +3128,9 @@ export default {
          * @param event {event} The data grabbed in the event of a user saving a row while editing a purchase order
          * 
          * Create By: Gabe de la Torre-Garcia
+         * 
          * Date Created: 2-19-2025
+         * 
          * Date Last Edited: 3-5-2025
          */
         async onPOBoxRowEditSave(event: any){
@@ -3238,12 +3250,12 @@ export default {
                         box.location_id,
                         box.status,
                         box.purchase_order_id,
+                        box.request_id,
                         box.case_id
                     ];
 
                     boxesToUpdate.push(boxMap);
                 });
-
                 
                 // Update the boxes
                 await action.bulkEditCases(boxesToUpdate);
@@ -3252,41 +3264,7 @@ export default {
                     this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
                 }
 
-                // Grab all PO recipes that use this product as a raw ingredient
-                let usedPoRecipes: typeof this.singlePoRecipes = [];
-                this.singlePoRecipes.forEach(poRecipe => {
-                    console.log("PO Recipe in forEach: ", poRecipe);
-
-                    let usedRecElement = this.recipeElements.find(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.product_id === newData.product_id && recElement.type === 'input');
-
-                    console.log("Used recipe element: ", usedRecElement);
-                    
-                    if(usedRecElement)
-                        usedPoRecipes.push(poRecipe);
-                });
-                console.log("Used PO Recipes: ", usedPoRecipes);
-
-                // Check if the new total of raw units is greater than or equal to the total planned recipe units
-                let recipeTotal = 0;
-                usedPoRecipes.forEach(poRecipe => recipeTotal += poRecipe.qty);
-                console.log("Recipe Total ", recipeTotal, "Raw Total ", newData.total);
-
-                // If the recipe total greater than the new raw total, throw up a warning.
-                if(recipeTotal > newData.total){
-                    let totalErr: string = 'The following planned cases must be edited if the raw total remains: '
-                    usedPoRecipes.forEach(poRecipe => {
-                        let recipe = this.recipes.find(r => r.recipe_id === poRecipe.recipe_id)
-                        totalErr += String(recipe.label) + ', '
-                    })
-                    this.totalErrorMSG.push(totalErr);
-                    this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
-                } else {
-                    // Else, make sure that the recipe row is presented without a warning, and clear the error message
-                    
-                }
-
-                
-               }        
+            }        
 
             if(createdBoxes.length > 0){
                 // addBoxes(createdBoxes)
@@ -3304,14 +3282,114 @@ export default {
                 await action.bulkCreateCases(finalBoxArray);
                 this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
             }
-                
 
-            
+            // this.checkPoTotals(newData.product_id, newData.total)
+
+            this.checkPoTotals();
 
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
+        },
 
+        /**
+         * Compares raw product totals with the planned recipe totals in a PO. 
+         * If the raw total is less, an error is thrown.
+         * @param rawProductId The product ID of the raw product that has a new total
+         * @param rawTotal The new total to be compared to the recipe total
+         * 
+         * Created By: Gabe de la Torre-Garcia On: 3-12-25
+         * 
+         * Lasted Edited: 3-13-25
+         */
+         checkPoTotals(){
+            let poTotals: {raw_id: number, recipe_id: number | null, raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
+                const key = box.product_id;
 
+                // console.log("Box in reduce: ", box);
+
+                if(map[key]){
+                    map[key].raw_total += box.total;
+                } else {
+                    map[key] = {raw_id: box.product_id, recipe_id: null, raw_total: box.total, needed_total: 0}
+                }
+                return map;
+            }, { } as { raw_id: number, recipe_id: number | null, raw_total: number, needed_total: number }));
+
+            console.log("PO Totals before check: ", poTotals);
+
+            this.singlePoRecipes.forEach(poRecipe => {
+                // console.log("PO Recipe in forEach: ", poRecipe);
+
+                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.type === 'input');
+
+                // console.log("Used Recipe Elements: ", usedRecElements);
+                usedRecElements.forEach(recElement => {
+                    const totalIdx = poTotals.findIndex(total => total.raw_id === recElement.product_id);
+
+                    if(totalIdx > -1){
+                        poTotals[totalIdx].needed_total += poRecipe.qty; 
+                        poTotals[totalIdx].recipe_id = poRecipe.recipe_id;
+                    }                       
+                });
+            });
+            console.log("PO Totals after check: ", poTotals);
+
+            let recipeIdxArray: number[] = [];
+
+            poTotals.forEach(totalLine => {
+                if(totalLine.raw_total < totalLine.needed_total){
+                    this.totalErrorMSG = 'The highlighted planned cases must be edited if the raw total remains'
+                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === totalLine.recipe_id)
+                    recipeIdxArray.push(singlePoRecipeIdx);
+                    this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
+                
+                } else {
+                    this.singlePoRecipes.forEach(poRecipe => {
+                        poRecipe.warning = false;
+                    });
+                }
+            });
+
+            for(const recipeIdx in recipeIdxArray){
+                this.singlePoRecipes[recipeIdx].warning = true;
+            }
+        },
+
+        checkPoTotalsOld(rawProductId: number, rawTotal: number){
+            // Grab all PO recipes that use this product as a raw ingredient
+            let usedPoRecipes: typeof this.singlePoRecipes = [];
+            this.singlePoRecipes.forEach(poRecipe => {
+                console.log("PO Recipe in forEach: ", poRecipe);
+
+                let usedRecElement = this.recipeElements.find(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.product_id === rawProductId && recElement.type === 'input');
+
+                console.log("Used recipe element: ", usedRecElement);
+                
+                if(usedRecElement)
+                    usedPoRecipes.push(poRecipe);
+            });
+            console.log("Used PO Recipes: ", usedPoRecipes);
+
+            // Check if the new total of raw units is greater than or equal to the total planned recipe units
+            let recipeTotal = 0;
+            usedPoRecipes.forEach(poRecipe => recipeTotal += poRecipe.qty);
+            console.log("Recipe Total ", recipeTotal, "Raw Total ", rawTotal);
+
+            // If the recipe total greater than the new raw total, throw up a warning.
+            if(recipeTotal > rawTotal){
+                this.totalErrorMSG = 'The highlighted planned cases must be edited if the raw total remains'
+                usedPoRecipes.forEach(poRecipe => {
+                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === poRecipe.po_recipe_id)
+                    this.singlePoRecipes[singlePoRecipeIdx].warning = true;
+                })
+                this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
+            } else {
+                // Else, make sure that the recipe row is presented without a warning, and clear the error message
+                usedPoRecipes.forEach(poRecipe => {
+                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === poRecipe.po_recipe_id)
+                    this.singlePoRecipes[singlePoRecipeIdx].warning = false;
+                })
+            }
         },
 
         /**
@@ -3348,6 +3426,8 @@ export default {
             await action.editPurchaseOrderRecipe(editedRecipe);
             this.$toast.add({severity:'success', summary: 'CASES UPDATED', detail: newData.amount + ' cases edited', life: 10000});
 
+
+            this.checkPoTotals();
 
             this.singlePoRecipes[index] = newData;
             this.singlePoRecipes[index].product_name = this.getProductInfo(this.singlePoRecipes[index].product_id, 'name');
