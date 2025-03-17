@@ -110,7 +110,7 @@ var helper = {
      * 
      * Created by: Gabe de la Torre
      * Date Created: 7-19-2024
-     * Date Last Edited: 7-19-2024
+     * Date Last Edited: 3-17-2025
      */
     groupItemsByKey(itemArray: any[], keyArray: any[]){
         // get the items in the pool along with their amount
@@ -121,9 +121,12 @@ var helper = {
             const key = keyString;
             if (map[key]) { // if it already exists, incremenet
                 map[key].amount++;
+                map[key].total += item.units_per_case;
+                    if(map[key].units_per_case < item.units_per_case)
+                        map[key].units_per_case = item.units_per_case;
             }
             else // otherwise, add it to the map
-                map[key] = { ...item, units_per_case: item.units_per_case, location: item.location, amount: 1 };
+                map[key] = { ...item, units_per_case: item.units_per_case, location: item.location, amount: 1, total: item.units_per_case };
             return map;
         }, { } as { [item_id: number]: (typeof itemArray)[number] & { amount: number } }));
 

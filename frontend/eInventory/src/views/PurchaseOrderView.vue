@@ -926,6 +926,7 @@ import importAction from "../components/utils/importUtils";
 import { supabase } from '../clients/supabase';
 import InputNumber from 'primevue/inputnumber';
 import { create } from 'node_modules/axios/index.cjs';
+import { debounce } from 'lodash';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -959,6 +960,7 @@ export default {
             statusChangeDialog: false,
             receivedDialog: false,
             newStatus: "",
+            headerData: { name: '', vendor: '', /* etc */},
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1017,12 +1019,21 @@ export default {
     },
     created() {
         this.initFilters();
+        this.lazySave = debounce(() => this.save(), 250, { trailing: true });
+    },
+    watch: {
+        headerData: {
+        deep: true,
+        handler() { this.lazySave(); }
+        }
     },
     mounted() {
         console.log('Mounted');
         this.initVariables();
     },
     methods: {
+        lazySave: () => Promise.resolve(),
+        save() { /*  */ }, 
         async initVariables(){
             try {
                 this.loading = true;
@@ -1310,7 +1321,7 @@ export default {
         },
         getCreatedUnitTotal(poID: number){
             let total = 0;
-            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
+            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             if (usedBoxes.length !== 0)
                 usedBoxes.forEach(b => total+=b.units_per_case);
 
@@ -1920,7 +1931,7 @@ export default {
 
 // ----------------------------------------------------------------------------------------
 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrivedBoxLine.purchase_order_id && box.product_id === newlyArrivedBoxLine.product_id && box.status !== 'Ready');
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrivedBoxLine.purchase_order_id && box.product_id === newlyArrivedBoxLine.product_id && box.status !== 'Ready' && box.status !== 'Cancelled');
 
             boxes.forEach(box => {
                 if(wholeReceivedBoxAmount > 0){
@@ -2122,7 +2133,7 @@ export default {
             this.editedLine = {};
             this.deliveredDataTableArray = [];
 
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
             let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
             this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
@@ -2157,7 +2168,7 @@ export default {
             this.deliveredDataTableArray = [];
             this.singlePoRecipes = [];
 
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
             let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
             poRecs.forEach(recLine => {
@@ -2176,8 +2187,9 @@ export default {
 
             // console.log("Boxes ",boxes);
             // console.log("Cases ",cases);
-            this.poBoxes = this.groupProducts(boxes);
-            this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
+            // this.poBoxes = this.groupProducts(boxes);
+            this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+            // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
             this.singlePoRecipes = poRecs;
 
             console.log("PO Boxes: ", this.poBoxes);
@@ -2231,7 +2243,7 @@ export default {
             let total = 0;
 
             // linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
-            linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id);
+            linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id && b.status !== 'Cancelled');
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(po.displayStatus === "Processed"){
@@ -2577,6 +2589,9 @@ export default {
 
                 case 'Ready':
                     return 'success';
+
+                case 'Cancelled':
+                    return 'danger';
 
                 default:
                     //console.log("DEFAULT CASE ", c)
@@ -3146,11 +3161,12 @@ export default {
             console.log("Old data: ", this.poBoxes[index]);
             console.log("New data: ", newData);
 
-            // Grab the new total units, the units per raw box, and the amount of raw boxes.
+            // Grab the new values: total units, the units per raw box, and the amount of raw boxes.
             let total = newData.total;
             let units_per_case = newData.units_per_case;
             let amount = newData.amount;
             let cancelledTotal = 0;
+            let maxTotal = 0;
 
             type boxRow = {
                     [key: string]: string | number | null;
@@ -3181,12 +3197,18 @@ export default {
                 if (partialIdx !== -1)
                     editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
 
+                editedBoxes.forEach(box => maxTotal += Number(box.units_per_case));
+
                 // If the new amount is not a whole number AND the new total is less than the old,
                 // Calculate the number of units cancelled, and set the new partial box amount.
-                if(Number.isInteger(amount) === false && this.poBoxes[index].total > newData.total){
+                if(Number.isInteger(amount) === false && maxTotal > newData.total){ //&& this.poBoxes[index].total > newData.total (might need to add back)
+                    console.log("Create partial Box");
                     cancelledTotal = Math.ceil((Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case);
+                    // console.log("Amount: ", amount, " - floor(amount): ", Math.floor(amount));
                     let decimalAmount = amount - Math.floor(amount);
-                    let partialBoxUnits = Math.floor(decimalAmount * this.poBoxes[index].units_per_case);
+                    let partialBoxUnits = Math.round(decimalAmount * this.poBoxes[index].units_per_case);
+                    // console.log(decimalAmount * this.poBoxes[index].units_per_case);
+                    // console.log("Partial box amount", partialBoxUnits);
                     editedBoxes[0].units_per_case = partialBoxUnits;
                 } 
 
@@ -3208,12 +3230,13 @@ export default {
                 if(currentTotal < total){
                     while (currentTotal < total){
                         currentTotal += newData.units_per_case;
-                        createdBoxes.push({
+                        console.log("+1 Box needed");
+                        /* createdBoxes.push({
                             product_id: newData.product_id,
                             purchase_order_id: this.purchaseOrder.purchase_order_id,
                             units_per_case: newData.units_per_case,
                             status: this.purchaseOrder.status
-                        });
+                        }); */
                     }
                 }
 
@@ -3260,9 +3283,9 @@ export default {
                 // Update the boxes
                 await action.bulkEditCases(boxesToUpdate);
                 this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
-                if(cancelledTotal > 0){
+                /* if(cancelledTotal > 0){
                     this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
-                }
+                } */
 
             }        
 
@@ -3285,10 +3308,12 @@ export default {
 
             // this.checkPoTotals(newData.product_id, newData.total)
 
-            this.checkPoTotals();
-
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
+
+            this.checkPoTotals();
+            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
+            this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
         },
 
         /**
@@ -3309,7 +3334,7 @@ export default {
             let poTotals: {raw_id: number, recipe_id: number[], raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
                 const key = box.product_id;
 
-                console.log("Box in reduce: ", box);
+                // console.log("Box in reduce: ", box);
 
                 //If the product already exists in the map, increase the raw total
                 if(map[key]){
@@ -3323,7 +3348,7 @@ export default {
                 return map;
             }, { } as { raw_id: number, recipe_id: number[], raw_total: number, needed_total: number }));
 
-            console.log("PO Totals before check: ", poTotals);
+            // console.log("PO Totals before check: ", poTotals);
 
             // Loop through the recipes used in this PO
             this.singlePoRecipes.forEach(poRecipe => {
@@ -3372,49 +3397,13 @@ export default {
                     this.singlePoRecipes.forEach(poRecipe => {
                         poRecipe.warning = false;
                     });
+                    this.totalErrorMSG = '';
                 }
             });
 
             // Loop through the different recipe lines and apply the warning
             for(const recipeIdx in recipeIdxArray){
                 this.singlePoRecipes[recipeIdx].warning = true;
-            }
-        },
-
-        checkPoTotalsOld(rawProductId: number, rawTotal: number){
-            // Grab all PO recipes that use this product as a raw ingredient
-            let usedPoRecipes: typeof this.singlePoRecipes = [];
-            this.singlePoRecipes.forEach(poRecipe => {
-                console.log("PO Recipe in forEach: ", poRecipe);
-
-                let usedRecElement = this.recipeElements.find(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.product_id === rawProductId && recElement.type === 'input');
-
-                console.log("Used recipe element: ", usedRecElement);
-                
-                if(usedRecElement)
-                    usedPoRecipes.push(poRecipe);
-            });
-            console.log("Used PO Recipes: ", usedPoRecipes);
-
-            // Check if the new total of raw units is greater than or equal to the total planned recipe units
-            let recipeTotal = 0;
-            usedPoRecipes.forEach(poRecipe => recipeTotal += poRecipe.qty);
-            console.log("Recipe Total ", recipeTotal, "Raw Total ", rawTotal);
-
-            // If the recipe total greater than the new raw total, throw up a warning.
-            if(recipeTotal > rawTotal){
-                this.totalErrorMSG = 'The highlighted planned cases must be edited if the raw total remains'
-                usedPoRecipes.forEach(poRecipe => {
-                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === poRecipe.po_recipe_id)
-                    this.singlePoRecipes[singlePoRecipeIdx].warning = true;
-                })
-                this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
-            } else {
-                // Else, make sure that the recipe row is presented without a warning, and clear the error message
-                usedPoRecipes.forEach(poRecipe => {
-                    const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === poRecipe.po_recipe_id)
-                    this.singlePoRecipes[singlePoRecipeIdx].warning = false;
-                })
             }
         },
 
@@ -3453,12 +3442,12 @@ export default {
             this.$toast.add({severity:'success', summary: 'CASES UPDATED', detail: newData.amount + ' cases edited', life: 10000});
 
 
-            this.checkPoTotals();
 
             this.singlePoRecipes[index] = newData;
             this.singlePoRecipes[index].product_name = this.getProductInfo(this.singlePoRecipes[index].product_id, 'name');
 
             // this.singlePoRecipes
+            this.checkPoTotals();
         },
 
 
