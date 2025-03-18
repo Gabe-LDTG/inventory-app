@@ -13,6 +13,7 @@
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
+                    <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addNewRequest" icon="pi pi-plus" severity="success" class="mr-2"/>  
                     <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" />
                     <span class="p-input-icon-right">
                         <!-- <i class="pi pi-search" /> -->
@@ -25,7 +26,7 @@
 
             <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
-                <template #body="{data}">
+                <template v-show="data.notes !== null || data.notes !== 'null'" #body="{data}">
                     {{ data.notes }}
                 </template>
                 <template #editor="{data}">
@@ -120,8 +121,33 @@
                     {{ data.qty/data.units_per_case }}
                 </template>
             </Column>
-            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
-            <Column field="product_name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
+            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold">
+                <template #body="{data}">
+                    {{ data.purchase_order_name }}
+                </template>
+                <!-- <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.priority"
+                        placeholder="Select a priority" class="w-full md:w-14rem" editable
+                        :options="priorities"/>
+                        </div>
+                </template> -->
+            </Column>
+            <Column field="product_id" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold">
+                <template #body="{data}">
+                    {{ data.product_name }}
+                </template>
+                <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.product_id"
+                        placeholder="Select a priority" class="w-full md:w-14rem" editable
+                        :options="procProducts"
+                        optionLabel="name"
+                        optionValue="product_id"
+                        />
+                        </div>
+                </template>
+            </Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
             <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
@@ -413,7 +439,7 @@ export default {
                     else
                         this.unprocProducts.push(p);
                 });
-                //console.log("PROCESSED: ", this.procProducts);
+                // console.log("PROCESSED: ", this.procProducts);
                 //console.log("UNPROCESSED: ", this.unprocProducts);
             } catch (err) {
                 console.log(err);
@@ -538,6 +564,22 @@ export default {
             }
         },
 
+        addNewRequest(){
+            let request = {
+                            notes: null, 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null
+                        };
+            this.R2Parray = [request, ...this.R2Parray];
+        },
+
         requestRowStyle(data: any){
             if (data.status === '3 AWAITING PLAN'){
                 return { font: 'bold', color: '#d4ac0d', backgroundColor: '#fcf3cf' };
@@ -605,25 +647,32 @@ export default {
             }
         },
 
+        /**
+         * Runs every time a request cell is edited and autosaves new data
+         * @param event The request field cell being edited
+         * 
+         * Created By: Gabe de la Torre-Garcia On: ???
+         * 
+         * Last Edited: 3-18-2025
+         */
         async onRequestCellEdit(event: any){
             console.log(event);
 
-            let {data, index, newData} = event;
+            const {data, index, newData, newValue, value} = event;
 
-            if (data.notes === newData.notes && data.status === newData.status && data.labels_printed === newData.labels_printed && data.ship_label === newData.ship_label && data.priority === newData.priority && data.ship_to_amz === newData.ship_to_amz && data.deadline === newData.deadline && data.warehouse_qty === newData.warehouse_qty)
+            if (value === newValue)
                 console.log("EQUAL");
             else{
                 console.log("EDITS");
                 this.R2Parray[index] = newData;
-                
                 await this.saveUpdatedRequests(newData);
             }
-                
         },
 
         async saveUpdatedRequests(request_data: {[key: string]: string | number | boolean | Date }){
             try {
                 console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
+                let errorMSG = '';
                 let newRequests = [] as any[];
                 let editedRequests = [] as any[];
 
@@ -740,9 +789,14 @@ export default {
 
             } catch (error) {
                 console.log(error);
+                
                 this.$toast.add({severity:'error', summary: "Error", detail: error});
                 
             }
+        },
+
+        getAllowedProducts(){
+
         },
 
         onBeforeUnload(event: any){

@@ -54,3 +54,5 @@ REQUEST TO PROCESS:
 - Add a drop down so that users can see all available raw products to be used for the processed product []
 
 - When looping through all of the reqRecipes, search for cases by product type, and purchase order. If they exist, display them, if not, show the recipe instead []
+
+- Autofill the priority field by the deadline field []

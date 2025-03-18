@@ -960,7 +960,7 @@ export default {
             statusChangeDialog: false,
             receivedDialog: false,
             newStatus: "",
-            headerData: { name: '', vendor: '', /* etc */},
+            headerData: { purchaseOrder: {name: '', vendor: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null}},
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1019,7 +1019,8 @@ export default {
     },
     created() {
         this.initFilters();
-        this.lazySave = debounce(() => this.save(), 250, { trailing: true });
+        this.initVariables();
+        // this.lazySave = debounce(() => this.save(), 250, { trailing: true });
     },
     watch: {
         headerData: {
@@ -1027,13 +1028,20 @@ export default {
         handler() { this.lazySave(); }
         }
     },
-    mounted() {
+    /* mounted() {
         console.log('Mounted');
         this.initVariables();
-    },
+    }, */
     methods: {
         lazySave: () => Promise.resolve(),
-        save() { /*  */ }, 
+        async save(): Promise<void> { 
+            try {
+                const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
+                console.log(editedPO);
+            } catch (error) {
+                console.error(error);
+            }
+         }, 
         async initVariables(){
             try {
                 this.loading = true;
@@ -3253,6 +3261,14 @@ export default {
                     });
                 }
 
+                // Check to see if the amount is a decimal, if it is
+                let decimalCheck = newData.amount - Math.floor(newData.amount);
+                if(decimalCheck !== 0){
+                    // Set the first box in the createdBoxes array to a partial amound
+                    let partialUnits = Math.round(newData.units_per_case * decimalCheck);
+                    createdBoxes[0].units_per_case = partialUnits;
+                }
+
                 // console.log("Boxes to create: ", createdBoxes);
             }
 
@@ -3303,6 +3319,7 @@ export default {
                         finalBoxArray.push(tempArray);
                     })
                 await action.bulkCreateCases(finalBoxArray);
+                await this.getBoxes();
                 this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
             }
 
