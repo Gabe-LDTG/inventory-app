@@ -13,7 +13,7 @@
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
-                    <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addNewRequest" icon="pi pi-plus" severity="success" class="mr-2"/>  
+                    <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
                     <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" />
                     <span class="p-input-icon-right">
                         <!-- <i class="pi pi-search" /> -->
@@ -81,7 +81,7 @@
             <Column field="priority" header="Priority" sortable style="min-width: 200px">
                 <template #body="{data}">
                     <!-- {{ data.priority }} -->
-                    <Tag :style="priorityStyle(data.priority)">{{ data.priority }}</Tag>
+                    <Tag :style="priorityStyle(data.priority)">{{ getRequestPriority(data.deadline) }}</Tag>
                 </template>
                 <template #editor="{data}">
                     <div class="container">
@@ -118,7 +118,7 @@
             </Column>
             <Column header="Total QTY" class="font-bold">
                 <template #body="{data}">
-                    {{ data.qty/data.units_per_case }}
+                    {{ data.warehouse_qty + data.ship_to_amz }}
                 </template>
             </Column>
             <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold">
@@ -137,7 +137,7 @@
                 <template #body="{data}">
                     {{ data.product_name }}
                 </template>
-                <template #editor="{data}">
+<!--                 <template #editor="{data}">
                     <div class="container">
                         <Dropdown v-model="data.product_id"
                         placeholder="Select a priority" class="w-full md:w-14rem" editable
@@ -146,7 +146,7 @@
                         optionValue="product_id"
                         />
                         </div>
-                </template>
+                </template> -->
             </Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
@@ -231,6 +231,34 @@
             <Button label="Save Picklist" icon="pi pi-check" text disabled @click="" />
         </template>
     </Dialog>
+
+    <Dialog v-model:visible="newRequestDialog" :style="{width: '1000px'}" header="Add a new request" :modal="true">
+
+        <Dropdown v-model="requestToProcess.product_id" required="true" 
+            placeholder="Select a Product" class="md:w-14rem" editable
+            :options="procProducts"
+            optionLabel="name"
+            optionValue="product_id"
+            filter
+            @change=""
+            :virtualScrollerOptions="{ itemSize: 38 }"
+            />
+
+        <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
+            placeholder="Select a Purchase Order" class="md:w-14rem" editable
+            :options="purchaseOrders"
+            optionLabel="purchase_order_name"
+            optionValue="purchase_order_id"
+            filter
+            @change=""
+            :virtualScrollerOptions="{ itemSize: 38 }"
+            />
+
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="newRequestDialog = false"/>
+            <Button label="Add Request" icon="pi pi-check" text @click="onNewRequestSave" />
+        </template>
+    </Dialog>
     
 </template>
 <script lang="ts">
@@ -295,20 +323,23 @@ export default {
 
             // REQUEST TO PROCESS VARIABLES
             requestToProcess: {} as {
-                request_id: number; 
-                case_id: number; 
-                notes: string, 
-                status: string,
+                request_id: number | null; 
+                product_id: number | null; 
+                purchase_order_id: number | null;
+                notes: string;
+                status: string;
                 labels_printed: boolean; 
                 ship_label: boolean; 
                 priority: string; 
                 ship_to_amz: number; 
-                deadline: Date; 
+                deadline: Date | null; 
                 warehouse_qty: number;
             },
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
             requestsUpdateArray: [] as any[],
+            newRequestDialog: false,
+
 
             // PICKLIST VARIABLES
             picklists: [] as any[],
@@ -499,7 +530,7 @@ export default {
          * 
          * Created By: Gabe de la Torre-Garcia
          * Date Created: ???
-         * Date Last Edited: 3-6-2025
+         * Date Last Edited: 3-19-2025
          */
         async getRequestsToProccess(){
             try {
@@ -510,55 +541,42 @@ export default {
 
                 const casesWithR2PsAndPOs = [] as any[];
 
-                for(const reqRec of this.reqRecipes) {
-                    // let location = this.locations.find(l => l.location_id  === c.location);
-                    if (reqRec.location)
-                        continue;
-
-                    let productKey = this.products.find(p => p.product_id === reqRec.product_id);
-                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === reqRec.purchase_order_id);
-                    // console.log("purchase order", purchaseOrder);
-                    // let cases = this.pCases;
-                    let request = this.requestsToProcess.find(req => req.purchase_order_id === reqRec.purchase_order_id && req.product_id === reqRec.product_id);
-                    // console.log("request", request);
-                    // if(!location)
-                    //     location = {};
-                    if(!purchaseOrder)
-                        purchaseOrder = {};
-                    if(!request)
-                        request = {
-                            notes: null, 
-                            status: '5 ON ORDER', 
-                            labels_printed: false, 
-                            ship_label: false, 
-                            priority: '6 Prep For Later', 
-                            ship_to_amz: 0, 
-                            deadline: null, 
-                            warehouse_qty: 0
-                        };
-
-                    casesWithR2PsAndPOs.push({ reqCase: reqRec, key: productKey, po: purchaseOrder, req: request });
-                }
-
                 // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
-                let returnArray = casesWithR2PsAndPOs.map(({ reqCase, key, po, req }) => ({
-                    ...reqCase,
-                    purchase_order_name: po.purchase_order_name,
+                for(const request of this.requestsToProcess){
+                    let productKey = this.products.find(p => p.product_id === request.product_id);
+                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
+
+                    let requestedRecipe = {units_per_case: productKey.default_units_per_case}; 
+
+                    if(!purchaseOrder)
+                        purchaseOrder = {purchase_order_name: 'No linked PO'};
+                    else 
+                        requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
+
+
+                    casesWithR2PsAndPOs.push({ req: request, key: productKey, po: purchaseOrder, recipe: requestedRecipe });
+                }
+
+                let returnArray = casesWithR2PsAndPOs.map(({ req, key, po, recipe }) => ({
                     ...req,
+                    ...recipe,
+                    purchase_order_name: po.purchase_order_name,
+                    product_name: key.name,
                     bag_size: key.bag_size,
                     box_type: key.box_type,
                     fnsku: key.fnsku,
                     asin: key.asin,
-                    casesToPick: reqCase.qty/reqCase.units_per_case,
+                    casesToPick: req.ship_to_amz + req.warehouse_qty,
                 }));
                 console.log("returnArray", returnArray);
 
-                const keyStringArray = ['product_id', 'purchase_order_name', 'request_id']
+                const keyStringArray = ['product_id', 'request_id']
 
                 console.log("returnArray grouped", helper.groupItemsByKey(returnArray, keyStringArray));
 
-                this.R2Parray = helper.groupItemsByKey(returnArray, keyStringArray);
+                // this.R2Parray = helper.groupItemsByKey(returnArray, keyStringArray);
+                this.R2Parray = returnArray;
             } catch (error) {
                 console.log(error);
             }
@@ -658,7 +676,7 @@ export default {
         async onRequestCellEdit(event: any){
             console.log(event);
 
-            const {data, index, newData, newValue, value} = event;
+            const {index, newData, newValue, value} = event;
 
             if (value === newValue)
                 console.log("EQUAL");
@@ -669,9 +687,10 @@ export default {
             }
         },
 
-        async saveUpdatedRequests(request_data: {[key: string]: string | number | boolean | Date }){
+        async saveUpdatedRequests(request_data: {[key: string]: string | number | boolean | Date | null}){
             try {
                 console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
+                console.log("Request data: ", request_data);
                 let errorMSG = '';
                 let newRequests = [] as any[];
                 let editedRequests = [] as any[];
@@ -699,14 +718,14 @@ export default {
 
                     const editedRequest: {
                         product_id: number; 
-                        purchase_order_id: number;
+                        purchase_order_id: number | null;
                         notes: string, 
                         status: string,
                         labels_printed: boolean; 
                         ship_label: boolean; 
                         priority: string; 
                         ship_to_amz: number; 
-                        deadline: Date; 
+                        deadline: Date | null; 
                         warehouse_qty: number;
                         request_id: number;
                     } = {
@@ -722,6 +741,16 @@ export default {
                         deadline: new Date(request_data.deadline), 
                         warehouse_qty: Number(request_data.warehouse_qty)
                     };
+
+                    if(!this.requestToProcess.deadline)
+                        editedRequest.deadline = null;
+
+                    if(!this.requestToProcess.purchase_order_id)
+                        editedRequest.purchase_order_id = null;
+
+
+                    console.log("Request to edit: ", editedRequest);
+
                     await action.editRequest(editedRequest)
                 }
                 else{
@@ -741,14 +770,14 @@ export default {
 
                     const createdRequest: {
                         product_id: number; 
-                        purchase_order_id: number;
+                        purchase_order_id: number | null;
                         notes: string, 
                         status: string,
                         labels_printed: boolean; 
                         ship_label: boolean; 
                         priority: string; 
                         ship_to_amz: number; 
-                        deadline: Date; 
+                        deadline: Date | null; 
                         warehouse_qty: number;
                     } = {
                         product_id: Number(request_data.product_id), 
@@ -762,6 +791,14 @@ export default {
                         deadline: new Date(request_data.deadline), 
                         warehouse_qty: Number(request_data.warehouse_qty)
                     };
+
+                    if(!this.requestToProcess.deadline)
+                        createdRequest.deadline = null;
+
+                    if(!this.requestToProcess.purchase_order_id)
+                        createdRequest.purchase_order_id = null;
+
+                    console.log("Request to create: ", createdRequest);
 
                     await action.addRequest(createdRequest);
 
@@ -784,6 +821,8 @@ export default {
                 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request Updated', life: 10000});
                 
+                this.getRequestsToProccess();
+
                 this.requestsUpdateArray = [];
 
 
@@ -922,6 +961,70 @@ export default {
                 filename: "picklist.pdf",
                 jsPDF: { orientation: 'landscape' },
             });
+        },
+
+        addRequestSetup(){
+            this.newRequestDialog = true;
+
+            this.requestToProcess = {
+                            notes: '', 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null,
+                            request_id: null,
+                        };
+        },
+
+        async onNewRequestSave(){
+            console.log("Request on save: ", this.requestToProcess)
+            await this.saveUpdatedRequests(this.requestToProcess)
+            this.requestToProcess = {
+                            notes: '', 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null,
+                            request_id: null,
+                        };
+            this.newRequestDialog = false;
+        },
+
+        getRequestPriority(reqDeadline: Date | null){
+            console.log("Deadline: ", reqDeadline);
+            let today = new Date();
+            let compareDate = new Date()
+
+            if(reqDeadline){
+                if (today === reqDeadline) {
+                return '0 MUST GO OUT TODAY';
+            } else if (compareDate.setDate(1) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(5)){
+                return '1 This Week';
+            } else if (compareDate.setDate(6) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(14)){
+                return '2 Weeks';
+            } else if (compareDate.setDate(15) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(21)){
+                return '3 Weeks';
+            } else if (compareDate.setDate(22) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(31)){
+                return '4 This Month';
+            } else if (compareDate.setDate(32) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(60)){
+                return '5 Next Month';
+            } else if (compareDate.setDate(61) <= reqDeadline.getDate()){
+                return '6 Several Months';
+            }
+            } else {
+                return 'TBD';
+            }
+            
         },
     },
 }

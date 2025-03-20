@@ -724,7 +724,8 @@ var action = {
     async getRequests(){
         const query = supabase
             .from('requests_to_process')
-            .select('*');
+            .select('*')
+            .order('request_id');
         /* 
         if(filter_column)
             query.eq(filter_column, filter_data);
@@ -837,7 +838,7 @@ var action = {
     // Create a request
     async addRequest(request: {
         product_id: number; 
-        purchase_order_id: number;
+        purchase_order_id: number | null;
         notes: string | null, 
         status: string,
         labels_printed: boolean; 
@@ -870,14 +871,14 @@ var action = {
     // Update a request
     async editRequest(request: {
         product_id: number; 
-        purchase_order_id: number;
-        notes: string, 
+        purchase_order_id: number | null;
+        notes: string | null, 
         status: string,
         labels_printed: boolean; 
         ship_label: boolean; 
         priority: string; 
         ship_to_amz: number; 
-        deadline: Date; 
+        deadline: Date | null; 
         warehouse_qty: number;
         request_id: number;
     }){
