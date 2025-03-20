@@ -279,49 +279,6 @@
 
         <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid">
 
-            <div class="field">
-                <label for="purchase_order_name">Name</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
-                :disabled="purchaseOrder.purchase_order_id"/>
-                <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
-            </div>
-
-            <div class="field">
-                <label for="vendor">Vendor</label>
-                <Dropdown disabled v-model="purchaseOrder.vendor_id"
-                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                :options="vendors"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="vendor_name"
-                optionValue="vendor_id" />
-            </div>
-
-            <div class="field">
-                <label for="status">Status</label>
-                <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
-            </div>
-
-            <div class="field">
-                <label for="notes">Notes</label>
-                <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" />
-            </div>
-
-            <div class="field">
-                <label for="discount">Discount</label>
-                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
-            </div>
-
-            <div class="field">
-                <label for="date_ordered">Date Ordered</label>
-                <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
-            </div>
-
-            <div class="field">
-                <label for="date_received">Date received</label>
-                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
-            </div>
-
             <div v-if="purchaseOrder.purchase_order_id">
 
                 <div class="field">
@@ -409,6 +366,48 @@
 
             <div v-else>
                 <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
+                <div class="field">
+                    <label for="purchase_order_name">Name</label>
+                    <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
+                    :disabled="purchaseOrder.purchase_order_id"/>
+                    <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
+                </div>
+
+                <div class="field">
+                    <label for="vendor">Vendor</label>
+                    <Dropdown disabled v-model="purchaseOrder.vendor_id"
+                    placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                    :options="vendors"
+                    filter
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    optionLabel="vendor_name"
+                    optionValue="vendor_id" />
+                </div>
+
+                <div class="field">
+                    <label for="status">Status</label>
+                    <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
+                </div>
+
+                <div class="field">
+                    <label for="notes">Notes</label>
+                    <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" />
+                </div>
+
+                <div class="field">
+                    <label for="discount">Discount</label>
+                    <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
+                </div>
+
+                <div class="field">
+                    <label for="date_ordered">Date Ordered</label>
+                    <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
+                </div>
+
+                <div class="field">
+                    <label for="date_received">Date received</label>
+                    <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
+                </div>
 
                 <!--------------------------------------- RECIPES ---------------------------------------------->
                 <div class="field">
@@ -637,7 +636,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
             <div class="field">
                 <label for="purchase_order_name">Name</label>
                 <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
@@ -782,10 +781,15 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
-                <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
-                <Button label="Cancel" icon="pi pi-times" text @click="editPurchaseOrderDialog = false"/>
-                <Button label="Save" icon="pi pi-check"  text @click="validate" />
+                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div>
+                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                        <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                    </div>
+                    
+                    <Button label="Close"  @click="editPurchaseOrderDialog = false"/>
+                </div>
+                <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
             </template>
         </Dialog>
 
@@ -921,11 +925,7 @@ import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
-/** @TODO Try to fix module later */
-// @ts-ignore
-import { supabase } from '../clients/supabase';
 import InputNumber from 'primevue/inputnumber';
-import { create } from 'node_modules/axios/index.cjs';
 import { debounce } from 'lodash';
 
 //REFERENCE FOR PAGES
@@ -960,7 +960,7 @@ export default {
             statusChangeDialog: false,
             receivedDialog: false,
             newStatus: "",
-            headerData: { purchaseOrder: {name: '', vendor: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null}},
+            headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1020,10 +1020,10 @@ export default {
     created() {
         this.initFilters();
         this.initVariables();
-        // this.lazySave = debounce(() => this.save(), 250, { trailing: true });
+        this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
     },
     watch: {
-        headerData: {
+        purchaseOrder: {
         deep: true,
         handler() { this.lazySave(); }
         }
@@ -1036,8 +1036,17 @@ export default {
         lazySave: () => Promise.resolve(),
         async save(): Promise<void> { 
             try {
-                const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
-                console.log(editedPO);
+                if(this.purchaseOrder.purchase_order_id){
+                    const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
+                    console.log(editedPO);
+                    if(editedPO.date_ordered)
+                        editedPO.date_ordered = editedPO.date_ordered.split('T')[0];
+                    if(editedPO.date_received)
+                        editedPO.date_received = editedPO.date_received.split('T')[0];
+
+                    const poIdx = this.purchaseOrders.findIndex(po => po.purchase_order_id === editedPO.purchase_order_id);
+                    this.purchaseOrders[poIdx] = editedPO;
+                }
             } catch (error) {
                 console.error(error);
             }

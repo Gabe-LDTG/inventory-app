@@ -391,29 +391,8 @@ export default {
     },
     created(){
         this.initVariables();
-        window.addEventListener('beforeunload', function onBeforeUnload(event: any){
-            console.log(event);
-            return  window.confirm('Do you really want to leave? you have unsaved changes!');
-        });
-        if(this.requestsUpdateArray.length > 0){
-            window.onbeforeunload = function() {
-                return "Data will be lost if you leave the page, are you sure?";
-            };
-        }
-        
-    },
-    mounted(){
-        //this.initVariables();
-    },
-    beforeUnmount(){ 
-        console.log("BEFORE UNMOUNTED") 
-
-        if(this.requestsUpdateArray.length > 0){
-            window.confirm('Do you really want to leave? you have unsaved changes!');
-        };
 
     },
-    unmounted(){ console.log("UNMOUNTED") },
     methods: {
         async initVariables(){
             try {
