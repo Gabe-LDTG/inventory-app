@@ -26,7 +26,7 @@
 
             <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
-                <template v-show="data.notes !== null || data.notes !== 'null'" #body="{data}">
+                <template #body="{data}">
                     {{ data.notes }}
                 </template>
                 <template #editor="{data}">
@@ -94,7 +94,8 @@
             </Column>
             <Column field="deadline" header="Deadline" >
                 <!-- NOTE: FIX THE 'NaN' thing -->
-                <template v-show="data.deadline !== NaN" #body="{data}">
+                 <!-- v-show="data.deadline !== NaN" -->
+                <template  #body="{data}">
                     <!-- {{ data.deadline }} -->
                     {{ formatDate(data.deadline) }}
                 </template>
@@ -263,7 +264,7 @@ import helper from "../components/utils/helperUtils";
 /** @TODO Try to fix module later */
 // @ts-ignore
 import html2pdf from "html2pdf.js";
-import { request } from 'node_modules/axios/index.cjs';
+
 // https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
 
 export default {
