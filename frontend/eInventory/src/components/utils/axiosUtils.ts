@@ -882,6 +882,7 @@ var action = {
         warehouse_qty: number;
         request_id: number;
     }){
+        console.log('Request in utils: ', request);
         const {data,error} = await supabase.rpc('update_request', {record_array: [
             request.product_id, request.purchase_order_id, request.notes,
             request.status, request.labels_printed, request.ship_label,

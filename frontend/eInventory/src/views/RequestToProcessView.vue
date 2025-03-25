@@ -83,13 +83,6 @@
                     <!-- {{ data.priority }} -->
                     <Tag :style="priorityStyle(data.priority)">{{ getRequestPriority(data.deadline) }}</Tag>
                 </template>
-                <template #editor="{data}">
-                    <div class="container">
-                        <Dropdown v-model="data.priority"
-                        placeholder="Select a priority" class="w-full md:w-14rem" editable
-                        :options="priorities"/>
-                        </div>
-                </template>
             </Column>
             <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
                 <template #body="{data}">
@@ -102,10 +95,11 @@
             <Column field="deadline" header="Deadline" >
                 <!-- NOTE: FIX THE 'NaN' thing -->
                 <template v-show="data.deadline !== NaN" #body="{data}">
-                    {{ data.deadline }}
+                    <!-- {{ data.deadline }} -->
+                    {{ formatDate(data.deadline) }}
                 </template>
                 <template #editor="{data}">
-                    <Calendar dateFormat="yy-mm-dd" v-model="data.deadline"/>
+                    <Calendar dateFormat="mm/dd/yy" v-model="data.deadline"/>
                 </template>
             </Column>
             <Column field="warehouse_qty" header="Warehouse QTY">
@@ -236,7 +230,7 @@
 
         <Dropdown v-model="requestToProcess.product_id" required="true" 
             placeholder="Select a Product" class="md:w-14rem" editable
-            :options="procProducts"
+            :options="getUsableProducts(requestToProcess.purchase_order_id)"
             optionLabel="name"
             optionValue="product_id"
             filter
@@ -246,7 +240,7 @@
 
         <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable
-            :options="purchaseOrders"
+            :options="getUsablePO(requestToProcess.product_id)"
             optionLabel="purchase_order_name"
             optionValue="purchase_order_id"
             filter
@@ -269,6 +263,7 @@ import helper from "../components/utils/helperUtils";
 /** @TODO Try to fix module later */
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import { request } from 'node_modules/axios/index.cjs';
 // https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
 
 export default {
@@ -655,20 +650,29 @@ export default {
         async onRequestCellEdit(event: any){
             console.log(event);
 
-            const {index, newData, newValue, value} = event;
+            const {index, newData, newValue, value, field} = event;
 
             if (value === newValue)
                 console.log("EQUAL");
             else{
                 console.log("EDITS");
-                this.R2Parray[index] = newData;
+                this.R2Parray[index][field] = newValue;
                 await this.saveUpdatedRequests(newData);
             }
         },
 
-        async saveUpdatedRequests(request_data: {[key: string]: string | number | boolean | Date | null}){
+        async saveUpdatedRequests(request_data: {product_id: number; 
+                        purchase_order_id: number | null;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date | null; 
+                        warehouse_qty: number;
+                        request_id: number;}){
             try {
-                console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
                 console.log("Request data: ", request_data);
                 let errorMSG = '';
                 let newRequests = [] as any[];
@@ -677,7 +681,8 @@ export default {
                 let requestMap = [] as any[];
 
                 //Typescript request a default minutes part
-                request_data.deadline =+ ':00';
+                // request_data.deadline += ':00';
+                
 
                 if(request_data.request_id){
                     requestMap = [
@@ -695,7 +700,7 @@ export default {
                     ];
                     editedRequests.push(requestMap);
 
-                    const editedRequest: {
+                    let editedRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
                         notes: string, 
@@ -707,22 +712,37 @@ export default {
                         deadline: Date | null; 
                         warehouse_qty: number;
                         request_id: number;
-                    } = {
-                        request_id: Number(request_data.request_id),
-                        product_id: Number(request_data.product_id), 
-                        purchase_order_id: Number(request_data.purchase_order_id),
-                        notes: String(request_data.notes), 
-                        status: String(request_data.status), 
-                        labels_printed: Boolean(request_data.labels_printed), 
-                        ship_label: Boolean(request_data.ship_label), 
-                        priority: String(request_data.priority), 
-                        ship_to_amz: Number(request_data.ship_to_amz), 
-                        deadline: new Date(request_data.deadline), 
-                        warehouse_qty: Number(request_data.warehouse_qty)
-                    };
+                    }; 
 
-                    if(!this.requestToProcess.deadline)
-                        editedRequest.deadline = null;
+                    if (request_data.deadline){
+                        editedRequest =  {
+                            request_id: Number(request_data.request_id),
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: request_data.deadline,  
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    } else {
+                        editedRequest =  {
+                            request_id: Number(request_data.request_id),
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: null,  
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    }
 
                     if(!this.requestToProcess.purchase_order_id)
                         editedRequest.purchase_order_id = null;
@@ -747,7 +767,7 @@ export default {
                     ];
                     newRequests.push(requestMap);
 
-                    const createdRequest: {
+                    let createdRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
                         notes: string, 
@@ -758,21 +778,35 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
-                    } = {
-                        product_id: Number(request_data.product_id), 
-                        purchase_order_id: Number(request_data.purchase_order_id),
-                        notes: String(request_data.notes), 
-                        status: String(request_data.status), 
-                        labels_printed: Boolean(request_data.labels_printed), 
-                        ship_label: Boolean(request_data.ship_label), 
-                        priority: String(request_data.priority), 
-                        ship_to_amz: Number(request_data.ship_to_amz), 
-                        deadline: new Date(request_data.deadline), 
-                        warehouse_qty: Number(request_data.warehouse_qty)
                     };
 
-                    if(!this.requestToProcess.deadline)
-                        createdRequest.deadline = null;
+                    if(request_data.deadline){
+                        createdRequest = {
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: request_data.deadline, 
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    } else {
+                        createdRequest = {
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: null, 
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    }
 
                     if(!this.requestToProcess.purchase_order_id)
                         createdRequest.purchase_order_id = null;
@@ -962,7 +996,50 @@ export default {
 
         async onNewRequestSave(){
             console.log("Request on save: ", this.requestToProcess)
-            await this.saveUpdatedRequests(this.requestToProcess)
+            let request: {
+                    product_id: number; 
+                    purchase_order_id: number | null;
+                    notes: string, 
+                    status: string,
+                    labels_printed: boolean; 
+                    ship_label: boolean; 
+                    priority: string; 
+                    ship_to_amz: number; 
+                    deadline: Date | null; 
+                    warehouse_qty: number;
+                    request_id: number;
+                };
+            if(this.requestToProcess.deadline){
+                request = {
+                    request_id: Number(this.requestToProcess.request_id),
+                    product_id: Number(this.requestToProcess.product_id), 
+                    purchase_order_id: Number(this.requestToProcess.purchase_order_id),
+                    notes: String(this.requestToProcess.notes), 
+                    status: String(this.requestToProcess.status), 
+                    labels_printed: Boolean(this.requestToProcess.labels_printed), 
+                    ship_label: Boolean(this.requestToProcess.ship_label), 
+                    priority: String(this.requestToProcess.priority), 
+                    ship_to_amz: Number(this.requestToProcess.ship_to_amz), 
+                    deadline: new Date(this.requestToProcess.deadline.getDate()), 
+                    warehouse_qty: Number(this.requestToProcess.warehouse_qty)
+                };
+            } else {
+                request = {
+                    request_id: Number(this.requestToProcess.request_id),
+                    product_id: Number(this.requestToProcess.product_id), 
+                    purchase_order_id: Number(this.requestToProcess.purchase_order_id),
+                    notes: String(this.requestToProcess.notes), 
+                    status: String(this.requestToProcess.status), 
+                    labels_printed: Boolean(this.requestToProcess.labels_printed), 
+                    ship_label: Boolean(this.requestToProcess.ship_label), 
+                    priority: String(this.requestToProcess.priority), 
+                    ship_to_amz: Number(this.requestToProcess.ship_to_amz), 
+                    deadline: null, 
+                    warehouse_qty: Number(this.requestToProcess.warehouse_qty)
+                };
+            }
+            await this.saveUpdatedRequests(request);
+            
             this.requestToProcess = {
                             notes: '', 
                             status: '5 ON ORDER', 
@@ -980,30 +1057,71 @@ export default {
         },
 
         getRequestPriority(reqDeadline: Date | null){
-            console.log("Deadline: ", reqDeadline);
+            
             let today = new Date();
-            let compareDate = new Date()
+            let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            // return 'TBD'
 
             if(reqDeadline){
-                if (today === reqDeadline) {
-                return '0 MUST GO OUT TODAY';
-            } else if (compareDate.setDate(1) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(5)){
-                return '1 This Week';
-            } else if (compareDate.setDate(6) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(14)){
-                return '2 Weeks';
-            } else if (compareDate.setDate(15) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(21)){
-                return '3 Weeks';
-            } else if (compareDate.setDate(22) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(31)){
-                return '4 This Month';
-            } else if (compareDate.setDate(32) <= reqDeadline.getDate() && reqDeadline.getDate() <= today.setDate(60)){
-                return '5 Next Month';
-            } else if (compareDate.setDate(61) <= reqDeadline.getDate()){
-                return '6 Several Months';
-            }
+                // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());
+                // console.log("Compare Date: ", compareDate.getMonth() + 1, compareDate.getDate(), compareDate.getFullYear());
+                // console.log("Tomorrow: ", compareDate.getMonth() + 1, compareDate.getDate() + 1 , compareDate.getFullYear());
+                // console.log("Deadline Date: ", new Date(reqDeadline));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1));
+                // console.log("Deadline < Compare Date: ", new Date(reqDeadline).valueOf() < compareDate.valueOf()); 
+                // console.log("Deadline > Compare Date: ", new Date(reqDeadline).valueOf() > compareDate.valueOf());
+                // console.log("Deadline <= Compare Date: ", new Date(reqDeadline).valueOf() <= compareDate.valueOf()); 
+                // console.log("Deadline >= Compare Date: ", new Date(reqDeadline).valueOf() >= compareDate.valueOf()); 
+                // console.log("Deadline == Compare Date: ", new Date(reqDeadline).valueOf() == new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()).valueOf()); 
+
+                if (compareDate.valueOf() === new Date(reqDeadline).valueOf()) {
+                    return '0 MUST GO OUT TODAY';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 5).valueOf()){
+                    return '1 This Week';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 6).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 14).valueOf()){
+                    return '2 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 15).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 21).valueOf()){
+                    return '3 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 22).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 31).valueOf()){
+                    return '4 This Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 32).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 60).valueOf()){
+                    return '5 Next Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 61).valueOf() <= new Date(reqDeadline).valueOf()){
+                    return '6 Several Months';
+                }
             } else {
                 return 'TBD';
             }
-            
+        },
+
+        formatDate(rawDate: Date | null) {
+            //momentDate = this.eCase.date_received;
+            //console.log("TESTING DATES: ", date);
+            // console.log("Raw Date: ", rawDate);
+            if(rawDate){
+                const displayDate = new Date(rawDate);
+                // console.log('Formatted Date: ', rawDate.getFullYear()+'-'+(rawDate.getMonth()+1)+'-'+rawDate.getDate());
+
+                return (displayDate.getMonth()+1) + '/' + displayDate.getDate() + '/' + displayDate.getFullYear();
+            }
+        },
+
+        getUsablePO(productId: number | null){
+            if(productId){
+                const productKey = this.procProducts.find(product => product.product_id === productId);
+                return this.purchaseOrders.filter(po => po.vendor_id === productKey.vendor_id);
+            } else 
+                return this.purchaseOrders;
+        },
+
+        getUsableProducts(poId: number | null){
+            if(poId){
+                const purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === poId)
+                return this.procProducts.filter(product => product.vendor_id === purchaseOrder.vendor_id);
+            } else
+                return this.procProducts;
         },
     },
 }
