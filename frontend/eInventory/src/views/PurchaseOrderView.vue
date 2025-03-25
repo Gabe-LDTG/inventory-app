@@ -941,7 +941,6 @@ export default {
             },
             columns: [] as any[],
             expandedRows: [],
-            editingRows: [],
 
             //DIALOG VARIABLES
             submitted: false,
