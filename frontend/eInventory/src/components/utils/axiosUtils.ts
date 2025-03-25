@@ -7,66 +7,6 @@ import type { NumericLiteral } from "typescript";
 const BASE_URL = "http://localhost:5000";
 
 var action = {
-    //AUTHENTICATION COMMANDS----------------------------------------------------------------------------------------
-    //Add a user
-    async addUser(u: any){
-        //console.log(this.product);
-        return axios.post(BASE_URL+"/users/create", {
-            username: u.username,
-            password: u.password
-        }).then((res) => {
-            //location.reload();
-            //this.refreshData();
-            console.log(res);
-
-        }).catch(error => {
-            console.log(error);
-        });
-    },
-
-    async validatePassword(u: any){
-        //console.log(this.product);
-        return axios.post(BASE_URL+"/users/validate", {
-            username: u.username,
-            password: u.password
-        },{
-            withCredentials: true, // Now this is was the missing piece in the client side 
-          }).then((res) => {
-            //location.reload();
-            //this.refreshData();
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error.response);
-            throw error.response.data;
-        });
-    },
-
-    async getSessionUser(){
-        let sessionUser;
-            
-        return axios.get(BASE_URL+"/sessionUser").then(res => {
-            console.log(res.data);
-            sessionUser = res.data;
-            //console.log(sessionUser);
-            return sessionUser;
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
-    },
-
-    async logOut(){
-        return axios.post(BASE_URL+"/logout").then(res => {
-            console.log(res);
-            return res;
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
-    },
-
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
@@ -82,31 +22,6 @@ var action = {
         }
 
         return products;
-            
-        /* return axios.get(BASE_URL+"/products",{
-            withCredentials: true, // Now this is was the missing piece in the client side 
-          }).then(res => {
-            products = res.data;
-
-            //this.columns = Object.keys(this.products[0]);
-            //was trying to separate the data pulled from DB from the data displayed, but it was screwing with validation and wasn't really working anyway
-            //this.displayProducts = this.products;
-
-            //console.log("Product List received\n",products);
-            //console.log("Keys", Object.keys(products[1]));
-
-            return products;
-        }) */
-    },
-
-    // Currently broken
-    async nameFilter(){
-        const {data, error} = await supabase.rpc('name_filter_text',{name_string: 'yay', select_function: 'get_all_product_keys()'});
-                if(error){
-                    console.error('Error calling RPC:', error);
-                } else {
-                    console.log('Filtered Name Products:', data);
-                }
     },
 
     async getProcProducts(){
@@ -136,23 +51,6 @@ var action = {
 
         return products;
     },
-
-    // !!!!!!!!!!!!!!UNUSED!!!!!!!!!!!!!!!!!!!!!!
-    //Used to search for a specific product by Id
-    /* async getProductById(id: string){
-        let specificProduct;
-        //console.log(id);
-        axios.get(BASE_URL+"/products/"+id)
-        .then(res => {
-            specificProduct = res.data,
-            console.log(specificProduct);
-        })
-        .catch(error => {
-            console.log(error);
-        })
-
-        return specificProduct;
-    }, */
 
     //Posts a newly added product into the database using API
     async addProduct(p: any, r: any){ 
@@ -367,7 +265,7 @@ var action = {
         //console.log(id);
         //if(confirm("Do you really want to delete?")){
 
-        console.log(p);
+        // console.log(p);
 
         let id_array = [] as any[];
 
@@ -455,14 +353,6 @@ var action = {
             throw error;
         } else {
             console.log('Raw boxes (Delivered): ', data);
-/*             
-            const {count, error} = await supabase.rpc('get_table_count', {select_function: 'get_boxes_and_cases'});
-                if(error){
-                    console.error('Error calling RPC: ', error);
-                    throw error;
-                } else {
-                    console.log('Boxes and cases Count: ', count)
-                } */
             return data;
         }
     },
@@ -479,7 +369,10 @@ var action = {
         }
     },
 
-    //
+    /**
+     * Inserts a single case or box into the database
+     * @param c An object containing either case or box data
+     */
     async addCase(c: any){
         const {data, error} = await supabase.rpc('create_case',{record_array: [
             c.units_per_case,
@@ -488,7 +381,8 @@ var action = {
             c.product_id,
             c.location_id,
             c.status,
-            c.purchase_order_id
+            c.purchase_order_id,
+            c.request_id
         ]})
         if(error){
             console.error('Error calling RPC: ', error);
@@ -498,9 +392,13 @@ var action = {
         }
     },
 
-    //Add multiple cases at the same time
-    async bulkCreateCases(c: any){
-        const {data, error} = await supabase.rpc('bulk_create_cases',{record_array: [
+    // Adds multiple cases at the same time (Loops through an inputted amount)
+    /**
+     * Inserts the same case or box value into the database c.amount of times 
+     * @param c An object containing case or box data to be inserted multiple times
+     */
+    async batchCreateCases(c: any){
+        const {data, error} = await supabase.rpc('batch_create_cases',{record_array: [
             c.units_per_case,
             c.date_received,
             c.notes,
@@ -508,8 +406,23 @@ var action = {
             c.location_id,
             c.status,
             c.purchase_order_id,
-            c.amount
+            c.amount,
+            c.request_id
         ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes/Cases created: ', data);
+        }
+    },
+
+    /**
+     * Takes a 2D Array of cases or boxes and bulk inserts them into the database
+     * @param c A 2D Array of cases or boxes
+     */
+    async bulkCreateCases(c: any){
+        const {data, error} = await supabase.rpc('bulk_create_cases',{record_array: c})
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -560,28 +473,6 @@ var action = {
         }
     },
 
-    //Batch delete products
-    async batchDeleteCases(c: any){
-        //console.log(id);
-        //if(confirm("Do you really want to delete?")){
-
-            console.log(c);
-
-            return axios.post(BASE_URL+"/cases/batchDelete", c)
-            .then(res => {
-                //location.reload();
-                //this.refreshData();
-            })
-            .catch(error => {
-                console.log(error.response.data);
-                console.log(error.request.data);
-                console.log(error);
-                //console.log("########################AXIOS ERROR##############################")
-                throw error.response.data;
-            })
-        //}
-    },
-
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
@@ -597,98 +488,114 @@ var action = {
 
     //Create a purchase order
     async addPurchaseOrder(purchaseOrder: any){
-        //console.log(this.product);
-        return axios.post(BASE_URL+"/purchaseOrders/create", {
-            purchase_order_name: purchaseOrder.purchase_order_name,
-            status: purchaseOrder.status,
-            notes: purchaseOrder.notes,
-            date_ordered: purchaseOrder.date_ordered,
-            date_received: purchaseOrder.date_received,
-            vendor_id: purchaseOrder.vendor_id,
-            discount: purchaseOrder.discount,
-        }).then((res) => {
-            console.log(res);
-            return res.data[0]['LAST_INSERT_ID()'];
-
-        }).catch(error => {
-            console.log(error);
+        const {data, error} = await supabase.rpc('create_purchase_order', {record_array: [
+            purchaseOrder.purchase_order_name,
+            purchaseOrder.status,
+            purchaseOrder.notes,
+            purchaseOrder.date_ordered,
+            purchaseOrder.date_received,
+            purchaseOrder.vendor_id,
+            purchaseOrder.discount
+        ]});
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Purchase Order Created: ', data);
+            return data.purchase_order_id;
+        }
     },
 
     //Edit a purchase order
     async editPurchaseOrder(purchaseOrder: any){
-        return axios.put(BASE_URL+"/purchaseOrders/"+purchaseOrder.purchase_order_id, {
-            purchase_order_name: purchaseOrder.purchase_order_name,
-            status: purchaseOrder.status,
-            notes: purchaseOrder.notes,
-            date_ordered: purchaseOrder.date_ordered,
-            date_received: purchaseOrder.date_received,
-            vendor_id: purchaseOrder.vendor_id,
-            discount: purchaseOrder.discount,
-        }).then((res) => {
-            //console.log(product_id);
-            //location.reload();
-            //this.refreshData();
-            //this.editId = '';
-        }).catch(error => {
-            console.log(error);
+        const {data, error} = await supabase.rpc('update_purchase_order', {record_array: [
+            purchaseOrder.purchase_order_name,
+            purchaseOrder.status,
+            purchaseOrder.notes,
+            purchaseOrder.date_ordered,
+            purchaseOrder.date_received,
+            purchaseOrder.vendor_id,
+            purchaseOrder.discount,
+            purchaseOrder.purchase_order_id
+        ]});
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Purchase Order Updated: ', data);
+            return data;
+        }
     },
 
     //Delete a purchase order
-    async deletePurchaseOrder(id: any){
+    /* async deletePurchaseOrder(id: any){
+
         return axios.delete(BASE_URL+"/purchaseOrders/"+id)
         .catch(error => {
             console.log(error);
         })
-    },
+    }, */
 
     //Get Purchase Order Recipes
     async getPurchaseOrderRecipes(){
-        return axios.get(BASE_URL+"/purchaseOrderRecipes").then(res => {
-            let poRecipes = res.data;
-            //console.log("PO RECIPES ", poRecipes)
-            return poRecipes;
-        })
+        const query = supabase.from('po_recipes').select('*');
+        /* 
+        if(filter_column)
+            query.eq(filter_column, filter_data);
+         */
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('PO Recipes: ', data);
+            return data;
+        }
     },
 
     //Add a Purchase Order Recipe
     async addPurchaseOrderRecipe(poRecipe: any){
-        return axios.post(BASE_URL+"/purchaseOrderRecipes/create", {
-            purchase_order_id: poRecipe.purchase_order_id,
-            recipe_id: poRecipe.recipe_id,
-            qty: poRecipe.qty
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-        }).catch(error => {
-            console.log(error);
+        const {data, error} = await supabase.rpc('create_po_recipe', {record_array: [
+            poRecipe.purchase_order_id,
+            poRecipe.recipe_id,
+            poRecipe.qty
+        ]});
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Purchase Order Recipe Created: ', data);
+            return data;
+        }
     },
 
     //Edit a Purchase Order Recipe
     async editPurchaseOrderRecipe(poRecipe: any){
-        return axios.put(BASE_URL+"/purchaseOrderRecipes/"+poRecipe.po_recipe_id, {
-            purchase_order_id: poRecipe.purchase_order_id,
-            recipe_id: poRecipe.recipe_id,
-            qty: poRecipe.qty
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-        }).catch(error => {
-            console.log(error);
+        const {data, error} = await supabase.rpc('update_po_recipe', {record_array: [
+            poRecipe.purchase_order_id,
+            poRecipe.recipe_id,
+            poRecipe.qty,
+            poRecipe.po_recipe_id
+        ]});
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Purchase Order Recipe Updated: ', data);
+            return data;
+        }
     },
 
     //Add multiple cases at the same time
     async bulkAddPurchaseOrderRecipe(poRecipe: any){
-        return axios.post(BASE_URL+"/purchaseOrderRecipes/bulk",poRecipe).catch(error => {
-            console.log(error);
-        });
+        const {data, error} = await supabase.rpc('bulk_create_po_recipe', {record_array: poRecipe});
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log(data);
+            return data;
+        }
     },
 
     //VENDORS--------------------------------------------------------------------------------------------
@@ -705,19 +612,18 @@ var action = {
 
     //Add a vendor
     async addVendor(vendor: any){
-        return axios.post(BASE_URL+"/vendors/create", {
-            vendor_name: vendor.vendor_name,
-            vendor_nickname: vendor.vendor_nickname,
-            contact_email: vendor.contact_email,
-            contact_name: vendor.contact_name
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        const {data, error} = await supabase.rpc('create_vendor', { record_array: [
+            vendor.vendor_name,
+            vendor.vendor_nickname,
+            vendor.contact_email,
+            vendor.contact_name
+        ]});
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Vendor Created:', data);
+            return data;
+        }
     },
 
     //Edit a vendor
@@ -816,88 +722,192 @@ var action = {
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
     async getRequests(){
-        return axios.get(BASE_URL+"/requests").then(res => {
-            const requests = res.data;
-            //console.log("LOCATIONS ", locations)
-            return requests;
-        })
+        const query = supabase
+            .from('requests_to_process')
+            .select('*')
+            .order('request_id');
+        /* 
+        if(filter_column)
+            query.eq(filter_column, filter_data);
+        
+            .in('status', ['Ordered','Inbound','Ready'])
+         */
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requests to Process: ', data);
+            return data;
+        }
+    },
+
+    async getRequestedRecipes(){
+        const query = supabase
+        .from('po_recipes')
+        .select(`
+            *,  
+            purchase_orders!inner(status, purchase_order_name),
+            recipes!inner(*, recipe_elements!inner(*, products!inner(*)))
+            `)
+        // .filter('products.fnsku', 'neq', null)
+        // .filter('products.asin', 'neq', null)
+        .eq('recipes.recipe_elements.type', 'output')
+        .in('purchase_orders.status', ['Ordered','Inbound', 'Partially Delivered', 'Delivered']);
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requested recipes: ', data);
+            const flattenedData = data.map(recipeItem => ({
+                ...recipeItem,
+                product_name: recipeItem.recipes.recipe_elements[0].products.name,
+                product_id: recipeItem.recipes.recipe_elements[0].products.product_id,
+                fnsku: recipeItem.recipes.recipe_elements[0].products.fnsku,
+                asin: recipeItem.recipes.recipe_elements[0].products.asin,
+                units_per_case: recipeItem.recipes.recipe_elements[0].products.default_units_per_case,
+                bag_size: recipeItem.recipes.recipe_elements[0].products.bag_size,
+                box_size: recipeItem.recipes.recipe_elements[0].products.box_size
+
+            }));
+            console.log("Flattened recipes: ", flattenedData);
+            return flattenedData;
+        }
+    },
+
+    async getRequestedBoxes(){
+        const query = supabase
+            .from('cases')
+            .select(`
+                *,  
+                products!inner(item_num, upc, name)
+                `)
+            .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
+            // .filter('products.fnsku', 'neq', null)
+            // .filter('products.asin', 'neq', null)
+            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requested boxes: ', data);
+            const flattenedData = data.map(boxItem => ({
+                ...boxItem,
+                product_name: boxItem.products.name
+            }));
+            console.log("Flattened boxes: ", flattenedData);
+            return flattenedData;
+        }
+    },
+
+    /**
+     * Grabs cases that are planned in PO's but haven't been processed yet
+     * @returns An array of processed cases for the request to process page
+     */
+    async getRequestedCases(){
+        const query = supabase
+            .from('cases')
+            .select(`
+                *,  
+                products!inner(fnsku, asin, name)
+                `)
+            .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
+            // .filter('products.fnsku', 'neq', null)
+            // .filter('products.asin', 'neq', null)
+            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Requested cases: ', data);
+            const flattenedData = data.map(caseItem => ({
+                ...caseItem,
+                product_name: caseItem.products.name
+            }));
+            console.log("Flattened cases: ", flattenedData);
+            return flattenedData;
+        }
     },
 
     // Create a request
     async addRequest(request: {
         product_id: number; 
-        purchase_order_id: number;
-        notes: string, 
+        purchase_order_id: number | null;
+        notes: string | null, 
         status: string,
         labels_printed: boolean; 
         ship_label: boolean; 
         priority: string; 
         ship_to_amz: number; 
-        deadline: Date; 
+        deadline: Date | null; 
         warehouse_qty: number;
     }){
-        return axios.post(BASE_URL+"/requests/create", {
-            product_id: request.product_id,
-            purchase_order_id: request.purchase_order_id,
-            notes: request.notes,
-            status: request.status,
-            labels_printed: request.labels_printed,
-            ship_label: request.ship_label,
-            priority: request.priority,
-            ship_to_amz: request.ship_to_amz,
-            deadline: request.deadline,
-            warehouse_qty: request.warehouse_qty,
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
+        const {data,error} = await supabase.rpc('create_request', {record_array: [
+            request.product_id,
+            request.purchase_order_id,
+            request.notes,
+            request.status,
+            request.labels_printed,
+            request.ship_label,
+            request.priority,
+            request.ship_to_amz,
+            request.deadline,
+            request.warehouse_qty
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Request added: ', data);
+        }
     },
 
     // Update a request
     async editRequest(request: {
-        request_id: number; 
         product_id: number; 
-        purchase_order_id: number; 
-        notes: string, 
+        purchase_order_id: number | null;
+        notes: string | null, 
         status: string,
         labels_printed: boolean; 
         ship_label: boolean; 
         priority: string; 
         ship_to_amz: number; 
-        deadline: Date; 
+        deadline: Date | null; 
         warehouse_qty: number;
+        request_id: number;
     }){
-        return axios.put(BASE_URL+"/requests/"+request.request_id, {
-            product_id: request.product_id,
-            purchase_order_id: request.purchase_order_id,
-            notes: request.notes,
-            status: request.status,
-            labels_printed: request.labels_printed,
-            ship_label: request.ship_label,
-            priority: request.priority,
-            ship_to_amz: request.ship_to_amz,
-            deadline: request.deadline,
-            warehouse_qty: request.warehouse_qty,
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
+        console.log('Request in utils: ', request);
+        const {data,error} = await supabase.rpc('update_request', {record_array: [
+            request.product_id, request.purchase_order_id, request.notes,
+            request.status, request.labels_printed, request.ship_label,
+            request.priority, request.ship_to_amz, request.deadline,
+            request.warehouse_qty, request.request_id
+        ]})
+        if(error){
+            console.error('Error calling RPC: ', error);
             throw error;
-        });
+        } else {
+            console.log('Request updated: ', data);
+        }
     },
 
     //Delete a request
     async deleteRequest(id: number){
-        return axios.delete(BASE_URL+"/requests/"+id)
-        .catch(error => {
-            console.log(error);
-        })
+        const query = supabase.from('requests_to_process').delete().eq('request_id', id).select();
+
+        const {data,error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Request deleted: ', data);
+        }
     },
 
     // Batch insert requests into the database

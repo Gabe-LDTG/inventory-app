@@ -178,7 +178,7 @@
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
                         </div>
                         <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                         </div>
                     </template>
                 </Dropdown>
@@ -787,6 +787,7 @@ export default {
                             boxesToEdit[boxIdx].product_id,
                             boxesToEdit[boxIdx].location_id,
                             boxesToEdit[boxIdx].status,
+                            boxesToEdit[boxIdx].purchase_order_id,
                             boxesToEdit[boxIdx].case_id
                         ];
                         editBoxArray.push(boxMap);
@@ -831,7 +832,10 @@ export default {
                 } */
                this.eCase.amount = this.amount;
 
-                await action.bulkCreateCases(this.eCase);
+                /** @TODO Add a field in the form for request id's possibly, for now, just setting to null */
+                this.eCase.request_id = null;
+
+                await action.batchCreateCases(this.eCase);
                 //Had to regrab the list of cases because of weird formatting.
                 //ASK MICHAEL IF THERES A BETTER WAY
                 if(this.displayValue == 'processed'){

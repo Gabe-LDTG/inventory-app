@@ -4,7 +4,7 @@
 
         <!-- Sorting was messing with the cell saving function. Might implement later -->
         <!-- sortMode="single" sortField="priority" :sortOrder=1 -->
-        <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedCaseLines"
+        <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedRecipeLines"
         showGridlines stripedRows :filters="filters"
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
         scrollable scrollHeight="650px" removableSort
@@ -13,7 +13,8 @@
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
-                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedCaseLines || !selectedCaseLines.length" />
+                    <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
+                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" />
                     <span class="p-input-icon-right">
                         <!-- <i class="pi pi-search" /> -->
                         <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -23,24 +24,9 @@
             <template #empty>No cases in the request to process</template>
             <template #loading>Loading Requests</template>
 
-
-            <template #footer>
-                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <div v-if="requestsUpdateArray.length === 1" class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <h4 class="m-0">There is 1 request to update.</h4>
-                    </div>
-                    <div v-else class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                        <h4 class="m-0">There are {{ requestsUpdateArray.length }} requests to update.</h4>
-                    </div>
-
-                    <Button label="Save" v-tooltip.top="'Save the edited requests'" @click="saveUpdatedRequests" severity="success" class="mr-2" :disabled="requestsUpdateArray.length < 1" />
-                </div>
-            </template>
-
-
             <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
-                <template #body="{data}">
+                <template v-show="data.notes !== null || data.notes !== 'null'" #body="{data}">
                     {{ data.notes }}
                 </template>
                 <template #editor="{data}">
@@ -95,14 +81,7 @@
             <Column field="priority" header="Priority" sortable style="min-width: 200px">
                 <template #body="{data}">
                     <!-- {{ data.priority }} -->
-                    <Tag :style="priorityStyle(data.priority)">{{ data.priority }}</Tag>
-                </template>
-                <template #editor="{data}">
-                    <div class="container">
-                        <Dropdown v-model="data.priority"
-                        placeholder="Select a priority" class="w-full md:w-14rem" editable
-                        :options="priorities"/>
-                        </div>
+                    <Tag :style="priorityStyle(data.priority)">{{ getRequestPriority(data.deadline) }}</Tag>
                 </template>
             </Column>
             <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
@@ -114,11 +93,13 @@
                 </template>
             </Column>
             <Column field="deadline" header="Deadline" >
-                <template #body="{data}">
-                    {{ data.deadline }}
+                <!-- NOTE: FIX THE 'NaN' thing -->
+                <template v-show="data.deadline !== NaN" #body="{data}">
+                    <!-- {{ data.deadline }} -->
+                    {{ formatDate(data.deadline) }}
                 </template>
                 <template #editor="{data}">
-                    <Calendar dateFormat="yy-mm-dd" v-model="data.deadline"/>
+                    <Calendar dateFormat="mm/dd/yy" v-model="data.deadline"/>
                 </template>
             </Column>
             <Column field="warehouse_qty" header="Warehouse QTY">
@@ -129,10 +110,38 @@
                     <InputNumber v-model="data.warehouse_qty" />
                 </template>
             </Column>
-            <Column field="amount" header="Total QTY" class="font-bold"></Column>
-            <!-- <Column field="location" header="WH Location" style="min-width: 200px"></Column> -->
-            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold"></Column>
-            <Column field="name" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold"></Column>
+            <Column header="Total QTY" class="font-bold">
+                <template #body="{data}">
+                    {{ data.warehouse_qty + data.ship_to_amz }}
+                </template>
+            </Column>
+            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold">
+                <template #body="{data}">
+                    {{ data.purchase_order_name }}
+                </template>
+                <!-- <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.priority"
+                        placeholder="Select a priority" class="w-full md:w-14rem" editable
+                        :options="priorities"/>
+                        </div>
+                </template> -->
+            </Column>
+            <Column field="product_id" header="Name" sortable style="min-width: 250px; min-height: 1000px;" frozen alignFrozen="right" class="font-bold">
+                <template #body="{data}">
+                    {{ data.product_name }}
+                </template>
+<!--                 <template #editor="{data}">
+                    <div class="container">
+                        <Dropdown v-model="data.product_id"
+                        placeholder="Select a priority" class="w-full md:w-14rem" editable
+                        :options="procProducts"
+                        optionLabel="name"
+                        optionValue="product_id"
+                        />
+                        </div>
+                </template> -->
+            </Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
             <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
@@ -144,12 +153,16 @@
     </div>
 
     <Dialog v-model:visible="picklistAmountDialog" :style="{width: '800px'}" header="How many cases to create?" :modal="true">
-        <DataTable ref="dt" :value="picklistCases" 
+        <DataTable ref="dt" :value="picklistRecipes" 
         showGridlines stripedRows 
         editMode="cell" @cell-edit-complete="onAmountCellEdit"
         >
-            <Column field="name" header="Name" style="min-width: 250px;" class="font-bold"></Column>
-            <Column field="amount" header="Total QTY" class="font-bold"></Column>
+            <Column field="product_name" header="Name" style="min-width: 250px;" class="font-bold"></Column>
+            <Column field="amount" header="Total QTY" class="font-bold">
+                <template #body="{data}">
+                    {{ data.qty/data.units_per_case }}
+                </template>
+            </Column>
             <Column header="Cases to Pick">
                 <template #body="{data}">
                     {{ data.casesToPick }}
@@ -186,7 +199,7 @@
                     {{ data.procUnitsPerCase }} {{ data.procName }} (x{{ data.procAmount }})
                     </template>
                 </Column>
-                <Column field="name" header=" Box Name" />
+                <Column field="product_name" header=" Box Name" />
                 <Column field="units_per_case" header="Units per Box" />
                 <Column field="locationName" header="Location" />
                 <Column field="amount" header="# of Boxes" />
@@ -212,6 +225,34 @@
             <Button label="Save Picklist" icon="pi pi-check" text disabled @click="" />
         </template>
     </Dialog>
+
+    <Dialog v-model:visible="newRequestDialog" :style="{width: '1000px'}" header="Add a new request" :modal="true">
+
+        <Dropdown v-model="requestToProcess.product_id" required="true" 
+            placeholder="Select a Product" class="md:w-14rem" editable
+            :options="getUsableProducts(requestToProcess.purchase_order_id)"
+            optionLabel="name"
+            optionValue="product_id"
+            filter
+            @change=""
+            :virtualScrollerOptions="{ itemSize: 38 }"
+            />
+
+        <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
+            placeholder="Select a Purchase Order" class="md:w-14rem" editable
+            :options="getUsablePO(requestToProcess.product_id)"
+            optionLabel="purchase_order_name"
+            optionValue="purchase_order_id"
+            filter
+            @change=""
+            :virtualScrollerOptions="{ itemSize: 38 }"
+            />
+
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="newRequestDialog = false"/>
+            <Button label="Add Request" icon="pi pi-check" text @click="onNewRequestSave" />
+        </template>
+    </Dialog>
     
 </template>
 <script lang="ts">
@@ -222,6 +263,7 @@ import helper from "../components/utils/helperUtils";
 /** @TODO Try to fix module later */
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import { request } from 'node_modules/axios/index.cjs';
 // https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
 
 export default {
@@ -235,7 +277,7 @@ export default {
             selectedProducts: [] as any[],
 
             // CASE VARIABLES
-            selectedCaseLines: [] as any[],
+            selectedRecipeLines: [] as any[],
             cases: [] as any[],
             uBoxes: [] as any[],
             pCases: [] as any[],
@@ -272,27 +314,31 @@ export default {
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
+            reqRecipes: [] as any[],
 
             // REQUEST TO PROCESS VARIABLES
             requestToProcess: {} as {
-                request_id: number; 
-                case_id: number; 
-                notes: string, 
-                status: string,
+                request_id: number | null; 
+                product_id: number | null; 
+                purchase_order_id: number | null;
+                notes: string;
+                status: string;
                 labels_printed: boolean; 
                 ship_label: boolean; 
                 priority: string; 
                 ship_to_amz: number; 
-                deadline: Date; 
+                deadline: Date | null; 
                 warehouse_qty: number;
             },
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
             requestsUpdateArray: [] as any[],
+            newRequestDialog: false,
+
 
             // PICKLIST VARIABLES
             picklists: [] as any[],
-            picklistCases: [] as any[],
+            picklistRecipes: [] as any[],
             picklistBoxes: [] as any[],
             picklistAmountDialog: false,
             picklistDialog: false,
@@ -340,29 +386,8 @@ export default {
     },
     created(){
         this.initVariables();
-        window.addEventListener('beforeunload', function onBeforeUnload(event: any){
-            console.log(event);
-            return  window.confirm('Do you really want to leave? you have unsaved changes!');
-        });
-        if(this.requestsUpdateArray.length > 0){
-            window.onbeforeunload = function() {
-                return "Data will be lost if you leave the page, are you sure?";
-            };
-        }
-        
-    },
-    mounted(){
-        //this.initVariables();
-    },
-    beforeUnmount(){ 
-        console.log("BEFORE UNMOUNTED") 
-
-        if(this.requestsUpdateArray.length > 0){
-            window.confirm('Do you really want to leave? you have unsaved changes!');
-        };
 
     },
-    unmounted(){ console.log("UNMOUNTED") },
     methods: {
         async initVariables(){
             try {
@@ -419,7 +444,7 @@ export default {
                     else
                         this.unprocProducts.push(p);
                 });
-                //console.log("PROCESSED: ", this.procProducts);
+                // console.log("PROCESSED: ", this.procProducts);
                 //console.log("UNPROCESSED: ", this.unprocProducts);
             } catch (err) {
                 console.log(err);
@@ -430,8 +455,9 @@ export default {
             try {
                 //this.cases = await action.getUnprocCases();
                 //this.cases = await action.getCases();
-                this.uBoxes = await action.getUnprocCases();
-                this.pCases = await action.getProcCases();
+                this.uBoxes = await action.getRequestedBoxes();
+                this.pCases = await action.getRequestedCases();
+                this.reqRecipes = await action.getRequestedRecipes();
 
                 //console.log("CASES: ",this.cases);
                 //console.log("BOXES: ", this.uBoxes);
@@ -473,6 +499,13 @@ export default {
             }
         }, 
 
+        /**
+         * Grabs all requests to process, and parses an array of cases or recipes in the RTP to display
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * Date Created: ???
+         * Date Last Edited: 3-19-2025
+         */
         async getRequestsToProccess(){
             try {
                 this.requestsToProcess = await action.getRequests();
@@ -482,22 +515,49 @@ export default {
 
                 const casesWithR2PsAndPOs = [] as any[];
 
-                for(const c of this.pCases) {
-                    // let location = this.locations.find(l => l.location_id  === c.location);
-                    if (c.location)
-                        continue;
+                // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
-                    let productKey = this.products.find(p => p.product_id === c.product_id);
-                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === c.purchase_order_id);
-                    // console.log("purchase order", purchaseOrder);
-                    let request = this.requestsToProcess.find(req => req.purchase_order_id === c.purchase_order_id && req.product_id === c.product_id);
-                    // console.log("request", request);
-                    // if(!location)
-                    //     location = {};
+                for(const request of this.requestsToProcess){
+                    let productKey = this.products.find(p => p.product_id === request.product_id);
+                    let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
+
+                    let requestedRecipe = {units_per_case: productKey.default_units_per_case}; 
+
                     if(!purchaseOrder)
-                        purchaseOrder = {};
-                    if(!request)
-                        request = {
+                        purchaseOrder = {purchase_order_name: 'No linked PO'};
+                    else 
+                        requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
+
+
+                    casesWithR2PsAndPOs.push({ req: request, key: productKey, po: purchaseOrder, recipe: requestedRecipe });
+                }
+
+                let returnArray = casesWithR2PsAndPOs.map(({ req, key, po, recipe }) => ({
+                    ...req,
+                    ...recipe,
+                    purchase_order_name: po.purchase_order_name,
+                    product_name: key.name,
+                    bag_size: key.bag_size,
+                    box_type: key.box_type,
+                    fnsku: key.fnsku,
+                    asin: key.asin,
+                    casesToPick: req.ship_to_amz + req.warehouse_qty,
+                }));
+                console.log("returnArray", returnArray);
+
+                const keyStringArray = ['product_id', 'request_id']
+
+                console.log("returnArray grouped", helper.groupItemsByKey(returnArray, keyStringArray));
+
+                // this.R2Parray = helper.groupItemsByKey(returnArray, keyStringArray);
+                this.R2Parray = returnArray;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        addNewRequest(){
+            let request = {
                             notes: null, 
                             status: '5 ON ORDER', 
                             labels_printed: false, 
@@ -505,34 +565,11 @@ export default {
                             priority: '6 Prep For Later', 
                             ship_to_amz: 0, 
                             deadline: null, 
-                            warehouse_qty: 0
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null
                         };
-
-                    casesWithR2PsAndPOs.push({ box: c, key: productKey, po: purchaseOrder, req: request });
-                }
-
-                // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
-
-                let returnArray = casesWithR2PsAndPOs.map(({ box, key, po, req }) => ({
-                    ...box,
-                    purchase_order_name: po.purchase_order_name,
-                    ...req,
-                    bag_size: key.bag_size,
-                    box_type: key.box_type,
-                    fnsku: key.fnsku,
-                    asin: key.asin,
-                    casesToPick: 0,
-                }));
-                // console.log("returnArray", returnArray);
-
-                const keyStringArray = ['product_id', 'purchase_order_name', 'request_id']
-
-                console.log("returnArray grouped", helper.groupItemsByKey(returnArray, keyStringArray));
-
-                this.R2Parray = helper.groupItemsByKey(returnArray, keyStringArray);
-            } catch (error) {
-                console.log(error);
-            }
+            this.R2Parray = [request, ...this.R2Parray];
         },
 
         requestRowStyle(data: any){
@@ -602,89 +639,216 @@ export default {
             }
         },
 
-        onRequestCellEdit(event: any){
+        /**
+         * Runs every time a request cell is edited and autosaves new data
+         * @param event The request field cell being edited
+         * 
+         * Created By: Gabe de la Torre-Garcia On: ???
+         * 
+         * Last Edited: 3-18-2025
+         */
+        async onRequestCellEdit(event: any){
             console.log(event);
 
-            let {data, index, newData} = event;
+            const {index, newData, newValue, value, field} = event;
 
-            if (data.notes === newData.notes && data.status === newData.status && data.labels_printed === newData.labels_printed && data.ship_label === newData.ship_label && data.priority === newData.priority && data.ship_to_amz === newData.ship_to_amz && data.deadline === newData.deadline && data.warehouse_qty === newData.warehouse_qty)
+            if (value === newValue)
                 console.log("EQUAL");
             else{
                 console.log("EDITS");
-                this.R2Parray[index] = newData;
-                const request = this.requestsUpdateArray.find(req => req.case_id === newData.case_id && req.purchase_order_id === newData.purchase_order_id);
-
-                if (!request)
-                    this.requestsUpdateArray.push(newData);
+                this.R2Parray[index][field] = newValue;
+                await this.saveUpdatedRequests(newData);
             }
-                
         },
 
-        async saveUpdatedRequests(){
+        async saveUpdatedRequests(request_data: {product_id: number; 
+                        purchase_order_id: number | null;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date | null; 
+                        warehouse_qty: number;
+                        request_id: number;}){
             try {
-                console.log("UPDATED REQUEST ARRAY", this.requestsUpdateArray);
+                console.log("Request data: ", request_data);
+                let errorMSG = '';
                 let newRequests = [] as any[];
                 let editedRequests = [] as any[];
 
-                for(const request of this.requestsUpdateArray){
-                    let requestMap = [] as any[];
+                let requestMap = [] as any[];
 
-                    if(request.request_id){
-                        requestMap = [
-                            request.request_id,
-                            request.product_id, 
-                            request.purchase_order_id,
-                            request.notes, 
-                            request.status, 
-                            request.labels_printed, 
-                            request.ship_label, 
-                            request.priority, 
-                            request.ship_to_amz, 
-                            request.deadline, 
-                            request.warehouse_qty
-                        ];
-                        editedRequests.push(requestMap);
+                //Typescript request a default minutes part
+                // request_data.deadline += ':00';
+                
+
+                if(request_data.request_id){
+                    requestMap = [
+                        request_data.request_id,
+                        request_data.product_id, 
+                        request_data.purchase_order_id,
+                        request_data.notes, 
+                        request_data.status, 
+                        request_data.labels_printed, 
+                        request_data.ship_label, 
+                        request_data.priority, 
+                        request_data.ship_to_amz, 
+                        request_data.deadline, 
+                        request_data.warehouse_qty
+                    ];
+                    editedRequests.push(requestMap);
+
+                    let editedRequest: {
+                        product_id: number; 
+                        purchase_order_id: number | null;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date | null; 
+                        warehouse_qty: number;
+                        request_id: number;
+                    }; 
+
+                    if (request_data.deadline){
+                        editedRequest =  {
+                            request_id: Number(request_data.request_id),
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: request_data.deadline,  
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    } else {
+                        editedRequest =  {
+                            request_id: Number(request_data.request_id),
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: null,  
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
                     }
-                    else{
-                        requestMap = [
-                            request.product_id, 
-                            request.purchase_order_id, 
-                            request.notes, 
-                            request.status, 
-                            request.labels_printed, 
-                            request.ship_label, 
-                            request.priority, 
-                            request.ship_to_amz, 
-                            request.deadline, 
-                            request.warehouse_qty
-                        ];
-                        newRequests.push(requestMap);
+
+                    if(!this.requestToProcess.purchase_order_id)
+                        editedRequest.purchase_order_id = null;
+
+
+                    console.log("Request to edit: ", editedRequest);
+
+                    await action.editRequest(editedRequest)
+                }
+                else{
+                    requestMap = [
+                        request_data.product_id, 
+                        request_data.purchase_order_id, 
+                        request_data.notes, 
+                        request_data.status, 
+                        request_data.labels_printed, 
+                        request_data.ship_label, 
+                        request_data.priority, 
+                        request_data.ship_to_amz, 
+                        request_data.deadline, 
+                        request_data.warehouse_qty
+                    ];
+                    newRequests.push(requestMap);
+
+                    let createdRequest: {
+                        product_id: number; 
+                        purchase_order_id: number | null;
+                        notes: string, 
+                        status: string,
+                        labels_printed: boolean; 
+                        ship_label: boolean; 
+                        priority: string; 
+                        ship_to_amz: number; 
+                        deadline: Date | null; 
+                        warehouse_qty: number;
+                    };
+
+                    if(request_data.deadline){
+                        createdRequest = {
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: request_data.deadline, 
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
+                    } else {
+                        createdRequest = {
+                            product_id: Number(request_data.product_id), 
+                            purchase_order_id: Number(request_data.purchase_order_id),
+                            notes: String(request_data.notes), 
+                            status: String(request_data.status), 
+                            labels_printed: Boolean(request_data.labels_printed), 
+                            ship_label: Boolean(request_data.ship_label), 
+                            priority: String(request_data.priority), 
+                            ship_to_amz: Number(request_data.ship_to_amz), 
+                            deadline: null, 
+                            warehouse_qty: Number(request_data.warehouse_qty)
+                        };
                     }
-                        
-                };
+
+                    if(!this.requestToProcess.purchase_order_id)
+                        createdRequest.purchase_order_id = null;
+
+                    console.log("Request to create: ", createdRequest);
+
+                    await action.addRequest(createdRequest);
+
+                    // create the necessary cases here
+
+                }
+
 
                 console.log("New requests", newRequests, " and edited requests", editedRequests);
 
                 if(newRequests.length > 0){
-                    await action.batchInsertRequests(newRequests);
+                    // await action.batchInsertRequests(newRequests);
                     newRequests = [];
                 }
 
                 if(editedRequests.length > 0){
-                    await action.batchUpdateRequests(editedRequests);
+                    // await action.batchUpdateRequests(editedRequests);
                     editedRequests = [];
                 }
                 
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request(s) Updated', life: 3000});
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request Updated', life: 10000});
                 
+                this.getRequestsToProccess();
+
                 this.requestsUpdateArray = [];
 
 
             } catch (error) {
                 console.log(error);
+                
                 this.$toast.add({severity:'error', summary: "Error", detail: error});
                 
             }
+        },
+
+        getAllowedProducts(){
+
         },
 
         onBeforeUnload(event: any){
@@ -695,10 +859,10 @@ export default {
         openPicklistAmountDialog(){
             this.picklistAmountDialog = true;
 
-            this.picklistCases = this.selectedCaseLines;
-            this.selectedCaseLines = [];
+            this.picklistRecipes = this.selectedRecipeLines;
+            this.selectedRecipeLines = [];
 
-            console.log("Picklist Cases", this.picklistCases);
+            console.log("Picklist Recipe", this.picklistRecipes);
         },
 
         onAmountCellEdit(event: any){
@@ -706,7 +870,7 @@ export default {
 
             let {data, index, newData} = event;
 
-            this.picklistCases[index] = newData; 
+            this.picklistRecipes[index] = newData; 
         },
 
         onPicklistCellEdit(event: any){
@@ -726,9 +890,9 @@ export default {
 
             console.log("uBoxes", this.uBoxes);
 
-            for(const pickCase of this.picklistCases){
-                pickListOutputOBJ = pickCase;
-                const recOutput = this.recipeElements.find(rec => rec.product_id === pickCase.product_id && rec.type === 'output');
+            for(const pickRecipe of this.picklistRecipes){
+                pickListOutputOBJ = pickRecipe;
+                const recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
                 const recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
 
                 console.log("recInputs", recInputs);
@@ -736,10 +900,10 @@ export default {
                 // pickListInputArray = [];
 
                 for(const box of this.uBoxes){
-                    if (box.purchase_order_id !== pickCase.purchase_order_id)
+                    if (box.purchase_order_id !== pickRecipe.purchase_order_id)
                     continue;
 
-                    // console.log("Box", box);
+                    console.log("Box", box);
                     let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
                     let recInput = recInputs.find(rec => rec.product_id === box.product_id);
                     if (recInput === undefined)
@@ -762,26 +926,26 @@ export default {
                             continue;
 
                         totalArray[recIdx].currAmount += box.units_per_case;
-                        box.procName = pickCase.name;
-                        box.procAmount = pickCase.casesToPick;
-                        box.procUnitsPerCase = pickCase.units_per_case;
-                        box.notes = pickCase.notes;
+                        box.procName = pickRecipe.product_name;
+                        box.procAmount = pickRecipe.casesToPick;
+                        box.procUnitsPerCase = pickRecipe.units_per_case;
+                        box.notes = pickRecipe.notes;
                         console.log("BOX PROC NAME", box.procName);
                         console.log("BOX ID", box.case_id);
                         pickListInputArray.push(box);
                         // this.pickListArray.push(box);
                     } else {
                         // The total does not exist in the array. Add it.
-                        const totalUnits = pickCase.casesToPick * pickCase.units_per_case * recInput.qty;
+                        const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
                         const product_id = box.product_id;
-                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: 0 };
+                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
                         totalArray.push(recipeTotalOBJ);
                         console.log("totalArray", totalArray);
                         // Push the first box into the array
-                        box.procName = pickCase.name;
-                        box.procAmount = pickCase.casesToPick;
-                        box.procUnitsPerCase = pickCase.units_per_case;
-                        box.notes = pickCase.notes;
+                        box.procName = pickRecipe.product_name;
+                        box.procAmount = pickRecipe.casesToPick;
+                        box.procUnitsPerCase = pickRecipe.units_per_case;
+                        box.notes = pickRecipe.notes;
                         console.log("BOX PROC NAME", box.procName);
                         console.log("BOX ID", box.case_id);
                         pickListInputArray.push(box);
@@ -790,13 +954,13 @@ export default {
                     // console.log("Box", box);
                 }
                 console.log("INPUT ARRAY", pickListInputArray);
-                // this.pickListArray.push({ caseName: pickCase.name, pickListInputArray});
+                // this.pickListArray.push({ caseName: pickRecipe.product_name, pickListInputArray});
             }
             const keyArray = ['product_id', 'units_per_case', 'location', 'procName'];
             this.pickListArray = helper.groupItemsByKey(pickListInputArray, keyArray);
             
             this.pickListArray.forEach(inputLine => {
-                const locKey = this.locations.find(loc => loc.location_id === inputLine.location);
+                const locKey = this.locations.find(loc => loc.location_id === inputLine.location_id);
                 
                 if(locKey)
                 inputLine.locationName = locKey.name;
@@ -810,6 +974,154 @@ export default {
                 filename: "picklist.pdf",
                 jsPDF: { orientation: 'landscape' },
             });
+        },
+
+        addRequestSetup(){
+            this.newRequestDialog = true;
+
+            this.requestToProcess = {
+                            notes: '', 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null,
+                            request_id: null,
+                        };
+        },
+
+        async onNewRequestSave(){
+            console.log("Request on save: ", this.requestToProcess)
+            let request: {
+                    product_id: number; 
+                    purchase_order_id: number | null;
+                    notes: string, 
+                    status: string,
+                    labels_printed: boolean; 
+                    ship_label: boolean; 
+                    priority: string; 
+                    ship_to_amz: number; 
+                    deadline: Date | null; 
+                    warehouse_qty: number;
+                    request_id: number;
+                };
+            if(this.requestToProcess.deadline){
+                request = {
+                    request_id: Number(this.requestToProcess.request_id),
+                    product_id: Number(this.requestToProcess.product_id), 
+                    purchase_order_id: Number(this.requestToProcess.purchase_order_id),
+                    notes: String(this.requestToProcess.notes), 
+                    status: String(this.requestToProcess.status), 
+                    labels_printed: Boolean(this.requestToProcess.labels_printed), 
+                    ship_label: Boolean(this.requestToProcess.ship_label), 
+                    priority: String(this.requestToProcess.priority), 
+                    ship_to_amz: Number(this.requestToProcess.ship_to_amz), 
+                    deadline: new Date(this.requestToProcess.deadline.getDate()), 
+                    warehouse_qty: Number(this.requestToProcess.warehouse_qty)
+                };
+            } else {
+                request = {
+                    request_id: Number(this.requestToProcess.request_id),
+                    product_id: Number(this.requestToProcess.product_id), 
+                    purchase_order_id: Number(this.requestToProcess.purchase_order_id),
+                    notes: String(this.requestToProcess.notes), 
+                    status: String(this.requestToProcess.status), 
+                    labels_printed: Boolean(this.requestToProcess.labels_printed), 
+                    ship_label: Boolean(this.requestToProcess.ship_label), 
+                    priority: String(this.requestToProcess.priority), 
+                    ship_to_amz: Number(this.requestToProcess.ship_to_amz), 
+                    deadline: null, 
+                    warehouse_qty: Number(this.requestToProcess.warehouse_qty)
+                };
+            }
+            await this.saveUpdatedRequests(request);
+            
+            this.requestToProcess = {
+                            notes: '', 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            product_id: null,
+                            purchase_order_id: null,
+                            request_id: null,
+                        };
+            this.newRequestDialog = false;
+        },
+
+        getRequestPriority(reqDeadline: Date | null){
+            
+            let today = new Date();
+            let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            // return 'TBD'
+
+            if(reqDeadline){
+                // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());
+                // console.log("Compare Date: ", compareDate.getMonth() + 1, compareDate.getDate(), compareDate.getFullYear());
+                // console.log("Tomorrow: ", compareDate.getMonth() + 1, compareDate.getDate() + 1 , compareDate.getFullYear());
+                // console.log("Deadline Date: ", new Date(reqDeadline));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1));
+                // console.log("Deadline < Compare Date: ", new Date(reqDeadline).valueOf() < compareDate.valueOf()); 
+                // console.log("Deadline > Compare Date: ", new Date(reqDeadline).valueOf() > compareDate.valueOf());
+                // console.log("Deadline <= Compare Date: ", new Date(reqDeadline).valueOf() <= compareDate.valueOf()); 
+                // console.log("Deadline >= Compare Date: ", new Date(reqDeadline).valueOf() >= compareDate.valueOf()); 
+                // console.log("Deadline == Compare Date: ", new Date(reqDeadline).valueOf() == new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()).valueOf()); 
+
+                if (compareDate.valueOf() === new Date(reqDeadline).valueOf()) {
+                    return '0 MUST GO OUT TODAY';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 5).valueOf()){
+                    return '1 This Week';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 6).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 14).valueOf()){
+                    return '2 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 15).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 21).valueOf()){
+                    return '3 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 22).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 31).valueOf()){
+                    return '4 This Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 32).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 60).valueOf()){
+                    return '5 Next Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 61).valueOf() <= new Date(reqDeadline).valueOf()){
+                    return '6 Several Months';
+                }
+            } else {
+                return 'TBD';
+            }
+        },
+
+        formatDate(rawDate: Date | null) {
+            //momentDate = this.eCase.date_received;
+            //console.log("TESTING DATES: ", date);
+            // console.log("Raw Date: ", rawDate);
+            if(rawDate){
+                const displayDate = new Date(rawDate);
+                // console.log('Formatted Date: ', rawDate.getFullYear()+'-'+(rawDate.getMonth()+1)+'-'+rawDate.getDate());
+
+                return (displayDate.getMonth()+1) + '/' + displayDate.getDate() + '/' + displayDate.getFullYear();
+            }
+        },
+
+        getUsablePO(productId: number | null){
+            if(productId){
+                const productKey = this.procProducts.find(product => product.product_id === productId);
+                return this.purchaseOrders.filter(po => po.vendor_id === productKey.vendor_id);
+            } else 
+                return this.purchaseOrders;
+        },
+
+        getUsableProducts(poId: number | null){
+            if(poId){
+                const purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === poId)
+                return this.procProducts.filter(product => product.vendor_id === purchaseOrder.vendor_id);
+            } else
+                return this.procProducts;
         },
     },
 }

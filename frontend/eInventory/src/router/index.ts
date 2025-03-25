@@ -12,7 +12,6 @@ import Login from '../views/LoginView.vue'
 //@ts-ignore
 import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
-import PurchaseOrderView_v2 from '@/views/PurchaseOrderView_v2.vue'
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
 
 import axios from "axios";
@@ -71,12 +70,6 @@ const router = createRouter({
       path: '/purchaseorders',
       name: 'PurchaseOrders',
       component: PurchaseOrder,
-        meta: { requiresAuth: true}
-    },
-    {
-      path: '/purchaseorders_v2',
-      name: 'PurchaseOrders_v2',
-      component: PurchaseOrderView_v2,
         meta: { requiresAuth: true}
     },
     {
