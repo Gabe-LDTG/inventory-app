@@ -637,11 +637,15 @@
         </Dialog>
 
         <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
+            <div class="flex align-items-left align-self-flex-start">
+                <Button label="Header" text @click=""/>
+                <Button label="Product Info" text @click="" />
+            </div>
+            
             <div class="field">
                 <label for="purchase_order_name">Name</label>
                 <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
                 :disabled="purchaseOrder.purchase_order_id"/>
-                <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
             </div>
 
             <div class="field">

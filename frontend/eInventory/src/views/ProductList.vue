@@ -115,6 +115,11 @@
                 <label for="upc">UPC</label>
                 <InputText id="upc" v-model="product.upc"/>
             </div>
+            
+            <div class="field">
+                <label for="item_num">Item Number</label>
+                <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+            </div>
 
             <div class="field">
                 <label for="notes">Notes</label>
@@ -182,11 +187,6 @@
             <div class="field">
                 <label for="item_cost">Item Cost</label>
                 <InputNumber v-model="product.item_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="item_num">Item Number</label>
-                <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
             </div>
 
             <div class="field">

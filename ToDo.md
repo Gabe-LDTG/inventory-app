@@ -17,6 +17,10 @@ MISC
 - Add a price table that holds the fields [price_start_date, price_end_date, price]. For the current price, grab the 
 price that has no end date []
 
+-Figure out the migration process (Prod A and Prod B) []
+
+-Look into Bulma for CSS design []
+
 LOGIN
 - Supabase authentication [x]
 
@@ -55,9 +59,9 @@ REQUEST TO PROCESS:
 
 - When looping through all of the reqRecipes, search for cases by product type, and purchase order. If they exist, display them, if not, show the recipe instead []
 
-- Autofill the priority field by the deadline field []
+- Autofill the priority field by the deadline field [x]
 Equation from excel =IFS(G50="","TBD",G50<=TODAY(),"0 MUST GO OUT TODAY",And(today()+1<=G50,G50<=TODAY()+5),"1 This Week",AND(TODAY()+6<=G50,G50<=TODAY()+14),"2 Weeks",AND(TODAY()+15<=G50,G50<=TODAY()+21),"3 Weeks",AND(TODAY()+22<=G50,G50<=TODAY()+31),"4 This Month",AND(TODAY()+32<=G50,G50<=TODAY()+60),"5 Next Month",TODAY()+61<=G50,"6 Several Months")
 
-- When a user selects a product, filter to only purchase orders with that product, and vice versa []
+- When a user selects a product, filter to only purchase orders with that product, and vice versa [x]
 
 - Add pick list functionality to requests that are not tied a purchase order []
