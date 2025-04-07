@@ -48,7 +48,15 @@ PURCHASE ORDERS:
 
 - Switch UPC for item num in recipe select [x]
 
-- Place the totalChecking into its own function []
+- Place the totalChecking into its own function [x]
+
+- Fix the bug where a single partial box cannot be edited because the "units per box" field will always match the 
+  "totals" field [x]
+
+- Figure out why products added after PO creation are not able to be received [x] (the box status was not checke 
+ in the if, unless it was Draft)
+
+- Clean up the receiving Dialog []
 
 REQUEST TO PROCESS:
 - Automatically populate the request to process page when a purchase order's status is at least "Ordered" []

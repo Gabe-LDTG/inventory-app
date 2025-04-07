@@ -93,11 +93,16 @@
                 optionLabel="vendor_name"
                 optionValue="vendor_id" />
             </div>
-            
+       
             <div class="field" v-if="!product.product_id">
                 <label for="name">Name</label>
                 <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                 <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
+            </div>
+
+            <div class="field">
+                <label for="default_units_per_case">Default Units per Case</label>
+                <InputText v-model="product.default_units_per_case" />
             </div>
 
             <div class="field">
@@ -119,6 +124,11 @@
             <div class="field">
                 <label for="item_num">Item Number</label>
                 <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+            </div>
+
+            <div class="field">
+                <label for="price_2023">Current Unit Price</label>
+                <InputNumber v-model="product.price_2023" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
             <div class="field">
@@ -225,11 +235,6 @@
             <div class="field">
                 <label for="price_2022">Price 2022</label>
                 <InputNumber v-model="product.price_2022" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="price_2023">Price 2023</label>
-                <InputNumber v-model="product.price_2023" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
             <div class="field">
@@ -466,7 +471,7 @@ export default {
             { field: 'out_shipping_cost', header: 'Out-shipping Cost' },
             { field: 'price_2021', header: 'Price 2021' },
             { field: 'price_2022', header: 'Price 2022' },
-            { field: 'price_2023', header: 'Price 2023' },
+            { field: 'price_2023', header: 'Current Unit Price' },
             { field: 'process_time_per_unit_sec', header: 'Process Time per Unit Sec' },
             { field: 'total_cost', header: 'Total Cost'},
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },

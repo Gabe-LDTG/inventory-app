@@ -285,10 +285,10 @@
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
                     </div>
                     <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" 
-                    rowGroupMode="subheader" groupRowsBy="product_name" 
+                    rowGroupMode="subheader" groupRowsBy="product_id" 
                     editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
                     scrollable scrollHeight="400px"
-                    sortField="name" 
+                    sortField="product_id" 
                     showGridlines
                     tableStyle="background-color: '#16a085'"
                     >
@@ -858,7 +858,7 @@
                     scrollable scrollHeight="400px"
                     showGridlines
                     >
-                        <Column field="name" header="Name"/>
+                        <!-- <Column field="name" header="Name"/> -->
                         <Column field="amount" header="Total Number of Boxes">
                             <template #body={data}>
                                 {{ data.amount }}
@@ -866,7 +866,7 @@
                             <template #editor={data}>
                                 <InputNumber inputId="stacked-buttons" required="true" 
                                 v-model="data.amount" showButtons
-                                @update:model-value="data.total = data.amount*data.units_per_case"
+                                @update:model-value="data.total = Math.round(data.amount*data.units_per_case)"
                                 />
                             </template>
                         </Column>
@@ -930,7 +930,7 @@ import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
 import InputNumber from 'primevue/inputnumber';
-import { debounce } from 'lodash';
+import { debounce, keys } from 'lodash';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -1776,6 +1776,8 @@ export default {
                 console.log(error);
             }
         },
+
+
         async confirmEdit(){
             try {
                 //this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
@@ -1793,6 +1795,11 @@ export default {
                     console.log('Cases to edit: ', this.poCases);
                 }
 
+                this.poBoxes.forEach(box =>{
+                    if(box.status !== 'Ready')
+                        this.purchaseOrder.status = 'Partially Delivered'
+                })
+
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
                 console.log("PURCHASE ORDER AFTER AWAIT ",this.purchaseOrder);
@@ -1808,12 +1815,14 @@ export default {
             }
         },
 
-        //Description: Checks the boxes actually received in the PO vs the boxes requested and alocates the 
-        // correct amount to either delivered or back-ordered
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 6-04-2024
+        /**
+         * Checks the boxes actually received in the PO vs the boxes requested and alocates the 
+         * correct amount to either delivered or back-ordered
+         * 
+         * Created by: Gabe de la Torre
+         * 
+         * Date Last Edited: 6-04-2024
+         */
         async alocateBoxes(){
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
@@ -2179,7 +2188,7 @@ export default {
          * Date Last Edited: 2-17-2025
          */
         editPurchaseOrder(purchaseOrder: any) {
-            this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
+            this.purchaseOrder = {...purchaseOrder};
             this.poCases = [];
             this.poBoxes = [];
             this.reqPoBoxes = [];
@@ -2285,7 +2294,7 @@ export default {
             else if (po.displayStatus === "Unprocessed"){
                 if (linkedBoxes.length > 0)
                     // displayArray = this.groupProducts(linkedBoxes);
-                    displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes']);
+                    displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes', 'location_id']);
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -2620,8 +2629,7 @@ export default {
         },
 
         onTotalUpdate(total: any, units_per_case: any){
-            let qty = Math.ceil(total/units_per_case);
-            return qty;
+            return Number((total/units_per_case).toFixed(2));
         },
         onQtyUpdate(qty: any, units_per_case: any){
             let total = qty*units_per_case;
@@ -3036,7 +3044,7 @@ export default {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             } else if  (data.status === 'Ready') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
-            } else if (data.status === 'Draft') {
+            } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
             }
         },
@@ -3209,13 +3217,18 @@ export default {
             if(editedBoxes.length > 0){
                 console.log("Boxes to edit: ", editedBoxes);
 
+                const productKey = this.products.find(product => product.product_id === this.poBoxes[index].product_id)
+                console.log('product key', productKey);
+
                 // Grab the partial box, if it exists
-                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(Number(box.units_per_case)/this.poBoxes[index].units_per_case) === false);
+                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(Number(box.units_per_case)/productKey.default_units_per_case) === false);
                 
                 // If it does, set the units in the box to the default amount.
                 // This is because the function will set the new partial amount, if needed.
-                if (partialIdx !== -1)
-                    editedBoxes[partialIdx].units_per_case = this.poBoxes[index].units_per_case;
+                if (partialIdx !== -1){
+                    editedBoxes[partialIdx].units_per_case = productKey.default_units_per_case;
+                }
+                    
 
                 editedBoxes.forEach(box => maxTotal += Number(box.units_per_case));
 
@@ -3269,7 +3282,7 @@ export default {
                         product_id: newData.product_id,
                         purchase_order_id: this.purchaseOrder.purchase_order_id,
                         units_per_case: newData.units_per_case,
-                        status: this.purchaseOrder.status
+                        status: 'Draft'
                     });
                 }
 
@@ -3327,7 +3340,16 @@ export default {
                             b.notes = null;
                         if(!b.date_received)
                             b.date_received = null;
-                        let tempArray = [b.units_per_case, b.date_received, b.notes, b.product_id,  b.location_id, b.status, b.purchase_order_id, b.request_id]
+                        let tempArray = [
+                            b.units_per_case, 
+                            b.date_received, 
+                            b.notes, 
+                            b.product_id,  
+                            b.location_id, 
+                            b.status, 
+                            b.purchase_order_id, 
+                            b.request_id
+                        ]
                         finalBoxArray.push(tempArray);
                     })
                 await action.bulkCreateCases(finalBoxArray);
@@ -3351,9 +3373,9 @@ export default {
          * @param rawProductId The product ID of the raw product that has a new total
          * @param rawTotal The new total to be compared to the recipe total
          * 
-         * Created By: Gabe de la Torre-Garcia On: 3-12-25
+         * Created By: Gabe de la Torre-Garcia on: 3-12-25
          * 
-         * Lasted Edited: 3-13-25
+         * Lasted Edited: 4-7-25
          */
          checkPoTotals(){
             /* 
@@ -3417,7 +3439,9 @@ export default {
 
                     // Grab the recipe indexes that now need highlighting
                     totalLine.recipe_id.forEach(recipe_id_line => {
-                        const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.po_recipe_id === recipe_id_line)
+                        // console.log("Recipe Id Line: ",recipe_id_line);
+                        const singlePoRecipeIdx = this.singlePoRecipes.findIndex(r => r.recipe_id === recipe_id_line);
+                        // console.log("Po Recipe Idx: ",singlePoRecipeIdx);
                         recipeIdxArray.push(singlePoRecipeIdx);
                     })
                     this.$toast.add({ severity: 'warn', summary: 'Too few raw units', detail: 'The current raw unit total is less than the current planned total', life:10000 });
@@ -3430,10 +3454,13 @@ export default {
                 }
             });
 
+            console.log('Recipe Index Array: ', recipeIdxArray);
+
             // Loop through the different recipe lines and apply the warning
-            for(const recipeIdx in recipeIdxArray){
+            recipeIdxArray.forEach(recipeIdx => {
+                console.log(recipeIdx);
                 this.singlePoRecipes[recipeIdx].warning = true;
-            }
+            })
         },
 
         /**
@@ -3557,7 +3584,7 @@ export default {
                     tableData.push(readyBox);
                 }
 
-                if (box.status === 'BO'|| box.status === 'Draft'){
+                if (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered'){
                     let awaitedBox = {} as any;
                     awaitedBox.case_id = box.case_id;
                     awaitedBox.date_received = box.data_received;
@@ -3577,9 +3604,11 @@ export default {
 
             console.log("BOXES", tableData);
 
-            const keyStringArray = ["moment", "location"];
-            const displayArray = this.groupProductsByKey(tableData, keyStringArray);
+            const keyStringArray = ["product_id", "moment", "location"];
+            // const displayArray = this.groupProductsByKey(tableData, keyStringArray);
+            const displayArray = helper.groupItemsByKey(tableData, keyStringArray);
             displayArray.forEach((line: { total: number; amount: number; units_per_case: number; }) => {
+                line.amount = Number((line.total/line.units_per_case).toFixed(2));
                 if(!line.total)
                     line.total = line.amount*line.units_per_case;
             });
@@ -3716,7 +3745,13 @@ export default {
             this.receivedLocationsArray[index] = newData;
         },
 
-        // 8/8
+        /**
+         * 
+         * 
+         * Created By: Gabe de la Torre-Garcia on: 8-8-24
+         * 
+         * Last Edited: 4-7-2025
+         */
         receivedDialogSave(){
             let total = 0;
             let numErr = 0;
@@ -3742,23 +3777,29 @@ export default {
              * @TODO Eventually, I want this to open a confirm dialog to make sure a user knows that the inserted 
              * box amount is greater than what was order. This is for the fringe cases where we get more than we ordered
              */
-            if (total > this.editedLine.amount){
+            /* if (total > this.editedLine.amount){
                 numErr++;
                 errMSG.push("Number Awaiting: "+ this.editedLine.amount+ ". Number Inputted: "+total);
-            } 
+            }  */
             
+            // Check to make sure that the user has entered locations for each line 
             if (this.locationSubmitted === true && numErr > 0) {
                 this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
             } else {
-                let awaitedBoxes = this.uBoxes.filter(box => box.product_id === this.editedLine.product_id && (box.status === "BO" || box.status === "Draft") || box.moment === "Newly Arrived" );
+                // Grab all PO boxes that are not received already
+                let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound') || box.moment === "Newly Arrived" );
                 console.log("awaitedBoxes", awaitedBoxes);
+                console.log("Received locations array:", this.receivedLocationsArray);
 
-                if (this.receivedLocationsArray.length === 1){
+                // Make a key variable with all of the required box fields
+                let receivedLocationKey = this.receivedLocationsArray[0];
 
-                    let receivedLocationKey = this.receivedLocationsArray[0];
+                if (this.receivedLocationsArray.length === 1){ // All boxes placed on one location
 
+                    console.log("PO Boxes: ", this.poBoxes);
+                    // 
                     this.poBoxes.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO')){
+                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
                             box.location_id = receivedLocationKey.location_id;
                             box.amount = receivedLocationKey.amount;
                             box.total = receivedLocationKey.total;
@@ -3766,7 +3807,7 @@ export default {
                         }
                     })
 
-                    console.log("deliveredDataTableArray",this.deliveredDataTableArray);
+                    console.log("deliveredDataTableArray before forEach",this.deliveredDataTableArray);
 
                     this.deliveredDataTableArray.forEach(box => {
                         if (box.product_id === receivedLocationKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
@@ -3786,12 +3827,12 @@ export default {
                             requestedTotalOBJ = box;
                         }
                     })
-
+                    console.log("deliveredDataTableArray after forEach", this.deliveredDataTableArray);
                     console.log("poBoxes", this.poBoxes);
 
-                } else {
+                } else { // Boxes spread accross multiple locations
 
-                    let receivedLocationKey = this.receivedLocationsArray[0];
+                    // let receivedLocationKey = this.receivedLocationsArray[0];
                     let boxKey = {} as any;
                     let locationAmountArray = [] as any[];
                     this.receivedLocationsArray.forEach((line: { location_id: number; amount: number; }) => {
@@ -3833,7 +3874,22 @@ export default {
                         }
                     })
 
-                    for ( let locArrayIdx = 1; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
+                    let irrelevantDTArray = this.deliveredDataTableArray.filter(tableLine => tableLine.product_id !== receivedLocationKey.product_id);
+
+                    this.deliveredDataTableArray = [...irrelevantDTArray];
+                    console.log("Irrelevant Product Table Lines: ", irrelevantDTArray);
+
+                    /**
+                     * Starting with the first additional location, loop through all locations, creating an object 
+                     * using that indexes field values. This object is pushed into the delivered table array and 
+                     * the PO Boxes array. 
+                     * 
+                     * @TODO If the user needs to reopen the menu and edit something, the edited line will be pushed
+                     * as a new line, rather than updating the necessary line. Need to find a way to only push new 
+                     * lines while successfully updating edited lines. 
+                     */
+                    console.log(this.receivedLocationsArray.length);
+                    for ( let locArrayIdx = 0; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
                         let newArrayObj = {} as any;
                         newArrayObj.amount = this.receivedLocationsArray[locArrayIdx].amount;
                         newArrayObj.location_id = this.receivedLocationsArray[locArrayIdx].location_id;
@@ -3851,6 +3907,10 @@ export default {
 
                         arrivingTotalAmount += this.receivedLocationsArray[locArrayIdx].amount;
                         arrivingTotalUnits += this.receivedLocationsArray[locArrayIdx].total;
+
+                        let newlyArrivedProductArray = this.deliveredDataTableArray.filter(tableLine => tableLine.product_id === receivedLocationKey.product_id && tableLine.moment === 'Newly Arrived');
+
+                        console.log("Relevant Product Table Lines: ", newlyArrivedProductArray);
 
                         this.deliveredDataTableArray.push(newArrayObj);
                         this.poBoxes.push(newArrayObj);
@@ -3885,21 +3945,31 @@ export default {
 
                 let backOrderLine = this.deliveredDataTableArray.find(line => line.moment === "Back Ordered")
 
-                if(backOrderLine){
+                /* if(backOrderLine){
                     console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
                     console.log(backOrderLine.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                    console.log(backOrderLine.amount);
+                    console.log(requestedTotalOBJ.amount);
+                    console.log(arrivingTotalAmount);
                     backOrderLine.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
                     backOrderLine.total = requestedTotalOBJ.total - arrivingTotalUnits;
                 } else {
                     let backOrderOBJ = {} as any;
                     backOrderOBJ.moment = "Back Ordered";
-                    console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                    
+                    // console.log(backOrderLine.amount);
+                    console.log(requestedTotalOBJ);
+                    console.log(arrivingTotalAmount);
                     backOrderOBJ.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
                     backOrderOBJ.total = requestedTotalOBJ.total - arrivingTotalUnits;
                     backOrderOBJ.name = this.editedLine.name;
 
+                    console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
+
+                    console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
+                    
                     this.deliveredDataTableArray.push(backOrderOBJ);
-                }
+                } */
 
                 console.log(this.poBoxes);
 
