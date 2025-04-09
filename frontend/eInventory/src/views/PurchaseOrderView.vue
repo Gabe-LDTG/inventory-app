@@ -130,7 +130,7 @@
                                 <Column field="units_per_case" header="Units per Case" />
                                 <Column field="amount" header="Total # of Cases" />
                                 <Column field="totalUnits" header="Total # of Units" :sortable="true" />
-                                <Column field="status" header="Status" />
+                                <!-- <Column field="status" header="Status" /> -->
                                 <template #expansion="{data}" style="background-color: '#16a085'">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.product_name }}</h4>
                                     <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
@@ -284,10 +284,10 @@
                 <div class="field">
                         <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
                     </div>
-                    <DataTable :value="deliveredDataTableArray" v-model:editingRows="editingRows" 
+                    <DataTable :value="delivered" v-model:editingRows="editingRows" 
                     rowGroupMode="subheader" groupRowsBy="product_id" 
                     editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
-                    scrollable scrollHeight="400px"
+                    scrollable scrollHeight="600px"
                     sortField="product_id" 
                     showGridlines
                     tableStyle="background-color: '#16a085'"
@@ -983,7 +983,7 @@ export default {
             editedLine: {} as any,
             amount: 1,
             displayStatus: "",
-            deliveredDataTableArray: [] as any[],
+            delivered: [] as any[],
             boxesToDelete: [] as any[],
 
             //VENDOR VARIABLES
@@ -1796,8 +1796,10 @@ export default {
                 }
 
                 this.poBoxes.forEach(box =>{
-                    if(box.status !== 'Ready')
-                        this.purchaseOrder.status = 'Partially Delivered'
+                    if(box.status !== 'Ready'){
+                        this.purchaseOrder.status = 'Partially Delivered';
+                        console.log("Box not ready: ",box)
+                    }
                 })
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
@@ -1838,6 +1840,7 @@ export default {
                 let receivedBoxArray = this.checkBoxes("Received");
                 let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
 
+                console.log("receivedBoxArray", receivedBoxArray);
                 console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
 
@@ -1865,7 +1868,7 @@ export default {
                         let lastLine = false;
                         newlyArrivedBoxes.forEach(newLine => {
                             newArriveLine = newLine;
-                            // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
+                            console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
                             // Calculations
                             if(lineIdx > newlyArrivedBoxes.length)
                                 lastLine = true;
@@ -2160,12 +2163,12 @@ export default {
             this.poBoxes = [];
             this.reqPoBoxes = [];
             this.editedLine = {};
-            this.deliveredDataTableArray = [];
+            this.delivered = [];
 
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
             let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
-            this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
+            this.delivered = this.getDeliveredDataTable(boxes);
 
             console.log("Boxes ",boxes);
             console.log("Cases ",cases);
@@ -2174,7 +2177,7 @@ export default {
             this.poCases = this.groupProducts(cases);
 
             console.log("reqPoBoxes ", this.reqPoBoxes);
-            console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
+            console.log("delivered ", this.delivered);
 
             this.purchaseOrderDialog = true;
         },
@@ -2194,7 +2197,7 @@ export default {
             this.reqPoBoxes = [];
             this.editedLine = {};
             this.boxesToDelete = [];
-            this.deliveredDataTableArray = [];
+            this.delivered = [];
             this.singlePoRecipes = [];
 
             let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
@@ -2212,7 +2215,7 @@ export default {
 
             console.log("PO Recs: ",poRecs);
 
-            this.deliveredDataTableArray = this.getDeliveredDataTable(boxes);
+            this.delivered = this.getDeliveredDataTable(boxes);
 
             // console.log("Boxes ",boxes);
             // console.log("Cases ",cases);
@@ -2225,7 +2228,7 @@ export default {
             console.log("PO Recipes: ", this.singlePoRecipes);
 
             console.log("reqPoBoxes ", this.reqPoBoxes);
-            console.log("deliveredDataTableArray ", this.deliveredDataTableArray);
+            console.log("delivered ", this.delivered);
 
             this.checkPoTotals();
             this.editPurchaseOrderDialog = true;
@@ -2955,14 +2958,14 @@ export default {
         checkBoxes(boxType: string){
             let boxArray = [] as any[];
 
-            //console.log("PO BOXES", this.poBoxes);
+            console.log("PO BOXES", this.poBoxes);
             //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
 
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
             let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
-            //console.log("RECEIVED BOXES", receivedBoxes);
+            // console.log("RECEIVED BOXES", receivedBoxes);
 
             //CHANGE TO INCOMING
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
@@ -3149,7 +3152,7 @@ export default {
                 }
             })
 
-            this.deliveredDataTableArray.forEach(box => {
+            this.delivered.forEach(box => {
                 if(box.case_id === data.case_id && box.moment === 'Awaiting'){
                     //console.log("OLD DATA ",box);
                     //console.log("EVENT DATA", newData);
@@ -3628,7 +3631,7 @@ export default {
         },
 
         formatSingleLocation(location_id: any[]){
-             console.log("Location: ",location_id)
+            //  console.log("Location: ",location_id)
             if(location_id){
                 let curLoc = this.locations.find(l => l.location_id === location_id);
 
@@ -3661,13 +3664,13 @@ export default {
             
             this.receivedLocationsArray = [];
             this.editedLine ={};
-            // this.deliveredDataTableArray= this.deliveredDataTableArray.filter(box => box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered");
+            // this.delivered= this.delivered.filter(box => box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered");
             
-            this.editedLine = this.deliveredDataTableArray.find(box => box.product_id === product_id && box.moment === "Awaiting")
-            this.receivedLocationsArray = this.deliveredDataTableArray.filter(box => box.product_id === product_id && (box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
+            this.editedLine = this.delivered.find(box => box.product_id === product_id && box.moment === "Awaiting")
+            this.receivedLocationsArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
 
             if (this.editedLine === undefined){
-                let bundleArray = this.deliveredDataTableArray.filter(box => box.product_id === product_id && box.moment === "Newly Arrived" || box.moment === "Back Ordered");
+                let bundleArray = this.delivered.filter(box => box.product_id === product_id && box.moment === "Newly Arrived" || box.moment === "Back Ordered");
                 this.editedLine = {};
                 this.editedLine.amount = 0;
                 this.editedLine.total = 0;
@@ -3739,7 +3742,7 @@ export default {
          * Date Last Edited: 8-01-2024 
          */
          onReceivedLocationCellEdit(event: any) {
-            console.log(event);
+            // console.log(event);
             let { newData, index } = event;
 
             this.receivedLocationsArray[index] = newData;
@@ -3789,50 +3792,50 @@ export default {
                 // Grab all PO boxes that are not received already
                 let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound') || box.moment === "Newly Arrived" );
                 console.log("awaitedBoxes", awaitedBoxes);
-                console.log("Received locations array:", this.receivedLocationsArray);
+                // console.log("Received locations array:", this.receivedLocationsArray);
 
                 // Make a key variable with all of the required box fields
-                let receivedLocationKey = this.receivedLocationsArray[0];
+                let receivedLocKey = this.receivedLocationsArray[0];
 
                 if (this.receivedLocationsArray.length === 1){ // All boxes placed on one location
 
                     console.log("PO Boxes: ", this.poBoxes);
                     // 
                     this.poBoxes.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
-                            box.location_id = receivedLocationKey.location_id;
-                            box.amount = receivedLocationKey.amount;
-                            box.total = receivedLocationKey.total;
+                        if (box.product_id === receivedLocKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
+                            box.location_id = receivedLocKey.location_id;
+                            box.amount = receivedLocKey.amount;
+                            box.total = receivedLocKey.total;
                             box.moment = "Newly Arrived";
                         }
                     })
 
-                    console.log("deliveredDataTableArray before forEach",this.deliveredDataTableArray);
+                    console.log("delivered before forEach",this.delivered);
 
-                    this.deliveredDataTableArray.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
-                            box.location_id = receivedLocationKey.location_id;
-                            box.amount = receivedLocationKey.amount;
-                            box.total = receivedLocationKey.total;
+                    this.delivered.forEach(box => {
+                        if (box.product_id === receivedLocKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
+                            box.location_id = receivedLocKey.location_id;
+                            box.amount = receivedLocKey.amount;
+                            box.total = receivedLocKey.total;
                             box.moment = "Newly Arrived";
 
                             arrivingTotalAmount += box.amount;
                             arrivingTotalUnits += box.total;
 
-                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Received') {
+                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Received') {
                             arrivingTotalAmount += box.amount;
                             arrivingTotalUnits += box.total;
 
-                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Requested'){
+                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Requested'){
                             requestedTotalOBJ = box;
                         }
                     })
-                    console.log("deliveredDataTableArray after forEach", this.deliveredDataTableArray);
+                    console.log("delivered after forEach", this.delivered);
                     console.log("poBoxes", this.poBoxes);
 
                 } else { // Boxes spread accross multiple locations
 
-                    // let receivedLocationKey = this.receivedLocationsArray[0];
+                    // let receivedLocKey = this.receivedLocationsArray[0];
                     let boxKey = {} as any;
                     let locationAmountArray = [] as any[];
                     this.receivedLocationsArray.forEach((line: { location_id: number; amount: number; }) => {
@@ -3844,40 +3847,39 @@ export default {
                     });
 
                     this.poBoxes.forEach(box => {
-                            if (box.product_id === receivedLocationKey.product_id && (box.status === 'Draft' || box.status === 'BO') ){
+                            if (box.product_id === receivedLocKey.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered') ){
                                 boxKey = box;
-                                box.location_id = receivedLocationKey.location_id;
-                                box.amount = receivedLocationKey.amount;
-                                box.total = receivedLocationKey.total;
+                                box.location_id = receivedLocKey.location_id;
+                                box.amount = receivedLocKey.amount;
+                                box.total = receivedLocKey.total;
                                 box.moment = "Newly Arrived";
                             }
                         })
 
-                    console.log("deliveredDataTableArray",this.deliveredDataTableArray);
+                    console.log("delivered",this.delivered);
 
-                    this.deliveredDataTableArray.forEach(box => {
-                        if (box.product_id === receivedLocationKey.product_id && box.moment==='Awaiting' ){
-                            box.location_id = receivedLocationKey.location_id;
-                            box.amount = receivedLocationKey.amount;
-                            box.total = receivedLocationKey.total;
+                    this.delivered.forEach(box => {
+                        if (box.product_id === receivedLocKey.product_id && box.moment==='Awaiting' ){
+                            box.location_id = receivedLocKey.location_id;
+                            box.amount = receivedLocKey.amount;
+                            box.total = receivedLocKey.total;
                             box.moment = "Newly Arrived";
 
                             arrivingTotalAmount += box.amount;
                             arrivingTotalUnits += box.total;
 
-                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Received') {
+                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Received') {
                             arrivingTotalAmount += box.amount;
                             arrivingTotalUnits += box.total;
 
-                        } else if (box.product_id === receivedLocationKey.product_id && box.moment==='Requested'){
+                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Requested'){
                             requestedTotalOBJ = box;
                         }
                     })
 
-                    let irrelevantDTArray = this.deliveredDataTableArray.filter(tableLine => tableLine.product_id !== receivedLocationKey.product_id);
-
-                    this.deliveredDataTableArray = [...irrelevantDTArray];
-                    console.log("Irrelevant Product Table Lines: ", irrelevantDTArray);
+                
+                    // this.delivered = this.delivered.filter(row => row.product_id !== receivedLocKey.product_id);
+                    // console.log("Irrelevant Product Table Lines: ", this.delivered);
 
                     /**
                      * Starting with the first additional location, loop through all locations, creating an object 
@@ -3888,35 +3890,39 @@ export default {
                      * as a new line, rather than updating the necessary line. Need to find a way to only push new 
                      * lines while successfully updating edited lines. 
                      */
-                    console.log(this.receivedLocationsArray.length);
-                    for ( let locArrayIdx = 0; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
+                    console.log("Received locations array:", this.receivedLocationsArray);
+                    console.log("Array length ",this.receivedLocationsArray.length);
+                    console.log("Box Key: ", boxKey);
+                    for ( let locArrayIdx = 1; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
+                        console.log('receivedLocationsArray', this.receivedLocationsArray[locArrayIdx]);
                         let newArrayObj = {} as any;
                         newArrayObj.amount = this.receivedLocationsArray[locArrayIdx].amount;
                         newArrayObj.location_id = this.receivedLocationsArray[locArrayIdx].location_id;
-                        newArrayObj.name = this.receivedLocationsArray[locArrayIdx].name;
                         newArrayObj.product_id = this.receivedLocationsArray[locArrayIdx].product_id;
                         newArrayObj.total = this.receivedLocationsArray[locArrayIdx].total;
                         newArrayObj.units_per_case = this.receivedLocationsArray[locArrayIdx].units_per_case;
 
-                        newArrayObj.case_id = boxKey.case_id;
-                        newArrayObj.date_received = boxKey.date_received;
+                        newArrayObj.product_name = this.receivedLocationsArray[0].product_name;
+                        newArrayObj.case_id = this.receivedLocationsArray[0].case_id;
+                        newArrayObj.date_received = this.receivedLocationsArray[0].date_received;
                         newArrayObj.moment = "Newly Arrived";
-                        newArrayObj.notes = boxKey.notes;
-                        newArrayObj.purchase_order_id = boxKey.purchase_order_id;
-                        newArrayObj.status = boxKey.status;
+                        newArrayObj.notes = this.receivedLocationsArray[0].notes;
+                        newArrayObj.purchase_order_id = this.receivedLocationsArray[0].purchase_order_id;
+                        newArrayObj.status = this.receivedLocationsArray[0].status;
 
                         arrivingTotalAmount += this.receivedLocationsArray[locArrayIdx].amount;
                         arrivingTotalUnits += this.receivedLocationsArray[locArrayIdx].total;
 
-                        let newlyArrivedProductArray = this.deliveredDataTableArray.filter(tableLine => tableLine.product_id === receivedLocationKey.product_id && tableLine.moment === 'Newly Arrived');
+                        this.delivered.push(newArrayObj);
+                        this.poBoxes.push(newArrayObj);
+
+                        let newlyArrivedProductArray = this.delivered.filter(row => row.product_id === receivedLocKey.product_id && row.moment === 'Newly Arrived');
 
                         console.log("Relevant Product Table Lines: ", newlyArrivedProductArray);
-
-                        this.deliveredDataTableArray.push(newArrayObj);
-                        this.poBoxes.push(newArrayObj);
+                       
                     }
 
-                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'Draft' || box.status === 'BO'));
+                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered'));
                     console.log("AWAITED BOXES IN DIALOG SAVE", awaitedBoxArray);
                     console.log("LOCATION ARRAY", locationAmountArray);
 
@@ -3943,7 +3949,7 @@ export default {
                 
                 console.log("U Boxes after location setting",this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'Draft' || box.status === 'BO')))
 
-                let backOrderLine = this.deliveredDataTableArray.find(line => line.moment === "Back Ordered")
+                let backOrderLine = this.delivered.find(line => line.moment === "Back Ordered")
 
                 /* if(backOrderLine){
                     console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
@@ -3968,10 +3974,12 @@ export default {
 
                     console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
                     
-                    this.deliveredDataTableArray.push(backOrderOBJ);
+                    this.delivered.push(backOrderOBJ);
                 } */
 
-                console.log(this.poBoxes);
+                console.log("Received locations array at end of save:", this.receivedLocationsArray);
+                console.log("delivered",this.delivered);
+                console.log("Po Boxes at end of save: ",this.poBoxes);
 
                 this.receivedDialog = false;
             }
