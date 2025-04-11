@@ -787,7 +787,8 @@ var action = {
             .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
             // .filter('products.fnsku', 'neq', null)
             // .filter('products.asin', 'neq', null)
-            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+            // .in('status', ['Submitted','Ordered','Inbound','Ready']);
+            .neq('status', 'Draft');
 
         const {data, error} = await query;
         if(error){

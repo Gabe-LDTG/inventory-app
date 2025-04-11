@@ -27,7 +27,9 @@
             <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
             <Column field="notes" header="Comments">
                 <template #body="{data}">
-                    {{ data.notes }}
+                    <div v-show="data.notes">
+                        {{ data.notes }}
+                    </div> 
                 </template>
                 <template #editor="{data}">
                     <InputText type="text" v-model="data.notes"/>
@@ -81,7 +83,7 @@
             <Column field="priority" header="Priority" sortable style="min-width: 200px">
                 <template #body="{data}">
                     <!-- {{ data.priority }} -->
-                    <Tag :style="priorityStyle(data.priority)">{{ getRequestPriority(data.deadline) }}</Tag>
+                    <Tag :style="priorityStyle(getRequestPriority(data.deadline))">{{ getRequestPriority(data.deadline) }}</Tag>
                 </template>
             </Column>
             <Column field="ship_to_amz" header="Ship to Amz" style="min-width: 100px">
@@ -522,13 +524,17 @@ export default {
                     let productKey = this.products.find(p => p.product_id === request.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
 
-                    let requestedRecipe = {units_per_case: productKey.default_units_per_case}; 
+                    let requestedRecipe = {units_per_case: productKey.default_units_per_case, qty: 0}; 
 
                     if(!purchaseOrder)
                         purchaseOrder = {purchase_order_name: 'No linked PO'};
                     else 
                         requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
 
+                    // console.log(requestedRecipe);
+
+                    if (requestedRecipe.qty === 0)
+                        requestedRecipe.qty = requestedRecipe.units_per_case*(request.warehouse_qty + request.ship_to_amz);
 
                     casesWithR2PsAndPOs.push({ req: request, key: productKey, po: purchaseOrder, recipe: requestedRecipe });
                 }
@@ -617,25 +623,23 @@ export default {
 
         priorityStyle(data: string){
             // console.log("DATA ",data);
-             if(data === '0 MUST GO OUT TODAY'){
+            if(data === '0 MUST GO OUT TODAY'){
                 return { font: 'bold', backgroundColor: '#4a148c', fontSize: '14px' };
-            } else if (data === '1 ASAP'){
+            } else if (data === '1 This Week'){
                 return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
-            } else if (data === '1 Prep to Make Space (Large Qty)'){
-                return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
-            } else if (data === '2 Could Go Out Today'){
+            } else if (data === '2 Weeks'){
                 return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
-            } else if (data === '2 Prep to Make Space'){
-                return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
-            } else if (data === '3 Could Go Out Tomorrow'){
+            } else if (data === '3 Weeks'){
                 return { font: 'bold', color: '#673ab7', backgroundColor: '#d1c4e9', fontSize: '14px' };
-            } else if (data === '3 Prep to Make Space'){
-                return { font: 'bold', color: '#673ab7', backgroundColor: '#d1c4e9', fontSize: '14px' };
-            } else if (data === '4 Could Go Out This Week'){
+            } else if (data === '4 This Month'){
                 return { font: 'bold', color: '#673ab7', backgroundColor: '#ede7f6', fontSize: '14px' };
-            } else if (data === '5 Could Go Out This Month'){
+            } else if (data === '5 Next Month'){
                 return { font: 'bold', color: '#311b92', backgroundColor: '#f5f5f5', fontSize: '14px' };
-            } else if (data === '6 Prep For Later'){
+            } else if (data === '6 Several Months'){
+                return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
+            } else if (data === '-1 LATE'){
+                return { font: 'bold', backgroundColor: '#cb4335', fontSize: '14px' };
+            } else {
                 return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
             }
         },
@@ -658,10 +662,21 @@ export default {
             else{
                 console.log("EDITS");
                 this.R2Parray[index][field] = newValue;
+                this.R2Parray[index].casesToPick = this.R2Parray[index].ship_to_amz + this.R2Parray[index].warehouse_qty;
+                this.R2Parray[index].qty = this.R2Parray[index].units_per_case*(this.R2Parray[index].ship_to_amz + this.R2Parray[index].warehouse_qty);
                 await this.saveUpdatedRequests(newData);
             }
         },
 
+        /**
+         * Save edits for a request to process
+         * 
+         * @param request_data Fields for a request to process record
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * 
+         * Last Edited: 4-10-25
+         */
         async saveUpdatedRequests(request_data: {product_id: number; 
                         purchase_order_id: number | null;
                         notes: string, 
@@ -676,30 +691,14 @@ export default {
             try {
                 console.log("Request data: ", request_data);
                 let errorMSG = '';
-                let newRequests = [] as any[];
                 let editedRequests = [] as any[];
-
-                let requestMap = [] as any[];
 
                 //Typescript request a default minutes part
                 // request_data.deadline += ':00';
                 
 
                 if(request_data.request_id){
-                    requestMap = [
-                        request_data.request_id,
-                        request_data.product_id, 
-                        request_data.purchase_order_id,
-                        request_data.notes, 
-                        request_data.status, 
-                        request_data.labels_printed, 
-                        request_data.ship_label, 
-                        request_data.priority, 
-                        request_data.ship_to_amz, 
-                        request_data.deadline, 
-                        request_data.warehouse_qty
-                    ];
-                    editedRequests.push(requestMap);
+                    console.log("Request exists", request_data);
 
                     let editedRequest: {
                         product_id: number; 
@@ -745,7 +744,8 @@ export default {
                         };
                     }
 
-                    if(!this.requestToProcess.purchase_order_id)
+                    console.log('Purchase order id: ', request_data.purchase_order_id);
+                    if(!request_data.purchase_order_id)
                         editedRequest.purchase_order_id = null;
 
 
@@ -754,20 +754,6 @@ export default {
                     await action.editRequest(editedRequest)
                 }
                 else{
-                    requestMap = [
-                        request_data.product_id, 
-                        request_data.purchase_order_id, 
-                        request_data.notes, 
-                        request_data.status, 
-                        request_data.labels_printed, 
-                        request_data.ship_label, 
-                        request_data.priority, 
-                        request_data.ship_to_amz, 
-                        request_data.deadline, 
-                        request_data.warehouse_qty
-                    ];
-                    newRequests.push(requestMap);
-
                     let createdRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
@@ -821,12 +807,7 @@ export default {
                 }
 
 
-                console.log("New requests", newRequests, " and edited requests", editedRequests);
-
-                if(newRequests.length > 0){
-                    // await action.batchInsertRequests(newRequests);
-                    newRequests = [];
-                }
+                console.log("Edited requests", editedRequests);
 
                 if(editedRequests.length > 0){
                     // await action.batchUpdateRequests(editedRequests);
@@ -838,7 +819,6 @@ export default {
                 this.getRequestsToProccess();
 
                 this.requestsUpdateArray = [];
-
 
             } catch (error) {
                 console.log(error);
@@ -890,69 +870,213 @@ export default {
             this.pickListArray = [];
 
             console.log("uBoxes", this.uBoxes);
+            console.log("Picklist recipes", this.picklistRecipes);
 
+            // Loop through the selected picklist recipes
             for(const pickRecipe of this.picklistRecipes){
                 pickListOutputOBJ = pickRecipe;
-                const recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
-                const recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
 
+                // Grab the output recipe element
+                let recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
+                
+                let recInputs = [];
+
+                // If there is a linked recipe output, grab the recipe inputs
+                if(recOutput)
+                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
+                else{
+                    recOutput = this.recipeElements.find(rec => rec.product_id === pickRecipe.product_id && rec.type === 'output');
+                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
+                }
+
+                console.log("Recipe output", recOutput);
                 console.log("recInputs", recInputs);
                 let totalArray = [] as any[];
                 // pickListInputArray = [];
 
-                for(const box of this.uBoxes){
-                    if (box.purchase_order_id !== pickRecipe.purchase_order_id)
-                    continue;
+                if(pickRecipe.purchase_order_id){
+                    console.log("Recipe linked to a purchase order");
+                    console.log(pickRecipe);
+                    this.uBoxes.forEach(box => {
+                        console.log("Box", JSON.stringify(box));
+                        console.log("Box", box);
+                        // if (box.purchase_order_id)
+                            console.log(box.purchase_order_id);
 
-                    console.log("Box", box);
-                    let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
-                    let recInput = recInputs.find(rec => rec.product_id === box.product_id);
-                    if (recInput === undefined)
-                    continue;
+                        if(box.purchase_order_id === 24)
+                            console.log(box);
 
-                    let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
-                    // Box already being used
-                    if(boxInArray)
-                    continue;
-
-                    // Checks if the 
-                    let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
-                    // console.log("recIdx", recIdx);
-                    if(recIdx >= 0){
-                        console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                        if (box.purchase_order_id !== pickRecipe.purchase_order_id)
+                            return;
                         
-                        // The total already exists in the array. Subract the box amount by the total amount until
-                        // the total reaches zero
-                        if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
+                        let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
+                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+                        if (recInput === undefined)
+                        return;
+
+                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                        // Box already being used
+                        if(boxInArray)
+                        return;
+
+                        // Checks if the 
+                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                        // console.log("recIdx", recIdx);
+                        if(recIdx >= 0){
+                            console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                            
+                            // The total already exists in the array. Subract the box amount by the total amount until
+                            // the total reaches zero
+                            if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
+                                return;
+
+                            totalArray[recIdx].currAmount += box.units_per_case;
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                            // this.pickListArray.push(box);
+                        } else {
+                            // The total does not exist in the array. Add it.
+                            const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
+                            const product_id = box.product_id;
+                            recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
+                            totalArray.push(recipeTotalOBJ);
+                            console.log("totalArray", totalArray);
+                            // Push the first box into the array
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                        }
+                    });
+
+                    /* for(const box of this.uBoxes){
+                        console.log("Box", box);
+                        if (box.purchase_order_id)
+                            console.log(box.purchase_order_id);
+
+                        if(box.purchase_order_id === 24)
+                            console.log(box);
+
+                        if (box.purchase_order_id !== pickRecipe.purchase_order_id)
                             continue;
 
-                        totalArray[recIdx].currAmount += box.units_per_case;
-                        box.procName = pickRecipe.product_name;
-                        box.procAmount = pickRecipe.casesToPick;
-                        box.procUnitsPerCase = pickRecipe.units_per_case;
-                        box.notes = pickRecipe.notes;
-                        console.log("BOX PROC NAME", box.procName);
-                        console.log("BOX ID", box.case_id);
-                        pickListInputArray.push(box);
-                        // this.pickListArray.push(box);
-                    } else {
-                        // The total does not exist in the array. Add it.
-                        const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
-                        const product_id = box.product_id;
-                        recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
-                        totalArray.push(recipeTotalOBJ);
-                        console.log("totalArray", totalArray);
-                        // Push the first box into the array
-                        box.procName = pickRecipe.product_name;
-                        box.procAmount = pickRecipe.casesToPick;
-                        box.procUnitsPerCase = pickRecipe.units_per_case;
-                        box.notes = pickRecipe.notes;
-                        console.log("BOX PROC NAME", box.procName);
-                        console.log("BOX ID", box.case_id);
-                        pickListInputArray.push(box);
-                    }
+                        
 
-                    // console.log("Box", box);
+                        
+                        
+                        let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
+                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+                        if (recInput === undefined)
+                        continue;
+
+                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                        // Box already being used
+                        if(boxInArray)
+                        continue;
+
+                        // Checks if the 
+                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                        // console.log("recIdx", recIdx);
+                        if(recIdx >= 0){
+                            console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                            
+                            // The total already exists in the array. Subract the box amount by the total amount until
+                            // the total reaches zero
+                            if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
+                                continue;
+
+                            totalArray[recIdx].currAmount += box.units_per_case;
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                            // this.pickListArray.push(box);
+                        } else {
+                            // The total does not exist in the array. Add it.
+                            const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
+                            const product_id = box.product_id;
+                            recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
+                            totalArray.push(recipeTotalOBJ);
+                            console.log("totalArray", totalArray);
+                            // Push the first box into the array
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                        }
+
+                        // console.log("Box", box);
+                    } */
+                } else {
+                    console.log("Recipe not linked to a purchase order")
+                    for(const box of this.uBoxes){
+                        if (box.purchase_order_id)
+                            continue;
+
+                        console.log("Box", box);
+                        let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
+                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+                        if (recInput === undefined)
+                        continue;
+
+                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                        // Box already being used
+                        if(boxInArray)
+                        continue;
+
+                        // Checks if the 
+                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                        // console.log("recIdx", recIdx);
+                        if(recIdx >= 0){
+                            console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
+                            
+                            // The total already exists in the array. Subract the box amount by the total amount until
+                            // the total reaches zero
+                            if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
+                                continue;
+
+                            totalArray[recIdx].currAmount += box.units_per_case;
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                            // this.pickListArray.push(box);
+                        } else {
+                            // The total does not exist in the array. Add it.
+                            const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
+                            const product_id = box.product_id;
+                            recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
+                            totalArray.push(recipeTotalOBJ);
+                            console.log("totalArray", totalArray);
+                            // Push the first box into the array
+                            box.procName = pickRecipe.product_name;
+                            box.procAmount = pickRecipe.casesToPick;
+                            box.procUnitsPerCase = pickRecipe.units_per_case;
+                            box.notes = pickRecipe.notes;
+                            console.log("BOX PROC NAME", box.procName);
+                            console.log("BOX ID", box.case_id);
+                            pickListInputArray.push(box);
+                        }
+
+                        // console.log("Box", box);
+                    }
                 }
                 console.log("INPUT ARRAY", pickListInputArray);
                 // this.pickListArray.push({ caseName: pickRecipe.product_name, pickListInputArray});
@@ -1062,8 +1186,6 @@ export default {
             let today = new Date();
             let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-            // return 'TBD'
-
             if(reqDeadline){
                 // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());
                 // console.log("Compare Date: ", compareDate.getMonth() + 1, compareDate.getDate(), compareDate.getFullYear());
@@ -1091,6 +1213,10 @@ export default {
                     return '5 Next Month';
                 } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 61).valueOf() <= new Date(reqDeadline).valueOf()){
                     return '6 Several Months';
+                } else if (compareDate.valueOf() > new Date(reqDeadline).valueOf()) {
+                    return '-1 LATE';
+                } else {
+                    return 'TBD';
                 }
             } else {
                 return 'TBD';
