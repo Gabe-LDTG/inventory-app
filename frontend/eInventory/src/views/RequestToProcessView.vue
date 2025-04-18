@@ -7,7 +7,7 @@
         <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedRecipeLines"
         showGridlines stripedRows :filters="filters"
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
-        scrollable scrollHeight="650px" removableSort
+        scrollable scrollHeight="1100px" removableSort
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
         >
             <template #header>
@@ -233,7 +233,7 @@
 
         <Dropdown v-model="requestToProcess.product_id" required="true" 
             placeholder="Select a Product" class="md:w-14rem" editable
-            :options="getUsableProducts(requestToProcess.purchase_order_id)"
+            :options="getUsableProducts()"
             optionLabel="name"
             optionValue="product_id"
             filter
@@ -243,7 +243,7 @@
 
         <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable
-            :options="getUsablePO(requestToProcess.product_id)"
+            :options="getUsablePO()"
             optionLabel="purchase_order_name"
             optionValue="purchase_order_id"
             filter
@@ -895,16 +895,17 @@ export default {
                 // pickListInputArray = [];
 
                 if(pickRecipe.purchase_order_id){
-                    console.log("Recipe linked to a purchase order");
+                    /* console.log("Recipe linked to a purchase order");
                     console.log(pickRecipe);
+                    console.log("Picklist Recipe: ", JSON.stringify(pickRecipe)) */
                     this.uBoxes.forEach(box => {
-                        console.log("Box", JSON.stringify(box));
-                        console.log("Box", box);
+                        // console.log("Box", JSON.stringify(box));
+                        // console.log("Box", box);
                         // if (box.purchase_order_id)
                             console.log(box.purchase_order_id);
 
                         if(box.purchase_order_id === 24)
-                            console.log(box);
+                            console.log(JSON.stringify(box));
 
                         if (box.purchase_order_id !== pickRecipe.purchase_order_id)
                             return;
@@ -956,78 +957,13 @@ export default {
                             pickListInputArray.push(box);
                         }
                     });
-
-                    /* for(const box of this.uBoxes){
-                        console.log("Box", box);
-                        if (box.purchase_order_id)
-                            console.log(box.purchase_order_id);
-
-                        if(box.purchase_order_id === 24)
-                            console.log(box);
-
-                        if (box.purchase_order_id !== pickRecipe.purchase_order_id)
-                            continue;
-
-                        
-
-                        
-                        
-                        let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
-                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
-                        if (recInput === undefined)
-                        continue;
-
-                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
-                        // Box already being used
-                        if(boxInArray)
-                        continue;
-
-                        // Checks if the 
-                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
-                        // console.log("recIdx", recIdx);
-                        if(recIdx >= 0){
-                            console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
-                            
-                            // The total already exists in the array. Subract the box amount by the total amount until
-                            // the total reaches zero
-                            if(totalArray[recIdx].currAmount >= totalArray[recIdx].total)
-                                continue;
-
-                            totalArray[recIdx].currAmount += box.units_per_case;
-                            box.procName = pickRecipe.product_name;
-                            box.procAmount = pickRecipe.casesToPick;
-                            box.procUnitsPerCase = pickRecipe.units_per_case;
-                            box.notes = pickRecipe.notes;
-                            console.log("BOX PROC NAME", box.procName);
-                            console.log("BOX ID", box.case_id);
-                            pickListInputArray.push(box);
-                            // this.pickListArray.push(box);
-                        } else {
-                            // The total does not exist in the array. Add it.
-                            const totalUnits = pickRecipe.casesToPick * pickRecipe.units_per_case * recInput.qty;
-                            const product_id = box.product_id;
-                            recipeTotalOBJ = { product_id: product_id, total: totalUnits, currAmount: box.units_per_case };
-                            totalArray.push(recipeTotalOBJ);
-                            console.log("totalArray", totalArray);
-                            // Push the first box into the array
-                            box.procName = pickRecipe.product_name;
-                            box.procAmount = pickRecipe.casesToPick;
-                            box.procUnitsPerCase = pickRecipe.units_per_case;
-                            box.notes = pickRecipe.notes;
-                            console.log("BOX PROC NAME", box.procName);
-                            console.log("BOX ID", box.case_id);
-                            pickListInputArray.push(box);
-                        }
-
-                        // console.log("Box", box);
-                    } */
                 } else {
                     console.log("Recipe not linked to a purchase order")
                     for(const box of this.uBoxes){
                         if (box.purchase_order_id)
                             continue;
 
-                        console.log("Box", box);
+                        // console.log("Box", box);
                         let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
                         let recInput = recInputs.find(rec => rec.product_id === box.product_id);
                         if (recInput === undefined)
@@ -1235,20 +1171,52 @@ export default {
             }
         },
 
-        getUsablePO(productId: number | null){
-            if(productId){
-                const productKey = this.procProducts.find(product => product.product_id === productId);
-                return this.purchaseOrders.filter(po => po.vendor_id === productKey.vendor_id);
-            } else 
+        /**
+         * If the user has selected a product key, for a new request, only show purchase orders for the correct vendor that 
+         * contain the correct raw products with no plan
+         * @param productId The Id of the product key that the user wishes to create a request for
+         * 
+         * Created by Gabe de la Torre-Garcia
+         * 
+         * Edited On: 4-17-25
+         */
+        getUsablePO(){
+            console.log("Get Usable PO");
+            console.log(JSON.stringify(this.requestToProcess));
+            console.log("Request Product Id: ",this.requestToProcess['product_id']);
+            if(this.requestToProcess.product_id !== null){
+                console.log('Product Id chosen')
+                const productKey = this.procProducts.find(product => product.product_id === this.requestToProcess.product_id);
+                return this.purchaseOrders.filter(po => po.vendor_id === productKey.vendor_id && this.uBoxes.filter(box => box.purchase_order_id === po.purchase_order_id && box.request_id === null).length > 0);
+            } else {
+                console.log('Product Id NOT chosen')
                 return this.purchaseOrders;
+            }
+                
         },
 
-        getUsableProducts(poId: number | null){
-            if(poId){
-                const purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === poId)
-                return this.procProducts.filter(product => product.vendor_id === purchaseOrder.vendor_id);
-            } else
+        /**
+         * If the user has selected a purchase order, grab only products with raw products assigned to that purchase order
+         * @param poId The user selected purchase order Id for a new request
+         * 
+         * Created By Gabe de la Torre-Garcia
+         * 
+         * Edited On: 4-17-25
+         */
+        getUsableProducts(){
+            console.log("Get Usable Product");
+            console.log(JSON.stringify(this.requestToProcess));
+            console.log("Request PO Id: ",this.requestToProcess.purchase_order_id);
+            if(this.requestToProcess.purchase_order_id !== null){
+                console.log('PO Id chosen')
+                const purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.requestToProcess.purchase_order_id)
+                console.log(this.uBoxes.filter(box => box.purchase_order_id === this.requestToProcess.purchase_order_id && box.request_id === null));
+                return this.procProducts.filter(product => product.vendor_id === purchaseOrder.vendor_id && this.uBoxes.filter(box => box.purchase_order_id === this.requestToProcess.purchase_order_id && box.request_id === null).length > 0);
+            } else{
+                console.log('PO Id NOT chosen')
                 return this.procProducts;
+            }
+                
         },
     },
 }
