@@ -14,7 +14,15 @@
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
                     <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
-                    <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" />
+                    <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
+                    <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)">
+                        <div v-if="statusFilter === '0 COMPLETED'">
+                            <span>Show Completed Requests</span>
+                        </div>
+                        <div v-else>
+                            <span>Hide Completed Requests</span>
+                        </div>
+                    </Button>
                     <span class="p-input-icon-right">
                         <!-- <i class="pi pi-search" /> -->
                         <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -24,7 +32,7 @@
             <template #empty>No cases in the request to process</template>
             <template #loading>Loading Requests</template>
 
-            <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/>
+            <!-- <Column selectionMode="multiple" frozen alignFrozen="left" headerStyle="width: 3rem"/> -->
             <Column field="notes" header="Comments">
                 <template #body="{data}">
                     <div v-show="data.notes">
@@ -225,7 +233,7 @@
         <template #footer>
             <Button label="PDF" icon="pi pi-upload" text @click="exportToPDF" />
             <Button label="Cancel" icon="pi pi-times" text @click="picklistDialog = false"/>
-            <Button label="Save Picklist" icon="pi pi-check" text disabled @click="" />
+            <!-- <Button label="Save Picklist" icon="pi pi-check" text disabled @click="" /> -->
         </template>
     </Dialog>
 
@@ -324,7 +332,7 @@ export default {
                 request_id: number | null; 
                 product_id: number | null; 
                 purchase_order_id: number | null;
-                notes: string;
+                notes: string | null;
                 status: string;
                 labels_printed: boolean; 
                 ship_label: boolean; 
@@ -337,6 +345,7 @@ export default {
             requestsToProcess: [] as any[],
             requestsUpdateArray: [] as any[],
             newRequestDialog: false,
+            statusFilter: "0 COMPLETED",
 
 
             // PICKLIST VARIABLES
@@ -351,6 +360,7 @@ export default {
             loading: false,
             today: "",
             statuses: [
+                '0 COMPLETED',
                 '1 WORKING',
                 '1.25 PICKED',
 				'1.5 PICKLIST',
@@ -511,7 +521,7 @@ export default {
          */
         async getRequestsToProccess(){
             try {
-                this.requestsToProcess = await action.getRequests();
+                this.requestsToProcess = await action.getRequests(this.statusFilter);
 
                 // let cases = helper.groupProducts(this.pCases);
                 // console.log("cases", cases);
@@ -618,6 +628,8 @@ export default {
                 return { font: 'bold', color: '#943126', backgroundColor: '#f5b7b1', fontSize: '14px' };
             } else if (data === '7 FLAGGED'){
                 return { font: 'bold', color: '#fdedec', backgroundColor: '#cb4335', fontSize: '14px' };
+            } else if (data === '0 COMPLETED') {
+                return { font: 'bold', color: '#fdedec', backgroundColor: '#b90dc4', fontSize: '14px' };
             }
         },
 
@@ -677,9 +689,10 @@ export default {
          * 
          * Last Edited: 4-10-25
          */
-        async saveUpdatedRequests(request_data: {product_id: number; 
+        async saveUpdatedRequests(request_data: {
+                        product_id: number | null; 
                         purchase_order_id: number | null;
-                        notes: string, 
+                        notes: string | null, 
                         status: string,
                         labels_printed: boolean; 
                         ship_label: boolean; 
@@ -687,7 +700,7 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
-                        request_id: number;}){
+                        request_id: number| null;}){
             try {
                 console.log("Request data: ", request_data);
                 let errorMSG = '';
@@ -696,6 +709,9 @@ export default {
                 //Typescript request a default minutes part
                 // request_data.deadline += ':00';
                 
+                let deadline = request_data.deadline !== null ? request_data.deadline : null;
+                let notes = request_data.notes !== null ? request_data.notes : null;
+                let purchase_order_id = request_data.purchase_order_id !== null ? request_data.purchase_order_id : null;
 
                 if(request_data.request_id){
                     console.log("Request exists", request_data);
@@ -703,7 +719,7 @@ export default {
                     let editedRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
-                        notes: string, 
+                        notes: string | null, 
                         status: string,
                         labels_printed: boolean; 
                         ship_label: boolean; 
@@ -712,42 +728,19 @@ export default {
                         deadline: Date | null; 
                         warehouse_qty: number;
                         request_id: number;
-                    }; 
-
-                    if (request_data.deadline){
-                        editedRequest =  {
+                    } = {
                             request_id: Number(request_data.request_id),
                             product_id: Number(request_data.product_id), 
-                            purchase_order_id: Number(request_data.purchase_order_id),
-                            notes: String(request_data.notes), 
+                            purchase_order_id: purchase_order_id,
+                            notes: notes, 
                             status: String(request_data.status), 
                             labels_printed: Boolean(request_data.labels_printed), 
                             ship_label: Boolean(request_data.ship_label), 
                             priority: String(request_data.priority), 
                             ship_to_amz: Number(request_data.ship_to_amz), 
-                            deadline: request_data.deadline,  
+                            deadline: deadline,  
                             warehouse_qty: Number(request_data.warehouse_qty)
                         };
-                    } else {
-                        editedRequest =  {
-                            request_id: Number(request_data.request_id),
-                            product_id: Number(request_data.product_id), 
-                            purchase_order_id: Number(request_data.purchase_order_id),
-                            notes: String(request_data.notes), 
-                            status: String(request_data.status), 
-                            labels_printed: Boolean(request_data.labels_printed), 
-                            ship_label: Boolean(request_data.ship_label), 
-                            priority: String(request_data.priority), 
-                            ship_to_amz: Number(request_data.ship_to_amz), 
-                            deadline: null,  
-                            warehouse_qty: Number(request_data.warehouse_qty)
-                        };
-                    }
-
-                    console.log('Purchase order id: ', request_data.purchase_order_id);
-                    if(!request_data.purchase_order_id)
-                        editedRequest.purchase_order_id = null;
-
 
                     console.log("Request to edit: ", editedRequest);
 
@@ -757,7 +750,7 @@ export default {
                     let createdRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
-                        notes: string, 
+                        notes: string | null, 
                         status: string,
                         labels_printed: boolean; 
                         ship_label: boolean; 
@@ -765,44 +758,22 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
+                    } = {
+                        product_id: Number(request_data.product_id), 
+                        purchase_order_id: purchase_order_id,
+                        notes: notes, 
+                        status: String(request_data.status), 
+                        labels_printed: Boolean(request_data.labels_printed), 
+                        ship_label: Boolean(request_data.ship_label), 
+                        priority: String(request_data.priority), 
+                        ship_to_amz: Number(request_data.ship_to_amz), 
+                        deadline: deadline, 
+                        warehouse_qty: Number(request_data.warehouse_qty)
                     };
-
-                    if(request_data.deadline){
-                        createdRequest = {
-                            product_id: Number(request_data.product_id), 
-                            purchase_order_id: Number(request_data.purchase_order_id),
-                            notes: String(request_data.notes), 
-                            status: String(request_data.status), 
-                            labels_printed: Boolean(request_data.labels_printed), 
-                            ship_label: Boolean(request_data.ship_label), 
-                            priority: String(request_data.priority), 
-                            ship_to_amz: Number(request_data.ship_to_amz), 
-                            deadline: request_data.deadline, 
-                            warehouse_qty: Number(request_data.warehouse_qty)
-                        };
-                    } else {
-                        createdRequest = {
-                            product_id: Number(request_data.product_id), 
-                            purchase_order_id: Number(request_data.purchase_order_id),
-                            notes: String(request_data.notes), 
-                            status: String(request_data.status), 
-                            labels_printed: Boolean(request_data.labels_printed), 
-                            ship_label: Boolean(request_data.ship_label), 
-                            priority: String(request_data.priority), 
-                            ship_to_amz: Number(request_data.ship_to_amz), 
-                            deadline: null, 
-                            warehouse_qty: Number(request_data.warehouse_qty)
-                        };
-                    }
-
-                    if(!this.requestToProcess.purchase_order_id)
-                        createdRequest.purchase_order_id = null;
 
                     console.log("Request to create: ", createdRequest);
 
                     await action.addRequest(createdRequest);
-
-                    // create the necessary cases here
 
                 }
 
@@ -879,7 +850,7 @@ export default {
                 // Grab the output recipe element
                 let recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
                 
-                let recInputs = [];
+                let recInputs = [] as any[];
 
                 // If there is a linked recipe output, grab the recipe inputs
                 if(recOutput)
@@ -902,7 +873,7 @@ export default {
                         // console.log("Box", JSON.stringify(box));
                         // console.log("Box", box);
                         // if (box.purchase_order_id)
-                            console.log(box.purchase_order_id);
+                            // console.log(box.purchase_order_id);
 
                         if(box.purchase_order_id === 24)
                             console.log(JSON.stringify(box));
@@ -1057,7 +1028,7 @@ export default {
 
         async onNewRequestSave(){
             console.log("Request on save: ", this.requestToProcess)
-            let request: {
+            /* let request: {
                     product_id: number; 
                     purchase_order_id: number | null;
                     notes: string, 
@@ -1097,9 +1068,9 @@ export default {
                     ship_to_amz: Number(this.requestToProcess.ship_to_amz), 
                     deadline: null, 
                     warehouse_qty: Number(this.requestToProcess.warehouse_qty)
-                };
-            }
-            await this.saveUpdatedRequests(request);
+                }; 
+            } */
+            await this.saveUpdatedRequests(this.requestToProcess);
             
             this.requestToProcess = {
                             notes: '', 
@@ -1218,6 +1189,28 @@ export default {
             }
                 
         },
+
+        getTotalCases(poId: number | null, productId: number){
+            
+        },
+
+        async toggleStatus(){
+            if(this.statusFilter === '0 COMPLETED')
+                this.statusFilter = ''
+            else 
+                this.statusFilter = '0 COMPLETED'
+
+            await this.getRequestsToProccess();
+        },
+
+        statusFilterSeverity(status: string){
+            // console.log(JSON.stringify(status));
+            if(status === '0 COMPLETED')
+                return 'success';
+            else 
+                return 'info';
+        }
+
     },
 }
 </script>

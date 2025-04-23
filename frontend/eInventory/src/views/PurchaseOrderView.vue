@@ -2887,7 +2887,7 @@ export default {
          */
         async checkForRequests(){
             // Check to see if there are any requests for the PO recipes, if not, create them
-            let requests = await action.getRequests();
+            let requests = await action.getRequests('');
 
             console.log("IN REQUEST CHECK");
 

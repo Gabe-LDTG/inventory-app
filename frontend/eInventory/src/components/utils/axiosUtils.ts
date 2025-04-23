@@ -721,11 +721,12 @@ var action = {
 
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
-    async getRequests(){
+    async getRequests(status: string){
         const query = supabase
             .from('requests_to_process')
             .select('*')
-            .order('request_id');
+            .order('request_id')
+            .filter('status','neq', status);
         /* 
         if(filter_column)
             query.eq(filter_column, filter_data);
