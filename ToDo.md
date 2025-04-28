@@ -58,6 +58,10 @@ PURCHASE ORDERS:
 
 - Clean up the receiving Dialog []
 
+- Fix the bug where when a user is receiving the second half of a partial shipment, a new line will be created
+  containing the amount covered in the first partial shipment (Receive 1.6 Grinches, later received 1.4 Grinches,
+  the .6 Grinches is being added as another partial line; probably in alocateBoxCalculation()) []
+
 REQUEST TO PROCESS:
 - Automatically populate the request to process page when a purchase order's status is at least "Ordered" []
 

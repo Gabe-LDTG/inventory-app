@@ -638,7 +638,7 @@
 
         <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
             <div class="flex align-items-left align-self-flex-start">
-                <Button label="Header" text @click=""/>
+                <!-- <Button label="Header" text @click=""/> -->
                 <Button label="Product Info" text @click="" />
             </div>
             
@@ -1731,13 +1731,19 @@ export default {
             }
 
             this.poCases.forEach((c: any) => {
-                if (c.amount < 1)
+                if (c.amount <= 0){
+                    console.log("Case error: ", c);
                     errAmount++;
+                }
+                    
             })
 
             this.poBoxes.forEach((r: any) => {
-                if (r.amount < 1)
+                if (r.amount <= 0){
+                    console.log("Box error: ", r);
                     errAmount++;
+                }
+                    
             })
 
             if (errAmount == 0){
@@ -1823,7 +1829,7 @@ export default {
          * 
          * Created by: Gabe de la Torre
          * 
-         * Date Last Edited: 6-04-2024
+         * Date Last Edited: 4-28-2025
          */
         async alocateBoxes(){
             try {
@@ -1837,46 +1843,64 @@ export default {
                 this.purchaseOrder.status = 'Delivered';
                 let boxesToInsert = [] as any[];
 
+                // Grab the boxes already received and the newly inputted boxes
                 let receivedBoxArray = this.checkBoxes("Received");
                 let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
+                let awaitedBoxes = this.checkBoxes("Awaited");
 
                 console.log("receivedBoxArray", receivedBoxArray);
                 console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
-
+                // Loop through all of the requested boxes
                 this.reqPoBoxes.forEach(reqBox => {
                     // let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
 
+                    // Grab the received Box line and all of the newly arrived boxes.
                     /** @TODO Loop through the newlyArrivedBox array, function should still work as intended.
                      * Try to find a more effecient way to work after getting it to work at all.
                      */
                     let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
                     let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id)
-                    let newArriveLine = {} as any;
+                    let newArrive = {} as any;
 
                     console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
 
+                    // Check if the newly arrived boxes are in one location or multiple
                     if (newlyArrivedBoxes.length === 1){
-                        newArriveLine = newlyArrivedBoxes[0];
+                        newArrive = newlyArrivedBoxes[0];
                         console.log("ONLY ONE LOCATION");
-                        // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
+                        // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
                         // Calculations
-                        boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArriveLine, true));
+                        boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, true));
                     } else if (newlyArrivedBoxes.length > 1) {
                         console.log("MULTIPLE LOCATIONS");
                         let lineIdx = 0;
                         let lastLine = false;
-                        newlyArrivedBoxes.forEach(newLine => {
-                            newArriveLine = newLine;
-                            console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArriveLine);
+                        newlyArrivedBoxes.forEach(newRow => {
+                            newArrive = newRow;
+                            console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
                             // Calculations
                             if(lineIdx > newlyArrivedBoxes.length)
                                 lastLine = true;
 
-                            boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArriveLine, lastLine));
+                            boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, lastLine));
                             lineIdx++;
                         })
-                    }             
+                    } else {
+                        // No locations, all awaited boxes of this product type set to back ordered
+                        let noArrivales = {} as any;
+                        noArrivales.total = 0;
+                        noArrivales.amount = 0;
+                        noArrivales.units_per_case = reqBox.units_per_case;
+                        noArrivales.purchase_order_id = reqBox.purchase_order_id;
+                        noArrivales.product_id = reqBox.product_id;
+                        boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, noArrivales, true));
+                        /* let awaitedProduct = awaitedBoxes.filter(box => box.product_id === reqBox.product_id);
+                        awaitedProduct.forEach(box => {
+                            box.status = 'BO';
+                            boxesToInsert.push(box);
+                        }) */
+                    }            
                                        
                 })
 
@@ -1906,45 +1930,61 @@ export default {
             }
         },
 
-        alocateBoxCalculation(requestedBoxLine: any, receivedBoxLine: any, newlyArrivedBoxLine: any, lastLocation: Boolean){
-            console.log("REQUESTED BOXES ", requestedBoxLine, " ACTUAL RECEIVED BOXES ", receivedBoxLine, "AND NEWLY RECEIVED BOXES ", newlyArrivedBoxLine);
+        /**
+         * Loops through the awaited boxes and calculates how many need to be set to 'received' or 'back ordered'
+         * @param requested All requested boxes of a specific product type
+         * @param received All currently received boxes of a specific product type
+         * @param newlyArrived All newly arrived boxes of a specific product type
+         * @param lastLocation Checks whether this is the final location (for boxes in multiple locations)
+         * @returns An array of boxes that are either set to 'ready' or 'back ordered'
+         * 
+         * Created By: Gabe de la Torre-Garcia
+         * 
+         * Last Edited: 4-28-2025
+         */
+        alocateBoxCalculation(requested: any, received: any, newlyArrived: any, lastLocation: Boolean){
+            console.log("REQUESTED BOXES ", requested, " RECEIVED BOXES ", received, "AND NEWLY ARRIVED BOXES ", newlyArrived);
             let boxesToInsert = [] as any[];
 
-            if(!receivedBoxLine){
-                receivedBoxLine = {} as any;
-                receivedBoxLine.total = 0;
-                receivedBoxLine.amount = 0;
-                receivedBoxLine.units_per_case = 0;
+            // If no boxes have been received, set the object properties to zero
+            if(!received){
+                received = {} as any;
+                received.total = 0;
+                received.amount = 0;
+                received.units_per_case = 0;
             }
 
-            if(!requestedBoxLine.total)
-                requestedBoxLine.total = requestedBoxLine.amount * requestedBoxLine.units_per_case;
+            // If any of the three objects are missing a total property, populate it here
+            if(!requested.total)
+                requested.total = requested.amount * requested.units_per_case;
 
-            if(!receivedBoxLine.total)
-                receivedBoxLine.total = receivedBoxLine.amount * receivedBoxLine.units_per_case;
+            if(!received.total)
+                received.total = received.amount * received.units_per_case;
 
-            if(!newlyArrivedBoxLine.total)
-                newlyArrivedBoxLine.total = newlyArrivedBoxLine.amount * newlyArrivedBoxLine.units_per_case;
+            if(!newlyArrived.total)
+                newlyArrived.total = newlyArrived.amount * newlyArrived.units_per_case;
 
-            let backorderUnits = requestedBoxLine.total - (receivedBoxLine.total + newlyArrivedBoxLine.total);
-            let backorderBoxes = backorderUnits/newlyArrivedBoxLine.units_per_case;
+            // Calculate any units that would be back ordered
+            let backorderUnits = requested.total - (received.total + newlyArrived.total);
+            let backorderBoxes = backorderUnits/newlyArrived.units_per_case;
             let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
 
-            let poBoxUnitsPerCase = newlyArrivedBoxLine.units_per_case;
+            let poBoxUnitsPerCase = newlyArrived.units_per_case;
 
+            console.log("PRODUCT ", requested.product_name);
             console.log("REQUESTED UNIT AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER UNIT AMOUNT");
-            // console.log("REQ", requestedBoxLine.total, " - (REC + NEW)", "(", receivedBoxLine.total, "+", newlyArrivedBoxLine.total, ")", " = LEFT", backorderUnits);
+            console.log("REQ", requested.total, " - (REC + NEW)", "(", received.total, "+", newlyArrived.total, ")", " = LEFT", backorderUnits);
 
             //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
-            let actualReceivedBoxes = newlyArrivedBoxLine.total/poBoxUnitsPerCase;
+            let actualReceivedBoxes = newlyArrived.total/poBoxUnitsPerCase;
             let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
 
             console.log("REQUESTED BOX AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER BOX AMOUNT");
             console.log("WHOLE BOX VIEW");
-            console.log("REQ", requestedBoxLine.amount, " - (REC + NEW)", "(", receivedBoxLine.amount, "+", newlyArrivedBoxLine.amount, ")", " = BO", wholeBackorderBoxAmount);
+            console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.amount, ")", " = BO", wholeBackorderBoxAmount);
 
             // console.log("DECIMAL BOX VIEW");
-            // console.log("REQ", requestedBoxLine.amount, " - (REC + NEW)", "(", receivedBoxLine.amount, "+", newlyArrivedBoxLine.total/newlyArrivedBoxLine.units_per_case, ")", " = BO", backorderBoxes)
+            // console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.total/newlyArrived.units_per_case, ")", " = BO", backorderBoxes)
             
             //Gets the decimal value if one of the leftover boxes is partial
             let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
@@ -1957,23 +1997,24 @@ export default {
             }
 
             // console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
-            // console.log("REM", remainder," * UNITS", newlyArrivedBoxLine.units_per_case," = PARTIAL",partialBoxAmount);
+            // console.log("REM", remainder," * UNITS", newlyArrived.units_per_case," = PARTIAL",partialBoxAmount);
 
             console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
-// ----------------------------------------------------------------------------------------
+            // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'Ready' && box.status !== 'Cancelled');
 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrivedBoxLine.purchase_order_id && box.product_id === newlyArrivedBoxLine.product_id && box.status !== 'Ready' && box.status !== 'Cancelled');
+            let backorderCompare = 0;
 
             boxes.forEach(box => {
                 if(wholeReceivedBoxAmount > 0){
-                    // console.log(newlyArrivedBoxLine);
+                    // console.log(newlyArrived);
                     console.log("FULL BOX");
                     box.status = 'Ready';
                     box.date_received = this.today;
 
                     if(!box.location_id)
-                        box.location_id = newlyArrivedBoxLine.location_id;
+                        box.location_id = newlyArrived.location_id;
                     
                     // console.log(box);
                     boxesToInsert.push(box);
@@ -1988,7 +2029,7 @@ export default {
                     box.date_received = this.today;
 
                     if(!box.location_id)
-                        box.location_id = newlyArrivedBoxLine.location_id;
+                        box.location_id = newlyArrived.location_id;
 
                     console.log(box);
                     boxesToInsert.push(box);
@@ -2006,7 +2047,7 @@ export default {
 
                     partialBoxAmount = 0;
                     this.purchaseOrder.status = 'Partially Delivered'
-                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && wholeBackorderBoxAmount > 0 && lastLocation === true) {
+                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && backorderCompare < wholeBackorderBoxAmount && lastLocation === true) {
                     console.log("BACKORDER BOX");
                     //If no partial box arrives, update the remaining box amounts to backorder
                     box.status = 'BO';
@@ -2014,7 +2055,7 @@ export default {
                     // console.log(box);
                     boxesToInsert.push(box);
                     this.purchaseOrder.status = 'Partially Delivered'
-                    wholeBackorderBoxAmount --;
+                    backorderCompare++;
                 }
             }) 
 
@@ -2158,7 +2199,7 @@ export default {
         //Date Created: ???
         //Date Last Edited: 6-03-2024
         confirmOrderReceived(purchaseOrder: any) {
-            this.purchaseOrder = {...purchaseOrder}; //ASK MICHAEL
+            this.purchaseOrder = {...purchaseOrder};
             this.poCases = [];
             this.poBoxes = [];
             this.reqPoBoxes = [];
@@ -2945,15 +2986,16 @@ export default {
 
         /** 
          * Description: Displays the raw product info that pertains to each processed case in the PO
-         * @param boxType {string} A string with the value of either "Received", "Awaited", "All"
+         * @param boxType {string} A string with the value of "Received", "Awaited", "New Arrived", or "All"
          * @returns An array based on the inputted boxType string
          * Received: All the recieved boxes
          * Awaited: All boxes yet to be delivered
+         * Newly Arrived: All boxes that were just received
          * All: All boxes belonging to the PO
          *
-         * Created by: Gabe de la Torre
-         * Date Created: 7-25-2024
-         * Date Last Edited: 7-25-2024 
+         * Created by: Gabe de la Torre on 7-25-2024
+         * 
+         * Date Last Edited: 4-28-2025 
          */
         checkBoxes(boxType: string){
             let boxArray = [] as any[];
