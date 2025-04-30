@@ -476,7 +476,14 @@ var action = {
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
-        const {data, error} = await supabase.rpc('get_purchase_orders');
+        // const {data, error} = await supabase.rpc('get_purchase_orders');
+
+        const query = supabase
+            .from('purchase_orders')
+            .select('*')
+            .order('purchase_order_id');
+
+        const {data, error} = await query;
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -721,11 +728,12 @@ var action = {
 
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
-    async getRequests(){
+    async getRequests(status: string){
         const query = supabase
             .from('requests_to_process')
             .select('*')
-            .order('request_id');
+            .order('request_id')
+            .filter('status','neq', status);
         /* 
         if(filter_column)
             query.eq(filter_column, filter_data);
@@ -787,7 +795,8 @@ var action = {
             .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
             // .filter('products.fnsku', 'neq', null)
             // .filter('products.asin', 'neq', null)
-            .in('status', ['Submitted','Ordered','Inbound','Ready']);
+            // .in('status', ['Submitted','Ordered','Inbound','Ready']);
+            .neq('status', 'Draft');
 
         const {data, error} = await query;
         if(error){

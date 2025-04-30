@@ -779,6 +779,7 @@ export default {
                         boxesToEdit[boxIdx].location_id = this.eCase.location_id;
                         boxesToEdit[boxIdx].status = this.eCase.status;
                         boxesToEdit[boxIdx].purchase_order_id = this.eCase.purchase_order_id;
+                        boxesToEdit[boxIdx].request_id = this.eCase.request_id;
 
                         boxMap = [
                             boxesToEdit[boxIdx].units_per_case,
@@ -788,6 +789,7 @@ export default {
                             boxesToEdit[boxIdx].location_id,
                             boxesToEdit[boxIdx].status,
                             boxesToEdit[boxIdx].purchase_order_id,
+                            boxesToEdit[boxIdx].request_id,
                             boxesToEdit[boxIdx].case_id
                         ];
                         editBoxArray.push(boxMap);
