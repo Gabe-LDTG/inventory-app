@@ -1801,8 +1801,8 @@ export default {
                     console.log('Cases to edit: ', this.poCases);
                 }
 
-                this.poBoxes.forEach(box =>{
-                    if(box.status !== 'Ready'){
+                this.uBoxes.forEach(box =>{
+                    if(box.status !== 'Ready' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
                         this.purchaseOrder.status = 'Partially Delivered';
                         console.log("Box not ready: ",box)
                     }
@@ -1860,7 +1860,7 @@ export default {
                      * Try to find a more effecient way to work after getting it to work at all.
                      */
                     let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
-                    let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id)
+                    let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
                     let newArrive = {} as any;
 
                     console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
@@ -1943,8 +1943,11 @@ export default {
          * Last Edited: 4-28-2025
          */
         alocateBoxCalculation(requested: any, received: any, newlyArrived: any, lastLocation: Boolean){
+            console.log("IN ALOCATE BOX CALCULATION__________________________________________________________");
             console.log("REQUESTED BOXES ", requested, " RECEIVED BOXES ", received, "AND NEWLY ARRIVED BOXES ", newlyArrived);
             let boxesToInsert = [] as any[];
+
+
 
             // If no boxes have been received, set the object properties to zero
             if(!received){
@@ -1989,10 +1992,12 @@ export default {
             //Gets the decimal value if one of the leftover boxes is partial
             let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
 
-            let partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
+            let partialBoxAmount = 0;
+            if(backorderUnits > 0)
+                partialBoxAmount = Math.round(remainder*poBoxUnitsPerCase);
 
             let partialBackOrderBoxAmount = 0;
-            if (partialBoxAmount>0){
+            if (partialBoxAmount > 0 && backorderUnits > 0){
                 partialBackOrderBoxAmount = poBoxUnitsPerCase-partialBoxAmount;
             }
 
@@ -2019,7 +2024,7 @@ export default {
                     // console.log(box);
                     boxesToInsert.push(box);
                     wholeReceivedBoxAmount--;
-                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0){
+                } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0 && partialBackOrderBoxAmount > 0){
                     console.log("PARTIAL FULL AND BACKORDER BOXES");
 
                     //If a partial box arrives, update the last box amount to partial amount a create 
