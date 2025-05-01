@@ -8,16 +8,16 @@
                     <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
                 </template>
 
-                <template #center>
+                <template #end>
                     <Button label="Processed" severity="success" @click="displayType = 'proc'; toggleProducts(displayType)" />
                     <Button label="All" severity="help" @click="displayType = 'all'; toggleProducts(displayType)" />
                     <Button label="Unprocessed" severity="info" @click="displayType = 'unproc'; toggleProducts(displayType)" />
                 </template>
 
-                <template #end>
+                <!-- <template #end>
                     <FileUpload mode="basic" customUpload :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @uploader="onUpload"/>
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
-                </template>
+                </template> -->
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->

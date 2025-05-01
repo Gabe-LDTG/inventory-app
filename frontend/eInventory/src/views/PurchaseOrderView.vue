@@ -780,7 +780,7 @@
                     </template>
                 </Column> -->
             </DataTable>
-            <Button label="Add another product" text @click="addBulkLine(poCases)"/>
+            <!-- <Button label="Add another product" text @click="addBulkLine(poCases)"/> -->
             <br>
 
             <template #footer>
@@ -911,7 +911,7 @@
                             </template>
                         </Column>
                     </DataTable>
-                    <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/>
+                    <!-- <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/> -->
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="receivedDialog = false;"/>
                 <Button label="Save" icon="pi pi-check" text @click="receivedDialogSave" />
