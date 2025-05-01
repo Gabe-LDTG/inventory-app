@@ -23,10 +23,10 @@
                             <span>Hide Completed Requests</span>
                         </div>
                     </Button>
-                    <span class="p-input-icon-right">
-                        <!-- <i class="pi pi-search" /> -->
+                    <!-- <span class="p-input-icon-right">
+                        <i class="pi pi-search" />
                         <InputText v-model="filters['global'].value" placeholder="Search..." />
-                    </span>
+                    </span> -->
                 </div>
             </template>
             <template #empty>No cases in the request to process</template>
