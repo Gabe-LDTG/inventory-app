@@ -249,7 +249,7 @@
             :virtualScrollerOptions="{ itemSize: 38 }"
             />
 
-        <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
+        <!-- <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable
             :options="getUsablePO()"
             optionLabel="purchase_order_name"
@@ -257,7 +257,7 @@
             filter
             @change=""
             :virtualScrollerOptions="{ itemSize: 38 }"
-            />
+            /> -->
 
         <template #footer>
             <Button label="Cancel" icon="pi pi-times" text @click="newRequestDialog = false"/>
@@ -541,7 +541,7 @@ export default {
                     else 
                         requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
 
-                    // console.log(requestedRecipe);
+                    console.log(requestedRecipe);
 
                     if (requestedRecipe.qty === 0)
                         requestedRecipe.qty = requestedRecipe.units_per_case*(request.warehouse_qty + request.ship_to_amz);
