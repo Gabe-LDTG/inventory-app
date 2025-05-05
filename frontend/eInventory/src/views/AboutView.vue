@@ -102,7 +102,8 @@ async function createAccount() {
 			data: {
 				first_name: firstName.value,
         last_name: lastName.value,
-			}
+			},
+      emailRedirectTo: 'https://einventory.netlify.app/'
 		}
 	})
 	if (error)
