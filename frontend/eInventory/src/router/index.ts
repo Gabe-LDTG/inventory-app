@@ -9,10 +9,11 @@ import UnprocessedCases from '../views/UnprocessedCases.vue'
 import ProductList from '../views/ProductList.vue'
 import Import from '../views/Import.vue'
 import Login from '../views/LoginView.vue'
-//@ts-ignore
+
 import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
+import PickList from '../views/AboutView.vue'
 
 import axios from "axios";
 
@@ -76,6 +77,12 @@ const router = createRouter({
       path: '/requesttoprocess',
       name: 'RequestToProcess',
       component: RequestToProcessView,
+        meta: { requiresAuth: true}
+    },
+    {
+      path: '/picklist',
+      name: 'Picklist',
+      component: PickList,
         meta: { requiresAuth: true}
     },
   ]
