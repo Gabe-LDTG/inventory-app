@@ -1634,6 +1634,41 @@ export default {
             this.selectedOrderType = "";
             this.amount = 1;
 
+            const today = new Date();
+            let year = today.getFullYear();
+            let nickname = '';
+            let previousNumber = 0;
+            this.purchaseOrders.forEach(po => {
+                if(po.vendor_id === this.purchaseOrder.vendor_id){
+                    let titleString = po.purchase_order_name.split('_');
+                    console.log('Title String: ', titleString);
+                    if(!titleString[1])
+                        titleString = po.purchase_order_name.split('-');
+
+                    const poNickname = titleString[0];
+                    if(nickname === '')
+                        nickname = poNickname;
+
+                    let numberPortion = titleString[1];
+                    console.log('Number portion: ',numberPortion);
+                    console.log('Without date: ', numberPortion.substring(4,6));
+                    let poNumber = Number(numberPortion.substring(4,6));
+                    
+                    if(poNumber > previousNumber)
+                        previousNumber = poNumber;
+
+                    console.log('PO Number: ',poNumber);
+                }
+            });
+
+            let current = previousNumber + 1;
+            console.log("PO Name (Nickname + '_' + year + current number) = ", nickname, '_', year, current);
+
+            if(current > 9)
+                this.purchaseOrder.purchase_order_name = nickname + '_' + year + current;
+            else 
+                this.purchaseOrder.purchase_order_name = nickname + '_' + year + '0' + current;
+
             this.purchaseOrder.status = "Draft";
             //this.purchaseOrder.raw = this.poBoxes;
             //this.purchaseOrder.cases = this.poCases
