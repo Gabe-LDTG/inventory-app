@@ -1640,18 +1640,18 @@ export default {
             let previousNumber = 0;
             this.purchaseOrders.forEach(po => {
                 if(po.vendor_id === this.purchaseOrder.vendor_id){
-                    let titleString = po.purchase_order_name.split('_');
+                    let titleString = po.purchase_order_name.split('-');
                     console.log('Title String: ', titleString);
                     if(!titleString[1])
-                        titleString = po.purchase_order_name.split('-');
+                        titleString = po.purchase_order_name.split('_');
 
                     const poNickname = titleString[0];
                     if(nickname === '')
                         nickname = poNickname;
 
                     let numberPortion = titleString[1];
-                    console.log('Number portion: ',numberPortion);
-                    console.log('Without date: ', numberPortion.substring(4,6));
+                    // console.log('Number portion: ',numberPortion);
+                    // console.log('Without date: ', numberPortion.substring(4,6));
                     let poNumber = Number(numberPortion.substring(4,6));
                     
                     if(poNumber > previousNumber)
@@ -1662,12 +1662,12 @@ export default {
             });
 
             let current = previousNumber + 1;
-            console.log("PO Name (Nickname + '_' + year + current number) = ", nickname, '_', year, current);
+            console.log("PO Name (Nickname + '-' + year + current number) = ", nickname, '_', year, current);
 
             if(current > 9)
-                this.purchaseOrder.purchase_order_name = nickname + '_' + year + current;
+                this.purchaseOrder.purchase_order_name = nickname + '-' + year + current;
             else 
-                this.purchaseOrder.purchase_order_name = nickname + '_' + year + '0' + current;
+                this.purchaseOrder.purchase_order_name = nickname + '-' + year + '0' + current;
 
             this.purchaseOrder.status = "Draft";
             //this.purchaseOrder.raw = this.poBoxes;
