@@ -13,7 +13,7 @@ import Login from '../views/LoginView.vue'
 import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
-import PickList from '../views/AboutView.vue'
+import PickList from '../views/Picklist.vue'
 
 import axios from "axios";
 
@@ -80,8 +80,8 @@ const router = createRouter({
         meta: { requiresAuth: true}
     },
     {
-      path: '/picklist',
-      name: 'Picklist',
+      path: '/picklists',
+      name: 'Picklists',
       component: PickList,
         meta: { requiresAuth: true}
     },
