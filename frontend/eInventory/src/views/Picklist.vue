@@ -14,8 +14,9 @@
 
         <Dialog v-model:visible="picklistDialog" header="Picklist Info">
             <div >
-                <DataTable v-model:selection="selectedRequests" :value="requests" selectionMode="multiple" dataKey="request_id" :metaKeySelection="false">
-                    <Column field="request_id"></Column>
+                <DataTable v-model:selection="selectedRequests" :value="requests"  :metaKeySelection="false" dataKey="request_id">
+                    <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+                    <Column field="request_id" header="Request ID"></Column>
                 </DataTable>
             </div>
             <div>
@@ -23,6 +24,7 @@
             </div>
             <template #footer>
                 <Button class="flex flex-start" label="Cancel" icon="pi pi-times" @click="picklistDialog = false"/>
+                <Button class="flex flex-end" label="Create" @click="console.log(selectedRequests)" />
             </template>
         </Dialog>
     </div>
