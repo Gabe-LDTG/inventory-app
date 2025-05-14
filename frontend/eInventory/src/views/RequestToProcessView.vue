@@ -108,6 +108,7 @@
                 <template  #body="{data}">
                     <!-- {{ data.deadline }} -->
                     {{ formatDate(data.deadline) }}
+                    <!-- {{ helper.formatDateTS(data.deadline) }} -->
                 </template>
                 <template #editor="{data}">
                     <Calendar dateFormat="mm/dd/yy" v-model="data.deadline"/>
@@ -541,7 +542,7 @@ export default {
                     else 
                         requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
 
-                    console.log(requestedRecipe);
+                    // console.log(requestedRecipe);
 
                     if (requestedRecipe.qty === 0)
                         requestedRecipe.qty = requestedRecipe.units_per_case*(request.warehouse_qty + request.ship_to_amz);

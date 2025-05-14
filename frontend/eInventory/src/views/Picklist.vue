@@ -14,9 +14,32 @@
 
         <Dialog v-model:visible="picklistDialog" header="Picklist Info">
             <div >
-                <DataTable v-model:selection="selectedRequests" :value="requests"  :metaKeySelection="false" dataKey="request_id">
+                <DataTable v-model:selection="selectedRequests" :value="requests" stripedRows  :metaKeySelection="false" dataKey="request_id"
+                :selectAll="false">
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-                    <Column field="request_id" header="Request ID"></Column>
+                    <Column field="product_name" header="Bundle Name"></Column>
+                    <Column field="ship_to_amz" header="Ship to Amz"></Column>
+                    <Column field="warehouse_qty" header="Warehouse"></Column>
+                    <Column header="Total Cases">
+                        <template #body="{ data }">
+                            {{ data.ship_to_amz + data.warehouse_qty }}
+                        </template>
+                    </Column>
+                    <Column field="notes" header="Notes"></Column>
+                    <Column field="status" header="Status"></Column>
+                    <Column header="Priority">
+
+                    </Column>
+                    <Column field="deadline" header="Deadline">
+                        <template #body="{data}">
+                            <!-- {{ data.deadline }} -->
+                            {{ helper.formatDateTS(data.deadline) }}
+                        </template>
+                    </Column>
+                    <Column field="purchase_order_name" header="PO #"></Column>
+                    <Column field="fnsku" header="FNSKU"></Column>
+                    <Column field="asin" header="ASIN"></Column>
+                    <Column field="default_units_per_case" header="Units per Case"></Column>
                 </DataTable>
             </div>
             <div>
@@ -96,7 +119,16 @@ async function initVariables(){
 // Grab all products
 async function getProducts(){
     try {
-        
+        products.value = await action.getProducts();
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+// Grab all boxes
+async function getBoxes(){
+    try {
+        boxes.value = await action.getRequestedBoxes();
     } catch (error) {
         console.error(error);
     }
@@ -104,6 +136,15 @@ async function getProducts(){
 
 // Grab all purchase orders
 async function getPurchaseOrders(){
+    try {
+        purchaseOrders.value = await action.getPurchaseOrders();
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+// Grab all purchase order recipes
+async function getPORecipes(){
     try {
         
     } catch (error) {
@@ -114,7 +155,7 @@ async function getPurchaseOrders(){
 // Grab all locations
 async function getLocations(){
     try {
-        
+        locations.value = await action.getLocations();
     } catch (error) {
         console.error(error);
     }
@@ -123,7 +164,7 @@ async function getLocations(){
 // Grab all requests to process
 async function getRequests(){
     try {
-        requests.value = await action.getRequests('0 COMPLETED');
+        requests.value = await action.getRequestsForPick();
         console.log("Requests", requests.value);
     } catch (error) {
         console.error(error);

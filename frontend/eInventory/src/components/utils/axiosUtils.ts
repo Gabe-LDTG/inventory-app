@@ -793,9 +793,6 @@ var action = {
                 products!inner(item_num, upc, name)
                 `)
             .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
-            // .filter('products.fnsku', 'neq', null)
-            // .filter('products.asin', 'neq', null)
-            // .in('status', ['Submitted','Ordered','Inbound','Ready']);
             .neq('status', 'Draft');
 
         const {data, error} = await query;
@@ -825,8 +822,6 @@ var action = {
                 products!inner(fnsku, asin, name)
                 `)
             .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
-            // .filter('products.fnsku', 'neq', null)
-            // .filter('products.asin', 'neq', null)
             .in('status', ['Submitted','Ordered','Inbound','Ready']);
 
         const {data, error} = await query;
@@ -920,17 +915,53 @@ var action = {
     },
 
     // Batch insert requests into the database
-    async batchInsertRequests(request: any[]){
+    /* async batchInsertRequests(request: any[]){
         return axios.post(BASE_URL+"/requests/batchInsert",request).catch(error => {
             console.log(error);
         });
-    },
+    }, */
 
     // Batch update requests into the database
-    async batchUpdateRequests(request: any[]){
+    /* async batchUpdateRequests(request: any[]){
         return axios.post(BASE_URL+"/requests/batchUpdate",request).catch(error => {
             console.log(error);
         });
+    }, */
+
+    // Grabbing requests for picklists
+    async getRequestsForPick(){
+        try {
+            const query =  supabase
+                .from('requests_to_process')
+                .select(`
+                    *,
+                    products(fnsku, asin, name, default_units_per_case),
+                    purchase_orders(purchase_order_name, status)
+                    `)
+                .neq('status', '0 COMPLETED')
+                .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
+                .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
+                .order('status');
+            
+            const { data, error } = await query;
+            if(error){
+                throw error;
+            } else {
+                // console.log('Request data for picklist: ', data);
+                const flattenedData = data.map(request => ({
+                    ...request,
+                    purchase_order_name: request.purchase_order_id != null ? request.purchase_orders.purchase_order_name : '',
+                    product_name: request.products.name,
+                    asin: request.products.asin,
+                    fnsku: request.products.fnsku,
+                    default_units_per_case: request.products.default_units_per_case
+                }));
+                // console.log("Flattened requests: ", flattenedData);
+                return flattenedData;
+            }
+        } catch (error) {
+            console.error('Error calling RPC: ', error);
+        }
     },
 
     //PICKLISTS--------------------------------------------------------------------------------------------

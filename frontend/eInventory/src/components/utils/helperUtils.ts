@@ -7,6 +7,18 @@ var helper = {
         return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
     },
 
+    formatDateTS(rawDate: Date | null) {
+        //momentDate = this.eCase.date_received;
+        //console.log("TESTING DATES: ", date);
+        // console.log("Raw Date: ", rawDate);
+        if(rawDate){
+            const displayDate = new Date(rawDate);
+            // console.log('Formatted Date: ', rawDate.getFullYear()+'-'+(rawDate.getMonth()+1)+'-'+rawDate.getDate());
+
+            return (displayDate.getMonth()+1) + '/' + displayDate.getDate() + '/' + displayDate.getFullYear();
+        }
+    },
+
     getDate(){
         const date = new Date();
         console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
