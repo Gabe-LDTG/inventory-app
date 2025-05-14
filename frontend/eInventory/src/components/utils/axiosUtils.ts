@@ -935,10 +935,11 @@ var action = {
                 .from('requests_to_process')
                 .select(`
                     *,
-                    products(fnsku, asin, name, default_units_per_case),
-                    purchase_orders(purchase_order_name, status)
+                    products(product_id, fnsku, asin, name, default_units_per_case),
+                    purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
                     `)
                 .neq('status', '0 COMPLETED')
+                // .eq('purchase_orders.po_recipes.product_id', 'products.product_id')
                 .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
                 .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
                 .order('status');
