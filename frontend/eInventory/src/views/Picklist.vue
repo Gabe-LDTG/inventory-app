@@ -13,11 +13,21 @@
         </DataTable>
 
         <Dialog v-model:visible="picklistDialog" header="Picklist Info">
-            <div >
-                <DataTable v-model:selection="selectedRequests" :value="requests" stripedRows  :metaKeySelection="false" dataKey="request_id"
-                :selectAll="false">
+            <div>
+                <DataTable v-model:selection="selectedRequests" :value="requests" stripedRows 
+                selectionMode="multiple" :metaKeySelection="false" dataKey="request_id"
+                :selectAll="false" removableSort
+                v-model:filters="picklistFilters" filterDisplay="row"
+                scrollable scrollHeight="800px" >
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-                    <Column field="product_name" header="Bundle Name"></Column>
+                    <Column field="product_name" header="Bundle Name" sortable>
+                        <template #body="{data}">
+                            {{ data.product_name }}
+                        </template>
+                        <template #filter="{ filterModel, filterCallback }">
+                            <InputText v-model="filterModel.value" type="text" @input="filterCallback()" placeholder="Search by name"/>
+                        </template>
+                    </Column>
                     <Column field="ship_to_amz" header="Ship to Amz"></Column>
                     <Column field="warehouse_qty" header="Warehouse"></Column>
                     <Column header="Total Cases">
@@ -25,21 +35,32 @@
                             {{ data.ship_to_amz + data.warehouse_qty }}
                         </template>
                     </Column>
+                    <Column field="default_units_per_case" header="Units per Case"></Column>
                     <Column field="notes" header="Notes"></Column>
-                    <Column field="status" header="Status"></Column>
-                    <Column header="Priority">
+                    <Column field="status" header="Status" :showFilterMenu="false" sortable>
+                        <template #body="{ data }">
+                            <Tag :style="helper.statusStyle(data.status)">{{ data.status }}</Tag>
+                        </template>
+                        <template #filter="{ filterModel, filterCallback}">
+                            <MultiSelect v-model="filterModel.value" @change="filterCallback()" :options="requestStatuses" placeholder="Filter Status" :maxSelectedLabels="1">
 
+                            </MultiSelect>
+                        </template>
                     </Column>
-                    <Column field="deadline" header="Deadline">
+                    <Column field="reqPriority" header="Priority" sortable>
+                        <template #body="{data}">
+                        <Tag :style="helper.priorityStyle(data.reqPriority)">{{ data.reqPriority }}</Tag>
+                    </template>
+                    </Column>
+                    <Column field="deadline" header="Deadline" sortable>
                         <template #body="{data}">
                             <!-- {{ data.deadline }} -->
                             {{ helper.formatDateTS(data.deadline) }}
                         </template>
                     </Column>
-                    <Column field="purchase_order_name" header="PO #"></Column>
+                    <Column field="purchase_order_name" header="PO #" sortable></Column>
                     <Column field="fnsku" header="FNSKU"></Column>
                     <Column field="asin" header="ASIN"></Column>
-                    <Column field="default_units_per_case" header="Units per Case"></Column>
                 </DataTable>
             </div>
             <div>
@@ -73,15 +94,26 @@
 import { ref, onMounted } from "vue";
 import action from "@/components/utils/axiosUtils";
 import helper from "@/components/utils/helperUtils";
+import { FilterMatchMode } from "primevue/api";
+import Dropdown from "primevue/dropdown";
+import MultiSelect from "primevue/multiselect";
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistDialog = ref(false);
 const picklists = ref();
+const picklistFilters = ref({
+    product_name: {value: null, matchMode: FilterMatchMode.CONTAINS},
+    status: {value: null, matchMode: FilterMatchMode.IN}
+});
+const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
 const selectedRequests = ref();
 const request = ref();
+const requestStatuses = ref(['1 WORKING', '1.25 PICKED', '1.5 PICKLIST',
+                            '2 READY', '3 AWAITING PLAN', '4 INBOUND', '5 ON ORDER',
+                            '6 ISSUE', '7 FLAGGED']);
 
 // PRODUCT VARIABLES____________________________________________________________________________________________________
 const products = ref();

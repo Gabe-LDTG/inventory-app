@@ -39,7 +39,8 @@ PRODUCTS:
 
 - Display vendor and item num in product key page [x]
 
-PURCHASE ORDERS: 
+PURCHASE ORDERS: _______________________________________________________________________________________________________
+
 - Separate boxes by notes (incase Products are being ordered for FBM) [x]
 
 - Allow the user the ability to add and remove items from the purchase order through any phase []
@@ -62,7 +63,10 @@ PURCHASE ORDERS:
   containing the amount covered in the first partial shipment (Receive 1.6 Grinches, later received 1.4 Grinches,
   the .6 Grinches is being added as another partial line; probably in alocateBoxCalculation()) [x]
 
-REQUEST TO PROCESS:
+- When a request is created, set the warehouse qty equal to the number of planned cases []
+
+REQUEST TO PROCESS:______________________________________________________________________________________________________
+
 - Automatically populate the request to process page when a purchase order's status is at least "Ordered" [x]
 
 - Create cases to process in this page []

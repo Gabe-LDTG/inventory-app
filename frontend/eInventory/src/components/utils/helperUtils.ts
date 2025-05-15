@@ -144,6 +144,96 @@ var helper = {
 
         return pool;
     },
+
+    statusStyle(data: string){
+            // console.log("DATA ",data);
+            if(data === '1 WORKING'){
+                return { font: 'bold', backgroundColor: '#2e7d32', fontSize: '14px' };
+            } else if (data === '1.25 PICKED'){
+                return { font: 'bold', backgroundColor: '#43a047', fontSize: '14px' };
+            } else if (data === '1.5 PICKLIST'){
+                return { font: 'bold', color: '#145a32', backgroundColor: '#81c784', fontSize: '14px' };
+            } else if (data === '2 READY'){
+                return { font: 'bold', color: '#145a32', backgroundColor: '#c8e6c9', fontSize: '14px' };
+            } else if (data === '3 AWAITING PLAN'){
+                return { font: 'bold', color: '#d4ac0d', backgroundColor: '#fcf3cf', fontSize: '14px' };
+            } else if (data === '4 INBOUND'){
+                return { font: 'bold', color: '#21618c ', backgroundColor: '#aed6f1', fontSize: '14px' };
+            } else if (data === '5 ON ORDER'){
+                return { font: 'bold', backgroundColor: '#1976d2', fontSize: '14px' };
+            } else if (data === '6 ISSUE'){
+                return { font: 'bold', color: '#943126', backgroundColor: '#f5b7b1', fontSize: '14px' };
+            } else if (data === '7 FLAGGED'){
+                return { font: 'bold', color: '#fdedec', backgroundColor: '#cb4335', fontSize: '14px' };
+            } else if (data === '0 COMPLETED') {
+                return { font: 'bold', color: '#fdedec', backgroundColor: '#b90dc4', fontSize: '14px' };
+            }
+        },
+
+        getRequestPriority(reqDeadline: Date | null){
+            
+            let today = new Date();
+            let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            if(reqDeadline){
+                // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());
+                // console.log("Compare Date: ", compareDate.getMonth() + 1, compareDate.getDate(), compareDate.getFullYear());
+                // console.log("Tomorrow: ", compareDate.getMonth() + 1, compareDate.getDate() + 1 , compareDate.getFullYear());
+                // console.log("Deadline Date: ", new Date(reqDeadline));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()));
+                // console.log("Tomorrow Date: ", new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1));
+                // console.log("Deadline < Compare Date: ", new Date(reqDeadline).valueOf() < compareDate.valueOf()); 
+                // console.log("Deadline > Compare Date: ", new Date(reqDeadline).valueOf() > compareDate.valueOf());
+                // console.log("Deadline <= Compare Date: ", new Date(reqDeadline).valueOf() <= compareDate.valueOf()); 
+                // console.log("Deadline >= Compare Date: ", new Date(reqDeadline).valueOf() >= compareDate.valueOf()); 
+                // console.log("Deadline == Compare Date: ", new Date(reqDeadline).valueOf() == new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate()).valueOf()); 
+
+                if (compareDate.valueOf() === new Date(reqDeadline).valueOf()) {
+                    return '0 MUST GO OUT TODAY';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 1).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 5).valueOf()){
+                    return '1 This Week';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 6).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 14).valueOf()){
+                    return '2 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 15).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 21).valueOf()){
+                    return '3 Weeks';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 22).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 31).valueOf()){
+                    return '4 This Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 32).valueOf() <= new Date(reqDeadline).valueOf() && new Date(reqDeadline).valueOf() <= new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 60).valueOf()){
+                    return '5 Next Month';
+                } else if (new Date(compareDate.getFullYear(), compareDate.getMonth(), compareDate.getDate() + 61).valueOf() <= new Date(reqDeadline).valueOf()){
+                    return '6 Several Months';
+                } else if (compareDate.valueOf() > new Date(reqDeadline).valueOf()) {
+                    return '-1 LATE';
+                } else {
+                    return 'TBD';
+                }
+            } else {
+                return 'TBD';
+            }
+        },
+
+        priorityStyle(data: string){
+            // console.log("DATA ",data);
+            if(data === '0 MUST GO OUT TODAY'){
+                return { font: 'bold', backgroundColor: '#4a148c', fontSize: '14px' };
+            } else if (data === '1 This Week'){
+                return { font: 'bold', backgroundColor: '#5e35b1', fontSize: '14px' };
+            } else if (data === '2 Weeks'){
+                return { font: 'bold', backgroundColor: '#7e57c2', fontSize: '14px' };
+            } else if (data === '3 Weeks'){
+                return { font: 'bold', color: '#673ab7', backgroundColor: '#d1c4e9', fontSize: '14px' };
+            } else if (data === '4 This Month'){
+                return { font: 'bold', color: '#673ab7', backgroundColor: '#ede7f6', fontSize: '14px' };
+            } else if (data === '5 Next Month'){
+                return { font: 'bold', color: '#311b92', backgroundColor: '#f5f5f5', fontSize: '14px' };
+            } else if (data === '6 Several Months'){
+                return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
+            } else if (data === '-1 LATE'){
+                return { font: 'bold', backgroundColor: '#cb4335', fontSize: '14px' };
+            } else {
+                return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
+            }
+        },
 }
 
 export default helper;

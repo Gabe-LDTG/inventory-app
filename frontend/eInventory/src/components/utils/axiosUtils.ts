@@ -2,6 +2,7 @@ import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 import { supabase } from "@/clients/supabase";
 import type { NumericLiteral } from "typescript";
+import helper from "./helperUtils";
 // import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
@@ -940,6 +941,7 @@ var action = {
                     `)
                 .neq('status', '0 COMPLETED')
                 // .eq('purchase_orders.po_recipes.product_id', 'products.product_id')
+                .or('ship_to_amz.neq.0, warehouse_qty.neq.0')
                 .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
                 .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
                 .order('status');
@@ -951,6 +953,7 @@ var action = {
                 // console.log('Request data for picklist: ', data);
                 const flattenedData = data.map(request => ({
                     ...request,
+                    reqPriority: helper.getRequestPriority(request.deadline),
                     purchase_order_name: request.purchase_order_id != null ? request.purchase_orders.purchase_order_name : '',
                     product_name: request.products.name,
                     asin: request.products.asin,
