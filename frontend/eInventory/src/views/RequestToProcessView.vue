@@ -53,7 +53,7 @@
                         <Dropdown v-model="data.status"
                         placeholder="Select a status" class="w-full md:w-14rem" editable
                         :options="statuses"/>
-                        </div>
+                    </div>
                 </template>
             </Column>
             <Column header="LABELS PRINTED" :style="labelStyle">

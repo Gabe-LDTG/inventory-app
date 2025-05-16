@@ -19,6 +19,11 @@
                 :selectAll="false" removableSort
                 v-model:filters="picklistFilters" filterDisplay="row"
                 scrollable scrollHeight="800px" >
+                    <template #header class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                            <Dropdown v-model="requestType" :options="requestQtyType" placeholder="Select a picklist type"/>
+                        </div>
+                    </template>
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
                     <Column field="product_name" header="Bundle Name" sortable>
                         <template #body="{data}">
@@ -42,9 +47,8 @@
                             <Tag :style="helper.statusStyle(data.status)">{{ data.status }}</Tag>
                         </template>
                         <template #filter="{ filterModel, filterCallback}">
-                            <MultiSelect v-model="filterModel.value" @change="filterCallback()" :options="requestStatuses" placeholder="Filter Status" :maxSelectedLabels="1">
-
-                            </MultiSelect>
+                            <MultiSelect v-model="filterModel.value" @change="filterCallback()" :options="requestStatuses" 
+                            placeholder="Filter Status" :maxSelectedLabels="1"/>
                         </template>
                     </Column>
                     <Column field="reqPriority" header="Priority" sortable>
@@ -68,7 +72,7 @@
             </div>
             <template #footer>
                 <Button class="flex flex-start" label="Cancel" icon="pi pi-times" @click="picklistDialog = false"/>
-                <Button class="flex flex-end" label="Create" @click="console.log(selectedRequests)" />
+                <Button class="flex flex-end" label="Create" @click="generatePicklist" />
             </template>
         </Dialog>
     </div>
@@ -101,11 +105,13 @@ import MultiSelect from "primevue/multiselect";
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistDialog = ref(false);
 const picklists = ref();
+const picklist = ref();
 const picklistFilters = ref({
     product_name: {value: null, matchMode: FilterMatchMode.CONTAINS},
     status: {value: null, matchMode: FilterMatchMode.IN}
 });
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
+const requestType = ref('All');
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
@@ -143,6 +149,7 @@ onMounted(() => {
 async function initVariables(){
     try {
         await getRequests();
+        await getBoxes();
     } catch (error) {
         console.error(error);
     }
@@ -201,7 +208,7 @@ async function getRequests(){
     } catch (error) {
         console.error(error);
     }
-}
+};
 
 /**
  * Opens the picklist Dialog and initializes required variables. 
@@ -211,6 +218,22 @@ async function getRequests(){
  */
 function openPicklist(){
     picklistDialog.value = true;
+};
+
+function generatePicklist(){
+    selectedRequests.value.forEach((request: any) => {
+        console.log(request);
+        let amount = 0;
+
+        if(requestType.value === 'Ship Only')
+            amount = request.ship_to_amz;
+        else if(requestType.value === 'Store Only')
+            amount = request.warehouse_qty;
+        else 
+            amount = request.ship_to_amz + request.warehouse_qty;
+
+        
+    })
 };
 
 </script>

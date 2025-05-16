@@ -936,7 +936,7 @@ var action = {
                 .from('requests_to_process')
                 .select(`
                     *,
-                    products(product_id, fnsku, asin, name, default_units_per_case),
+                    products(product_id, fnsku, asin, name, default_units_per_case, recipe_elements(*)),
                     purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
                     `)
                 .neq('status', '0 COMPLETED')
