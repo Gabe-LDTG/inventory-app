@@ -41,7 +41,6 @@
                         </template>
                     </Column>
                     <Column field="default_units_per_case" header="Units per Case"></Column>
-                    <Column field="notes" header="Notes"></Column>
                     <Column field="status" header="Status" :showFilterMenu="false" sortable>
                         <template #body="{ data }">
                             <Tag :style="helper.statusStyle(data.status)">{{ data.status }}</Tag>
@@ -62,6 +61,7 @@
                             {{ helper.formatDateTS(data.deadline) }}
                         </template>
                     </Column>
+                    <Column field="notes" header="Notes"></Column>
                     <Column field="purchase_order_name" header="PO #" sortable></Column>
                     <Column field="fnsku" header="FNSKU"></Column>
                     <Column field="asin" header="ASIN"></Column>
@@ -133,6 +133,10 @@ const locations = ref();
 // PURCHASE ORDER VARIABLES_____________________________________________________________________________________________
 const purchaseOrders = ref();
 
+// RECIPE VARIABLES_____________________________________________________________________________________________________
+const recipes = ref();
+const recipe_elements = ref();
+
 
 //______________________________________________________________________________________________________________________
 
@@ -150,6 +154,7 @@ async function initVariables(){
     try {
         await getRequests();
         await getBoxes();
+        await getRecipes();
     } catch (error) {
         console.error(error);
     }
@@ -182,10 +187,11 @@ async function getPurchaseOrders(){
     }
 };
 
-// Grab all purchase order recipes
-async function getPORecipes(){
+// Grab all recipes
+async function getRecipes(){
     try {
-        
+        recipes.value = await action.getRecipes();
+        recipe_elements.value = await action.getRecipeElements();
     } catch (error) {
         console.error(error);
     }
@@ -220,8 +226,10 @@ function openPicklist(){
     picklistDialog.value = true;
 };
 
-function generatePicklist(){
-    selectedRequests.value.forEach((request: any) => {
+async function generatePicklist(){
+    try {
+        const requestIds = [];
+        selectedRequests.value.forEach(async (request: any) => {
         console.log(request);
         let amount = 0;
 
@@ -232,8 +240,22 @@ function generatePicklist(){
         else 
             amount = request.ship_to_amz + request.warehouse_qty;
 
-        
-    })
+        const totalUnits = amount*request.default_units_per_case;
+        console.log("Total Units for Request: ", totalUnits);
+        const inputAndBoxes = await action.generatePicklistElement(request.recipe_id);
+        console.log("Input recipes and Boxes: ", inputAndBoxes);
+
+        inputAndBoxes.recipe_elements.forEach((element: any) => {
+            const allBoxes: any[] = element.product[0].cases;
+            let usedBoxes: (typeof allBoxes) = Object.values(allBoxes.reduce((map, box) =>{
+
+            }))
+        })
+        // const reqRecipe = recipes.value.find((rec: {recipe_id: Number}) => rec.recipe_id === request.recipe_id);
+        })
+    } catch (error) {
+        console.error(error);
+    }
 };
 
 </script>

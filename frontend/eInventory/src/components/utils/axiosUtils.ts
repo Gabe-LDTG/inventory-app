@@ -801,12 +801,12 @@ var action = {
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            console.log('Requested boxes: ', data);
+            // console.log('Requested boxes: ', data);
             const flattenedData = data.map(boxItem => ({
                 ...boxItem,
                 product_name: boxItem.products.name
             }));
-            console.log("Flattened boxes: ", flattenedData);
+            console.log("Requested boxes: ", flattenedData);
             return flattenedData;
         }
     },
@@ -940,7 +940,8 @@ var action = {
                     purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
                     `)
                 .neq('status', '0 COMPLETED')
-                // .eq('purchase_orders.po_recipes.product_id', 'products.product_id')
+                .neq('status', '5 ON ORDER')
+                // .eq('purchase_orders.po_recipes.recipe_id', 'products.recipe_elements[0].recipe_id')
                 .or('ship_to_amz.neq.0, warehouse_qty.neq.0')
                 .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
                 .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
@@ -958,7 +959,8 @@ var action = {
                     product_name: request.products.name,
                     asin: request.products.asin,
                     fnsku: request.products.fnsku,
-                    default_units_per_case: request.products.default_units_per_case
+                    default_units_per_case: request.products.default_units_per_case,
+                    recipe_id: request.products.recipe_elements[0].recipe_id
                 }));
                 // console.log("Flattened requests: ", flattenedData);
                 return flattenedData;
@@ -976,6 +978,32 @@ var action = {
             //console.log("LOCATIONS ", locations)
             return picklists;
         })
+    },
+
+    
+    async generatePicklistElement(recipe_id: Number){
+        try {
+            const query = supabase
+                .from('recipes')
+                .select(`
+                    *,
+                    recipe_elements(*, products(*, cases(*)))
+                    `)
+                .eq('recipe_id', recipe_id)
+                .eq('recipe_elements.type', 'input')
+                .eq('recipe_elements.products.cases.status', 'Ready');
+
+            const {data, error} = await query;
+            if(error){
+                throw error;
+            } else {
+                // console.log('Required fields:', data);
+                return data[0];
+            }
+
+        } catch (error) {
+            console.error("Error calling RPC: ", error);
+        }
     },
 
     // Create a picklist
