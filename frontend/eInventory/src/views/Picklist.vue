@@ -172,7 +172,7 @@ async function getProducts(){
 // Grab all boxes
 async function getBoxes(){
     try {
-        boxes.value = await action.getRequestedBoxes();
+        boxes.value = await action.getDeliveredBoxes();
     } catch (error) {
         console.error(error);
     }
@@ -228,9 +228,10 @@ function openPicklist(){
 
 async function generatePicklist(){
     try {
+        const usedBoxes = [];
         const requestIds = [];
         selectedRequests.value.forEach(async (request: any) => {
-        console.log(request);
+        console.log("Request: ",request);
         let amount = 0;
 
         if(requestType.value === 'Ship Only')
@@ -245,11 +246,8 @@ async function generatePicklist(){
         const inputAndBoxes = await action.generatePicklistElement(request.recipe_id);
         console.log("Input recipes and Boxes: ", inputAndBoxes);
 
-        inputAndBoxes.recipe_elements.forEach((element: any) => {
-            const allBoxes: any[] = element.product[0].cases;
-            let usedBoxes: (typeof allBoxes) = Object.values(allBoxes.reduce((map, box) =>{
-
-            }))
+        inputAndBoxes.recipe_elements.value.forEach((element: any) => {
+            boxes.value.forEach()
         })
         // const reqRecipe = recipes.value.find((rec: {recipe_id: Number}) => rec.recipe_id === request.recipe_id);
         })

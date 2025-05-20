@@ -811,6 +811,31 @@ var action = {
         }
     },
 
+    async getDeliveredBoxes(){
+        const query = supabase
+            .from('cases')
+            .select(`
+                *,  
+                products!inner(item_num, upc, name)
+                `)
+            .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
+            .or('status.neq.Draft, status.neq.Submitted, status.neq.Ordered, status.neq.Inbound, status.neq.Partially Delivered');
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            // console.log('Requested boxes: ', data);
+            const flattenedData = data.map(boxItem => ({
+                ...boxItem,
+                product_name: boxItem.products.name
+            }));
+            console.log("Requested boxes: ", flattenedData);
+            return flattenedData;
+        }
+    },
+
     /**
      * Grabs cases that are planned in PO's but haven't been processed yet
      * @returns An array of processed cases for the request to process page
