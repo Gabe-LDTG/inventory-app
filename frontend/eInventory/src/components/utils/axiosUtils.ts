@@ -816,7 +816,8 @@ var action = {
             .from('cases')
             .select(`
                 *,  
-                products!inner(item_num, upc, name)
+                products!inner(item_num, upc, name),
+                locations!inner(*)
                 `)
             .or('item_num.neq.null,upc.neq.null', {referencedTable: 'products'})
             .or('status.neq.Draft, status.neq.Submitted, status.neq.Ordered, status.neq.Inbound, status.neq.Partially Delivered');
@@ -826,10 +827,11 @@ var action = {
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            // console.log('Requested boxes: ', data);
+            console.log('Delivered boxes: ', data);
             const flattenedData = data.map(boxItem => ({
                 ...boxItem,
-                product_name: boxItem.products.name
+                product_name: boxItem.products.name,
+                location_name: boxItem.locations.name
             }));
             console.log("Requested boxes: ", flattenedData);
             return flattenedData;

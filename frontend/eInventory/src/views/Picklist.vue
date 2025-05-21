@@ -12,7 +12,7 @@
 
         </DataTable>
 
-        <Dialog v-model:visible="picklistDialog" header="Picklist Info">
+        <Dialog v-model:visible="picklistSetupDialog" header="Picklist Setup">
             <div>
                 <DataTable v-model:selection="selectedRequests" :value="requests" stripedRows 
                 selectionMode="multiple" :metaKeySelection="false" dataKey="request_id"
@@ -21,7 +21,7 @@
                 scrollable scrollHeight="800px" >
                     <template #header class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                            <Dropdown v-model="requestType" :options="requestQtyType" placeholder="Select a picklist type"/>
+                            <Dropdown v-model="picklistType" :options="requestQtyType" placeholder="Select a picklist type"/>
                         </div>
                     </template>
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
@@ -71,9 +71,27 @@
 
             </div>
             <template #footer>
-                <Button class="flex flex-start" label="Cancel" icon="pi pi-times" @click="picklistDialog = false"/>
+                <Button class="flex flex-start" label="Cancel" icon="pi pi-times" @click="picklistSetupDialog = false"/>
                 <Button class="flex flex-end" label="Create" @click="generatePicklist" />
             </template>
+        </Dialog>
+
+        <Dialog v-model:visible="picklistDialog" header="Picklist Info">
+            <DataTable :value="picklist" stripedRows 
+                removableSort
+                scrollable scrollHeight="800px" 
+                rowGroupMode="rowspan" groupRowsBy="product_name">
+                <Column field="product_name" header="Product Name">
+                    <template #body="{data}">
+                        {{ data.product_name }} (x{{ data.caseAmount }})
+                    </template>
+                </Column>
+                <Column field="rawProductName" header="Raw Product"></Column>
+                <Column field="location_name" header="Location"></Column>
+                <Column field="amount" header="Number of Boxes"></Column>
+                <Column field="units_per_case" header="Units per Box"></Column>
+                <Column field="totalUnits" header="Total Units"></Column>
+            </DataTable>
         </Dialog>
     </div>
 </template>
@@ -103,6 +121,7 @@ import Dropdown from "primevue/dropdown";
 import MultiSelect from "primevue/multiselect";
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
+const picklistSetupDialog = ref(false);
 const picklistDialog = ref(false);
 const picklists = ref();
 const picklist = ref();
@@ -111,7 +130,7 @@ const picklistFilters = ref({
     status: {value: null, matchMode: FilterMatchMode.IN}
 });
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
-const requestType = ref('All');
+const picklistType = ref('All');
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
@@ -223,34 +242,96 @@ async function getRequests(){
  * Last Edited: 
  */
 function openPicklist(){
-    picklistDialog.value = true;
+    picklistSetupDialog.value = true;
 };
 
+/**
+ * Generates pick list based on the user selected requests and the input ingredients linked to them.
+ * 
+ * Created By: Gabe de la Torre-Garcia On: 5-14-25
+ * Last Edited: 5-21-25
+ */
 async function generatePicklist(){
     try {
-        const usedBoxes = [];
+        // let usedBoxes: [{req: typeof selectedRequests, box: typeof boxes}]; Need to figure out typescript
+        const usedBoxes: any[] = [];
+        const usedBoxIds: Number[] = [];
         const requestIds = [];
-        selectedRequests.value.forEach(async (request: any) => {
-        console.log("Request: ",request);
-        let amount = 0;
+        for(const request of selectedRequests.value){
+            console.log("Request: ",request);
+            let amount = 0;
 
-        if(requestType.value === 'Ship Only')
-            amount = request.ship_to_amz;
-        else if(requestType.value === 'Store Only')
-            amount = request.warehouse_qty;
-        else 
-            amount = request.ship_to_amz + request.warehouse_qty;
+            // Set amount of cases worth to pick by the users selected picklist type
+            if(picklistType.value === 'Ship Only')
+                amount = request.ship_to_amz;
+            else if(picklistType.value === 'Store Only')
+                amount = request.warehouse_qty;
+            else 
+                amount = request.ship_to_amz + request.warehouse_qty;
 
-        const totalUnits = amount*request.default_units_per_case;
-        console.log("Total Units for Request: ", totalUnits);
-        const inputAndBoxes = await action.generatePicklistElement(request.recipe_id);
-        console.log("Input recipes and Boxes: ", inputAndBoxes);
+            request.caseAmount = amount;
+            const totalOutputUnits = amount*request.default_units_per_case;
+            console.log("Total Units for Request: ", totalOutputUnits);
 
-        inputAndBoxes.recipe_elements.value.forEach((element: any) => {
-            boxes.value.forEach()
-        })
-        // const reqRecipe = recipes.value.find((rec: {recipe_id: Number}) => rec.recipe_id === request.recipe_id);
-        })
+            // Grabs the input recipes and associated boxes 
+            const inputAndBoxes = await action.generatePicklistElement(request.recipe_id);
+            console.log("Input recipes and Boxes: ", inputAndBoxes);
+            console.log("Input elements: ", inputAndBoxes.recipe_elements);
+
+            // Loop through each input element
+            for(const element of inputAndBoxes.recipe_elements){
+                console.log("Input Product: ", element.products.name);
+                // Calculate total input units needed
+                const totalInputUnits = totalOutputUnits * element.qty;
+                let currentInputUnits = 0;
+                console.log('Total Input Units: ',totalInputUnits)
+                // Using a for of loop because I need to break and continue
+                for (const box of boxes.value) {
+                    
+                    // If enough units have been grabbed, end loop
+                    if(currentInputUnits >= totalInputUnits)
+                        break;
+
+                    // If the current box is not the right product type or is already used in the picklist, skip.
+                    if(box.product_id !== element.product_id || usedBoxIds.includes(box.case_id) === true)
+                        continue;
+
+                    console.log("Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
+
+                    // console.log("Box: ", box);
+                    // If not enough units have been grabbed yet, get another box, linking it to the specific request.
+                    if(currentInputUnits < totalInputUnits){
+                        
+                        usedBoxes.push({req: request, box: box});
+                        usedBoxIds.push(box.case_id);
+                        currentInputUnits = currentInputUnits + box.units_per_case;
+                    }
+                }
+                console.log("AFTER LOOP: Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
+                console.log("__________________________________________________");
+            }
+        }
+        console.log("All used boxes for Picklist: ", usedBoxes);
+
+        // Group boxes together by qty and request to display on the picklist.
+        let sorted = Object.values(usedBoxes.reduce((map, reqBox) => {
+            const key = reqBox.req.request_id +':'+ reqBox.box.units_per_case +':'+ reqBox.box.location_id;
+
+            if(map[key]){
+                map[key].amount++;
+                map[key].totalUnits = map[key].totalUnits + reqBox.box.units_per_case;
+                map[key].casesUsed = [...map[key].casesUsed, reqBox.box.case_id];
+                /* if(map[key].locations.includes(reqBox.box.location_id) === false)
+                    map[key].locations = [...map[key].locations, reqBox.box.location_id]; */
+            } else 
+                map[key] = { ...reqBox.box, ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.location_name, rawProductName: reqBox.box.products.name};
+            return map;
+        }, {}));
+        console.log("Sorted Picklist values: ", sorted);
+
+        picklist.value = sorted;
+
+        picklistDialog.value = true;
     } catch (error) {
         console.error(error);
     }
