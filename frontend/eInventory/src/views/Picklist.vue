@@ -77,20 +77,33 @@
         </Dialog>
 
         <Dialog v-model:visible="picklistDialog" header="Picklist Info">
-            <DataTable :value="picklist" stripedRows 
-                removableSort
+            <DataTable  :value="picklist" 
+                stripedRows removableSort showGridlines
                 scrollable scrollHeight="800px" 
-                rowGroupMode="rowspan" groupRowsBy="product_name">
-                <Column field="product_name" header="Product Name">
+                rowGroupMode="subheader" groupRowsBy="product_name">
+                <!-- <Column expander /> -->
+                 <template #groupheader="{data}">
+                    <span class="flex align-items-center gap-2">{{ data.product_name }} (x{{ data.caseAmount }})</span>
+                 </template>
+                <!-- <Column field="product_name" header="Product Name">
                     <template #body="{data}">
                         {{ data.product_name }} (x{{ data.caseAmount }})
                     </template>
-                </Column>
+                </Column> -->
+                <Column field="locationName" header="Location"></Column>
                 <Column field="rawProductName" header="Raw Product"></Column>
-                <Column field="location_name" header="Location"></Column>
                 <Column field="amount" header="Number of Boxes"></Column>
                 <Column field="units_per_case" header="Units per Box"></Column>
                 <Column field="totalUnits" header="Total Units"></Column>
+                <Column field="" header="Where to place"></Column>
+                <Column field="" header="Notes"></Column>
+                <Column field="" header="Boxes left on Pallet"></Column>
+                <!-- <template #expansion="slotProps">
+                    <h5>Boxes for {{ slotProps }}</h5>
+                    <DataTable>
+
+                    </DataTable>
+                </template> -->
             </DataTable>
         </Dialog>
     </div>
@@ -131,6 +144,7 @@ const picklistFilters = ref({
 });
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 const picklistType = ref('All');
+const expandedPickRows = ref({});
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
@@ -286,7 +300,7 @@ async function generatePicklist(){
                 let currentInputUnits = 0;
                 console.log('Total Input Units: ',totalInputUnits)
                 // Using a for of loop because I need to break and continue
-                for (const box of boxes.value) {
+                for (const box of element.products.cases) {
                     
                     // If enough units have been grabbed, end loop
                     if(currentInputUnits >= totalInputUnits)
@@ -301,6 +315,8 @@ async function generatePicklist(){
                     // console.log("Box: ", box);
                     // If not enough units have been grabbed yet, get another box, linking it to the specific request.
                     if(currentInputUnits < totalInputUnits){
+                        box.name = element.products.name;
+                        box.locationName = box.locations.name;
                         
                         usedBoxes.push({req: request, box: box});
                         usedBoxIds.push(box.case_id);
@@ -324,13 +340,14 @@ async function generatePicklist(){
                 /* if(map[key].locations.includes(reqBox.box.location_id) === false)
                     map[key].locations = [...map[key].locations, reqBox.box.location_id]; */
             } else 
-                map[key] = { ...reqBox.box, ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.location_name, rawProductName: reqBox.box.products.name};
+                map[key] = { boxes: [{}], ...reqBox.box, ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.location_name, rawProductName: reqBox.box.name};
             return map;
         }, {}));
         console.log("Sorted Picklist values: ", sorted);
 
         picklist.value = sorted;
 
+        picklistSetupDialog.value = false;
         picklistDialog.value = true;
     } catch (error) {
         console.error(error);

@@ -963,7 +963,7 @@ var action = {
                 .from('requests_to_process')
                 .select(`
                     *,
-                    products(product_id, fnsku, asin, name, default_units_per_case, recipe_elements(*)),
+                    products(product_id, fnsku, asin, name, default_units_per_case, cases(*), recipe_elements(*)),
                     purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
                     `)
                 .neq('status', '0 COMPLETED')
@@ -1014,7 +1014,7 @@ var action = {
                 .from('recipes')
                 .select(`
                     *,
-                    recipe_elements(*, products(*, cases(*)))
+                    recipe_elements(*, products(*, cases(*, locations(*))))
                     `)
                 .eq('recipe_id', recipe_id)
                 .eq('recipe_elements.type', 'input')
