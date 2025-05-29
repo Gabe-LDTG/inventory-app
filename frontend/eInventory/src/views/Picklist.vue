@@ -380,37 +380,6 @@ async function generatePicklist(){
         console.log("New Picklist Array: ", newPicklistArray);
         picklist.value = newPicklistArray;
 
-        // Group boxes together by qty and request to display on the picklist.
-        /* let sorted = []
-        picklist.value = Object.values(usedBoxes.reduce((map, reqBox) => {
-            // Use the outer key to group by request
-            const outerKey = reqBox.req.request_id + ':' + reqBox.box.product_id;
-            // Use the inner key to group by product type
-            const innerKey = reqBox.box.units_per_case +':'+ reqBox.box.location_id;
-
-            if(map[outerKey]){
-                map[outerKey].amount++;
-                map[outerKey].location_name = map[outerKey].location_name+ ',' + reqBox.box.locations.name;
-                map[outerKey].totalUnits = map[outerKey].totalUnits + reqBox.box.units_per_case;
-                map[outerKey].casesUsed = [...map[outerKey].casesUsed, reqBox.box.case_id];
-                if(map[outerKey].boxes[innerKey]){
-                    map[outerKey].boxes[innerKey].locationAmount++;
-                    map[outerKey].boxes[innerKey].locationCases = [...map[outerKey].boxes[innerKey].locationCases, reqBox.box.case_id];
-                    map[outerKey].boxes[innerKey].locationTotal = map[outerKey].boxes[innerKey].locationTotal + reqBox.box.units_per_case;
-                } else
-                    map[outerKey].boxes[innerKey] = {...reqBox.box, locationAmount: 1, location_name: reqBox.box.locations.name, locationTotal: reqBox.box.units_per_case, locationCases: [reqBox.box.case_id]};
-                /* if(map[key].locations.includes(reqBox.box.location_id) === false)
-                    map[key].locations = [...map[key].locations, reqBox.box.location_id]; 
-            } else {
-                map[outerKey] = { boxes: [], ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.locations.name, rawProductName: reqBox.box.name};
-                map[outerKey].boxes[innerKey] = {...reqBox.box, locationAmount: 1, location_name: reqBox.box.location_name, locationTotal: reqBox.box.units_per_case, locationCases: [reqBox.box.case_id]};
-            }
-                return map;
-        }, {}));
-        /* console.log("Sorted Picklist values: ", sorted);
-
-        picklist.value = sorted;  */
-
         console.log("Picklist object", picklist.value);
 
         picklistSetupDialog.value = false;
