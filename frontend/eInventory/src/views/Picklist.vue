@@ -77,11 +77,10 @@
         </Dialog>
 
         <Dialog v-model:visible="picklistDialog" header="Picklist Info">
-            <DataTable  :value="picklist" 
+            <DataTable v-model:expandedRows="expandedPickRows" :value="picklist" 
                 stripedRows removableSort showGridlines
                 scrollable scrollHeight="800px" 
-                rowGroupMode="subheader" groupRowsBy="product_name">
-                <!-- <Column expander /> -->
+                rowGroupMode="subheader" groupRowsBy="product_name">                
                  <template #groupheader="{data}">
                     <span class="flex align-items-center gap-2">{{ data.product_name }} (x{{ data.caseAmount }})</span>
                  </template>
@@ -90,20 +89,26 @@
                         {{ data.product_name }} (x{{ data.caseAmount }})
                     </template>
                 </Column> -->
-                <Column field="locationName" header="Location"></Column>
+                <Column expander />
+                <Column field="locationGroup" header="Location(s)"></Column>
                 <Column field="rawProductName" header="Raw Product"></Column>
-                <Column field="amount" header="Number of Boxes"></Column>
+                <Column field="rawTotalBoxes" header="Number of Boxes"></Column>
                 <Column field="units_per_case" header="Units per Box"></Column>
-                <Column field="totalUnits" header="Total Units"></Column>
+                <Column field="rawTotalUnits" header="Total Units"></Column>
                 <Column field="" header="Where to place"></Column>
                 <Column field="" header="Notes"></Column>
                 <Column field="" header="Boxes left on Pallet"></Column>
-                <!-- <template #expansion="slotProps">
-                    <h5>Boxes for {{ slotProps }}</h5>
-                    <DataTable>
-
+                <template #expansion="{data}">
+                    <h3>Boxes for {{ data.rawProductName }}</h3>
+                    <DataTable :value="data.boxGroups"
+                    v-model:selection="selectedPicklistElements" selectionMode="multiple">
+                        <Column selectionMode="multiple" header="Picked" headerStyle="width: 3rem" />
+                        <Column field="locationName" header="Location" />
+                        <Column field="units_per_case" header="Units per Box"></Column>
+                        <Column field="amount" header="Total Boxes" />
+                        <Column field="totalUnits" header="Total Units" />
                     </DataTable>
-                </template> -->
+                </template>
             </DataTable>
         </Dialog>
     </div>
@@ -144,7 +149,8 @@ const picklistFilters = ref({
 });
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 const picklistType = ref('All');
-const expandedPickRows = ref({});
+const expandedPickRows = ref([]);
+const selectedPicklistElements = ref([]);
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
@@ -270,7 +276,9 @@ async function generatePicklist(){
         // let usedBoxes: [{req: typeof selectedRequests, box: typeof boxes}]; Need to figure out typescript
         const usedBoxes: any[] = [];
         const usedBoxIds: Number[] = [];
+        let newPicklistArray: any[] = [];
         const requestIds = [];
+        // Loop through each request
         for(const request of selectedRequests.value){
             console.log("Request: ",request);
             let amount = 0;
@@ -294,6 +302,7 @@ async function generatePicklist(){
 
             // Loop through each input element
             for(const element of inputAndBoxes.recipe_elements){
+                let reqMap = {...request, boxes: [] as any[]};
                 console.log("Input Product: ", element.products.name);
                 // Calculate total input units needed
                 const totalInputUnits = totalOutputUnits * element.qty;
@@ -317,35 +326,92 @@ async function generatePicklist(){
                     if(currentInputUnits < totalInputUnits){
                         box.name = element.products.name;
                         box.locationName = box.locations.name;
+
+                        /* console.log(newPicklistArray);
+                        console.log(newPicklistArray[0].request_id);
+                        const boxIdx = newPicklistArray.findIndex((req) => {console.log(JSON.stringify(req.request_id),request.request_id); req.request_id === request.request_id});
+                        console.log("Box Idx: ", boxIdx);
+
+                        if(boxIdx === -1)
+                            newPicklistArray.push({req: request, boxes: [box]});
+                        else {
+                            newPicklistArray[boxIdx].boxes.push(box);
+                        } */
                         
+                        // WHY IS THIS TURNING MY ARRAY INTO AN OBJECT. ITS A PUSH COMMAND
+                        reqMap.boxes.push(box);
                         usedBoxes.push({req: request, box: box});
                         usedBoxIds.push(box.case_id);
                         currentInputUnits = currentInputUnits + box.units_per_case;
                     }
                 }
+                console.log("Req Map", reqMap);
+                let groups: (typeof reqMap)[number] & { amount: number } = Object.values(reqMap.boxes.reduce((map: any, box: any) => {
+                    // Use the inner key to group by product type
+                    const key = box.units_per_case +':'+ box.location_id;
+
+                    if(map[key]){
+                        map[key].amount++;
+                        map[key].totalUnits = map[key].totalUnits + box.units_per_case;
+                        map[key].boxesUsed = [...map[key].boxesUsed, box.case_id];
+
+                        /* if(map[key].locations.includes(reqBox.box.location_id) === false)
+                            map[key].locations = [...map[key].locations, reqBox.box.location_id]; */
+                    } else {
+                        map[key] = { ...box, amount: 1, totalUnits: box.units_per_case, boxesUsed: [box.case_id], locationName: box.locationName, rawProductName: box.name};
+                    }
+                        return map;
+                }, {}));
+                let locationGroup = '';
+                let rawTotalUnits = 0;
+                let rawTotalBoxes = 0;
+                let rawProductName = groups[0].rawProductName;
+                groups.forEach((group: any) => {
+                    locationGroup = (locationGroup === '') ? group.locationName : locationGroup + ', ' + group.locationName;
+                    rawTotalUnits += group.totalUnits;
+                    rawTotalBoxes += group.amount;
+                })
+                newPicklistArray.push({...request, locationGroup: locationGroup, rawProductName: rawProductName, rawTotalUnits: rawTotalUnits, rawTotalBoxes: rawTotalBoxes, boxGroups: groups});
                 console.log("AFTER LOOP: Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
                 console.log("__________________________________________________");
             }
         }
         console.log("All used boxes for Picklist: ", usedBoxes);
+        console.log("New Picklist Array: ", newPicklistArray);
+        picklist.value = newPicklistArray;
 
         // Group boxes together by qty and request to display on the picklist.
-        let sorted = Object.values(usedBoxes.reduce((map, reqBox) => {
-            const key = reqBox.req.request_id +':'+ reqBox.box.units_per_case +':'+ reqBox.box.location_id;
+        /* let sorted = []
+        picklist.value = Object.values(usedBoxes.reduce((map, reqBox) => {
+            // Use the outer key to group by request
+            const outerKey = reqBox.req.request_id + ':' + reqBox.box.product_id;
+            // Use the inner key to group by product type
+            const innerKey = reqBox.box.units_per_case +':'+ reqBox.box.location_id;
 
-            if(map[key]){
-                map[key].amount++;
-                map[key].totalUnits = map[key].totalUnits + reqBox.box.units_per_case;
-                map[key].casesUsed = [...map[key].casesUsed, reqBox.box.case_id];
+            if(map[outerKey]){
+                map[outerKey].amount++;
+                map[outerKey].location_name = map[outerKey].location_name+ ',' + reqBox.box.locations.name;
+                map[outerKey].totalUnits = map[outerKey].totalUnits + reqBox.box.units_per_case;
+                map[outerKey].casesUsed = [...map[outerKey].casesUsed, reqBox.box.case_id];
+                if(map[outerKey].boxes[innerKey]){
+                    map[outerKey].boxes[innerKey].locationAmount++;
+                    map[outerKey].boxes[innerKey].locationCases = [...map[outerKey].boxes[innerKey].locationCases, reqBox.box.case_id];
+                    map[outerKey].boxes[innerKey].locationTotal = map[outerKey].boxes[innerKey].locationTotal + reqBox.box.units_per_case;
+                } else
+                    map[outerKey].boxes[innerKey] = {...reqBox.box, locationAmount: 1, location_name: reqBox.box.locations.name, locationTotal: reqBox.box.units_per_case, locationCases: [reqBox.box.case_id]};
                 /* if(map[key].locations.includes(reqBox.box.location_id) === false)
-                    map[key].locations = [...map[key].locations, reqBox.box.location_id]; */
-            } else 
-                map[key] = { boxes: [{}], ...reqBox.box, ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.location_name, rawProductName: reqBox.box.name};
-            return map;
+                    map[key].locations = [...map[key].locations, reqBox.box.location_id]; 
+            } else {
+                map[outerKey] = { boxes: [], ...reqBox.req, amount: 1, totalUnits: reqBox.box.units_per_case, casesUsed: [reqBox.box.case_id], location_name: reqBox.box.locations.name, rawProductName: reqBox.box.name};
+                map[outerKey].boxes[innerKey] = {...reqBox.box, locationAmount: 1, location_name: reqBox.box.location_name, locationTotal: reqBox.box.units_per_case, locationCases: [reqBox.box.case_id]};
+            }
+                return map;
         }, {}));
-        console.log("Sorted Picklist values: ", sorted);
+        /* console.log("Sorted Picklist values: ", sorted);
 
-        picklist.value = sorted;
+        picklist.value = sorted;  */
+
+        console.log("Picklist object", picklist.value);
 
         picklistSetupDialog.value = false;
         picklistDialog.value = true;
