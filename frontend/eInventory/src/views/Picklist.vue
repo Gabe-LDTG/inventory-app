@@ -82,7 +82,7 @@
                 scrollable scrollHeight="800px" 
                 rowGroupMode="subheader" groupRowsBy="product_name">                
                  <template #groupheader="{data}">
-                    <span class="flex align-items-center gap-2">{{ data.product_name }} (x{{ data.caseAmount }})</span>
+                    <span class="flex align-items-center gap-2">{{ data.default_units_per_case }} {{ data.product_name }} (x{{ data.caseAmount }})</span>
                  </template>
                 <!-- <Column field="product_name" header="Product Name">
                     <template #body="{data}">
@@ -90,8 +90,8 @@
                     </template>
                 </Column> -->
                 <Column expander />
-                <Column field="locationGroup" header="Location(s)"></Column>
                 <Column field="rawProductName" header="Raw Product"></Column>
+                <Column field="locationGroup" header="Location(s)"></Column>
                 <Column field="rawTotalBoxes" header="Number of Boxes"></Column>
                 <Column field="units_per_case" header="Units per Box"></Column>
                 <Column field="rawTotalUnits" header="Total Units"></Column>
@@ -102,7 +102,7 @@
                     <h3>Boxes for {{ data.rawProductName }}</h3>
                     <DataTable :value="data.boxGroups"
                     v-model:selection="selectedPicklistElements" selectionMode="multiple">
-                        <Column selectionMode="multiple" header="Picked" headerStyle="width: 3rem" />
+                        <Column selectionMode="multiple" headerStyle="width: 3rem" />
                         <Column field="locationName" header="Location" />
                         <Column field="units_per_case" header="Units per Box"></Column>
                         <Column field="amount" header="Total Boxes" />
@@ -176,6 +176,9 @@ const purchaseOrders = ref();
 const recipes = ref();
 const recipe_elements = ref();
 
+// MIST VARIABLES_______________________________________________________________________________________________________
+const today = ref();
+
 
 //______________________________________________________________________________________________________________________
 
@@ -191,6 +194,7 @@ onMounted(() => {
  */
 async function initVariables(){
     try {
+        today.value = helper.getDate();
         await getRequests();
         await getBoxes();
         await getRecipes();
@@ -263,13 +267,14 @@ async function getRequests(){
  */
 function openPicklist(){
     picklistSetupDialog.value = true;
+    selectedRequests.value = [];
 };
 
 /**
  * Generates pick list based on the user selected requests and the input ingredients linked to them.
  * 
  * Created By: Gabe de la Torre-Garcia On: 5-14-25
- * Last Edited: 5-21-25
+ * Last Edited: 5-29-25
  */
 async function generatePicklist(){
     try {
@@ -380,7 +385,9 @@ async function generatePicklist(){
         console.log("New Picklist Array: ", newPicklistArray);
         picklist.value = newPicklistArray;
 
+        let picklistIdx = 1;
         console.log("Picklist object", picklist.value);
+        console.log("Picklist name: ", today.value + '-' + picklistIdx);
 
         picklistSetupDialog.value = false;
         picklistDialog.value = true;

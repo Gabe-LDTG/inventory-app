@@ -1033,7 +1033,11 @@ var action = {
         }
     },
 
-    // Create a picklist
+    /**
+     * Generates a picklist and updates all boxes being used in the picklist to contain a status of "picked"
+     * @param picklist 
+     * @returns 
+     */
     async addPicklist(picklist: {
         label: string; 
     }){
