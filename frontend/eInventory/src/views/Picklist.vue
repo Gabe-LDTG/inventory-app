@@ -151,6 +151,13 @@ const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 const picklistType = ref('All');
 const expandedPickRows = ref([]);
 const selectedPicklistElements = ref([]);
+const laneLocations = ref([
+    'FBA Prep Lane 1 A', 'FBA Prep Lane 1 B', 'FBA Prep Lane 1 C', 
+    'FBA Prep Lane 2 A', 'FBA Prep Lane 2 B', 'FBA Prep Lane 2 C', 
+    'FBA Prep Lane 3 A', 'FBA Prep Lane 3 B', 'FBA Prep Lane 3 C', 
+    'FBA Prep Lane 4 A', 'FBA Prep Lane 4 B', 'FBA Prep Lane 4 C', 
+    'FBA Prep Lane 5 A', 'FBA Prep Lane 5 B', 'FBA Prep Lane 5 C'
+]);
 
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();

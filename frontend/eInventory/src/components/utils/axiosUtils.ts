@@ -959,39 +959,52 @@ var action = {
     // Grabbing requests for picklists
     async getRequestsForPick(){
         try {
-            const query =  supabase
-                .from('requests_to_process')
-                .select(`
-                    *,
-                    products(product_id, fnsku, asin, name, default_units_per_case, cases(*), recipe_elements(*)),
-                    purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
-                    `)
-                .neq('status', '0 COMPLETED')
-                .neq('status', '5 ON ORDER')
-                // .eq('purchase_orders.po_recipes.recipe_id', 'products.recipe_elements[0].recipe_id')
-                .or('ship_to_amz.neq.0, warehouse_qty.neq.0')
-                .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
-                .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
-                .order('status');
-            
-            const { data, error } = await query;
-            if(error){
-                throw error;
-            } else {
-                // console.log('Request data for picklist: ', data);
-                const flattenedData = data.map(request => ({
-                    ...request,
-                    reqPriority: helper.getRequestPriority(request.deadline),
-                    purchase_order_name: request.purchase_order_id != null ? request.purchase_orders.purchase_order_name : '',
-                    product_name: request.products.name,
-                    asin: request.products.asin,
-                    fnsku: request.products.fnsku,
-                    default_units_per_case: request.products.default_units_per_case,
-                    recipe_id: request.products.recipe_elements[0].recipe_id
-                }));
-                // console.log("Flattened requests: ", flattenedData);
-                return flattenedData;
-            }
+            const {data: usedRequestIds, error: idQueryError} = await supabase
+                .from('picklist_elements')
+                .select('request_id');
+
+                if(idQueryError){
+                    throw idQueryError
+                } else {
+                    console.log('Used Req Ids: ', usedRequestIds);
+                    console.log('Array length', usedRequestIds.length);
+                    const query =  supabase
+                        .from('requests_to_process')
+                        .select(`
+                            *,
+                            products(product_id, fnsku, asin, name, default_units_per_case, cases(*), recipe_elements(*)),
+                            purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
+                            `)
+                        .neq('status', '0 COMPLETED')
+                        .neq('status', '5 ON ORDER')
+                        // .eq('purchase_orders.po_recipes.recipe_id', 'products.recipe_elements[0].recipe_id')
+                        .or('ship_to_amz.neq.0, warehouse_qty.neq.0')
+                        .or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'})
+                        .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
+                        .order('status');
+
+                        if(usedRequestIds.length > 0)
+                            query.not('request_id','in', usedRequestIds)
+                    
+                    const { data, error } = await query;
+                    if(error){
+                        throw error;
+                    } else {
+                        console.log('Request data for picklist: ', data);
+                        const flattenedData = data.map(request => ({
+                            ...request,
+                            reqPriority: helper.getRequestPriority(request.deadline),
+                            purchase_order_name: request.purchase_order_id != null ? request.purchase_orders.purchase_order_name : '',
+                            product_name: request.products.name,
+                            asin: request.products.asin,
+                            fnsku: request.products.fnsku,
+                            default_units_per_case: request.products.default_units_per_case,
+                            recipe_id: request.products.recipe_elements[0].recipe_id
+                        }));
+                        // console.log("Flattened requests: ", flattenedData);
+                        return flattenedData;
+                    }
+                }
         } catch (error) {
             console.error('Error calling RPC: ', error);
         }
@@ -1000,11 +1013,7 @@ var action = {
     //PICKLISTS--------------------------------------------------------------------------------------------
     // Get picklists
     async getPicklists(){
-        return axios.get(BASE_URL+"/picklists").then(res => {
-            const picklists = res.data;
-            //console.log("LOCATIONS ", locations)
-            return picklists;
-        })
+
     },
 
     
@@ -1038,19 +1047,21 @@ var action = {
      * @param picklist 
      * @returns 
      */
-    async addPicklist(picklist: {
-        label: string; 
-    }){
-        return axios.post(BASE_URL+"/picklists/create", {
-            label: picklist.label
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
+    async addPicklist( picklistData: {label: string, usedCaseIds: number[], picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string}[]}){
+        try {
+            /* const {data: createdPicklist, error: picklistError} = await supabase 
+                .from('picklists')
+                .insert({label: picklistLabel})
+                .select();
+            if(picklistError)
+                throw picklistError;
+            else {
+                console.log()
+            } */
+           
+        } catch (error) {
+            console.error("Error inserting data: ", error)
+        }
     },
 
     // Update a picklist
