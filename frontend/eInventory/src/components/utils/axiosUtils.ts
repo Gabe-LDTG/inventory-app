@@ -1047,7 +1047,7 @@ var action = {
      * @param picklist 
      * @returns 
      */
-    async addPicklist( picklistData: {label: string, usedCaseIds: number[], picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string}[]}){
+    async addPicklist( picklistData: {label: string, picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string, usedCaseIds: number[],}[]}){
         try {
             /* const {data: createdPicklist, error: picklistError} = await supabase 
                 .from('picklists')
@@ -1058,7 +1058,7 @@ var action = {
             else {
                 console.log()
             } */
-           
+
         } catch (error) {
             console.error("Error inserting data: ", error)
         }
