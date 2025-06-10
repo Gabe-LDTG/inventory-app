@@ -1013,7 +1013,35 @@ var action = {
     //PICKLISTS--------------------------------------------------------------------------------------------
     // Get picklists
     async getPicklists(){
+        try {
+            const query = supabase
+                .from('picklists')
+                .select('*');
+                
+            const {data, error} = await query;
+            if(error)
+                throw error;
+            else{
+                return data;
+            }
+        } catch (error) {
+            console.error('Error grabbing data: ', error);
+        }
+    },
 
+    async getPicklistLabels(){
+        try {
+            const {data: labels, error} = await supabase
+                .from('picklists')
+                .select('label');
+            if(error)
+                throw error;
+            else{
+                return labels;
+            }
+        } catch (error) {
+            console.error("Error grabbing labels: ", error);
+        }
     },
 
     
@@ -1047,20 +1075,17 @@ var action = {
      * @param picklist 
      * @returns 
      */
-    async addPicklist( picklistData: {label: string, picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string, usedCaseIds: number[],}[]}){
+    async addPicklist( picklistData: {label: string, picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
         try {
-            /* const {data: createdPicklist, error: picklistError} = await supabase 
-                .from('picklists')
-                .insert({label: picklistLabel})
-                .select();
-            if(picklistError)
-                throw picklistError;
+            console.log("Picklist Data: ", picklistData);
+            const {data, error} = await supabase.rpc('');
+            if (error)
+                throw error;
             else {
-                console.log()
-            } */
-
-        } catch (error) {
-            console.error("Error inserting data: ", error)
+                console.log('Data inserted successfully');
+            }
+        } catch(error) {
+            console.error("Error calling RPC: ", error)
         }
     },
 

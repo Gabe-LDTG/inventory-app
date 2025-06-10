@@ -95,9 +95,22 @@
                 <Column field="rawTotalBoxes" header="Number of Boxes"></Column>
                 <Column field="units_per_case" header="Units per Box"></Column>
                 <Column field="rawTotalUnits" header="Total Units"></Column>
-                <Column field="" header="Where to place"></Column>
-                <Column field="" header="Notes"></Column>
-                <Column field="" header="Boxes left on Pallet"></Column>
+                <Column header="Where to place">
+                    <template #body="{data}">
+                        {{ data.whereToPlace }}
+                    </template>
+                    <template #editor>
+                        <Dropdown v-model="picklist.whereToPlace" :options="laneLocations"/>
+                    </template>
+                </Column>
+                <Column field="" header="Notes">
+                    <template #body="{data}">
+                        {{ data.whereToPlace }}
+                    </template>
+                    <template #editor>
+                        <InputText v-model="picklist.whereToPlace" type="text"/>
+                    </template>
+                </Column>
                 <template #expansion="{data}">
                     <h3>Boxes for {{ data.rawProductName }}</h3>
                     <DataTable :value="data.boxGroups"
@@ -107,9 +120,16 @@
                         <Column field="units_per_case" header="Units per Box"></Column>
                         <Column field="amount" header="Total Boxes" />
                         <Column field="totalUnits" header="Total Units" />
+                        <Column header="Boxes left on Pallet">
+                    
+                        </Column>
                     </DataTable>
                 </template>
             </DataTable>
+
+            <template #footer>
+                <Button label="Save" @click=""/>
+            </template>
         </Dialog>
     </div>
 </template>
@@ -137,12 +157,14 @@ import helper from "@/components/utils/helperUtils";
 import { FilterMatchMode } from "primevue/api";
 import Dropdown from "primevue/dropdown";
 import MultiSelect from "primevue/multiselect";
+import InputText from "primevue/inputtext";
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistSetupDialog = ref(false);
 const picklistDialog = ref(false);
 const picklists = ref();
 const picklist = ref();
+const picklistLabels = ref();
 const picklistFilters = ref({
     product_name: {value: null, matchMode: FilterMatchMode.CONTAINS},
     status: {value: null, matchMode: FilterMatchMode.IN}
@@ -202,9 +224,20 @@ onMounted(() => {
 async function initVariables(){
     try {
         today.value = helper.getDate();
+        await getPicklists();
         await getRequests();
         await getBoxes();
         await getRecipes();
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+// Grab all picklists 
+async function getPicklists(){
+    try {
+        picklists.value = await action.getPicklists();
+        picklistLabels.value = await action.getPicklistLabels();
     } catch (error) {
         console.error(error);
     }
@@ -393,8 +426,19 @@ async function generatePicklist(){
         picklist.value = newPicklistArray;
 
         let picklistIdx = 1;
-        console.log("Picklist object", picklist.value);
-        console.log("Picklist name: ", today.value + '-' + picklistIdx);
+        // console.log("Picklist object", picklist.value);
+        const d = new Date(today.value);
+        // console.log("Alt Picklist Name: ", d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate()+"-"+picklistIdx);
+
+        for(const label of picklistLabels.value){
+            const stringArray = label.value.split('-');
+            const labelNoIdx = stringArray[0];
+            const labelDate = new Date(labelNoIdx);
+            if(labelDate.getFullYear() === d.getFullYear() && labelDate.getMonth() === d.getMonth() && labelDate.getDate() === d.getDate())
+                picklistIdx++;
+        }
+
+        let picklistLabel = d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate()+"-"+picklistIdx;
 
         picklistSetupDialog.value = false;
         picklistDialog.value = true;
