@@ -968,6 +968,12 @@ var action = {
                 } else {
                     console.log('Used Req Ids: ', usedRequestIds);
                     console.log('Array length', usedRequestIds.length);
+                    let requestIds: number[] = [];
+                    usedRequestIds.forEach(record => {
+                        if(requestIds.includes(record.request_id) === false)
+                            requestIds.push(record.request_id);
+                    });
+                    console.log("Request Id Array: ", requestIds);
                     const query =  supabase
                         .from('requests_to_process')
                         .select(`
@@ -983,8 +989,8 @@ var action = {
                         .or('status.eq.Delivered, status.eq.Partially Delivered', {referencedTable: 'purchase_orders'})
                         .order('status');
 
-                        if(usedRequestIds.length > 0)
-                            query.not('request_id','in', usedRequestIds)
+                    /* if(usedRequestIds.length > 0)
+                        query.not('request_id','in', requestIds) */
                     
                     const { data, error } = await query;
                     if(error){
@@ -1016,12 +1022,16 @@ var action = {
         try {
             const query = supabase
                 .from('picklists')
-                .select('*');
+                .select(`
+                    *,
+                    picklist_elements(*, cases(*))
+                    `);
                 
             const {data, error} = await query;
             if(error)
                 throw error;
             else{
+                console.log("Picklists: ", data);
                 return data;
             }
         } catch (error) {
@@ -1072,20 +1082,21 @@ var action = {
 
     /**
      * Generates a picklist and updates all boxes being used in the picklist to contain a status of "picked"
-     * @param picklist 
+     * @param picklistData The data for the newly created picklist, including picklist element data 
      * @returns 
      */
-    async addPicklist( picklistData: {label: string, picklistElements: {picklist_id: number, notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
+    async addPicklist( picklistData: {label: string, picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
         try {
             console.log("Picklist Data: ", picklistData);
-            const {data, error} = await supabase.rpc('');
+            const {data, error} = await supabase.rpc('create_picklist', {picklist_data: picklistData});
             if (error)
                 throw error;
             else {
                 console.log('Data inserted successfully');
             }
         } catch(error) {
-            console.error("Error calling RPC: ", error)
+            // console.error("Error calling RPC: ", error);
+            throw error;
         }
     },
 

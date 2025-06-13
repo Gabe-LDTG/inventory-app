@@ -1,5 +1,6 @@
 <template>
     <div>
+    <Toast />
         <DataTable :value="picklists" showGridlines stripedRows>
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -9,6 +10,7 @@
             </template>
             <template #loading>Loading picklists. Please wait.</template>
             <template #empty>No picklists found.</template>
+            <Column field="label" header="Name" />
 
         </DataTable>
 
@@ -158,6 +160,7 @@ import { FilterMatchMode } from "primevue/api";
 import Dropdown from "primevue/dropdown";
 import MultiSelect from "primevue/multiselect";
 import InputText from "primevue/inputtext";
+import { useToast } from "primevue/usetoast";
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistSetupDialog = ref(false);
@@ -207,7 +210,7 @@ const recipe_elements = ref();
 
 // MIST VARIABLES_______________________________________________________________________________________________________
 const today = ref();
-
+const toast = useToast();
 
 //______________________________________________________________________________________________________________________
 
@@ -364,7 +367,7 @@ async function generatePicklist(){
                     if(box.product_id !== element.product_id || usedBoxIds.includes(box.case_id) === true)
                         continue;
 
-                    console.log("Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
+                    // console.log("Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
 
                     // console.log("Box: ", box);
                     // If not enough units have been grabbed yet, get another box, linking it to the specific request.
@@ -416,6 +419,7 @@ async function generatePicklist(){
                     rawTotalUnits += group.totalUnits;
                     rawTotalBoxes += group.amount;
                 })
+                /** @TODO SET WHAT WILL GO TO THE DATABASE HERE */ 
                 newPicklistArray.push({...request, locationGroup: locationGroup, rawProductName: rawProductName, rawTotalUnits: rawTotalUnits, rawTotalBoxes: rawTotalBoxes, boxGroups: groups});
                 console.log("AFTER LOOP: Current Units: ", currentInputUnits, "Total Inputs: ", totalInputUnits);
                 console.log("__________________________________________________");
@@ -440,10 +444,27 @@ async function generatePicklist(){
 
         let picklistLabel = d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate()+"-"+picklistIdx;
 
+        let picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[] = [];
+        for(const element of newPicklistArray){
+            let totalCases: number[] = [];
+            for(const group of element.boxGroups){
+                totalCases = [...totalCases, ...group.boxesUsed];
+            }
+            picklistElements = [...picklistElements, {notes: '', request_id: element.request_id, lane_location: '', usedCaseIds: totalCases}];
+        }
+
+        let picklistData = {label: picklistLabel, picklistElements: picklistElements};
+
+        await action.addPicklist(picklistData);
+
+        console.log("picklistData", picklistData);
+
+        toast.add({ severity: 'success', summary: 'Picklist Created', detail: 'Picklist '+ picklistLabel +' successfully added!', life: 3000 });
+
         picklistSetupDialog.value = false;
         picklistDialog.value = true;
     } catch (error) {
-        console.error(error);
+        console.error("Error creating picklist: ",error);
     }
 };
 
