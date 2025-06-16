@@ -19,6 +19,7 @@ import Card from 'primevue/card';
 import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
 import DataTable from 'primevue/datatable';
+import DataView from 'primevue/dataview';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import FileUpload from 'primevue/fileupload';
@@ -60,6 +61,7 @@ app.component('Card', Card);
 app.component('Column', Column);
 app.component('ColumnGroup', ColumnGroup);
 app.component('DataTable', DataTable);
+app.component('DataView', DataView);
 app.component('Dialog', Dialog);
 app.component('Dropdown', Dropdown);
 app.component('FileUpload', FileUpload);

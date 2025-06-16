@@ -1,7 +1,8 @@
 <template>
     <div>
     <Toast />
-        <DataTable :value="picklists" showGridlines stripedRows>
+        <!-- Main Picklists DataTable (single-select) -->
+        <DataTable :value="picklists" v-model:selection="selectedPicklist" selectionMode="single" dataKey="picklist_id" showGridlines stripedRows @rowSelect="onPicklistSelect">
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Picklists</h4>
@@ -11,8 +12,18 @@
             <template #loading>Loading picklists. Please wait.</template>
             <template #empty>No picklists found.</template>
             <Column field="label" header="Name" />
-
+            <Column field="status" header="Status">
+                <template #body="{ data }">
+                    <Tag :style="helper.statusStyle(data.status)">{{ data.status }}</Tag>
+                </template>
+            </Column>
+            <Column header="Total Boxes">
+                <template #body="{ data }">
+                    {{ getTotalBoxes(data) }}
+                </template>
+            </Column>
         </DataTable>
+        <!-- End DataTable -->
 
         <Dialog v-model:visible="picklistSetupDialog" header="Picklist Setup">
             <div>
@@ -86,11 +97,6 @@
                  <template #groupheader="{data}">
                     <span class="flex align-items-center gap-2">{{ data.default_units_per_case }} {{ data.product_name }} (x{{ data.caseAmount }})</span>
                  </template>
-                <!-- <Column field="product_name" header="Product Name">
-                    <template #body="{data}">
-                        {{ data.product_name }} (x{{ data.caseAmount }})
-                    </template>
-                </Column> -->
                 <Column expander />
                 <Column field="rawProductName" header="Raw Product"></Column>
                 <Column field="locationGroup" header="Location(s)"></Column>
@@ -128,11 +134,38 @@
                     </DataTable>
                 </template>
             </DataTable>
-
-            <template #footer>
-                <Button label="Save" @click=""/>
-            </template>
         </Dialog>
+
+        <Dialog v-model:visible="picklistDetailsDialog" header="Picklist Details" :modal="true" style="min-width: 60vw">
+    <DataTable v-model:expandedRows="expandedPickRows" :value="selectedPicklist && selectedPicklist.picklist_elements ? selectedPicklist.picklist_elements : []"
+        stripedRows removableSort showGridlines
+        scrollable scrollHeight="800px" rowGroupMode="subheader" groupRowsBy="request_id">
+        <template #groupheader="{data}">
+            <span class="flex align-items-center gap-2">Request ID: {{ data.request_id }}</span>
+        </template>
+        <Column expander />
+        <Column field="rawProductName" header="Raw Product"></Column>
+        <Column field="locationGroup" header="Location(s)"></Column>
+        <Column field="rawTotalBoxes" header="Number of Boxes"></Column>
+        <Column field="units_per_case" header="Units per Box"></Column>
+        <Column field="rawTotalUnits" header="Total Units"></Column>
+        <template #expansion="{data}">
+            <h3>Grouped Boxes for {{ data.rawProductName }}</h3>
+            <DataTable :value="getGroupedCases(data.cases)" :rows="5" paginator :responsiveLayout="'scroll'"
+                v-model:selection="data.selectedBoxes" selectionMode="multiple" dataKey="case_id">
+                <Column selectionMode="multiple" headerStyle="width: 3rem" />
+                <Column field="case_id" header="Box ID" />
+                <Column field="location_id" header="Location" />
+                <Column field="units_per_case" header="Units/Box" />
+                <Column field="status" header="Status" />
+                <Column field="amount" header="# of Boxes" />
+            </DataTable>
+        </template>
+    </DataTable>
+    <template #footer>
+        <Button label="Close" icon="pi pi-times" @click="picklistDetailsDialog = false" />
+    </template>
+</Dialog>
     </div>
 </template>
 <script setup lang="ts">
@@ -153,7 +186,7 @@
  * 
  * _____________________________________________________________________________________________________________________
  */
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import action from "@/components/utils/axiosUtils";
 import helper from "@/components/utils/helperUtils";
 import { FilterMatchMode } from "primevue/api";
@@ -161,13 +194,17 @@ import Dropdown from "primevue/dropdown";
 import MultiSelect from "primevue/multiselect";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
+import DataView from "primevue/dataview";
+import Column from "primevue/column";
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistSetupDialog = ref(false);
 const picklistDialog = ref(false);
+const picklistDetailsDialog = ref(false);
 const picklists = ref();
 const picklist = ref();
 const picklistLabels = ref();
+const picklist_id = ref();
 const picklistFilters = ref({
     product_name: {value: null, matchMode: FilterMatchMode.CONTAINS},
     status: {value: null, matchMode: FilterMatchMode.IN}
@@ -183,7 +220,7 @@ const laneLocations = ref([
     'FBA Prep Lane 4 A', 'FBA Prep Lane 4 B', 'FBA Prep Lane 4 C', 
     'FBA Prep Lane 5 A', 'FBA Prep Lane 5 B', 'FBA Prep Lane 5 C'
 ]);
-
+const selectedPicklist = ref(null);
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
 const selectedRequests = ref();
@@ -191,27 +228,20 @@ const request = ref();
 const requestStatuses = ref(['1 WORKING', '1.25 PICKED', '1.5 PICKLIST',
                             '2 READY', '3 AWAITING PLAN', '4 INBOUND', '5 ON ORDER',
                             '6 ISSUE', '7 FLAGGED']);
-
 // PRODUCT VARIABLES____________________________________________________________________________________________________
 const products = ref();
-
 // BOX VARIABLES________________________________________________________________________________________________________
 const boxes = ref();
-
 // LOCATION VARIABLES___________________________________________________________________________________________________
 const locations = ref();
-
 // PURCHASE ORDER VARIABLES_____________________________________________________________________________________________
 const purchaseOrders = ref();
-
 // RECIPE VARIABLES_____________________________________________________________________________________________________
 const recipes = ref();
 const recipe_elements = ref();
-
 // MIST VARIABLES_______________________________________________________________________________________________________
 const today = ref();
 const toast = useToast();
-
 //______________________________________________________________________________________________________________________
 
 onMounted(() => {
@@ -467,6 +497,24 @@ async function generatePicklist(){
         console.error("Error creating picklist: ",error);
     }
 };
+
+function getTotalBoxes(picklist: any) {
+    if (!picklist || !picklist.picklist_elements) return 0;
+    return picklist.picklist_elements.reduce((sum: number, el: any) => sum + (el.cases ? el.cases.length : 0), 0);
+}
+
+function getGroupedCases(cases: any[]) {
+    // Group by product_id, location_id, units_per_case
+    return Object.values(helper.groupItemsByKey(cases, ["product_id", "location_id", "units_per_case"]));
+}
+
+function onPicklistSelect() {
+    picklistDetailsDialog.value = true;
+}
+
+const activePicklist = computed(() => {
+    return picklist.value && picklist.value.length > 0 ? picklist.value : [];
+});
 
 </script>
 <style lang="">
