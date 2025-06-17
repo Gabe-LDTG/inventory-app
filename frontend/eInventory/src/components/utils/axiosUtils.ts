@@ -1024,7 +1024,7 @@ var action = {
                 .from('picklists')
                 .select(`
                     *,
-                    picklist_elements(*, cases(*, products(name)))
+                    requests_to_process(*, products(name), picklist_elements(*, cases(*, locations(name), products(name))))
                     `);
                 
             const {data, error} = await query;

@@ -136,32 +136,55 @@
             </DataTable>
         </Dialog>
 
-        <Dialog v-model:visible="picklistDetailsDialog" header="Picklist Details" :modal="true" style="min-width: 60vw">
-    <DataTable v-model:expandedRows="expandedPickRows" :value="selectedPicklist && selectedPicklist.picklist_elements ? selectedPicklist.picklist_elements : []"
-        stripedRows removableSort showGridlines
-        scrollable scrollHeight="800px" rowGroupMode="subheader" groupRowsBy="request_id">
-        <template #groupheader="{data}">
-            <span class="flex align-items-center gap-2">Request ID: {{ data.request_id }}</span>
-        </template>
-        <Column expander />
-        <Column field="rawProductName" header="Raw Product"></Column>
-        <Column field="locationGroup" header="Location(s)"></Column>
-        <Column field="rawTotalBoxes" header="Number of Boxes"></Column>
-        <Column field="units_per_case" header="Units per Box"></Column>
-        <Column field="rawTotalUnits" header="Total Units"></Column>
-        <template #expansion="{data}">
-            <h3>Grouped Boxes for {{ data.rawProductName }}</h3>
-            <DataTable :value="getGroupedCases(data.cases)" :rows="5" paginator :responsiveLayout="'scroll'"
-                v-model:selection="data.selectedBoxes" selectionMode="multiple" dataKey="case_id">
-                <Column selectionMode="multiple" headerStyle="width: 3rem" />
-                <Column field="case_id" header="Box ID" />
-                <Column field="location_id" header="Location" />
-                <Column field="units_per_case" header="Units/Box" />
-                <Column field="status" header="Status" />
-                <Column field="amount" header="# of Boxes" />
-            </DataTable>
-        </template>
-    </DataTable>
+        <Dialog v-model:visible="picklistDetailsDialog" :header="picklistDetailsHeader" :modal="true" style="min-width: 60vw">
+    <div class="request-list">
+        <div v-for="request in safeRequestsToProcess" :key="request.request_id" class="request-card">
+            <div class="request-header">
+                <span class="product-name">{{ request.products.name }}</span>
+                <span class="case-count">Cases: {{ request.warehouse_qty + request.ship_to_amz }}</span>
+            </div>
+            <div class="ingredient-table">
+                <DataTable :value="request.picklist_elements" v-model:expandedRows="expandedElements" dataKey="picklist_element_id"
+                    stripedRows showGridlines scrollable scrollHeight="600px">
+                    <Column expander />
+                    <Column header="Raw Ingredient">
+                        <template #body="{ data: element }">
+                            {{ getIngredientName(element) }}
+                        </template>
+                    </Column>
+                    <Column field="locationGroup" header="Location(s)" >
+                        <template #body="{ data: element }">
+                            {{ element.cases.length }}
+                        </template>
+                    </Column>
+                    <Column field="rawTotalBoxes" header="Number of Boxes" >
+                        <template #body="{ data: element }">
+                            {{ element.cases.length }}
+                        </template>
+                    </Column>
+                    <Column field="rawTotalUnits" header="Total Units" >
+                        <template #body="{ data: element }">
+                            {{ getTotalUnits(element.cases) }}
+                        </template>
+                    </Column>
+                    <template #expansion="{ data: element }">
+                        <h4>Boxes for {{ getIngredientName(element) }}</h4>
+                        <DataTable :value="helper.groupItemsByKey(element.cases, ['location_id', 'units_per_case'])" :responsiveLayout="'scroll'"
+                            v-model:selection="element.selectedBoxes" selectionMode="multiple" dataKey="case_id">
+                            <Column selectionMode="multiple" headerStyle="width: 3rem" />
+                            <Column field="units_per_case" header="Units/Box" />
+                            <Column field="amount" header="# of Boxes" />
+                            <Column field="location_id" header="Location" >
+                                <template #body="{ data: element }">
+                                    {{ element.locations.name }}
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </template>
+                </DataTable>
+            </div>
+        </div>
+    </div>
     <template #footer>
         <Button label="Close" icon="pi pi-times" @click="picklistDetailsDialog = false" />
     </template>
@@ -212,6 +235,7 @@ const picklistFilters = ref({
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 const picklistType = ref('All');
 const expandedPickRows = ref([]);
+const expandedElements = ref([]);
 const selectedPicklistElements = ref([]);
 const laneLocations = ref([
     'FBA Prep Lane 1 A', 'FBA Prep Lane 1 B', 'FBA Prep Lane 1 C', 
@@ -220,7 +244,11 @@ const laneLocations = ref([
     'FBA Prep Lane 4 A', 'FBA Prep Lane 4 B', 'FBA Prep Lane 4 C', 
     'FBA Prep Lane 5 A', 'FBA Prep Lane 5 B', 'FBA Prep Lane 5 C'
 ]);
-const selectedPicklist = ref(null);
+interface PicklistType {
+    requests_to_process?: any[];
+    // add other properties as needed
+}
+const selectedPicklist = ref<PicklistType | null>(null);
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
 const selectedRequests = ref();
@@ -499,13 +527,20 @@ async function generatePicklist(){
 };
 
 function getTotalBoxes(picklist: any) {
-    if (!picklist || !picklist.picklist_elements) return 0;
-    return picklist.picklist_elements.reduce((sum: number, el: any) => sum + (el.cases ? el.cases.length : 0), 0);
+    if (!picklist || !picklist.requests_to_process) return 0;
+    return picklist.requests_to_process.reduce((total: any, request: { picklist_elements: any[]; }) => {
+        if (!request.picklist_elements) return total;
+        return total + request.picklist_elements.reduce((sum: any, element: { cases: string | any[]; }) => {
+            return sum + (element.cases ? element.cases.length : 0);
+        }, 0);
+    }, 0);
 }
 
-function getGroupedCases(cases: any[]) {
-    // Group by product_id, location_id, units_per_case
-    return Object.values(helper.groupItemsByKey(cases, ["product_id", "location_id", "units_per_case"]));
+function getTotalUnits(boxArray: any[]) {
+    if (!boxArray || boxArray.length === 0) return 0;
+    return boxArray.reduce((total, box) => {
+        return total + box.units_per_case;
+    }, 0);
 }
 
 function onPicklistSelect() {
@@ -516,7 +551,74 @@ const activePicklist = computed(() => {
     return picklist.value && picklist.value.length > 0 ? picklist.value : [];
 });
 
+const safeRequestsToProcess = computed(() => {
+    if (selectedPicklist.value && Array.isArray(selectedPicklist.value.requests_to_process)) {
+        return selectedPicklist.value.requests_to_process;
+    }
+    return [];
+});
+
+function getIngredientName(element: any) {
+    return element.cases && element.cases.length > 0 && element.cases[0].products && element.cases[0].products.name
+        ? element.cases[0].products.name
+        : '';
+}
+
+function picklistStatusStyle(status: string) {
+    switch (status) {
+        case 'OPEN':
+            return { backgroundColor: '#e3f2fd', color: '#1976d2' };
+        case 'IN PROGRESS':
+            return { backgroundColor: '#fff3e0', color: '#f57c00' };
+        case 'COMPLETED':
+            return { backgroundColor: '#e8f5e9', color: '#388e3c' };
+        case 'CANCELLED':
+            return { backgroundColor: '#ffebee', color: '#c62828' };
+        default:
+            return { backgroundColor: '#ececec', color: '#333' };
+    }
+}
+
+const picklistDetailsHeader = computed(() => {
+    return 'Picklist Details';
+});
 </script>
-<style lang="">
-    
+<style scoped>
+.request-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+.request-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    padding: 1.5rem 2rem;
+    border: 1px solid #ececec;
+}
+.request-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+.product-name {
+    color: #2c3e50;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+.case-count {
+    background: #f0f4fa;
+    color: #1976d2;
+    border-radius: 6px;
+    padding: 0.3rem 0.8rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.ingredient-table {
+    margin-top: 0.5rem;
+}
 </style>
