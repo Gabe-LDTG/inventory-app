@@ -136,7 +136,7 @@
             </DataTable>
         </Dialog>
 
-        <Dialog v-model:visible="picklistDetailsDialog" :header="picklistDetailsHeader" :modal="true" style="min-width: 60vw">
+        <Dialog v-model:visible="picklistDetailsDialog" header="Picklist Details" :modal="true" style="min-width: 60vw">
     <div class="request-list">
         <div v-for="request in safeRequestsToProcess" :key="request.request_id" class="request-card">
             <div class="request-header">
@@ -144,43 +144,65 @@
                 <span class="case-count">Cases: {{ request.warehouse_qty + request.ship_to_amz }}</span>
             </div>
             <div class="ingredient-table">
-                <DataTable :value="request.picklist_elements" v-model:expandedRows="expandedElements" dataKey="picklist_element_id"
-                    stripedRows showGridlines scrollable scrollHeight="600px">
-                    <Column expander />
-                    <Column header="Raw Ingredient">
-                        <template #body="{ data: element }">
-                            {{ getIngredientName(element) }}
-                        </template>
-                    </Column>
-                    <Column field="locationGroup" header="Location(s)" >
-                        <template #body="{ data: element }">
-                            {{ element.cases.length }}
-                        </template>
-                    </Column>
-                    <Column field="rawTotalBoxes" header="Number of Boxes" >
-                        <template #body="{ data: element }">
-                            {{ element.cases.length }}
-                        </template>
-                    </Column>
-                    <Column field="rawTotalUnits" header="Total Units" >
-                        <template #body="{ data: element }">
-                            {{ getTotalUnits(element.cases) }}
-                        </template>
-                    </Column>
-                    <template #expansion="{ data: element }">
-                        <h4>Boxes for {{ getIngredientName(element) }}</h4>
-                        <DataTable :value="helper.groupItemsByKey(element.cases, ['location_id', 'units_per_case'])" :responsiveLayout="'scroll'"
-                            v-model:selection="element.selectedBoxes" selectionMode="multiple" dataKey="case_id">
-                            <Column selectionMode="multiple" headerStyle="width: 3rem" />
-                            <Column field="units_per_case" header="Units/Box" />
-                            <Column field="amount" header="# of Boxes" />
-                            <Column field="location_id" header="Location" >
-                                <template #body="{ data: element }">
-                                    {{ element.locations.name }}
-                                </template>
-                            </Column>
-                        </DataTable>
+                <DataTable
+                  :value="request.picklist_elements"
+                  v-model:expandedRows="expandedElements"
+                  dataKey="picklist_element_id"
+                  editMode="cell"
+                  @cell-edit-complete="onCellEditComplete"
+                  stripedRows showGridlines scrollable scrollHeight="600px"
+                >
+                  <Column expander />
+                  <Column header="Raw Ingredient">
+                    <template #body="{ data: element }">
+                      {{ getIngredientName(element) }}
                     </template>
+                  </Column>
+                  <Column field="locationGroup" header="Location(s)" >
+                    <template #body="{ data: element }">
+                      {{ element.cases.length }}
+                    </template>
+                  </Column>
+                  <Column field="rawTotalBoxes" header="Number of Boxes" >
+                    <template #body="{ data: element }">
+                      {{ element.cases.length }}
+                    </template>
+                  </Column>
+                  <Column field="rawTotalUnits" header="Total Units" >
+                    <template #body="{ data: element }">
+                      {{ getTotalUnits(element.cases) }}
+                    </template>
+                  </Column>
+                  <Column field="notes" header="Notes">
+                    <template #body="{ data: element }">
+                      {{ element.notes }}
+                    </template>
+                    <template #editor="{ data: element }">
+                      <InputText v-model="element.notes" type="text" />
+                    </template>
+                  </Column>
+                  <Column field="lane_location" header="Lane Location">
+                    <template #body="{ data: element }">
+                      {{ element.lane_location }}
+                    </template>
+                    <template #editor="{ data: element }">
+                      <Dropdown v-model="element.lane_location" :options="laneLocations" placeholder="Select Lane Location"/>
+                    </template>
+                  </Column>
+                  <template #expansion="{ data: element }">
+                    <h4>Boxes for {{ getIngredientName(element) }}</h4>
+                    <DataTable :value="helper.groupItemsByKey(element.cases, ['location_id', 'units_per_case'])" :responsiveLayout="'scroll'"
+                      v-model:selection="element.selectedBoxes" selectionMode="multiple" dataKey="case_id">
+                      <Column selectionMode="multiple" headerStyle="width: 3rem" />
+                      <Column field="units_per_case" header="Units/Box" />
+                      <Column field="amount" header="# of Boxes" />
+                      <Column field="location_id" header="Location" >
+                        <template #body="{ data: element }">
+                          {{ element.locations.name }}
+                        </template>
+                      </Column>
+                    </DataTable>
+                  </template>
                 </DataTable>
             </div>
         </div>
@@ -564,24 +586,11 @@ function getIngredientName(element: any) {
         : '';
 }
 
-function picklistStatusStyle(status: string) {
-    switch (status) {
-        case 'OPEN':
-            return { backgroundColor: '#e3f2fd', color: '#1976d2' };
-        case 'IN PROGRESS':
-            return { backgroundColor: '#fff3e0', color: '#f57c00' };
-        case 'COMPLETED':
-            return { backgroundColor: '#e8f5e9', color: '#388e3c' };
-        case 'CANCELLED':
-            return { backgroundColor: '#ffebee', color: '#c62828' };
-        default:
-            return { backgroundColor: '#ececec', color: '#333' };
-    }
+function onCellEditComplete(event: any) {
+  // event.data is the row, event.field is the field name, event.newValue is the new value
+  // You can save to backend here if needed
+  // Example: console.log('Cell edit complete:', event);
 }
-
-const picklistDetailsHeader = computed(() => {
-    return 'Picklist Details';
-});
 </script>
 <style scoped>
 .request-list {
