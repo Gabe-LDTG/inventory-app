@@ -1100,22 +1100,49 @@ var action = {
         }
     },
 
+    async editPicklistElement(fieldName: string, fieldValue: any, picklistElementId: number){
+        try {
+            const {data, error} = await supabase
+                .from('picklist_elements')
+                .update({[fieldName]: fieldValue})
+                .eq('picklist_element_id', picklistElementId);
+            if (error)
+                throw error;
+            else {
+                console.log('Picklist element updated successfully', data);
+            }
+        } catch(error) {
+            console.error("Error calling RPC: ", error);
+            throw error;
+        }
+    },
+
+    async editPickedStatus(usedCaseIds: number[], status: string){
+        try {
+            console.log("Used Case Ids: ", usedCaseIds);
+            console.log("Status: ", status);
+            const {data, error} = await supabase
+                .from('cases')
+                .update({status: status})
+                .in('case_id', usedCaseIds);
+            if (error)
+                throw error;
+            else {
+                console.log('Cases updated successfully', data);
+            }
+        } catch(error) {
+            // console.error("Error calling RPC: ", error);
+            throw error;
+        }
+    },
+
     // Update a picklist
     // router.put("/picklists/:id", updatePicklist);
     async editPicklist(picklist: {
         picklist_id: number;
         label: string; 
     }){
-        return axios.put(BASE_URL+"/picklists/"+picklist.picklist_id, {
-            label: picklist.label
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
-            throw error;
-        });
+        
     },
 
     // Delete a picklist

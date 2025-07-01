@@ -2,7 +2,9 @@
     <div>
     <Toast />
         <!-- Main Picklists DataTable (single-select) -->
-        <DataTable :value="picklists" v-model:selection="selectedPicklist" selectionMode="single" dataKey="picklist_id" showGridlines stripedRows @rowSelect="onPicklistSelect">
+        <DataTable :value="picklists" v-model:selection="selectedPicklist" 
+        selectionMode="single" dataKey="picklist_id" showGridlines 
+        stripedRows @rowSelect="onPicklistSelect">
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Picklists</h4>
@@ -137,80 +139,89 @@
         </Dialog>
 
         <Dialog v-model:visible="picklistDetailsDialog" header="Picklist Details" :modal="true" style="min-width: 60vw">
-    <div class="request-list">
-        <div v-for="request in safeRequestsToProcess" :key="request.request_id" class="request-card">
-            <div class="request-header">
-                <span class="product-name">{{ request.products.name }}</span>
-                <span class="case-count">Cases: {{ request.warehouse_qty + request.ship_to_amz }}</span>
-            </div>
-            <div class="ingredient-table">
-                <DataTable
-                  :value="request.picklist_elements"
-                  v-model:expandedRows="expandedElements"
-                  dataKey="picklist_element_id"
-                  editMode="cell"
-                  @cell-edit-complete="onCellEditComplete"
-                  stripedRows showGridlines scrollable scrollHeight="600px"
-                >
-                  <Column expander />
-                  <Column header="Raw Ingredient">
-                    <template #body="{ data: element }">
-                      {{ getIngredientName(element) }}
-                    </template>
-                  </Column>
-                  <Column field="locationGroup" header="Location(s)" >
-                    <template #body="{ data: element }">
-                      {{ element.cases.length }}
-                    </template>
-                  </Column>
-                  <Column field="rawTotalBoxes" header="Number of Boxes" >
-                    <template #body="{ data: element }">
-                      {{ element.cases.length }}
-                    </template>
-                  </Column>
-                  <Column field="rawTotalUnits" header="Total Units" >
-                    <template #body="{ data: element }">
-                      {{ getTotalUnits(element.cases) }}
-                    </template>
-                  </Column>
-                  <Column field="notes" header="Notes">
-                    <template #body="{ data: element }">
-                      {{ element.notes }}
-                    </template>
-                    <template #editor="{ data: element }">
-                      <InputText v-model="element.notes" type="text" />
-                    </template>
-                  </Column>
-                  <Column field="lane_location" header="Lane Location">
-                    <template #body="{ data: element }">
-                      {{ element.lane_location }}
-                    </template>
-                    <template #editor="{ data: element }">
-                      <Dropdown v-model="element.lane_location" :options="laneLocations" placeholder="Select Lane Location"/>
-                    </template>
-                  </Column>
-                  <template #expansion="{ data: element }">
-                    <h4>Boxes for {{ getIngredientName(element) }}</h4>
-                    <DataTable :value="helper.groupItemsByKey(element.cases, ['location_id', 'units_per_case'])" :responsiveLayout="'scroll'"
-                      v-model:selection="element.selectedBoxes" selectionMode="multiple" dataKey="case_id">
-                      <Column selectionMode="multiple" headerStyle="width: 3rem" />
-                      <Column field="units_per_case" header="Units/Box" />
-                      <Column field="amount" header="# of Boxes" />
-                      <Column field="location_id" header="Location" >
-                        <template #body="{ data: element }">
-                          {{ element.locations.name }}
+            <div class="request-list">
+                <Button class="flex flex-start" label="Collapse All" icon="pi pi-times" @click="collapseRows"/>
+                <Button class="flex flex-start" label="Expand All" icon="pi pi-times" @click="expandRows"/>
+                <div v-for="request in safeRequestsToProcess" :key="request.request_id" class="request-card">
+                    <div class="request-header">
+                        <span class="product-name">{{ request.products.name }}</span>
+                        <span class="case-count">Cases: {{ request.warehouse_qty + request.ship_to_amz }}</span>
+                    </div>
+                    <div class="ingredient-table">
+                        <DataTable
+                        :value="request.picklist_elements"
+                        v-model:expandedRows="expandedElements"
+                        dataKey="picklist_element_id"
+                        editMode="cell"
+                        @cell-edit-complete="onElementCellEditComplete"
+                        stripedRows showGridlines scrollable scrollHeight="600px"
+                        :rowStyle="getLaneLocationRowStyle"
+                        >
+                        <Column expander />
+                        <Column header="Raw Ingredient">
+                            <template #body="{ data: picklistElement }">
+                            {{ getIngredientName(picklistElement) }}
+                            </template>
+                        </Column>
+                        <Column field="locationGroup" header="Location(s)" >
+                            <template #body="{ data: picklistElement }">
+                                {{ getLocationsList(picklistElement) }}
+                            </template>
+                        </Column>
+                        <Column header="Number of Boxes" >
+                            <template #body="{ data: picklistElement }">
+                            {{ picklistElement.cases.length }}
+                            </template>
+                        </Column>
+                        <Column field="rawTotalUnits" header="Total Units" >
+                            <template #body="{ data: picklistElement }">
+                            {{ getTotalUnits(picklistElement.cases) }}
+                            </template>
+                        </Column>
+                        <Column field="notes" header="Notes">
+                            <template #body="{ data: picklistElement }">
+                            {{ picklistElement.notes }}
+                            </template>
+                            <template #editor="{ data: picklistElement }">
+                            <InputText v-model="picklistElement.notes" type="text" />
+                            </template>
+                        </Column>
+                        <Column field="lane_location" header="Lane Location">
+                            <template #body="{ data: picklistElement }">
+                            <span :style="{ background: !picklistElement.lane_location ? '#fffbe6' : 'inherit', display: 'block', minHeight: '2rem' }">
+                              {{ picklistElement.lane_location }}
+                            </span>
+                            </template>
+                            <template #editor="{ data: picklistElement }">
+                            <Dropdown v-model="picklistElement.lane_location" :options="laneLocations" placeholder="Select Lane Location"/>
+                            </template>
+                        </Column>
+                        <template #expansion="{ data: picklistElement }">
+                            <h4>Boxes for {{ getIngredientName(picklistElement) }}</h4>
+                            <DataTable :value="helper.groupItemsByKey(picklistElement.cases, ['location_id', 'units_per_case'])" :responsiveLayout="'scroll'"
+                            dataKey="case_id">
+                                <Column field="units_per_case" header="Units/Box" />
+                                <Column field="amount" header="# of Boxes" />
+                                <Column field="location_id" header="Location" >
+                                    <template #body="{ data: boxGroup }">
+                                    {{ boxGroup.locations.name }}
+                                    </template>
+                                </Column>
+                                <Column header="Picked">
+                                    <template #body="{ data: boxGroup }">
+                                        <Button :icon="getBoxGroupButtonIcon(boxGroup)" :severity="getBoxGroupButtonSeverity(boxGroup)" text @click="onBoxGroupSelectionChange(picklistElement, boxGroup)"/>
+                                    </template>
+                                </Column>
+                            </DataTable>
                         </template>
-                      </Column>
-                    </DataTable>
-                  </template>
-                </DataTable>
+                        </DataTable>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <template #footer>
-        <Button label="Close" icon="pi pi-times" @click="picklistDetailsDialog = false" />
-    </template>
-</Dialog>
+            <template #footer>
+                <Button label="Close" icon="pi pi-times" @click="picklistDetailsDialog = false" />
+            </template>
+        </Dialog>
     </div>
 </template>
 <script setup lang="ts">
@@ -231,16 +242,12 @@
  * 
  * _____________________________________________________________________________________________________________________
  */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import action from "@/components/utils/axiosUtils";
 import helper from "@/components/utils/helperUtils";
 import { FilterMatchMode } from "primevue/api";
-import Dropdown from "primevue/dropdown";
-import MultiSelect from "primevue/multiselect";
-import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
-import DataView from "primevue/dataview";
-import Column from "primevue/column";
+import { debounce, pick } from 'lodash';
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistSetupDialog = ref(false);
@@ -257,7 +264,7 @@ const picklistFilters = ref({
 const requestQtyType = ref(['All', 'Store Only', 'Ship Only'])
 const picklistType = ref('All');
 const expandedPickRows = ref([]);
-const expandedElements = ref([]);
+const expandedElements = ref<Record<number, boolean>>({});
 const selectedPicklistElements = ref([]);
 const laneLocations = ref([
     'FBA Prep Lane 1 A', 'FBA Prep Lane 1 B', 'FBA Prep Lane 1 C', 
@@ -558,6 +565,16 @@ function getTotalBoxes(picklist: any) {
     }, 0);
 }
 
+function getLocationsList(picklistElement: any) {
+    let locationList: string[] = [];
+    for(const box of picklistElement.cases) {
+        if (box.locations && !locationList.includes(box.locations.name)) {
+            locationList.push(box.locations.name);
+        }
+    }
+    return locationList.join(', ');
+}
+
 function getTotalUnits(boxArray: any[]) {
     if (!boxArray || boxArray.length === 0) return 0;
     return boxArray.reduce((total, box) => {
@@ -566,13 +583,33 @@ function getTotalUnits(boxArray: any[]) {
 }
 
 function onPicklistSelect() {
+    console.log("Selected Picklist: ", selectedPicklist.value); 
+    expandRows();
+
     picklistDetailsDialog.value = true;
 }
 
-const activePicklist = computed(() => {
-    return picklist.value && picklist.value.length > 0 ? picklist.value : [];
-});
+function expandRows(){
+    console.log("Selected Picklist: ", selectedPicklist.value); 
+    expandedElements.value = {} as Record<number, boolean>;
+    if (selectedPicklist.value && Array.isArray(selectedPicklist.value.requests_to_process)) {
+        for(const request of selectedPicklist.value.requests_to_process) {
+            if (request.picklist_elements && request.picklist_elements.length > 0) {
+                for(const element of request.picklist_elements) {
+                    expandedElements.value[element.picklist_element_id] = true;
+                }
+            }
+        }
+    }
+    console.log("Expanded Elements: ", expandedElements.value);
+}
 
+function collapseRows() {
+    // Collapse all rows by setting expandedElements to an empty object
+    expandedElements.value = {};
+}
+
+// Active picklist computed property
 const safeRequestsToProcess = computed(() => {
     if (selectedPicklist.value && Array.isArray(selectedPicklist.value.requests_to_process)) {
         return selectedPicklist.value.requests_to_process;
@@ -586,10 +623,82 @@ function getIngredientName(element: any) {
         : '';
 }
 
-function onCellEditComplete(event: any) {
-  // event.data is the row, event.field is the field name, event.newValue is the new value
-  // You can save to backend here if needed
-  // Example: console.log('Cell edit complete:', event);
+async function onElementCellEditComplete(event: any) {
+    try {
+        console.log('Cell edit complete:', event.data, event.field, event.newValue);
+
+        let { data, field, newValue } = event;
+        data[field] = newValue; // Update the data object with the new value
+        await action.editPicklistElement(field, newValue, data.picklist_element_id);
+    } catch (error) {
+        console.error("Error in onElementCellEditComplete:", error);
+    }
+}
+
+// Handler for box group selection changes
+async function onBoxGroupSelectionChange(picklistElement: any, boxGroup: any) {
+    try {
+        console.log('Box group selection changed:', boxGroup);
+        console.log('Selected picklist element:', picklistElement);
+        let pickedStatus = "";
+        let selectedIds: number[] = [];
+        if (Array.isArray(picklistElement.cases)) {
+            for(const box of picklistElement.cases) {
+                // Check if the box matches the group criteria
+                if (box.location_id === boxGroup.location_id && box.units_per_case === boxGroup.units_per_case) {
+                    // Toggle the picked status
+                    box.status = box.status !== "Picked" ? "Picked" : "On Picklist";
+                    selectedIds.push(box.case_id);
+                }
+            }
+
+            pickedStatus = boxGroup.status !== "Picked" ? 'Picked' : 'On Picklist';
+            console.log('Selected box IDs:', selectedIds, " Status: ", pickedStatus);
+
+            await action.editPickedStatus(selectedIds, pickedStatus);
+        }
+    } catch (error) {
+        console.error("Error in onBoxGroupSelectionChange:", error);
+    }
+}
+
+function getBoxGroupButtonIcon(boxGroup: any) {
+  return boxGroup.status === 'Picked' ? 'pi pi-check-circle' : 'pi pi-times-circle';
+}
+
+function getBoxGroupButtonSeverity(boxGroup: any) {
+  return boxGroup.status === 'Picked' ? 'success' : 'danger';
+}
+
+interface LaneLocationColorMap {
+    [key: string]: string;
+}
+
+interface LaneLocationRowData {
+    lane_location: string;
+    [key: string]: any;
+}
+
+function getLaneLocationRowStyle(rowData: LaneLocationRowData): { background: string } {
+    const colorMap: LaneLocationColorMap = {
+        'FBA Prep Lane 1 A': '#e3f2fd',
+        'FBA Prep Lane 1 B': '#fce4ec',
+        'FBA Prep Lane 1 C': '#fff9c4',
+        'FBA Prep Lane 2 A': '#e8f5e9',
+        'FBA Prep Lane 2 B': '#f3e5f5',
+        'FBA Prep Lane 2 C': '#ffe0b2',
+        'FBA Prep Lane 3 A': '#f9fbe7',
+        'FBA Prep Lane 3 B': '#ede7f6',
+        'FBA Prep Lane 3 C': '#ffecb3',
+        'FBA Prep Lane 4 A': '#e0f2f1',
+        'FBA Prep Lane 4 B': '#fbe9e7',
+        'FBA Prep Lane 4 C': '#d7ccc8',
+        'FBA Prep Lane 5 A': '#f1f8e9',
+        'FBA Prep Lane 5 B': '#e1f5fe',
+        'FBA Prep Lane 5 C': '#f8bbd0'
+    };
+    const lane: string = rowData.lane_location;
+    return { background: colorMap[lane] || 'inherit' };
 }
 </script>
 <style scoped>
