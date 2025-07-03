@@ -416,6 +416,11 @@ async function generatePicklist(){
         // Loop through each request
         for(const request of selectedRequests.value){
             console.log("Request: ",request);
+            let newRequest = splitRequestByType(request, picklistType.value);
+            if(newRequest){
+                await action.addRequest(newRequest);
+            }
+
             let amount = 0;
 
             // Set amount of cases worth to pick by the users selected picklist type
@@ -699,6 +704,31 @@ function getLaneLocationRowStyle(rowData: LaneLocationRowData): { background: st
     };
     const lane: string = rowData.lane_location;
     return { background: colorMap[lane] || 'inherit' };
+}
+
+// Split request by type (shipping or storage)
+function splitRequestByType(request: any, type: string) {
+    // Clone the original request (shallow copy, adjust as needed for deep copy)
+    const newRequest = { ...request };
+    if (type === 'Ship Only') {
+        // New request will track the stored cases, current will track shipped
+        newRequest.ship_to_amz = 0;
+        if (request.warehouse_qty > 0) {
+            newRequest.warehouse_qty = request.warehouse_qty; // cases being stored
+            request.warehouse_qty = 0; // zero out storage in current
+            return newRequest;
+        }
+    } else if (type === 'Store Only') {
+        // New request will track the shipped cases, current will track stored
+        newRequest.warehouse_qty = 0;
+        if (request.ship_to_amz > 0) {
+            newRequest.ship_to_amz = request.ship_to_amz; // cases being shipped
+            request.ship_to_amz = 0; // zero out shipping in current
+            return newRequest;
+        }
+    }
+    // If nothing to split, return null
+    return null;
 }
 </script>
 <style scoped>
