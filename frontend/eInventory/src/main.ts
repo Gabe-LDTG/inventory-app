@@ -12,6 +12,7 @@ import 'primeicons/primeicons.css'
 import '/node_modules/primeflex/primeflex.css';
 //import 'primevue/resources/primevue.min.css';
 
+import AutoComplete from 'primevue/autocomplete';
 import Button from 'primevue/button';
 //import ButtonGroup from 'primevue/buttongroup';
 import Calendar from 'primevue/calendar';
@@ -54,6 +55,7 @@ app.use(ToastService);
 axios.defaults.withCredentials = true;
 
 //PRIME VUE COMPONENTS
+app.component('AutoComplete', AutoComplete);
 app.component('Button', Button);
 //app.component('ButtonGroup', ButtonGroup);
 app.component('Calendar', Calendar);

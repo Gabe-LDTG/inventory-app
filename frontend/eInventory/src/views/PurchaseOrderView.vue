@@ -433,6 +433,10 @@
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !poRecipe.recipe_id}" 
                             />
+                            <AutoComplete v-model="poRecipe.recipe_id" dropdown
+                            :class="{'p-invalid': submitted && !poRecipe.recipe_id}"
+                            @complete="onRecipeSelection(poRecipe.recipe_id, counter)"
+                            :options="selectVendorRecipes(purchaseOrder.vendor_id)"/>
                             <small class="p-error" v-if="submitted && !poRecipe.recipe_id">Name is required.</small>
                         </div>
 
