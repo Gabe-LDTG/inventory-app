@@ -27,11 +27,11 @@
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Purchase Orders</h4>
-						<span class="p-input-icon-right">
+                        <span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
                         </span>
-					</div>
+                    </div>
                 </template>
 
                 <template #loading> Loading purchase orders. Please wait. </template>
@@ -423,7 +423,7 @@
                     <div class="block-div">
                         <div class="field">
                             <label for="name">Name:</label>
-                            <Dropdown v-model="poRecipe.recipe_id" required="true" 
+                            <!-- <Dropdown v-model="poRecipe.recipe_id" required="true" 
                             placeholder="Select a Product" class="md:w-14rem" editable
                             :options="selectVendorRecipes(purchaseOrder.vendor_id)"
                             optionLabel="label"
@@ -432,11 +432,20 @@
                             optionValue="recipe_id"
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !poRecipe.recipe_id}" 
+                            /> -->
+                            <AutoComplete 
+                                v-model="poRecipe.recipe_id"
+                                :suggestions="filteredRecipes[counter] || []"
+                                @complete="(event: any) => searchRecipes(event, counter)"
+                                @item-select="onRecipeSelection(poRecipe.recipe_id, counter)"
+                                :dropdown="true"
+                                :optionLabel="'label'"
+                                :optionValue="'recipe_id'"
+                                placeholder="Select or enter a product"
+                                class="md:w-14rem"
+                                :class="{'p-invalid': submitted && !poRecipe.recipe_id}"
+                                :forceSelection="false"
                             />
-                            <AutoComplete v-model="poRecipe.recipe_id" dropdown
-                            :class="{'p-invalid': submitted && !poRecipe.recipe_id}"
-                            @complete="onRecipeSelection(poRecipe.recipe_id, counter)"
-                            :options="selectVendorRecipes(purchaseOrder.vendor_id)"/>
                             <small class="p-error" v-if="submitted && !poRecipe.recipe_id">Name is required.</small>
                         </div>
 
@@ -924,7 +933,7 @@
 
         <Dialog v-model:visible="loading"><div style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div></Dialog>
         
-	</div>
+    </div>
 </template>
 
 <script lang="ts">
@@ -1001,6 +1010,7 @@ export default {
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
             singlePoRecipes: [] as any[],
+            filteredRecipes: [] as any[],
 
             //LOCATION VARIABLES
             locations: [] as any[],
@@ -1016,10 +1026,10 @@ export default {
             statuses: [
                 'Draft',
                 'Submitted',
-				'Ordered',
+                'Ordered',
                 'Inbound',
                 'Partially Delivered',
-				'Delivered',
+                'Delivered',
             ],
 
         }
@@ -1383,6 +1393,55 @@ export default {
             return total;
         },
 
+        /**
+         * Calculates the total cost for the purchase order, robustly handling undefined/null values and business logic.
+         * Sums cost for recipes and raw boxes, applies discount if present.
+         * Defensive against missing/invalid data.
+         */
+        calculatePoCostTotal() {
+            let total = 0;
+            // If editing an existing PO, sum from uBoxes
+            if (this.purchaseOrder && this.purchaseOrder.purchase_order_id) {
+                (this.uBoxes || []).filter(box => box && box.purchase_order_id === this.purchaseOrder.purchase_order_id).forEach(b => {
+                    if (!b || b.product_id == null || b.units_per_case == null) return;
+                    const unitCost = this.getUnitCost && typeof this.getUnitCost === 'function' ? this.getUnitCost(b.product_id) : 0;
+                    if (unitCost == null) return;
+                    total += unitCost * b.units_per_case;
+                });
+            } else {
+                // If creating a new PO, sum from recipeArray and poBoxes
+                (this.recipeArray || []).filter(poRec => poRec && poRec.recipe_id).forEach(poRec => {
+                    const recipeKey = (this.recipes || []).find(r => poRec.recipe_id === r.recipe_id);
+                    if (!recipeKey) return;
+                    const recipeElements = (this.recipeElements || []).filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
+                    const processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    const processedRecElKey = (this.products || []).find((p) => processedRecEl && p.product_id === processedRecEl.product_id);
+                    const rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
+                    rawRecElArray.forEach(recEl => {
+                        if (!this.getTotalCost || typeof this.getTotalCost !== 'function') return;
+                        total += this.getTotalCost(recEl, processedRecElKey, poRec.amount);
+                    });
+                });
+                (this.poBoxes || []).forEach(b => {
+                    if (!b || b.product_id == null) return;
+                    let totalUnitCost = 0;
+                    if (this.selectedOrderType === 'By Box') {
+                        totalUnitCost = this.getUnitCost(b.product_id) * (b.units_per_case * b.amount);
+                    } else if (this.selectedOrderType === 'By Unit') {
+                        totalUnitCost = this.getUnitCost(b.product_id) * (Math.ceil(b.unitAmount / b.units_per_case) * b.units_per_case);
+                    }
+                    total += totalUnitCost;
+                });
+            }
+            // Apply discount if present
+            const discount = this.purchaseOrder && this.purchaseOrder.discount;
+            if (discount) {
+                const discountDecimal = 1 - (discount / 100);
+                total = total * discountDecimal;
+            }
+            return total;
+        },
+
         /** @TODO Overhaul so that the pool math is right. Check what boxes are being used to make cases */
         getPoolNew(purchase_order_id: number){
             let poolArray = [] as any[];
@@ -1584,8 +1643,8 @@ export default {
 
         formatCurrency(value: any) {
             if(value)
-				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
-			return;
+                return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
+            return;
         },
         vendorSelect(){
             //WHEN BABY PAPER IS SELECTED, JUST CREATE ONE BOX WITH THE DESIRED AMOUNT TO ORDER
@@ -1630,7 +1689,6 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-5-2024
         openNew() {
-
             this.vendorDialog = false;
             this.poBoxes = [];
             this.poCases = [];
@@ -1677,7 +1735,6 @@ export default {
             //this.purchaseOrder.raw = this.poBoxes;
             //this.purchaseOrder.cases = this.poCases
 
-
             //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
             console.log(this.purchaseOrder)
             //console.log(this.selectedOrderType);
@@ -1686,6 +1743,41 @@ export default {
 
             this.submitted = false;
             this.purchaseOrderDialog = true;
+        },
+        /**
+         * Calculates the total units for the purchase order, with defensive checks for undefined/null values.
+         * Filters out any undefined/null or incomplete objects in recipeArray and poBoxes.
+         *
+         * Fixes: TypeError: Cannot read properties of undefined (reading 'recipe_id')
+         */
+        calculatePoUnitTotal() {
+            // Defensive: filter out undefined/null or incomplete objects
+            const validRecipeArray = (this.recipeArray || []).filter(r => r && typeof r === 'object' && r.recipe_id != null && r.amount != null);
+            const validPoBoxes = (this.poBoxes || []).filter(b => b && typeof b === 'object' && b.product_id != null && b.units_per_case != null);
+
+            let total = 0;
+            validRecipeArray.forEach(r => {
+                // Defensive: ensure r.recipe_id is valid
+                if (!r || r.recipe_id == null) return;
+                // Find the recipe element for this recipe
+                const recipeEl = this.recipeElements && Array.isArray(this.recipeElements)
+                    ? this.recipeElements.find(el => el.recipe_id === r.recipe_id && el.type === 'output')
+                    : null;
+                if (!recipeEl) return;
+                // Find the product for this recipe element
+                const product = this.products && Array.isArray(this.products)
+                    ? this.products.find(p => p.product_id === recipeEl.product_id)
+                    : null;
+                if (!product || product.default_units_per_case == null) return;
+                // Add to total
+                total += r.amount * product.default_units_per_case;
+            });
+            // Optionally, add logic for poBoxes if needed
+            // validPoBoxes.forEach(b => {
+            //     if (!b || b.units_per_case == null || b.amount == null) return;
+            //     total += b.amount * b.units_per_case;
+            // });
+            return total;
         },
 
         //Description: 
@@ -1736,6 +1828,7 @@ export default {
         //Date Created: 7-03-2024
         //Date Last Edited: 7-03-2024
         onRecipeSelection(recipeId: number, counter: number){
+            console.log("RECIPE ID: ", recipeId);
             let recipeElement = this.recipeElements.find(re => re.recipe_id === recipeId && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
@@ -2789,7 +2882,7 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
         //Date Last Edited: 7-08-2024
-        calculatePoCostTotal(){
+        calculatePoCostTotalOLD(){
             let total=0;
 
             //If the PO is being edited
@@ -2847,7 +2940,7 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
         //Date Last Edited: 7-08-2024
-        calculatePoUnitTotal(){
+        calculatePoUnitTotalOLD(){
             let total=0;
 
             // console.log("PO Boxes",this.poBoxes)
@@ -4069,6 +4162,22 @@ export default {
 
                 this.receivedDialog = false;
             }
+        },
+
+        searchRecipes(event: any, counter: number) {
+            console.log("Search Recipes Event: ", event);
+            // console.log("Search Recipes Counter: ", counter);
+            console.log("Filtered Recipes: ", this.filteredRecipes);
+            const query = event.query ? event.query.toLowerCase() : '';
+            const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
+            // Ensure filteredRecipes is an array of arrays, one per row
+            if (!Array.isArray(this.filteredRecipes)) 
+                this.filteredRecipes = [];
+
+            this.filteredRecipes[counter] = allRecipes.filter(r =>
+                r.label && r.label.toLowerCase().includes(query)
+            );
+            console.log("Filtered Recipes after search: ", this.filteredRecipes);
         },
 
         /**
