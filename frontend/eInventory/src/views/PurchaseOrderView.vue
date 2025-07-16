@@ -423,30 +423,20 @@
                     <div class="block-div">
                         <div class="field">
                             <label for="name">Name:</label>
-                            <!-- <Dropdown v-model="poRecipe.recipe_id" required="true" 
-                            placeholder="Select a Product" class="md:w-14rem" editable
-                            :options="selectVendorRecipes(purchaseOrder.vendor_id)"
-                            optionLabel="label"
-                            filter
-                            @change="onRecipeSelection(poRecipe.recipe_id, counter);"
-                            optionValue="recipe_id"
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            :class="{'p-invalid': submitted && !poRecipe.recipe_id}" 
-                            /> -->
                             <AutoComplete 
-                                v-model="poRecipe.recipe_id"
+                                v-model="poRecipe.recipeObj"
                                 :suggestions="filteredRecipes[counter] || []"
                                 @complete="(event: any) => searchRecipes(event, counter)"
-                                @item-select="onRecipeSelection(poRecipe.recipe_id, counter)"
+                                @item-select="onRecipeSelection(poRecipe.recipeObj, counter)"
                                 :dropdown="true"
                                 :optionLabel="'label'"
-                                :optionValue="'recipe_id'"
+                                :modelValue="'label'"
                                 placeholder="Select or enter a product"
                                 class="md:w-14rem"
-                                :class="{'p-invalid': submitted && !poRecipe.recipe_id}"
+                                :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
                                 :forceSelection="false"
                             />
-                            <small class="p-error" v-if="submitted && !poRecipe.recipe_id">Name is required.</small>
+                            <small class="p-error" v-if="submitted && !poRecipe.recipeObj">Name is required.</small>
                         </div>
 
                         <div class="field">
@@ -470,7 +460,7 @@
                             <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
                         </div>
 
-                        <div v-if="poRecipe.amount && poRecipe.recipe_id" class="field">
+                        <div v-if="poRecipe.amount && poRecipe.recipeObj" class="field">
                             <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
                             <div class="flex justify-content-end font-bold w-full">{{ poCases[counter].default_units_per_case * poRecipe.amount }}</div>
                         </div>
@@ -478,7 +468,7 @@
                     </div>
 
                     <div v-if="poCases[counter].default_units_per_case">
-                        <DataTable :value="selectRecipeElements(poRecipe.recipe_id)">
+                        <DataTable :value="selectRecipeElements(poRecipe.recipeObj)">
                             <Column field="name" header="Product Name" />
                             <Column field="qty" header="Units per Box" >
                                 <template #body="{data}">
@@ -1229,11 +1219,11 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-03-2024
-        selectRecipeElements(recipeId: any){
+        selectRecipeElements(recipe: any){
             
-            console.log("RECIPE  ", recipeId);
+            console.log("RECIPE  ", recipe);
             
-            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipeId);
+            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
             console.log("INPUT PRODUCTS: ", inputProducts);
 
             inputProducts.forEach(ir => {
@@ -1463,7 +1453,7 @@ export default {
 
                 // the input products given the recipe id
                 /** @TODO rename to "rawRecInputs" */
-                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipeObj.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
@@ -1752,8 +1742,10 @@ export default {
          */
         calculatePoUnitTotal() {
             // Defensive: filter out undefined/null or incomplete objects
+            console.log("Recipe Array: ", this.recipeArray);
             const validRecipeArray = (this.recipeArray || []).filter(r => r && typeof r === 'object' && r.recipe_id != null && r.amount != null);
             const validPoBoxes = (this.poBoxes || []).filter(b => b && typeof b === 'object' && b.product_id != null && b.units_per_case != null);
+            console.log("Valid Recipe Array: ", validRecipeArray);
 
             let total = 0;
             validRecipeArray.forEach(r => {
@@ -1826,10 +1818,18 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 7-03-2024
-        //Date Last Edited: 7-03-2024
-        onRecipeSelection(recipeId: number, counter: number){
-            console.log("RECIPE ID: ", recipeId);
-            let recipeElement = this.recipeElements.find(re => re.recipe_id === recipeId && re.type === 'output');
+        //Date Last Edited: 7-15-2024
+        onRecipeSelection(recipeId: any, counter: number){
+            // Ensure recipeId is always a primitive
+            console.log("RECIPE ID BEGIN: ", recipeId);
+            let id = recipeId;
+            if (typeof recipeId === 'object' && recipeId !== null && 'recipe_id' in recipeId) {
+                id = recipeId.recipe_id;
+            }
+            this.recipeArray[counter].recipe_id = id;
+            console.log("RECIPE ID: ", id);
+            console.log("PO RECIPE ID: ", this.poRecipes[counter].recipe_id);
+            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCases[counter]);
@@ -2576,7 +2576,7 @@ export default {
 
         // the input products given the recipe id
         /** @TODO rename to "rawRecInputs" */
-        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipeObj.recipe_id && r.type === 'input');
 
         let totals = [] as any[];
 
@@ -3588,7 +3588,7 @@ export default {
                 // console.log("PO Recipe in forEach: ", poRecipe);
 
                 // Grab each recipe element that is used in this PO
-                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.recipe_id && recElement.type === 'input');
+                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.recipeObj.recipe_id && recElement.type === 'input');
 
                 // Go through each recipe element
                 usedRecElements.forEach(recElement => {
@@ -3603,9 +3603,9 @@ export default {
                          */
                         poTotals[totalIdx].needed_total += poRecipe.qty; 
                         if(poTotals[totalIdx].recipe_id) // Add the used recipe to the recipe array in the total array
-                            poTotals[totalIdx].recipe_id = [...poTotals[totalIdx].recipe_id, poRecipe.recipe_id];
+                            poTotals[totalIdx].recipe_id = [...poTotals[totalIdx].recipe_id, poRecipe.recipeObj.recipe_id];
                         else
-                            poTotals[totalIdx].recipe_id = [poRecipe.recipe_id];
+                            poTotals[totalIdx].recipe_id = [poRecipe.recipeObj.recipe_id];
                     }                       
                 });
             });
