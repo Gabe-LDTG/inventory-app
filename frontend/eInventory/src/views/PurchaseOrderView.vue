@@ -509,7 +509,7 @@
 
                 </template>
 
-                <Button label="Add another product" text @click="addBulkLine(recipeArray)"/> 
+                <Button label="Add another product" text @click="addBulkLine(recipeArray); addBulkLine(poCases);"/> 
 
                 
                 <!-- RAW ----------------------------------------------------------------------------------- -->
@@ -1786,10 +1786,12 @@ export default {
             }
         },
         addBulkLine(poArray: any){
+            console.log("PO ARRAY", poArray);
             poArray.push(
                     {
                     name: '',
                     amount: 1,
+                    default_units_per_case: 0,
                     }
                 )
         },
