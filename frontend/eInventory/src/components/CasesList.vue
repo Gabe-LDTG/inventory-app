@@ -11,7 +11,7 @@
 
                 <template #end>
                     
-                    <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" />
+                    <!-- <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" /> -->
                     <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
                 </template>
             </Toolbar>
@@ -647,6 +647,7 @@ export default {
 
         openNew() {
             this.eCase = [];
+            this.eCase.status = 'Just Prepped';
             this.submitted = false;
             this.amount = 1;
             //this.eCase.date_received = this.today;

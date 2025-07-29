@@ -354,20 +354,51 @@ var action = {
             throw error;
         } else {
             console.log('Raw boxes (Delivered): ', data);
-            return data;
+            return data.sort((a: any, b: any) => a.product_name.localeCompare(b.product_name));
         }
     },
 
      //
      async getProcDeliveredCases(){
-        const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: true});
+
+        const {data, error: oldError} = await supabase.rpc('get_delivered_cases_by_type', {processed: true});
+            if(oldError){
+                console.error('Error calling RPC: ', oldError);
+                throw oldError;
+            } else { 
+                console.log('Processed cases (Delivered): ', data);
+                return data.sort((a: any, b: any) => a.product_name.localeCompare(b.product_name));
+            }
+
+        /* const query = supabase
+                .from('cases')
+                .select(`
+                    *,
+                    products(*),
+                    locations(*),
+                    purchase_orders(*)
+                    `)
+                .neq('products.fnsku', null).neq('products.asin', null)
+                .neq('products.fnsku', '').neq('products.asin', '')
+                .neq('status', 'Draft').neq('status', 'Submitted').neq('status', 'Ordered').neq('status', 'Inbound').neq('status', 'BO').neq('status', 'Back Ordered');
+        
+        const {data: processedCases, error} = await query;
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            console.log('Processed Cases (In house): ', data);
-            return data;
-        }
+            console.log('Processed Cases (In house): ', processedCases);
+            const flattenedCases = processedCases.filter(pCase => pCase.products != null).map(pCase => ({
+                            ...pCase,
+                            purchase_order_name: pCase.purchase_order_id != null ? pCase.purchase_orders.purchase_order_name : '',
+                            product_name: pCase.products.name,
+                            asin: pCase.products.asin,
+                            fnsku: pCase.products.fnsku,
+                            default_units_per_case: pCase.products.default_units_per_case
+                        })).sort((a, b) => a.product_name.localeCompare(b.product_name));
+                        console.log("Flattened cases: ", flattenedCases);
+            return flattenedCases;
+        } */
     },
 
     /**
@@ -393,23 +424,39 @@ var action = {
         }
     },
 
+    /* picklistData: {label: string, picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
+        try {
+            console.log("Picklist Data: ", picklistData);
+            const {data, error} = await supabase.rpc('create_picklist', {picklist_data: picklistData});
+             */
     // Adds multiple cases at the same time (Loops through an inputted amount)
     /**
      * Inserts the same case or box value into the database c.amount of times 
      * @param c An object containing case or box data to be inserted multiple times
      */
     async batchCreateCases(c: any){
-        const {data, error} = await supabase.rpc('batch_create_cases',{record_array: [
-            c.units_per_case,
-            c.date_received,
-            c.notes,
-            c.product_id,
-            c.location_id,
-            c.status,
-            c.purchase_order_id,
-            c.amount,
-            c.request_id
-        ]})
+        const casesData: {
+            units_per_case: number,
+            date_received: string | null,
+            notes: string | null,
+            product_id: number,
+            location_id: number,
+            status: string | null,
+            purchase_order_id: number | null,
+            request_id: number | null,
+            amount: number 
+        } = {
+            units_per_case: c.units_per_case,
+            date_received: c.date_received ?? null,
+            notes: c.notes ?? null,
+            product_id: c.product_id,
+            location_id: c.location_id,
+            status: c.status ?? null,
+            purchase_order_id: c.purchase_order_id ?? null,
+            request_id: c.request_id ?? null,
+            amount: c.amount
+        };
+        const {data, error} = await supabase.rpc('batch_create_casesobj',{cases_data: casesData})
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
