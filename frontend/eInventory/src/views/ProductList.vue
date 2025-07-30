@@ -30,11 +30,13 @@
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 :virtualScrollerOptions="{ itemSize: 46 }"
+                :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Products</h4>
+                        <ZoomDropdown v-model="tableZoom" />
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -369,12 +371,17 @@
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
+import { table } from 'console';
+import ZoomDropdown from '../components/ZoomDropdown.vue';
 //import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
 export default {
+    components: {
+        ZoomDropdown
+    },
     data() {
         return {
             //PRODUCT VARIABLES
@@ -410,6 +417,8 @@ export default {
             validFnsku: true,
 
             //MISC VARIABLES
+            tableZoom: 1,
+
             filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
             },

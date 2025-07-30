@@ -9,12 +9,12 @@
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
         scrollable scrollHeight="1100px" removableSort
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
-        :style="{ fontSize: (12 * tableZoom) + 'px', zoom: tableZoom }"
+        :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
         >
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
-                    <Dropdown v-model="tableZoom" :options="zoom" optionLabel="header" optionValue="value" class="w-14rem mr-2"/>
+                    <ZoomDropdown v-model="tableZoom" />
                     <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
                     <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
                     <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)">
@@ -273,6 +273,7 @@
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
+import ZoomDropdown from "../components/ZoomDropdown.vue";
 
 /** @TODO Try to fix module later */
 // @ts-ignore
@@ -281,6 +282,9 @@ import html2pdf from "html2pdf.js";
 // https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
 
 export default {
+    components: {
+        ZoomDropdown
+    },
     data() {
         return {
             // PRODUCT VARIABLES
@@ -389,13 +393,6 @@ export default {
             labelOptions: [
                 {value: true, header: 'Yes'},
                 {value: false, header: 'No'}
-            ],
-
-            zoom: [
-                {value: 1, header: '100%'},
-                {value: 0.75, header: '75%'},
-                {value: 0.5, header: '50%'},
-                {value: 0.25, header: '25%'},
             ],
 
             tableZoom: 1,

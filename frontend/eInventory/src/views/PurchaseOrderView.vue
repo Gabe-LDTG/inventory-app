@@ -19,6 +19,7 @@
                 style="min-width: 1000px"
                 showGridlines
                 stripedRows
+                :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 :virtualScrollerOptions="{ itemSize: 46 }"
@@ -27,6 +28,7 @@
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Purchase Orders</h4>
+                        <ZoomDropdown v-model="tableZoom" />
                         <span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
@@ -935,10 +937,16 @@ import importAction from "../components/utils/importUtils";
 import InputNumber from 'primevue/inputnumber';
 import { debounce, keys } from 'lodash';
 
+import ZoomDropdown from '@/components/ZoomDropdown.vue';
+import { table } from 'console';
+
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
 export default {
+    components: {
+        ZoomDropdown
+    },
     data() {
         return {
             //STUFF THAT WE'RE USING ON THIS VIEW
@@ -1011,6 +1019,7 @@ export default {
             specificProductReceivedLocArray: [] as any[],
 
             //MISC VARIABLES
+            tableZoom: 1,
             today: "",
             loading: false,
             statuses: [

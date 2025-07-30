@@ -24,6 +24,7 @@
                 removableSort
                 showGridlines
                 stripedRows
+                :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
@@ -36,6 +37,8 @@
                         <h4 v-if="displayValue === 'processed'" class="m-0">Manage Cases</h4>
                         
                         <h4 v-else-if="displayValue === 'unprocessed'" class="m-0">Manage Boxes</h4>
+                        
+                        <ZoomDropdown v-model="tableZoom" />
 
                         <!-- <Button type="button"  label="Display Ordered Cases" outlined @click="ordersFiltered = !ordersFiltered; onFilter()" /> -->
 
@@ -365,12 +368,16 @@ _____________________________________________________________
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
+import ZoomDropdown from './ZoomDropdown.vue';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
 
 export default {
+    components: {
+        ZoomDropdown
+    },
     props: {
         displayValue: String,
     },
@@ -428,6 +435,8 @@ export default {
             today: "",
 
             context: {} as any,
+
+            tableZoom: 1,
 
             filters: {
                 global: { value: "", matchMode: FilterMatchMode.CONTAINS },
