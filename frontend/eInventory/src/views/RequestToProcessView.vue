@@ -9,10 +9,12 @@
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
         scrollable scrollHeight="1100px" removableSort
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
+        :style="{ fontSize: (12 * tableZoom) + 'px', zoom: tableZoom }"
         >
             <template #header>
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <h4 class="m-0">Request To Proccess List</h4>
+                    <Dropdown v-model="tableZoom" :options="zoom" optionLabel="header" optionValue="value" class="w-14rem mr-2"/>
                     <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
                     <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
                     <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)">
@@ -388,6 +390,15 @@ export default {
                 {value: true, header: 'Yes'},
                 {value: false, header: 'No'}
             ],
+
+            zoom: [
+                {value: 1, header: '100%'},
+                {value: 0.75, header: '75%'},
+                {value: 0.5, header: '50%'},
+                {value: 0.25, header: '25%'},
+            ],
+
+            tableZoom: 1,
 
             // DATATABLE VARIABLES
             filters: {
@@ -1215,6 +1226,15 @@ export default {
     },
 }
 </script>
-<style lang="">
+<style >
+.datatable-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* or 100% if inside another flex container */
+  width: 100vw;  /* or 100% if inside another flex container */
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
     
 </style>
