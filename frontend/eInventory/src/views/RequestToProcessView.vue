@@ -242,15 +242,29 @@
 
     <Dialog v-model:visible="newRequestDialog" :style="{width: '1000px'}" header="Add a new request" :modal="true">
 
-        <Dropdown v-model="requestToProcess.product_id" required="true" 
-            placeholder="Select a Product" class="md:w-14rem" editable
-            :options="getUsableProducts()"
-            optionLabel="name"
-            optionValue="product_id"
-            filter
-            @change=""
-            :virtualScrollerOptions="{ itemSize: 38 }"
+        <div class="field">
+            <label for="product_id">Product</label>
+            <Dropdown v-model="requestToProcess.product_id" required="true" 
+                placeholder="Select a Product" class="md:w-14rem" editable
+                :options="getUsableProducts()"
+                optionLabel="name"
+                optionValue="product_id"
+                filter
+                @change=""
+                :virtualScrollerOptions="{ itemSize: 38 }"
             />
+        </div>
+
+        <div class="field">
+            <label for="ship_to_amz">To Amazon</label>
+            <InputNumber v-model="requestToProcess.ship_to_amz" required="true" placeholder="Amount to Ship" class="md:w-14rem" showButtons/>
+        </div>
+        
+
+        <div class="field">
+            <label for="warehouse_qty">To Store</label>
+            <InputNumber v-model="requestToProcess.warehouse_qty" required="true" placeholder="Amount to Store" class="md:w-14rem" showButtons/>
+        </div>
 
         <!-- <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable
@@ -278,6 +292,7 @@ import ZoomDropdown from "../components/ZoomDropdown.vue";
 /** @TODO Try to fix module later */
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import InputNumber from 'primevue/inputnumber';
 
 // https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
 
@@ -1234,4 +1249,14 @@ export default {
   margin: 0;
 }
     
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
 </style>
