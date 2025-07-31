@@ -421,6 +421,10 @@ export default {
 
             searchText: '',
 
+            currentPage: 1,
+            rowsPerPage: 25,
+            totalRecords: 0,
+
             filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
             },

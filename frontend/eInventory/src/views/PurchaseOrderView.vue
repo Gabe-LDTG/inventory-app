@@ -3091,6 +3091,9 @@ export default {
                 let neededRecElement = this.recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
                 console.log("Needed Recipe Element: ", neededRecElement);
 
+                let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
+                console.log("Product Key: ", productKey);
+
                 let recRequest = requests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === this.purchaseOrder.purchase_order_id);
                 console.log("Recipe Request: ", recRequest);
                 if(!recRequest){
@@ -3106,6 +3109,7 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
+                        container_qty: number;
                     } = {
                         product_id: Number(neededRecElement.product_id),
                         purchase_order_id: Number(this.purchaseOrder.purchase_order_id),
@@ -3116,8 +3120,9 @@ export default {
                         priority: '6 Prep For Later', 
                         ship_to_amz: 0, 
                         deadline: null, 
-                        warehouse_qty: 0
-                        };
+                        warehouse_qty: 0,
+                        container_qty: Number(productKey.default_units_per_case)
+                    };
 
                     console.log("Created Request: ", createdRequest);
 

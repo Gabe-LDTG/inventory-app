@@ -53,12 +53,18 @@ var action = {
         return products;
     },
 
+    // page: number, rowsPerPage: number, 
     async getFilteredProductKeys(filter_column: string, filter_data: string, processed: number){
         let products = [] as any[];
+        // const from = (page - 1) * rowsPerPage;
+        // const to = from + rowsPerPage - 1;
 
         const query = supabase
             .from('products')
-            .select('*')
+            .select('*');
+            // .range(from, to);
+
+
 
         if(processed === 1){
             query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
@@ -90,6 +96,41 @@ var action = {
         return products;
 
     },
+
+    /* WORKING ON PAGINATION
+    
+    // Step 1: First, get the first 25 unique product_ids from the cases table
+        const { data: uniqueProductIds, error: productIdsError } = await supabase
+        .from('cases')
+        .select('product_id', { count: 'exact' })
+        .distinct()
+        .range(0, 24);  // This gets the first 25 unique product_ids
+
+        if (productIdsError) {
+        console.error('Error fetching unique product IDs:', productIdsError);
+        return;
+        }
+
+        // Step 2: Use these product_ids to fetch related records
+        const { data: relatedRecords, error: recordsError } = await supabase
+        .from('requests_to_process')  // or whichever table you're querying
+        .select(`
+            *,
+            products(product_id, fnsku, asin, name, default_units_per_case, cases(*), recipe_elements(*)),
+            purchase_orders(purchase_order_id, purchase_order_name, status, po_recipes(*))
+        `)
+        .in('product_id', uniqueProductIds.map(item => item.product_id))
+        .neq('status', '0 COMPLETED')
+        .neq('status', '5 ON ORDER')
+        .order('status');
+
+        if (recordsError) {
+        console.error('Error fetching related records:', recordsError);
+        return;
+        }
+
+        console.log('Related Records:', relatedRecords);
+    */
 
     //Posts a newly added product into the database using API
     async addProduct(p: any, r: any){ 
@@ -964,8 +1005,9 @@ var action = {
         ship_to_amz: number; 
         deadline: Date | null; 
         warehouse_qty: number;
+        container_qty: number;
     }){
-        const {data,error} = await supabase.rpc('create_request', {record_array: [
+        /* const {data,error} = await supabase.rpc('create_request', {record_array: [
             request.product_id,
             request.purchase_order_id,
             request.notes,
@@ -975,8 +1017,25 @@ var action = {
             request.priority,
             request.ship_to_amz,
             request.deadline,
-            request.warehouse_qty
-        ]})
+            request.warehouse_qty,
+            request.container_qty
+        ]}) */
+        const {data, error } = await supabase
+            .from('requests_to_process')
+            .insert({
+                product_id: request.product_id,
+                purchase_order_id: request.purchase_order_id,
+                notes: request.notes,
+                status: request.status,
+                labels_printed: request.labels_printed,
+                ship_label: request.ship_label,
+                priority: request.priority,
+                ship_to_amz: request.ship_to_amz,
+                deadline: request.deadline,
+                warehouse_qty: request.warehouse_qty,
+                container_qty: request.container_qty
+            })
+            .select();
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -998,14 +1057,32 @@ var action = {
         deadline: Date | null; 
         warehouse_qty: number;
         request_id: number;
+        container_qty: number;
     }){
         console.log('Request in utils: ', request);
-        const {data,error} = await supabase.rpc('update_request', {record_array: [
+        /* const {data,error} = await supabase.rpc('update_request', {record_array: [
             request.product_id, request.purchase_order_id, request.notes,
             request.status, request.labels_printed, request.ship_label,
             request.priority, request.ship_to_amz, request.deadline,
-            request.warehouse_qty, request.request_id
-        ]})
+            request.warehouse_qty, request.request_id, request.container_qty
+        ]}) */
+        const {data, error} = await supabase
+            .from('requests_to_process')
+            .update({
+                product_id: request.product_id,
+                purchase_order_id: request.purchase_order_id,
+                notes: request.notes,
+                status: request.status,
+                labels_printed: request.labels_printed,
+                ship_label: request.ship_label,
+                priority: request.priority,
+                ship_to_amz: request.ship_to_amz,
+                deadline: request.deadline,
+                warehouse_qty: request.warehouse_qty,
+                container_qty: request.container_qty
+            })
+            .eq('request_id', request.request_id)
+            .select();
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;

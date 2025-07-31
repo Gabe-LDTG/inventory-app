@@ -58,13 +58,10 @@
                     </div>
                 </template>
             </Column>
-            <Column header="LABELS PRINTED" :style="labelStyle">
+            <Column field="labels_printed" header="LABELS PRINTED" :style="labelStyle">
                 <template #body="{data}" :bodyStyle="labelStyle">
                     <!-- {{ data.labels_printed ? "Yes" : "No" }} -->
-                    <div :style="labelStyle(data.label_printed)">
-                        <Tag :style="labelStyle(data.labels_printed)">{{ data.labels_printed ? "Yes" : "No" }}</Tag>
-                    </div>
-                    
+                    <Tag :style="labelStyle(data.labels_printed)">{{ data.labels_printed ? "Yes" : "No" }}</Tag>
                 </template>
                 <template #editor="{data}">
                     <div class="container">
@@ -76,7 +73,7 @@
                     </div>
                 </template>
             </Column>
-            <Column header="SHIP LABEL" :style="labelStyle">
+            <Column field="ship_label" header="SHIP LABEL" :style="labelStyle">
                 <template #body="{data}">
                     <Tag :style="labelStyle(data.ship_label)">{{ data.ship_label ? "Yes" : "No" }}</Tag>
                 </template>
@@ -158,7 +155,14 @@
             </Column>
             <Column field="fnsku" header="FNSKU" class="font-bold"></Column>
             <Column field="asin" header="ASIN" class="font-bold"></Column>
-            <Column field="units_per_case" header="Units per Case" class="font-bold"></Column>
+            <Column field="container_qty" header="Units per Case">
+                <template #body="{data}">
+                    {{ data.container_qty }}
+                </template>
+                <template #editor="{data}">
+                    <InputNumber v-model="data.container_qty" />
+                </template>
+            </Column>
             <Column field="bag_size" header="Bags" class="font-bold"></Column>
             <Column field="box_type" header="Boxes" class="font-bold"></Column>
         </DataTable>
@@ -250,7 +254,7 @@
                 optionLabel="name"
                 optionValue="product_id"
                 filter
-                @change=""
+                @change="getUnitsPerCase"
                 :virtualScrollerOptions="{ itemSize: 38 }"
             />
         </div>
@@ -264,6 +268,11 @@
         <div class="field">
             <label for="warehouse_qty">To Store</label>
             <InputNumber v-model="requestToProcess.warehouse_qty" required="true" placeholder="Amount to Store" class="md:w-14rem" showButtons/>
+        </div>
+
+        <div class="field">
+            <label for="container_qty">Case QTY</label>
+            <InputNumber v-model="requestToProcess.container_qty" required="true" placeholder="Amount to Container" class="md:w-14rem" showButtons/>
         </div>
 
         <!-- <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
@@ -362,6 +371,7 @@ export default {
                 ship_to_amz: number; 
                 deadline: Date | null; 
                 warehouse_qty: number;
+                container_qty: number;
             },
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
@@ -447,6 +457,14 @@ export default {
         getDate(){
             // const date = new Date();
             this.today = helper.getDate();
+        },
+
+        getUnitsPerCase(){
+            this.products.find(p => {
+                if(p.product_id === this.requestToProcess.product_id){
+                    this.requestToProcess.container_qty = p.default_units_per_case;
+                }
+            });
         },
 
         async getPurchaseOrders(){
@@ -724,7 +742,9 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
-                        request_id: number| null;}){
+                        request_id: number| null;
+                        container_qty: number;
+                    }){
             try {
                 console.log("Request data: ", request_data);
                 let errorMSG = '';
@@ -752,6 +772,7 @@ export default {
                         deadline: Date | null; 
                         warehouse_qty: number;
                         request_id: number;
+                        container_qty: number;
                     } = {
                             request_id: Number(request_data.request_id),
                             product_id: Number(request_data.product_id), 
@@ -763,7 +784,8 @@ export default {
                             priority: String(request_data.priority), 
                             ship_to_amz: Number(request_data.ship_to_amz), 
                             deadline: deadline,  
-                            warehouse_qty: Number(request_data.warehouse_qty)
+                            warehouse_qty: Number(request_data.warehouse_qty),
+                            container_qty: Number(request_data.container_qty)
                         };
 
                     console.log("Request to edit: ", editedRequest);
@@ -782,6 +804,7 @@ export default {
                         ship_to_amz: number; 
                         deadline: Date | null; 
                         warehouse_qty: number;
+                        container_qty: number;
                     } = {
                         product_id: Number(request_data.product_id), 
                         purchase_order_id: purchase_order_id,
@@ -792,7 +815,8 @@ export default {
                         priority: String(request_data.priority), 
                         ship_to_amz: Number(request_data.ship_to_amz), 
                         deadline: deadline, 
-                        warehouse_qty: Number(request_data.warehouse_qty)
+                        warehouse_qty: Number(request_data.warehouse_qty),
+                        container_qty: Number(request_data.container_qty)
                     };
 
                     console.log("Request to create: ", createdRequest);
@@ -1047,6 +1071,7 @@ export default {
                             product_id: null,
                             purchase_order_id: null,
                             request_id: null,
+                            container_qty: 0
                         };
         },
 
@@ -1108,6 +1133,7 @@ export default {
                             product_id: null,
                             purchase_order_id: null,
                             request_id: null,
+                            container_qty: 0
                         };
             this.newRequestDialog = false;
         },
