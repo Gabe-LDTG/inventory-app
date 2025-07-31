@@ -28,7 +28,7 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 :expandedRows="expandedRows"
-                :globalFilterFields="['name']"
+                :globalFilterFields="['product_name']"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -42,9 +42,9 @@
 
                         <!-- <Button type="button"  label="Display Ordered Cases" outlined @click="ordersFiltered = !ordersFiltered; onFilter()" /> -->
 
-						<!-- <span class="p-input-icon-right">
+						<span class="p-input-icon-right">
                             <InputText v-model="filters['global'].value" placeholder="Search..." />
-                        </span> -->
+                        </span>
 					</div>
                 </template>
 

@@ -39,7 +39,7 @@
                         <ZoomDropdown v-model="tableZoom" />
 						<span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
-                            <InputText v-model="filters['global'].value" placeholder="Search..." />
+                            <InputText v-model="searchText" placeholder="Search..." />
                         </span>
 					</div>
                 </template>
@@ -419,6 +419,8 @@ export default {
             //MISC VARIABLES
             tableZoom: 1,
 
+            searchText: '',
+
             filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
             },
@@ -498,6 +500,12 @@ export default {
 
         //console.log(this.products);
     },
+    watch:  {
+        searchText: {
+            handler: 'universalSearch',
+            immediate: true,
+        }
+    },
     methods: {
         /* getProducts(){
             action.getProducts().then(data => {
@@ -511,6 +519,16 @@ export default {
                 filters.put("globalFilter", globalFilter);
             }
         }, */
+
+        async universalSearch(){
+            try {
+                this.loading = true;
+                this.displayProducts = await action.getFilteredProductKeys('', this.searchText, 0);
+                this.loading = false;
+            } catch (error) {
+                console.log(error);
+            }
+        },
 
         async initVariables(){
             try {
