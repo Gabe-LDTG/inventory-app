@@ -149,7 +149,7 @@
 
         <Dialog v-model:visible="caseDialog" :style="{width: '450px'}" header="Case Details" :modal="true" class="p-fluid">
             
-            <div class="field">
+            <div class="field"> 
                 <label for="name">Name:</label>
                 <Dropdown v-model="eCase.product_id" required="true" 
                 placeholder="Select a Product" class="md:w-14rem" editable
@@ -161,14 +161,7 @@
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 :class="{'p-invalid': submitted && !eCase.product_id}" 
                 >
-                <!-- :pt="{
-                    root: { class: 'w-full max-width: 120rem' },
-                    item: ({ context }) => ({
-                        class: context.selected ? 'bg-primary' : context.focused ? 'bg-blue-100' : undefined
-                    })
-                }" -->
-
-                <template #value="slotProps">
+                    <template #value="slotProps">
                         <div v-if="slotProps.value" class="flex align-items-center">
                             <div>{{ slotProps.value.product_id }}</div>
                         </div>
@@ -185,6 +178,38 @@
                         </div>
                     </template>
                 </Dropdown>
+                <AutoComplete 
+                    v-model="eCase.product_id" 
+                    :suggestions="filteredProducts" 
+                    :dropdown="true"
+                    :class="{'p-invalid': submitted && !eCase.product_id}" 
+                    @complete="(event: any) => searchProducts(event)"
+                    @item-select="onProductSelection(eCase.product_id)" 
+                    :forceSelection="false"
+                >
+                    <template #option="slotProps">
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                        </div>
+                        <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
+                        </div>
+                    </template>
+                </AutoComplete>
+
+                <!-- <AutoComplete 
+                    v-model="poRecipe.recipeObj"
+                    :suggestions="filteredRecipes[counter] || []"
+                    @complete="(event: any) => searchRecipes(event, counter)"
+                    @item-select="onRecipeSelection(poRecipe.recipeObj, counter)"
+                    :dropdown="true"
+                    :optionLabel="'label'"
+                    :modelValue="'label'"
+                    placeholder="Select or enter a product"
+                    class="md:w-14rem"
+                    :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
+                    :forceSelection="false"
+                /> -->
                 <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
             </div>
 
@@ -398,6 +423,7 @@ export default {
             //PRODUCT VARIABLES
             products: [] as any[],
             product: {} as any,
+            filteredProducts: [] as any[],
 
             //LOCATION VARIABLES
             locations: [] as any[],
@@ -635,11 +661,13 @@ export default {
             
         },
 
-        onProductSelection(productId: any){
-            console.log("PRODUCT ID", productId);
+        onProductSelection(productObj: any){
+            console.log("PRODUCT OBJ", productObj);
+
+            let prodId = productObj.product_id;
 
             for (let idx = 0; idx < this.products.length; idx++) {
-                if (this.products[idx].product_id == productId) {
+                if (this.products[idx].product_id == prodId) {
                     console.log("PRODUCT NAME: ", this.products[idx].name);
                     this.eCase.units_per_case = this.products[idx].default_units_per_case;
                 }
@@ -656,6 +684,7 @@ export default {
 
         openNew() {
             this.eCase = [];
+            this.filteredProducts = this.products;
             this.eCase.status = 'Just Prepped';
             this.submitted = false;
             this.amount = 1;
@@ -1134,6 +1163,16 @@ export default {
                 name = po.purchase_order_name;
 
             return name;
+        },
+
+        searchProducts(event: any){
+            console.log("Event: ", event);
+            console.log("Products: ", this.products);
+            const query = event.query ? event.query.toLowerCase() : '';
+            const allProducts = this.products;
+            this.filteredProducts = allProducts.filter((product: any) =>
+                product.name && product.name.toLowerCase().includes(query)
+            );
         },
 
     }
