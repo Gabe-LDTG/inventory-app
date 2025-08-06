@@ -147,7 +147,7 @@
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="caseDialog" :style="{width: '450px'}" header="Case Details" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="caseDialog" :style="{width: '1200px'}" header="Case Details" :modal="true" class="p-fluid">
             
             <div class="field"> 
                 <label for="name">Name:</label>
@@ -219,48 +219,72 @@
             </div>
 
             <div class="field">
-                <label for="qty">QTY:</label>
-                <InputNumber inputId="stacked-buttons" required="true" 
-                :class="{'p-invalid': submitted && !eCase.units_per_case}"
-                v-model="eCase.units_per_case" showButtons/>
-                <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
-            </div>
-
-            <div class="field">
-                <label for="location">Location:</label>
-                <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                <Dropdown v-model="eCase.location_id"
-                placeholder="Select a Location" class="w-full md:w-14rem" editable
-                :options="locations"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="name"
-                optionValue="location_id" />
-                <Button label="Add Location" icon="pi pi-plus" @click="newLocation()"  />
-            </div>
-
-            <div class="field">
                 <label for="notes">Notes:</label>
                 <InputText id="notes" v-model="eCase.notes" rows="3" cols="20" />
             </div>
 
-            <div v-show="!eCase.case_id" class="field">
-                <label for="amount">How Many received?</label>
-                <InputNumber inputId="stacked-buttons" required="true" 
-                v-model="amount" showButtons/>
-            </div>
+            <div class="grid gap-4">
+                <div class="field">
+                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                        <label for="date_received"> Case QTY: </label>
+                    </div>
+                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                        <label for="date_received"> Box QTY: </label>
+                    </div>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    :class="{'p-invalid': submitted && !eCase.units_per_case}"
+                    v-model="eCase.units_per_case" showButtons/>
+                    <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
+                </div>
 
-            <div class="field">
-                <label for="date_received"> Date received: </label>
-                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="eCase.date_received"/>
+                <div v-show="!eCase.case_id" class="field">
+                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                        <label for="date_received"> How Many Processed? </label>
+                    </div>
+                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                        <label for="date_received"> How Many Received? </label>
+                    </div>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    v-model="amount" showButtons/>
+                </div>
             </div>
+            <br>
+            <div class="grid gap-4">
+                <div class="field">
+                    <label for="location">Location:</label>
+                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                    <Dropdown v-model="eCase.location_id"
+                    placeholder="Select a Location" class="w-full md:w-14rem" editable
+                    :options="locations"
+                    filter
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    optionLabel="name"
+                    optionValue="location_id" />
+                    <Button label="Add Location" icon="pi pi-plus" @click="newLocation()"  />
+                </div>
 
-            <div class="field">
-                <label>Status:</label>
-                <Dropdown v-model="eCase.status"
-                placeholder="Select a Status" class="w-full md:w-14rem" editable
-                :options="statuses"/>
+                <div class="field">
+                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                        <label for="date_received"> Date Processed: </label>
+                    </div>
+                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                        <label for="date_received"> Date Received: </label>
+                    </div>
+                    <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="eCase.date_received"/>
+                </div>
+
+                <div class="field">
+                    <label>Status:</label>
+                    <Dropdown v-model="eCase.status"
+                    placeholder="Select a Status" class="w-full md:w-14rem" editable
+                    :options="statuses"/>
+                </div>
             </div>
+            
+
+            
+
+            
 
             <template #footer>
                 <div v-show="eCase.case_id" class="field">
@@ -440,17 +464,7 @@ export default {
             //expandedRowGroups: [] as any,
             expandedRowGroups: null,
             expandedRows: [],
-            statuses: [
-                'Partial Reserved',
-                'On RTP',
-				'FBM',
-                'Do Not Ship',
-                'JUST ARRIVED',
-				'Pool',
-                'NEEDS PLAN',
-                'Reserved',
-                'NEED TO CHECK'
-            ],
+            statuses: [] as string[], 
 
             purchase_orders: [] as any[],
 
@@ -517,12 +531,28 @@ export default {
                 console.log('Processed');
                 await this.getProcProducts();
                 await this.getProcCases();
+                this.statuses = [
+                    'Do Not Ship',
+                    'Ready to Ship',
+                    'FBM', 
+                    'NEED TO CHECK',
+                    'NEEDS TO BE RELABELED',
+
+                ];
 
             }
             else if(value == 'unprocessed'){
                 console.log('Unprocessed');
                 await this.getUnprocProducts();
                 await this.getUnprocCases();
+                this.statuses = [
+                    'Partial Reserved',
+                    'On RTP',
+                    'FBM',
+                    'NEEDS PLAN',
+                    'NEED TO CHECK',
+
+                ];
             }
             //Possibly try doing this for the product vendors when you have more time
             //Seems more effecient than current trying for two for loops.
@@ -699,7 +729,10 @@ export default {
         openNew() {
             this.eCase = [];
             this.filteredProducts = this.products;
-            this.eCase.status = 'Just Prepped';
+            if(this.displayValue === 'processed')
+                this.eCase.status = 'Just Processed';
+            else if(this.displayValue === 'unprocessed')
+                this.eCase.status = 'NEEDS PLAN';
             this.submitted = false;
             this.amount = 1;
             //this.eCase.date_received = this.today;
