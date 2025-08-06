@@ -151,7 +151,7 @@
             
             <div class="field"> 
                 <label for="name">Name:</label>
-                <Dropdown v-model="eCase.product_id" required="true" 
+                <!-- <Dropdown v-model="eCase.product_id" required="true" 
                 placeholder="Select a Product" class="md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
@@ -177,16 +177,21 @@
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                         </div>
                     </template>
-                </Dropdown>
+                </Dropdown> -->
                 <AutoComplete 
-                    v-model="eCase.product_id" 
+                    v-model="eCase.productObj" 
                     :suggestions="filteredProducts" 
                     :dropdown="true"
-                    :class="{'p-invalid': submitted && !eCase.product_id}" 
+                    :class="{'p-invalid': submitted && !eCase.productObj}" 
                     @complete="(event: any) => searchProducts(event)"
-                    @item-select="onProductSelection(eCase.product_id)" 
+                    @item-select="onProductSelection(eCase.productObj)" 
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    :optionLabel="'name'"
                     :forceSelection="false"
                 >
+                    <template #content="slotProps">
+                        <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                    </template>
                     <template #option="slotProps">
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
@@ -666,6 +671,15 @@ export default {
 
             let prodId = productObj.product_id;
 
+            if(typeof productObj === 'object' && productObj !== null && 'product_id' in productObj){
+                if(this.displayValue === 'processed')
+                    this.eCase.productObj = { name: productObj.name + ' - ' + productObj.fnsku, value: productObj.product_id};
+                else if(this.displayValue === 'unprocessed')
+                    this.eCase.productObj = { name: productObj.name + ' - ' + productObj.item_num, value: productObj.product_id};
+
+                this.eCase.product_id = productObj.product_id;
+            }
+
             for (let idx = 0; idx < this.products.length; idx++) {
                 if (this.products[idx].product_id == prodId) {
                     console.log("PRODUCT NAME: ", this.products[idx].name);
@@ -1118,7 +1132,7 @@ export default {
         groupBoxes(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.units_per_case;
+                const key = product.product_id + ':' + product.units_per_case + ':' + product.status;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                     if(map[key].location.find((l: any) => l === product.location_id) === undefined){
