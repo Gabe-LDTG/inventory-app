@@ -634,7 +634,7 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotalOLD() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check"  text @click="validate" />
@@ -705,6 +705,10 @@
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !data.product_id}" 
                         ></Dropdown>
+                        <Suspense>
+                            <ProductAutoComplete v-model="data.productObj" :displayValue="1" :vendor_id="purchaseOrder.vendor_id"/>
+                        </Suspense>
+                        
                     </template>
                 </Column>
                 <Column header="Item #" field="">
@@ -792,7 +796,7 @@
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <div>
-                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotalOLD() }}</div>
                         <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                     </div>
                     
@@ -938,6 +942,7 @@ import InputNumber from 'primevue/inputnumber';
 import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
+import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
 import { table } from 'console';
 
 //REFERENCE FOR PAGES
@@ -945,7 +950,8 @@ import { table } from 'console';
 
 export default {
     components: {
-        ZoomDropdown
+        ZoomDropdown,
+        ProductAutoComplete
     },
     data() {
         return {
@@ -1355,10 +1361,11 @@ export default {
         getCreatedUnitTotal(poID: number){
             let total = 0;
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
+            // console.log("Used Boxes For Unit Total", usedBoxes);
             if (usedBoxes.length !== 0)
                 usedBoxes.forEach(b => total+=b.units_per_case);
 
-            
+            // console.log("Total:", total);
             return total;
         },
         /**
@@ -3601,10 +3608,11 @@ export default {
 
             // Loop through the recipes used in this PO
             this.singlePoRecipes.forEach(poRecipe => {
-                // console.log("PO Recipe in forEach: ", poRecipe);
+                console.log("PO Recipe in forEach: ", poRecipe);
+                
 
                 // Grab each recipe element that is used in this PO
-                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.recipeObj.recipe_id && recElement.type === 'input');
+                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.po_recipe_id && recElement.type === 'input');
 
                 // Go through each recipe element
                 usedRecElements.forEach(recElement => {

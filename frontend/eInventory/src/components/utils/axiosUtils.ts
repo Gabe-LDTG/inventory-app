@@ -97,6 +97,35 @@ var action = {
 
     },
 
+    async getAutoCompleteProductKeys(displayValue: number, vendor_id: number){
+        let products = [] as any[];
+        
+        console.log('Display Value: ', displayValue, 'Vendor ID: ', vendor_id); 
+
+        const query = supabase
+            .from('products')
+            .select('*');
+
+        if(displayValue === 1){
+            query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
+        } else if(displayValue === 2){
+            query.eq('fnsku', null).eq('asin', null).eq('fnsku', '').eq('asin', '');
+        } 
+        if(vendor_id !== 0){
+            query.eq('vendor_id', vendor_id);
+        }
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Filtered Products:', data);
+            products = data;
+        }
+
+        return products;
+    },
+
     /* WORKING ON PAGINATION
     
     // Step 1: First, get the first 25 unique product_ids from the cases table
