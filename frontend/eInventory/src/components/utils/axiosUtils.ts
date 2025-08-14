@@ -107,9 +107,12 @@ var action = {
             .select('*');
 
         if(displayValue === 1){
-            query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
+            // query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
+            query.or('fnsku.neq.null,asin.neq.null');
+            
         } else if(displayValue === 2){
-            query.eq('fnsku', null).eq('asin', null).eq('fnsku', '').eq('asin', '');
+            query.is('fnsku', null).is('asin', null);
+            // query.or('fnsku.eq.null,asin.eq.null,fnsku.eq."",asin.eq.""');
         } 
         if(vendor_id !== 0){
             query.eq('vendor_id', vendor_id);

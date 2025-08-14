@@ -644,7 +644,7 @@
         <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
             <div class="flex align-items-left align-self-flex-start">
                 <!-- <Button label="Header" text @click=""/> -->
-                <Button label="Product Info" text @click="" />
+                <!-- <Button label="Product Info" text @click="" /> -->
             </div>
             
             <div class="field">
@@ -695,7 +695,7 @@
             <DataTable v-model:editingRows="editingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field}">
-                        <Dropdown v-model="data.product_id" required="true" 
+                        <!-- <Dropdown v-model="data.product_id" required="true" 
                             placeholder="Select a Product" class="md:w-14rem" editable
                             :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
                             optionLabel="name"
@@ -704,10 +704,13 @@
                             optionValue="product_id"
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !data.product_id}" 
-                        ></Dropdown>
-                        <Suspense>
-                            <ProductAutoComplete v-model="data.productObj" :displayValue="1" :vendor_id="purchaseOrder.vendor_id"/>
-                        </Suspense>
+                        ></Dropdown> -->
+                        <ProductAutoComplete 
+                            v-model="data.productObj" 
+                            :displayValue="2" 
+                            :vendor_id="purchaseOrder.vendor_id"
+                            @update:modelValue="onRawProductAutoCompleteSelect"
+                        />
                         
                     </template>
                 </Column>
@@ -754,7 +757,28 @@
             <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
             <DataTable v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
                 <Column header="Name" field="product_name">
-                    
+                    <template #editor="{data, field}">
+                        <ProductAutoComplete 
+                            v-model="data.productObj" 
+                            :displayValue="1" 
+                            :vendor_id="purchaseOrder.vendor_id"
+                            @update:modelValue="onProcessedProductAutoCompleteSelect"
+                        />
+                        <div v-if="data.productObj">
+                            <DataTable :value="getRawProducts(data.productObj.product_id)">
+                                <Column header="Name" field="name">
+                                    <template #body={data}>
+                                        {{ data.key.name }}
+                                    </template>
+                                </Column>
+                                <Column header="Units per Box" field="units_per_case">
+                                    <template #body={data}>
+                                        {{ data.key.default_units_per_case }}
+                                    </template>
+                                </Column>
+                            </DataTable>
+                        </div>
+                    </template>
                 </Column>
                 <Column header="ASIN" field="">
                     <template #body={data}>
@@ -789,7 +813,7 @@
                     </template>
                 </Column> -->
             </DataTable>
-            <!-- <Button label="Add another product" text @click="addBulkLine(poCases)"/> -->
+            <Button label="Add another product" text @click="openNewPurchaseOrderProductDialog"/>
             <br>
 
             <template #footer>
@@ -928,6 +952,91 @@
         </Dialog>
 
         <Dialog v-model:visible="loading"><div style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div></Dialog>
+
+        <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
+            <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
+            <div class="block-div">
+                <div class="field">
+                    <label for="name">Name:</label>
+                    <ProductAutoComplete 
+                        v-model="newPORecipe.productObj" 
+                        :displayValue="1" 
+                        :vendor_id="purchaseOrder.vendor_id"
+                        @update:modelValue="onProcessedProductAutoCompleteSelect"
+                    />
+                    <small class="p-error" v-if="submitted && !newPORecipe.productObj">Name is required.</small>
+                </div>
+
+                <div class="field">
+                    <label for="qty">Normal Case QTY:</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
+                    v-model="newPORecipe.default_units_per_case" disabled
+                    />
+                    <small class="p-error" v-if="submitted && !newPORecipe.default_units_per_case">Amount is required.</small>
+                </div>
+
+                <div class="field">
+                    <label for="amount">Cases Desired to Be Made</label>
+                    <InputNumber inputId="stacked-buttons" required="true" 
+                    v-model="newPORecipe.amount" showButtons :min="1"
+                    @update=""/>
+                </div>
+
+                <div class="field">
+                    <label for="notes">Notes:</label>
+                    <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
+                </div>
+
+                <div v-if="newPORecipe.amount && newPORecipe.recipeObj" class="field">
+                    <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
+                    <div class="flex justify-content-end font-bold w-full">{{ newPORecipe.default_units_per_case * newPORecipe.amount }}</div>
+                </div>
+
+            </div>
+
+            <div v-if="newPORecipe.default_units_per_case">
+                <DataTable :value="selectRecipeElements(newPORecipe.recipeObj)">
+                    <Column field="name" header="Product Name" />
+                    <Column field="qty" header="Units per Box" >
+                        <template #body="{data}">
+                            {{ getProductInfo(data.product_id, 'default_units_per_case') }}
+                        </template>
+                    </Column>
+                    <Column field="qty" header="Unit(s) per Bundle" ></Column>
+                    <Column header="Total Units Needed">
+                        <template #body="{data}">
+                            {{  getTotalUnitsNeeded(data, newPORecipe, newPORecipe.amount) }}
+                        </template>
+                    </Column>
+                    <Column header="Total Units Ordered" >
+                        <template #body="{data}">
+                            {{ getTotalUnitsOrdered(data, newPORecipe, newPORecipe.amount) }}
+                        </template>
+                    </Column>
+                    <Column header="Raw Box Total" >
+                        <template #body="{data}">
+                            {{ getRawBoxTotal(data, newPORecipe, newPORecipe.amount) }}
+                        </template>
+                    </Column>
+                    <Column header="Unit Price" >
+                        <template #body="{data}">
+                            {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
+                        </template>
+                    </Column>
+                    <Column header="Total Price" >
+                        <template #body="{data}">
+                            {{ formatCurrency(getTotalCost(data, newPORecipe, newPORecipe.amount)) }}
+                        </template>
+                    </Column>
+                </DataTable>
+                <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
+                <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
+            </template>
+        </Dialog>
         
     </div>
 </template>
@@ -974,6 +1083,7 @@ export default {
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
             editPurchaseOrderDialog: false,
+            newPurchaseOrderProductDialog: false,
             editingRows: [] as any[],
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
@@ -1015,6 +1125,7 @@ export default {
             poRecipes: [] as any[],
             singlePoRecipes: [] as any[],
             filteredRecipes: [] as any[],
+            newPORecipe: {} as any,
 
             //LOCATION VARIABLES
             locations: [] as any[],
@@ -1832,11 +1943,64 @@ export default {
             return product.default_units_per_case;
         },
 
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 7-03-2024
-        //Date Last Edited: 7-15-2024
+        onRawProductAutoCompleteSelect(productObj: any){
+            console.log("Product AutoComplete Selection:", productObj);
+            
+            if (productObj && productObj.product_id) {
+                // Update the product_id in the current editing row
+                const editingRow = this.editingRows[0]; // Assuming single row editing
+                if (editingRow) {
+                    editingRow.product_id = productObj.product_id;
+                    editingRow.product_name = productObj.name;
+                    editingRow.units_per_case = productObj.default_units_per_case || 1;
+                    editingRow.total = editingRow.amount * editingRow.units_per_case;
+                }
+            }
+        },
+
+        onProcessedProductAutoCompleteSelect(productObj: any){
+            console.log("Processed Product AutoComplete Selection:", productObj);
+            
+            if (productObj && productObj.product_id) {
+                // Update the product_id in the current editing row
+                const editingRow = this.editingRows[0]; // Assuming single row editing
+                if (editingRow) {
+                    editingRow.product_id = productObj.product_id;
+                    editingRow.product_name = productObj.name;
+                    editingRow.units_per_case = productObj.default_units_per_case || 1;
+                    editingRow.qty = editingRow.amount * editingRow.units_per_case;
+                }
+            }
+        },
+
+        /**
+         * Gets the raw products used for a processed product recipe
+         * @param procProductId - The ID of the processed product
+         * @returns An array of raw products
+         */
+        getRawProducts(procProductId: number){
+            const output = this.recipeElements.find(re => re.product_id === procProductId && re.type === 'output');
+            const rawProductInfo: {rec: any, key: any}[] = [];
+            const inputs = this.recipeElements.filter(re => re.recipe_id === output.recipe_id && re.type === 'input');
+            for (const input of inputs) {
+                const rawProduct = this.products.find(p => p.product_id === input.product_id);
+                rawProductInfo.push({rec: input, key: rawProduct});
+            }
+            console.log("Raw Products: ", rawProductInfo);
+            return rawProductInfo;
+        },
+
+        /**
+         * On recipe selection, updates the recipe array with the selected recipe id
+         * @param recipeId - The recipe id to select
+         * @param counter - The counter to update
+         * 
+         * Created by: Gabe de la Torre
+         * 
+         * Date Created: 7-03-2024
+         * 
+         * Date Last Edited: 7-15-2024
+         */
         onRecipeSelection(recipeId: any, counter: number){
             // Ensure recipeId is always a primitive
             console.log("RECIPE ID BEGIN: ", recipeId);
@@ -4209,6 +4373,23 @@ export default {
          */
         async addRequestsToProcess(){
 
+        },
+
+        openNewPurchaseOrderProductDialog(){
+            this.newPurchaseOrderProductDialog = true;
+            this.addBulkLine(this.singlePoRecipes);
+            const lastIdx = this.singlePoRecipes.length - 1;
+        },
+
+        closeNewPurchaseOrderProductDialog(){
+            this.newPurchaseOrderProductDialog = false;
+            const lastIdx = this.singlePoRecipes.length - 1;
+            this.deleteBulkLine(this.singlePoRecipes, lastIdx)
+
+        },
+
+        saveNewPurchaseOrderProduct(){
+            console.log("Saving new purchase order product");
         },
     }
 }
