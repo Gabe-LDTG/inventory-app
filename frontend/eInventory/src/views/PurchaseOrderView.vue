@@ -955,83 +955,97 @@
 
         <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
+
+
+
             <div class="block-div">
-                <div class="field">
-                    <label for="name">Name:</label>
-                    <ProductAutoComplete 
-                        v-model="newPORecipe.productObj" 
-                        :displayValue="1" 
-                        :vendor_id="purchaseOrder.vendor_id"
-                        @update:modelValue="onProcessedProductAutoCompleteSelect"
-                    />
-                    <small class="p-error" v-if="submitted && !newPORecipe.productObj">Name is required.</small>
-                </div>
+                        <div class="field">
+                            <label for="name">Name:</label>
+                            <AutoComplete 
+                                v-model="newPORecipe.recipeObj"
+                                :suggestions="filteredRecipesEdit || []"
+                                @complete="(event: any) => searchRecipesEdit(event)"
+                                @item-select="onRecipeSelectionEdit(newPORecipe.recipeObj)"
+                                :dropdown="true"
+                                :optionLabel="'label'"
+                                :modelValue="'label'"
+                                placeholder="Select or enter a product"
+                                class="md:w-14rem"
+                                :class="{'p-invalid': submitted && !newPORecipe.recipeObj}"
+                                :forceSelection="false"
+                            />
+                            <small class="p-error" v-if="submitted && !newPORecipe.recipeObj">Name is required.</small>
+                        </div>
 
-                <div class="field">
-                    <label for="qty">Normal Case QTY:</label>
-                    <InputNumber inputId="stacked-buttons" required="true" 
-                    :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
-                    v-model="newPORecipe.default_units_per_case" disabled
-                    />
-                    <small class="p-error" v-if="submitted && !newPORecipe.default_units_per_case">Amount is required.</small>
-                </div>
+                        <div class="field">
+                            <label for="qty">Normal Case QTY:</label>
+                            <InputNumber inputId="stacked-buttons" required="true" 
+                            :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
+                            v-model="poCasesEdit.default_units_per_case" disabled
+                            />
+                            <small class="p-error" v-if="submitted && !newPORecipe.default_units_per_case">Amount is required.</small>
+                        </div>
 
-                <div class="field">
-                    <label for="amount">Cases Desired to Be Made</label>
-                    <InputNumber inputId="stacked-buttons" required="true" 
-                    v-model="newPORecipe.amount" showButtons :min="1"
-                    @update=""/>
-                </div>
+                        <div class="field">
+                            <label for="amount">Cases Desired to Be Made</label>
+                            <InputNumber inputId="stacked-buttons" required="true" 
+                            v-model="newPORecipe.amount" showButtons :min="1"
+                            @update=""/>
+                        </div>
 
-                <div class="field">
-                    <label for="notes">Notes:</label>
-                    <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
-                </div>
+                        <div class="field">
+                            <label for="notes">Notes:</label>
+                            <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
+                        </div>
 
-                <div v-if="newPORecipe.amount && newPORecipe.recipeObj" class="field">
-                    <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                    <div class="flex justify-content-end font-bold w-full">{{ newPORecipe.default_units_per_case * newPORecipe.amount }}</div>
-                </div>
+                        <div v-if="newPORecipe.amount && newPORecipe.recipeObj" class="field">
+                            <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
+                            <div class="flex justify-content-end font-bold w-full">{{ poCasesEdit.default_units_per_case * newPORecipe.amount }}</div>
+                        </div>
 
-            </div>
+                    </div>
 
-            <div v-if="newPORecipe.default_units_per_case">
-                <DataTable :value="selectRecipeElements(newPORecipe.recipeObj)">
-                    <Column field="name" header="Product Name" />
-                    <Column field="qty" header="Units per Box" >
-                        <template #body="{data}">
-                            {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                        </template>
-                    </Column>
-                    <Column field="qty" header="Unit(s) per Bundle" ></Column>
-                    <Column header="Total Units Needed">
-                        <template #body="{data}">
-                            {{  getTotalUnitsNeeded(data, newPORecipe, newPORecipe.amount) }}
-                        </template>
-                    </Column>
-                    <Column header="Total Units Ordered" >
-                        <template #body="{data}">
-                            {{ getTotalUnitsOrdered(data, newPORecipe, newPORecipe.amount) }}
-                        </template>
-                    </Column>
-                    <Column header="Raw Box Total" >
-                        <template #body="{data}">
-                            {{ getRawBoxTotal(data, newPORecipe, newPORecipe.amount) }}
-                        </template>
-                    </Column>
-                    <Column header="Unit Price" >
-                        <template #body="{data}">
-                            {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                        </template>
-                    </Column>
-                    <Column header="Total Price" >
-                        <template #body="{data}">
-                            {{ formatCurrency(getTotalCost(data, newPORecipe, newPORecipe.amount)) }}
-                        </template>
-                    </Column>
-                </DataTable>
-                <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
-            </div>
+                    <div v-if="poCasesEdit.default_units_per_case">
+                        <DataTable :value="selectRecipeElements(newPORecipe.recipeObj)">
+                            <Column field="name" header="Product Name" />
+                            <Column field="qty" header="Units per Box" >
+                                <template #body="{data}">
+                                    {{ getProductInfo(data.product_id, 'default_units_per_case') }}
+                                </template>
+                            </Column>
+                            <Column field="qty" header="Unit(s) per Bundle" ></Column>
+                            <Column header="Total Units Needed">
+                                <template #body="{data}">
+                                        {{  getTotalUnitsNeeded(data, poCasesEdit, newPORecipe.amount) }}
+                                </template>
+                            </Column>
+                            <Column header="Total Units Ordered" >
+                                <template #body="{data}">
+                                    {{ getTotalUnitsOrdered(data, poCasesEdit, newPORecipe.amount) }}
+                                </template>
+                            </Column>
+                            <Column header="Raw Box Total" >
+                                <template #body="{data}">
+                                    {{ getRawBoxTotal(data, poCasesEdit, newPORecipe.amount) }}
+                                </template>
+                            </Column>
+                            <Column header="Unit Price" >
+                                <template #body="{data}">
+                                    {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
+                                </template>
+                            </Column>
+                            <Column header="Total Price" >
+                                <template #body="{data}">
+                                    {{ formatCurrency(getTotalCost(data, poCasesEdit, newPORecipe.amount)) }}
+                                </template>
+                            </Column>
+                        </DataTable>
+                        <InputText id="notes" v-model="poCasesEdit.notes" rows="3" cols="20" />
+                    </div>
+
+
+            
+            
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
@@ -1105,6 +1119,7 @@ export default {
             uBoxes: [] as any[],
             pCases: [] as any[],
             poCases: [] as any[],
+            poCasesEdit: [] as any[],
             poBoxes: [] as any[],
             reqPoBoxes: [] as any[],
             editedLine: {} as any,
@@ -1120,11 +1135,13 @@ export default {
             //RECIPE VARIABLES
             recipes: [] as any[],
             recipeArray: [] as any[],
+            recipeArrayEdit: [] as any[],
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
             singlePoRecipes: [] as any[],
             filteredRecipes: [] as any[],
+            filteredRecipesEdit: [] as any[],
             newPORecipe: {} as any,
 
             //LOCATION VARIABLES
@@ -2015,6 +2032,21 @@ export default {
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCases[counter]);
+        },
+
+        onRecipeSelectionEdit(recipeId: any){
+            console.log("RECIPE ID BEGIN: ", recipeId);
+            let id = recipeId;
+            if (typeof recipeId === 'object' && recipeId !== null && 'recipe_id' in recipeId) {
+                id = recipeId.recipe_id;
+            }
+            this.recipeArrayEdit.recipe_id = id;
+            this.recipeArrayEdit.default_units_per_case = recipeId.default_units_per_case;
+            console.log("RECIPE ID: ", id);
+            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
+            console.log("RECIPE ELEMENT, ", recipeElement);
+            this.poCasesEdit = this.products.find(p => p.product_id === recipeElement.product_id);
+            console.log("PO CASE", this.poCasesEdit);
         },
 
         //Description: Validates a purchase order before creation/editing.
@@ -4368,6 +4400,22 @@ export default {
             console.log("Filtered Recipes after search: ", this.filteredRecipes);
         },
 
+        searchRecipesEdit(event: any) {
+            console.log("Search Recipes Event: ", event);
+            // console.log("Search Recipes Counter: ", counter);
+            console.log("Filtered Recipes: ", this.filteredRecipesEdit);
+            const query = event.query ? event.query.toLowerCase() : '';
+            const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
+            // Ensure filteredRecipes is an array of arrays, one per row
+            if (!Array.isArray(this.filteredRecipes)) 
+                this.filteredRecipesEdit = [];
+
+            this.filteredRecipesEdit = allRecipes.filter(r =>
+                r.label && r.label.toLowerCase().includes(query)
+            );
+            console.log("Filtered Recipes after search: ", this.filteredRecipesEdit);
+        },
+
         /**
          * If requests haven't been made for the purchase order, add them
          */
@@ -4377,6 +4425,9 @@ export default {
 
         openNewPurchaseOrderProductDialog(){
             this.newPurchaseOrderProductDialog = true;
+            this.newPORecipe = {} as any;
+            this.newPORecipe.amount = 1;
+            this.poCasesEdit = [];
             this.addBulkLine(this.singlePoRecipes);
             const lastIdx = this.singlePoRecipes.length - 1;
         },
