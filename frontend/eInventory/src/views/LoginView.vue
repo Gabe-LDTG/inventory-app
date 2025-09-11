@@ -17,10 +17,22 @@
 				<small class="p-error" v-if="">Incorrect password.</small> -->
 			</div>
 			<div class="flex justify-content-center flex-wrap py-5">
+				<Button text @click="onForgotPassword"> Forgot Password? </Button>
+			</div>
+			<div class="flex justify-content-center flex-wrap py-5">
 				<Button @click="login"> Login </Button>
 			</div>
         </template>
     </Card>
+	<Dialog v-model:visible="forgotPasswordDialog" name="forgot-password-form" class="" header="Forgot Password">
+		<div class="field">
+			<label for="email">Email: </label>
+			<InputText id="email" v-model="email" rows="3" cols="20"/>
+		</div>
+		<div class="flex justify-content-center flex-wrap py-5">
+			<Button @click="forgotPassword"> Reset Password </Button>
+		</div>
+	</Dialog>
 </template>
 
 <script setup lang="ts">
@@ -37,6 +49,7 @@ let email = ref("");
 let password = ref("");
 let firstName = ref("");
 let errMSG = ref("");
+let forgotPasswordDialog = ref(false);
 
 async function createAccount() {
 	const { data:{user}, error } = await supabase.auth.signUp({
@@ -90,6 +103,24 @@ async function logout() {
 	}
 	else {
 		console.log("Sign out success")
+	}
+}
+
+function onForgotPassword() {
+	forgotPasswordDialog.value = true;
+	email.value = "";
+	password.value = "";
+}
+
+async function forgotPassword(){
+	const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
+		redirectTo: 'https://einventory.netlify.app/passwordreset'
+	});
+	if (error) {
+		console.log(error);
+	}
+	else {
+		console.log(data);
 	}
 }
 </script>

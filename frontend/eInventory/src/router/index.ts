@@ -14,6 +14,7 @@ import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
 import PickList from '../views/Picklist.vue'
+import PasswordReset from '../views/PasswordReset.vue'
 
 import axios from "axios";
 
@@ -84,6 +85,11 @@ const router = createRouter({
       name: 'Picklists',
       component: PickList,
         meta: { requiresAuth: true}
+    },
+    {
+      path: '/passwordreset',
+      name: 'PasswordReset',
+      component: PasswordReset
     },
   ]
 })
