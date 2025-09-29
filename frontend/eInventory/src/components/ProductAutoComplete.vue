@@ -13,7 +13,7 @@
             placeholder="Search products..."
         >
             <template #content="slotProps">
-                <div>{{ slotProps.option.name }} - {{ getDisplayValue(slotProps.option) }}</div>
+                <div>{{ slotProps }} <!-- {{ slotProps.option.name }} - {{ getDisplayValue(slotProps.option) }} --></div>
             </template>
             <template #option="slotProps">
                 <div v-if="props.displayValue === 1" class="flex align-items-center">

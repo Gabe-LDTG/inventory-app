@@ -190,7 +190,7 @@
                     :forceSelection="false"
                 >
                     <template #content="slotProps">
-                        <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                        <div>{{ slotProps }} <!-- {{ slotProps.option.name }} - {{ slotProps.option.fnsku }} --></div>
                     </template>
                     <template #option="slotProps">
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">

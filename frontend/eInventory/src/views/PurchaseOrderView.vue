@@ -432,12 +432,12 @@
                                 @item-select="onRecipeSelection(poRecipe.recipeObj, counter)"
                                 :dropdown="true"
                                 :optionLabel="'label'"
-                                :modelValue="'label'"
+                                
                                 placeholder="Select or enter a product"
                                 class="md:w-14rem"
                                 :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
                                 :forceSelection="false"
-                            />
+                            /> <!-- :modelValue="'label'" -->
                             <small class="p-error" v-if="submitted && !poRecipe.recipeObj">Name is required.</small>
                         </div>
 
@@ -968,7 +968,6 @@
                                 @item-select="onRecipeSelectionEdit(newPORecipe.recipeObj)"
                                 :dropdown="true"
                                 :optionLabel="'label'"
-                                :modelValue="'label'"
                                 placeholder="Select or enter a product"
                                 class="md:w-14rem"
                                 :class="{'p-invalid': submitted && !newPORecipe.recipeObj}"
@@ -1119,7 +1118,7 @@ export default {
             uBoxes: [] as any[],
             pCases: [] as any[],
             poCases: [] as any[],
-            poCasesEdit: [] as any[],
+            poCasesEdit: {} as any,
             poBoxes: [] as any[],
             reqPoBoxes: [] as any[],
             editedLine: {} as any,
@@ -1135,7 +1134,7 @@ export default {
             //RECIPE VARIABLES
             recipes: [] as any[],
             recipeArray: [] as any[],
-            recipeArrayEdit: [] as any[],
+            recipeArrayEdit: {} as any,
             recipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
