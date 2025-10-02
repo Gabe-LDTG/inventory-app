@@ -57,6 +57,7 @@
 
                             <DataTable :value="getProductRecipes(slotProps.data.product_id)">
                                 <Column field="name" header="Product(s) Needed"></Column>
+                                <Column field="item_num" header="Item #"></Column>
                                 <Column field="qty" header="Raw Unit(s) Needed Per Processed Unit"></Column>
                             </DataTable>
                         </div>
@@ -255,8 +256,14 @@
             </div>
 
             <div class="field">
-                <label for="weight_lbs">Weight (lbs)</label>
+                <div v-if="product.fnsku || product.asin">
+                <label for="weight_lbs">Weight per Case (lbs)</label>
                 <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+                </div>
+                <div v-else>
+                    <label for="weight_lbs">Weight per Box (lbs)</label>
+                    <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+                </div>
             </div>
 
             <div class="field" v-if="product.fnsku || product.asin">
@@ -437,6 +444,32 @@ export default {
 				{label: 'INSTOCK', value: 'instock'},
 				{label: 'LOWSTOCK', value: 'lowstock'},
 				{label: 'OUTOFSTOCK', value: 'outofstock'}
+            ],
+
+            bags: [
+                {size: '3x7', price: 0.05},
+                {size: '5x10', price: 0.05},
+                {size: '6x9', price: 0.05},
+                {size: '8x10', price: 0.05},
+                {size: '9x14', price: 0.05},
+                {size: '10x12', price: 0.05},
+                {size: '10x15', price: 0.05},
+                {size: '12x15', price: 0.05},
+                {size: '12x16', price: 0.05},
+                {size: '12x18', price: 0.05},
+                {size: '13x17', price: 0.05},
+                {size: '14x20', price: 0.05},
+                {size: '19x24', price: 0.05},
+                {size: '24x30', price: 0.05},
+                {size: 'NONE', price: 0.05},
+                {size: 'Bubble Bag 8x11.5', price: 0.05},
+                {size: '4x4x4 Box', price: 0.05},
+                {size: '9x12 Clear Bag', price: 0.05},
+                {size: 'Plastic Wrap', price: 0.05},
+                {size: 'Tube Bagging', price: 0.05},
+                {size: 'Prebagged', price: 0.05},
+                {size: '11x14 Clear Bag', price: 0.05},
+                {size: '2x7 Clear Bag', price: 0.05}
             ],
 
             binary: [
@@ -1053,6 +1086,7 @@ export default {
             inputProducts.forEach(ir => {
                 let inProd = this.products.find(p => p.product_id === ir.product_id);
                 ir.name = inProd.name;
+                ir.item_num = inProd.item_num;
             })
 
            return inputProducts;

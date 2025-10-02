@@ -24,10 +24,11 @@
                 removableSort
                 showGridlines
                 stripedRows
+                @page="onPage"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
-                :expandedRows="expandedRows"
+                v-model:expandedRows="expandedRows"
                 :globalFilterFields="['product_name']"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
@@ -1220,6 +1221,13 @@ export default {
             this.filteredProducts = allProducts.filter((product: any) =>
                 product.name && product.name.toLowerCase().includes(query)
             );
+        },
+
+        onPage(event: any){
+            // console.log("PAGE: ", event);
+            console.log("SELECTED CASES: ", this.selectedCases);
+            this.selectedCases = [];
+            this.expandedRows = [];
         },
 
     }
