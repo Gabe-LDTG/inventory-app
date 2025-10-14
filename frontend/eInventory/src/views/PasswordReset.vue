@@ -1,16 +1,17 @@
 <template lang="">
     <div>
+        <Toast />
         <Dialog v-model:visible="showDialog" name="password-reset-form" class="" header="Password Reset">
       <div class="field">
         <label for="password">Password: </label> <br>
         <Password id="password" v-model="newPassword" toggleMask/>
-        <!-- <small class="p-error" v-if="submitted && !input.password">Please enter password.</small> -->
+        <small class="p-error" v-if="submitted && !newPassword">Please enter password.</small>
       </div>
       <div class="field">
         <label for="password">Retype Password: </label> <br>
         <Password id="password" v-model="retypedNewPassword" toggleMask/>
-        <!-- <small class="p-error" v-if="submitted && !input.retypedPassword">Please reenter password.</small>
-        <small class="p-error" v-if="submitted && input.password != input.retypedPassword && input.retypedPassword">Passwords do not match.</small> -->
+        <small class="p-error" v-if="submitted && newPassword && !retypedNewPassword">Please reenter password.</small>
+        <small class="p-error" v-if="submitted && newPassword != retypedNewPassword && retypedNewPassword">Passwords do not match.</small> 
       </div>
       <Button class="btn btn-outline-dark" type="submit" @click="onPasswordReset()">
         Reset Password
@@ -28,6 +29,7 @@ const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 
+// const {data: user} = await supabase.auth.getUser();
 let newPassword = ref("");
 let retypedNewPassword = ref("");
 let errMSG = ref("");
@@ -35,7 +37,9 @@ let showDialog = ref(true);
 let submitted = ref(false);
 async function onPasswordReset() {
   try {
-    submitted = ref(true);
+    console.log("onPasswordReset");
+    // console.log(user);
+    submitted.value = true;
 
     // console.log(email.value, firstName.value, lastName.value, password.value, retypedPassword.value)
 
@@ -47,7 +51,7 @@ async function onPasswordReset() {
       toast.add({severity:'success', summary: 'Password Reset!', life: 3000});
     }
   } catch (error) {
-    console.log(error);
+    toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
   }
 }
 
@@ -57,12 +61,12 @@ async function passwordReset() {
 })
 	if (error)
 	{
-		console.log(error);
+		throw error;
 	}
 	else
 	{
 		console.log(data);
-        router.push({name: '/'})
+        router.push({name: 'Home'})
 	}
 }
 </script>

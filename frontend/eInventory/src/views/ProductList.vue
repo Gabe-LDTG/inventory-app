@@ -22,11 +22,13 @@
 
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
-                :paginator="true" :rows="25" :filters="filters"
+                :paginator="true" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
                 showGridlines
                 stripedRows
+                columnResizeMode="fit"
+                scrollable scrollHeight="800px"
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 :virtualScrollerOptions="{ itemSize: 46 }"
@@ -45,9 +47,9 @@
                 </template>
 
                 <template #loading> Loading product data. Please wait. </template>
-                <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
+                <Column selectionMode="multiple" style="width: 3rem" :exportable="false" :style="{ width: '20%' }"></Column>
 
-                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')"/>
+                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')" :style="{ width: '20%' }"/>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
@@ -67,14 +69,14 @@
                     </div>
                 </template>
 
-                <Column field="name" header="Name" sortable></Column>
-                <Column field="vendor_name" header="Vendor" sortable/>
-                <Column field="asin" header="ASIN" sortable></Column>
-                <Column field="fnsku" header="FNSKU" sortable></Column>
-                <Column field="item_num" header="Item #" sortable/>
-                <Column field="upc" header="UPC" sortable></Column>
-                <Column field="notes" header="Notes" sortable></Column>
-                <Column :exportable="false" style="min-width:8rem">
+                <Column field="name" header="Name" sortable :style="{ width: '20%' }"></Column>
+                <Column field="vendor_name" header="Vendor" sortable :style="{ width: '10%' }"/>
+                <Column field="asin" header="ASIN" sortable :style="{ width: '15%' }"></Column>
+                <Column field="fnsku" header="FNSKU" sortable :style="{ width: '20%' }"></Column>
+                <Column field="item_num" header="Item #" sortable :style="{ width: '10%' }"/>
+                <Column field="upc" header="UPC" sortable :style="{ width: '15%' }"></Column>
+                <Column field="notes" header="Notes" sortable :style="{ width: '10%' }"></Column>
+                <Column :exportable="false" :style="{ width: '20%' }">
                     <template #body="slotProps">
                         <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
                         <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
@@ -154,26 +156,40 @@
                 <InputNumber v-model="product.amz_fulfilment_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
+            <!-- MAKE DROPDOWN -->
+            <div class="field">
+                <label for="bag_size">Bag Size</label>
+                <!-- <InputText id="bag_size" v-model="product.bag_size" rows="3" cols="20" /> -->
+                <Dropdown v-model="product.bag_size"
+                placeholder="Select a Bag Size" class="w-full md:w-14rem" 
+                :options="bags"
+                @change="updateBagCost"
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="size"
+                optionValue="size" />
+            </div>
+
             <div class="field">
                 <label for="bag_cost">Bag Cost</label>
                 <InputNumber v-model="product.bag_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
             </div>
 
-            <!-- MAKE DROPDOWN -->
             <div class="field">
-                <label for="bag_size">Bag Size</label>
-                <InputText id="bag_size" v-model="product.bag_size" rows="3" cols="20" />
+                <label for="box_type">Box Type</label>
+                <!-- <InputText id="box_type" v-model="product.box_type" rows="3" cols="20" /> -->
+                <Dropdown v-model="product.box_type"
+                placeholder="Select a Bag Size" class="w-full md:w-14rem" 
+                :options="boxes"
+                @change="updateBoxCost"
+                :virtualScrollerOptions="{ itemSize: 38 }"
+                optionLabel="size"
+                optionValue="size" />
             </div>
 
             <div class="field">
                 <label for="box_cost">Box Cost</label>
                 <InputNumber v-model="product.box_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="box_type">Box Type</label>
-                <InputText id="box_type" v-model="product.box_type" rows="3" cols="20" />
-            </div>
+            </div>            
 
             <div class="field">
                 <label for="date_added">Date Added</label>
@@ -472,6 +488,12 @@ export default {
                 {size: '2x7 Clear Bag', price: 0.05}
             ],
 
+            boxes: [
+                {size: 'Small', price: 0.05},
+                {size: 'Medium', price: 0.05},
+                {size: 'Large', price: 0.05},
+            ],
+
             binary: [
                 'Yes',
                 'No'
@@ -556,6 +578,13 @@ export default {
                 filters.put("globalFilter", globalFilter);
             }
         }, */
+        updateBagCost(){
+            this.product.bag_cost = this.bags.find(bag => bag.size === this.product.bag_size)?.price || 0;
+        },
+
+        updateBoxCost(){
+            this.product.box_cost = this.boxes.find(box => box.size === this.product.box_type)?.price || 0;
+        },
 
         async universalSearch(){
             try {

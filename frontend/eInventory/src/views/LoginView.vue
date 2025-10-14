@@ -113,14 +113,18 @@ function onForgotPassword() {
 }
 
 async function forgotPassword(){
+	const url = import.meta.env.VITE_WEBSITE_URL;
+	const test = import.meta.env.VITE_SUPABASE_URL;
+	console.log("TEST: " + test);
+	console.log("URL: " + url);
 	const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
-		redirectTo: 'https://einventory.netlify.app/passwordreset'
+		redirectTo: url + '/passwordreset'
 	});
 	if (error) {
 		console.log(error);
 	}
 	else {
-		console.log(data);
+		console.log("Password reset email sent to " + email.value + " with redirect to " + import.meta.env.VITE_WEBSITE_URL + '/passwordreset');
 	}
 }
 </script>

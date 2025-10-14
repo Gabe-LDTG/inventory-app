@@ -31,7 +31,7 @@ export default {
   <header>
     <img alt="Vue logo" class="logo" src="@/assets/echapps rgb.png" width="200" height="50" />
 
-      <nav v-if="route.name != 'Login'"> 
+      <nav v-if="route.name != 'Login' && route.name != 'PasswordReset'"> 
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
         <!-- <RouterLink :to="{name: 'Login'}">Login</RouterLink> -->
         <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
