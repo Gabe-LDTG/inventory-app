@@ -22,7 +22,7 @@
 
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
-                :paginator="true" :rows="10" :filters="filters"
+                :paginator="false" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
                 showGridlines
@@ -31,7 +31,7 @@
                 scrollable scrollHeight="800px"
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
-                :virtualScrollerOptions="{ itemSize: 46 }"
+                :virtualScrollerOptions="{ lazy: true, onLazyLoad: onLazyLoad, itemSize: 46, delay: 200, numToleratedItems: 10 }"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -47,9 +47,9 @@
                 </template>
 
                 <template #loading> Loading product data. Please wait. </template>
-                <Column selectionMode="multiple" style="width: 3rem" :exportable="false" :style="{ width: '20%' }"></Column>
+                <Column selectionMode="multiple" style="width: 3rem" :exportable="false" :style="{ width: '5%' }"></Column>
 
-                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')" :style="{ width: '20%' }"/>
+                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')" :style="{ width: '5%' }"/>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
@@ -71,12 +71,12 @@
 
                 <Column field="name" header="Name" sortable :style="{ width: '20%' }"></Column>
                 <Column field="vendor_name" header="Vendor" sortable :style="{ width: '10%' }"/>
-                <Column field="asin" header="ASIN" sortable :style="{ width: '15%' }"></Column>
-                <Column field="fnsku" header="FNSKU" sortable :style="{ width: '20%' }"></Column>
+                <Column field="asin" header="ASIN" sortable :style="{ width: '10%' }"></Column>
+                <Column field="fnsku" header="FNSKU" sortable :style="{ width: '10%' }"></Column>
                 <Column field="item_num" header="Item #" sortable :style="{ width: '10%' }"/>
-                <Column field="upc" header="UPC" sortable :style="{ width: '15%' }"></Column>
+                <Column field="upc" header="UPC" sortable :style="{ width: '10%' }"></Column>
                 <Column field="notes" header="Notes" sortable :style="{ width: '10%' }"></Column>
-                <Column :exportable="false" :style="{ width: '20%' }">
+                <Column :exportable="false" :style="{ width: '10%' }">
                     <template #body="slotProps">
                         <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
                         <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
@@ -553,6 +553,7 @@ export default {
         //ProductService.getProducts().then((data) => (this.products = data));
         //action.getProducts().then((data) => (this.products = data));
         this.initVariables();
+        this.initLazyData();
 
         //this.getCases();
         //this.products = Promise.resolve(action.getProducts());
@@ -566,6 +567,14 @@ export default {
         }
     },
     methods: {
+        async initLazyData(){
+            try {
+                this.totalRecords = await action.getProductsCount();
+                this.displayProducts = Array.from({ length: this.totalRecords });
+            } catch (e) {
+                console.log(e);
+            }
+        },
         /* getProducts(){
             action.getProducts().then(data => {
                 this.products = data;
@@ -578,6 +587,16 @@ export default {
                 filters.put("globalFilter", globalFilter);
             }
         }, */
+        async onLazyLoad(event: any){
+            console.log('Lazy load', event);
+            const { first = 0, last = 0 } = event || {};
+            const slice = await action.getProductsLazy(first, last, 0, '', this.searchText);
+            // place results into the existing array to avoid replacing reference
+            for (let i = 0; i < slice.length; i++) {
+                const idx = first + i;
+                if (idx < this.displayProducts.length) this.displayProducts[idx] = slice[i];
+            }
+        },
         updateBagCost(){
             this.product.bag_cost = this.bags.find(bag => bag.size === this.product.bag_size)?.price || 0;
         },

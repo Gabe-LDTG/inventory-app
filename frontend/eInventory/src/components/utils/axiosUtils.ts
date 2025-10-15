@@ -25,6 +25,86 @@ var action = {
         return products;
     },
 
+    async getProductsLazy(first: number, last: number, processed: number, filter_column: string, filter_data: string){
+        let products = [] as any[];
+
+        /**
+         * NEED TO FIX. SUPABASE COUNT QUERY NOT WORKING. FOR NOW, GRABBING ALL RECORDS AND JUST DOING A LENGTH VARIABLE
+         */
+        const {data: countData, error: countError} = await supabase
+        .from('products')
+        .select('*');
+        if (countError){
+            console.error(countError);
+        } else {
+            console.log('Count Data: ', countData);
+            let max = 100000000;
+            if(countData)
+                max = countData.length;
+        
+            console.log('Max: ', max);
+            let startBuffer = first - 50;
+            let endBuffer = last + 50;
+
+            if(startBuffer < 0)
+                startBuffer = 0;
+            if(endBuffer > max)
+                endBuffer = max;
+
+            
+
+            const query = supabase
+            .from('products')
+            .select('*')
+            .range(startBuffer, endBuffer);
+
+            if(processed === 1){
+                query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
+            } else if(processed === 2){
+                query.eq('fnsku', null).eq('asin', null).eq('fnsku', '').eq('asin', '');
+            } 
+
+            if(filter_data !== ''){
+                if (filter_column === 'name')
+                    query.ilike('name', `%${filter_data}%`);
+                else if (filter_column === 'item_num')
+                    query.ilike('item_num', `%${filter_data}%`);
+                else if (filter_column === 'vendor_name')
+                    query.ilike('vendor_name', `%${filter_data}%`);
+                else if (filter_column === 'status')
+                    query.ilike('status', `%${filter_data}%`);
+                else
+                    query.or(`name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%,status.ilike.%${filter_data}%`);
+            }
+
+            const {data, error} = await query;
+            if(error){
+                console.error('Error calling RPC:', error);
+            } else {
+                console.log('Products:', data);
+                products = data;
+            }
+            
+        }
+        return products;
+        
+    },
+
+    async getProductsCount(){
+        try {
+            const { count, error } = await supabase
+                .from('products')
+                .select('*', { count: 'exact', head: true });
+            if (error) {
+                throw error;
+            }
+            return count ?? 0;
+        } catch (err) {
+            console.error('Error fetching products count:', err);
+            return 0;
+        }
+    },
+
     async getProcProducts(){
         let products = [] as any[];
 
