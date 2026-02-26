@@ -59,9 +59,10 @@ var action = {
             .range(startBuffer, endBuffer);
 
             if(processed === 1){
-                query.neq('fnsku', null).neq('asin', null).neq('fnsku', '').neq('asin', '');
+                query.or('fnsku.neq.null,asin.neq.null');
+                
             } else if(processed === 2){
-                query.eq('fnsku', null).eq('asin', null).eq('fnsku', '').eq('asin', '');
+                query.or('fnsku.eq.null,asin.eq.null, fnsku.eq."",asin.eq.""');
             } 
 
             if(filter_data !== ''){
@@ -90,11 +91,76 @@ var action = {
         
     },
 
-    async getProductsCount(){
+    async getProductsPage(
+        page: number,
+        rowsPerPage: number,
+        processed: number,
+        filter_column: string,
+        filter_data: string
+    ){
+        let products: any[] = [];
+    
+        // page is 1-based here; convert to 0-based indices
+        const from = (page - 1) * rowsPerPage;
+        const to   = from + rowsPerPage - 1;
+    
         try {
-            const { count, error } = await supabase
+            const query = supabase
+                .from('products')
+                .select('*')
+                .order('product_id', { ascending: true });
+    
+            if(processed === 1){
+                query.or('fnsku.neq.null,asin.neq.null');
+                
+            } else if(processed === 2){
+                query.is('fnsku', null).is('asin', null);
+            } 
+    
+            if (filter_data !== '') {
+                if (filter_column === 'name')
+                    query.ilike('name', `%${filter_data}%`);
+                else if (filter_column === 'item_num')
+                    query.ilike('item_num', `%${filter_data}%`);
+                else if (filter_column === 'vendor_name')
+                    query.ilike('vendor_name', `%${filter_data}%`);
+                else if (filter_column === 'status')
+                    query.ilike('status', `%${filter_data}%`);
+                else
+                    query.or(`name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%,status.ilike.%${filter_data}%`);
+            }
+    
+            const { data, error } = await query.range(from, to);
+    
+            if (error) {
+                console.error('Error calling RPC (getProductsPage):', error);
+            } else {
+                console.log('Products page:', data);
+                products = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getProductsPage:', err);
+        }
+    
+        return products;
+    },
+
+    async getProductsCount(
+        processed: number,
+    ){
+        try {
+            const query = supabase
                 .from('products')
                 .select('*', { count: 'exact', head: true });
+
+            if (processed === 1) {
+                query.or('fnsku.neq.null,asin.neq.null');
+            } else if (processed === 2) {
+                query.is('fnsku', null).is('asin', null);
+            }
+
+            const { count, error } = await query;
+                
             if (error) {
                 throw error;
             }

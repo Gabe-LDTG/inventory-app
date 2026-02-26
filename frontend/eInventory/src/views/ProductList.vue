@@ -21,7 +21,7 @@
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
-            <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
+            <!-- <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
                 :paginator="false" :rows="10" :filters="filters"
                 :selectAll="false"
                 removableSort
@@ -34,7 +34,26 @@
                 :virtualScrollerOptions="{ lazy: true, onLazyLoad: onLazyLoad, itemSize: 46, delay: 200, numToleratedItems: 10 }"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
-                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
+                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"> -->
+                <DataTable
+                    ref="dt"
+                    :value="displayProducts"
+                    v-model:selection="selectedProducts"
+                    dataKey="product_id"
+                    :paginator="true"
+                    :rows="rowsPerPage"
+                    :totalRecords="totalRecords"
+                    :lazy="true"
+                    :filters="filters"
+                    :selectAll="false"
+                    removableSort
+                    showGridlines
+                    stripedRows
+                    columnResizeMode="fit"
+                    :loading="loading"
+                    @page="onPage"
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
+                >
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Products</h4>
@@ -445,7 +464,7 @@ export default {
             searchText: '',
 
             currentPage: 1,
-            rowsPerPage: 25,
+            rowsPerPage: 10,
             totalRecords: 0,
 
             filters: {
@@ -548,28 +567,25 @@ export default {
             { field: 'weight_lbs', header: 'Weight (Lbs)' },
         ];
     },
+
     mounted() {
         console.log('Mounted');
-        //ProductService.getProducts().then((data) => (this.products = data));
-        //action.getProducts().then((data) => (this.products = data));
-        this.initVariables();
-        this.initLazyData();
-
-        //this.getCases();
-        //this.products = Promise.resolve(action.getProducts());
-
-        //console.log(this.products);
+        this.initVariables();      // loads vendors/products/recipes you already use
+        this.loadPage(1);          // load first page for the table
     },
-    watch:  {
+     
+    watch: {
         searchText: {
-            handler: 'universalSearch',
+            async handler() {
+                await this.loadPage(1);
+            },
             immediate: true,
         }
     },
     methods: {
         async initLazyData(){
             try {
-                this.totalRecords = await action.getProductsCount();
+                this.totalRecords = await action.getProductsCount(0);
                 this.displayProducts = Array.from({ length: this.totalRecords });
             } catch (e) {
                 console.log(e);
@@ -613,6 +629,52 @@ export default {
             } catch (error) {
                 console.log(error);
             }
+        },
+
+        async loadPage(page = this.currentPage) {
+            try {
+                this.loading = true;
+
+                // Map your displayType to the processed flag used by the backend
+                const processedFlag =
+                    this.displayType === 'proc'   ? 1 :
+                    this.displayType === 'unproc' ? 2 :
+                    0; // all
+
+                // Get total count (for paginator) and current page rows in parallel
+                const [total, rows] = await Promise.all([
+                    action.getProductsCount(processedFlag),
+                    action.getProductsPage(
+                        page,
+                        this.rowsPerPage,
+                        processedFlag,
+                        '',               // global search column
+                        this.searchText || ''
+                    )
+                ]);
+
+                this.totalRecords = total;
+
+                // Attach vendor_name etc. the same way you do in getProducts()
+                rows.forEach(p => {
+                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
+                    if (vendor) p['vendor_name'] = vendor['vendor_name'];
+                });
+
+                this.displayProducts = rows;
+                this.currentPage = page;
+            } catch (e) {
+                console.log(e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        onPage(event: any) {
+            // PrimeVue gives 0-based page index
+            const newPage = event.page + 1;
+            this.rowsPerPage = event.rows;
+            this.loadPage(newPage);
         },
 
         async initVariables(){
@@ -1149,7 +1211,7 @@ export default {
          * Date Created: 7-31-2024
          * Date Last Edited: 7-31-2024 
          */
-        toggleProducts(type: string){
+        /* toggleProducts(type: string){
             this.loading = true;
             //console.log(type);
             if(type === "all") {
@@ -1162,6 +1224,10 @@ export default {
             }
             //console.log(this.displayProducts);
             this.loading = false;
+        }, */
+        toggleProducts(type: string){
+            this.displayType = type;
+            this.loadPage(1);
         },
     }
 }
