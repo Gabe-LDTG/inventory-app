@@ -631,7 +631,7 @@ export default {
             }
         },
 
-        async loadPage(page = this.currentPage) {
+        async loadPage(page: number) {
             try {
                 this.loading = true;
 
@@ -733,7 +733,7 @@ export default {
                     }
                 })
 
-                this.displayProducts = this.products;
+                // this.displayProducts = this.products;
                 this.processedProducts = this.products.filter(product => product.fnsku || product.asin);
                 this.unprocessedProducts = this.products.filter(product => (!product.fnsku && !product.asin) || product.upc);
 
@@ -876,6 +876,10 @@ export default {
                 this.product = {};
             }
         },
+        /**
+         * 
+         * Date Last Edited: 2-27-2026
+         */
         async confirmEdit(){
             try {
                 //this.product.inventoryStatus = this.product.inventoryStatus.value ? this.product.inventoryStatus.value: this.product.inventoryStatus;
@@ -892,6 +896,7 @@ export default {
                 this.getRecipes();
                 
                 this.products[this.findIndexById(this.product.product_id)] = this.product;
+                await this.loadPage(this.currentPage);
                 
                 // console.log("PRODUCT AFTER AWAIT",this.product);
                 //alert("Testing");
@@ -907,7 +912,7 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: ???
-        //Date Last Edited: 6-27-2024
+        //Date Last Edited: 2-27-2026
         async confirmCreate(){
             try {
                 //this.products.push(this.product);
@@ -927,6 +932,7 @@ export default {
 
                 await this.getProducts();
                 await this.getRecipes();
+                await this.loadPage(this.currentPage);
 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
 
