@@ -31,7 +31,7 @@
                         <ZoomDropdown v-model="tableZoom" />
                         <span class="p-input-icon-right">
                             <!-- <i class="pi pi-search" /> -->
-                            <InputText v-model="filters['global'].value" placeholder="Search..." />
+                            <InputText v-model="searchText" placeholder="Search..." />
                         </span>
                     </div>
                 </template>
@@ -1163,6 +1163,10 @@ export default {
                 'Partially Delivered',
                 'Delivered',
             ],
+            searchText: '',
+            currentPage: 1,
+            rowsPerPage: 25,
+            totalRecords: 0,
 
         }
     },
@@ -1177,10 +1181,11 @@ export default {
         handler() { this.lazySave(); }
         }
     },
-    /* mounted() {
+    mounted() {
         console.log('Mounted');
-        this.initVariables();
-    }, */
+        // this.initVariables();      // loads vendors/products/recipes you already use
+        this.loadPage(1);          // load first page for the table
+    },
     methods: {
         lazySave: () => Promise.resolve(),
         async save(): Promise<void> { 
@@ -1200,6 +1205,45 @@ export default {
                 console.error(error);
             }
          }, 
+
+         async loadPage(page: number) {
+            try {
+                this.loading = true;
+
+                // Get total count (for paginator) and current page rows in parallel
+                const [total, rows] = await Promise.all([
+                    action.getPurchaseOrdersCount(this.searchText || ''),
+                    action.getPurchaseOrdersPage(
+                        page,
+                        this.rowsPerPage,
+                        this.searchText || ''
+                    )
+                ]);
+
+                this.totalRecords = total;
+
+                // Attach vendor_name etc. the same way you do in getProducts()
+                rows.forEach(p => {
+                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
+                    if (vendor) p['vendor_name'] = vendor['vendor_name'];
+                });
+
+                this.purchaseOrders = rows;
+                this.currentPage = page;
+            } catch (e) {
+                console.log(e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        onPage(event: any) {
+            // PrimeVue gives 0-based page index
+            const newPage = event.page + 1;
+            this.rowsPerPage = event.rows;
+            this.loadPage(newPage);
+        },
+
         async initVariables(){
             try {
                 this.loading = true;
@@ -1222,17 +1266,17 @@ export default {
         async getPurchaseOrders(){
             try {
                 
-                this.purchaseOrders = await action.getPurchaseOrders();
+                // this.purchaseOrders = await action.getPurchaseOrders();
                 this.poRecipes = await action.getPurchaseOrderRecipes();
 
-                this.purchaseOrders.forEach(po => {
+                /* this.purchaseOrders.forEach(po => {
                     if(po.date_ordered)
                         po.date_ordered = po.date_ordered.split('T')[0];
                     if(po.date_received)
                         po.date_received = po.date_received.split('T')[0];
-                });
+                }); */
                 
-                console.log("PURCHASE ORDERS", this.purchaseOrders);
+                // console.log("PURCHASE ORDERS", this.purchaseOrders);
                 console.log("PO RECIPES ", this.poRecipes);
                 
             } catch (err) {
@@ -1511,8 +1555,10 @@ export default {
             let total = 0;
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
             // console.log("Used Boxes For Cost Total", usedBoxes);
+            // console.log("Products List", this.products);
             usedBoxes.forEach(b => {
                 let prod = this.products.find(p => p.product_id === b.product_id);
+                // console.log("Product key for box: ", prod);
                 total+=(b.units_per_case*prod.price_2023);
                 // console.log("Total in for each: ", total);
             });
@@ -1595,8 +1641,9 @@ export default {
                 console.log("poRecipe",poRecipe);
 
                 // the input products given the recipe id
-                /** @TODO rename to "rawRecInputs" */
-                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipeObj.recipe_id && r.type === 'input');
+                //2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. Kept the recipeObj calls for other instances,
+                // just in case that affects any of the others. Will monitor and clean up later. 
+                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
@@ -2788,8 +2835,10 @@ export default {
         console.log("poRecipe",poRecipe);
 
         // the input products given the recipe id
-        /** @TODO rename to "rawRecInputs" */
-        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipeObj.recipe_id && r.type === 'input');
+        /*2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. This was also a problem on line 1600. 
+        * There appears to have been a change in the structure of poRecipe at some point. Will look closer when I have the time. Right now, I am on a tight schedule.
+        */
+        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
         let totals = [] as any[];
 

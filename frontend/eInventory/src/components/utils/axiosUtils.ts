@@ -91,6 +91,16 @@ var action = {
         
     },
 
+    /**
+     * @description Gets a page of products based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getProducts() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param processed 0 for all products, 1 for processed products only, 2 for unprocessed products only
+     * @param filter_column The column to filter by (e.g. 'name', 'item_num', 'vendor_name', 'status', or '' for all columns)
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for products with 'Widget' in the name)
+     * @returns An array of products for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     */
     async getProductsPage(
         page: number,
         rowsPerPage: number,
@@ -147,6 +157,8 @@ var action = {
 
     async getProductsCount(
         processed: number,
+        filter_column: string,
+        filter_data: string
     ){
         try {
             const query = supabase
@@ -157,6 +169,19 @@ var action = {
                 query.or('fnsku.neq.null,asin.neq.null');
             } else if (processed === 2) {
                 query.is('fnsku', null).is('asin', null);
+            }
+
+            if (filter_data !== '') {
+                if (filter_column === 'name')
+                    query.ilike('name', `%${filter_data}%`);
+                else if (filter_column === 'item_num')
+                    query.ilike('item_num', `%${filter_data}%`);
+                else if (filter_column === 'vendor_name')
+                    query.ilike('vendor_name', `%${filter_data}%`);
+                else if (filter_column === 'status')
+                    query.ilike('status', `%${filter_data}%`);
+                else
+                    query.or(`name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%,status.ilike.%${filter_data}%`);
             }
 
             const { count, error } = await query;
@@ -795,6 +820,74 @@ var action = {
         } else {
             console.log('Purchase Orders: ', data);
             return data;
+        }
+    },
+
+    /**
+     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
+     * @returns An array of purchase orders for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     */
+    async getPurchaseOrdersPage(
+        page: number,
+        rowsPerPage: number,
+        filter_data: string
+    ){
+        let purchaseOrders: any[] = [];
+    
+        // page is 1-based here; convert to 0-based indices
+        const from = (page - 1) * rowsPerPage;
+        const to   = from + rowsPerPage - 1;
+    
+        try {
+            const query = supabase
+                .from('purchase_orders')
+                .select('*')
+                .order('purchase_order_id', { ascending: true });
+    
+            if (filter_data !== '') {
+                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
+            }
+    
+            const { data, error } = await query.range(from, to);
+    
+            if (error) {
+                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
+            } else {
+                console.log('Purchase Orders page:', data);
+                purchaseOrders = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getPurchaseOrdersPage:', err);
+        }
+    
+        return purchaseOrders;
+    },
+
+    async getPurchaseOrdersCount(
+        filter_data: string
+    ){
+        try {
+            const query = supabase
+                .from('purchase_orders')
+                .select('*', { count: 'exact', head: true });
+
+            if (filter_data !== '') {
+                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
+            }
+
+            const { count, error } = await query;
+                
+            if (error) {
+                throw error;
+            }
+            return count ?? 0;
+        } catch (err) {
+            console.error('Error fetching purchase orders count:', err);
+            return 0;
         }
     },
 

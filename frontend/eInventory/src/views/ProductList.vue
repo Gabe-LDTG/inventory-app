@@ -48,6 +48,8 @@
                     :selectAll="false"
                     removableSort
                     showGridlines
+                    scrollable 
+                    scrollHeight="800px"
                     stripedRows
                     columnResizeMode="fit"
                     :loading="loading"
@@ -415,6 +417,7 @@ import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
 import { table } from 'console';
 import ZoomDropdown from '../components/ZoomDropdown.vue';
+// import {debounce} from 'lodash';
 //import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
@@ -464,7 +467,7 @@ export default {
             searchText: '',
 
             currentPage: 1,
-            rowsPerPage: 10,
+            rowsPerPage: 25,
             totalRecords: 0,
 
             filters: {
@@ -566,6 +569,10 @@ export default {
             { field: 'total_holiday_cost', header: 'Total Holiday Cost' },
             { field: 'weight_lbs', header: 'Weight (Lbs)' },
         ];
+        /**@TODO Implement a slight delay when a user is typing into the universal search bar, this way, the database is only queried once */
+        /* this.debouncedLoad = debounce(() => {
+            this.loadPage(1);
+        }, 300); */
     },
 
     mounted() {
@@ -585,7 +592,7 @@ export default {
     methods: {
         async initLazyData(){
             try {
-                this.totalRecords = await action.getProductsCount(0);
+                this.totalRecords = await action.getProductsCount(0, '', this.searchText);
                 this.displayProducts = Array.from({ length: this.totalRecords });
             } catch (e) {
                 console.log(e);
@@ -643,7 +650,7 @@ export default {
 
                 // Get total count (for paginator) and current page rows in parallel
                 const [total, rows] = await Promise.all([
-                    action.getProductsCount(processedFlag),
+                    action.getProductsCount(processedFlag, '', this.searchText || ''),
                     action.getProductsPage(
                         page,
                         this.rowsPerPage,
