@@ -12,17 +12,23 @@
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
                 dataKey="purchase_order_id"
-                :paginator="true" :rows="10" :filters="filters"
+                :paginator="true" 
+                :rows="rowsPerPage" 
+                :totalRecords="totalRecords"
+                :lazy="true"
+                :filters="filters"
                 selectionMode="single"
                 :selectAll="false"
                 removableSort
                 style="min-width: 1000px"
                 showGridlines
                 stripedRows
+                scrollable 
+                scrollHeight="800px"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 :loading="loading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
-                :virtualScrollerOptions="{ itemSize: 46 }"
+                @page="onPage"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
@@ -1172,22 +1178,22 @@ export default {
     },
     created() {
         this.initFilters();
-        this.initVariables();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
     },
     watch: {
         purchaseOrder: {
         deep: true,
         handler() { this.lazySave(); }
-        }
+        },
     },
-    mounted() {
+    async mounted() {
         console.log('Mounted');
-        // this.initVariables();      // loads vendors/products/recipes you already use
-        this.loadPage(1);          // load first page for the table
+        await this.initVariables();      // loads vendors/products/recipes you already use
+        await this.loadPage(1);          // load first page for the table
     },
     methods: {
         lazySave: () => Promise.resolve(),
+        
         async save(): Promise<void> { 
             try {
                 if(this.purchaseOrder.purchase_order_id){
@@ -1230,9 +1236,41 @@ export default {
 
                 this.purchaseOrders = rows;
                 this.currentPage = page;
+                this.poRecipes = await action.getPurchaseOrderRecipes();
+
+                this.purchaseOrders.forEach(po => {
+                    if(po.date_ordered)
+                        po.date_ordered = po.date_ordered.split('T')[0];
+                    if(po.date_received)
+                        po.date_received = po.date_received.split('T')[0];
+                });
+                
+                const poIds: number[] = this.purchaseOrders.map(po => po.purchase_order_id);
+
+                this.uBoxes = await action.getUnprocCasesForPOPage(poIds);
+                this.pCases = await action.getProcrocCasesForPOPage(poIds);
+
+                console.log("BOXES: ", this.uBoxes);
+                console.log("CASES: ", this.pCases);
+                
+                // Reset scroll position to top after new page data loads
+                this.$nextTick(() => {
+                    const dtElement = (this.$refs.dt as any)?.$el;
+                    
+                    // Find the scrollable table, then scroll its parent wrapper
+                    const scrollableTable = dtElement?.querySelector('.p-datatable-scrollable-table');
+                    if (scrollableTable) {
+                        // The wrapper is usually 2-3 parents up
+                        let scrollableWrapper = scrollableTable.parentElement;
+                        if (scrollableWrapper && scrollableWrapper.scrollHeight > scrollableWrapper.clientHeight) {
+                            scrollableWrapper.scrollTop = 0;
+                        }
+                    }
+                });
             } catch (e) {
-                console.log(e);
-            } finally {
+                console.error(e);
+            }
+            finally {
                 this.loading = false;
             }
         },
@@ -1249,9 +1287,8 @@ export default {
                 this.loading = true;
 
                 await this.getVendors();
-                await this.getPurchaseOrders();
                 await this.getProducts();
-                await this.getBoxes();
+                // await this.getBoxes();
                 await this.getRecipes();
                 await this.getLocations();
                 this.getDate();
@@ -1260,27 +1297,6 @@ export default {
 
             } catch (error) {
                 console.log(error);
-            }
-        },
-
-        async getPurchaseOrders(){
-            try {
-                
-                // this.purchaseOrders = await action.getPurchaseOrders();
-                this.poRecipes = await action.getPurchaseOrderRecipes();
-
-                /* this.purchaseOrders.forEach(po => {
-                    if(po.date_ordered)
-                        po.date_ordered = po.date_ordered.split('T')[0];
-                    if(po.date_received)
-                        po.date_received = po.date_received.split('T')[0];
-                }); */
-                
-                // console.log("PURCHASE ORDERS", this.purchaseOrders);
-                console.log("PO RECIPES ", this.poRecipes);
-                
-            } catch (err) {
-                console.log(err);
             }
         },
 
@@ -1300,6 +1316,10 @@ export default {
             } catch (err) {
                 console.log(err);
             }
+        },
+
+        async getProductsForExistingPOs(){
+
         },
 
         async getBoxes(){
@@ -2205,8 +2225,8 @@ export default {
                 console.log("PURCHASE ORDER AFTER AWAIT ",this.purchaseOrder);
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Updated', life: 3000});
-                await this.getPurchaseOrders();
-                await this.getBoxes();
+                await this.loadPage(this.currentPage);
+                // await this.getBoxes();
 
                 return editedPurchaseOrder;
             } catch (error) {
@@ -2578,8 +2598,8 @@ export default {
 
                 //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
                 console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
-                await this.getPurchaseOrders();
-                await this.getBoxes();
+                await this.loadPage(this.currentPage);
+                // await this.getBoxes();
 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
 
@@ -3127,7 +3147,7 @@ export default {
                     }
                 }
                 
-                this.getPurchaseOrders();
+                await this.loadPage(this.currentPage);
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Order Canceled', life: 3000});
 
                 this.purchaseOrder = {};

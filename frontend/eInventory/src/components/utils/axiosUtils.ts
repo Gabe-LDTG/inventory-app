@@ -3,6 +3,7 @@ import axios from "axios";
 import { supabase } from "@/clients/supabase";
 import type { NumericLiteral } from "typescript";
 import helper from "./helperUtils";
+import type ProcessedCases from "@/views/ProcessedCases.vue";
 // import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
@@ -22,6 +23,34 @@ var action = {
             products = data;
         }
 
+        return products;
+    },
+
+    async getProductsById(id_array: number[]){
+        let products = [] as any[];
+        const {data, error} = await supabase
+            .from('products')
+            .select('*')
+            .in('product_id', id_array);
+        if(error){
+            console.error('Error getting products by ID:', error);
+        } else {
+            products = data;
+        }
+        return products;
+    },
+
+    async getProductsForPOPage(po_id_array: number[]){
+        let products = [] as any[];
+        const {data, error} = await supabase
+            .from('products')
+            .select('*')
+            .in('product_id', po_id_array);
+        if(error){
+            console.error('Error getting products for PO page:', error);
+        } else {
+            products = data;
+        }
         return products;
     },
 
@@ -617,6 +646,18 @@ var action = {
         }
     },
 
+    async getProcrocCasesForPOPage(po_id_array: number[]){
+        const {data, error} = await supabase.rpc('get_cases_by_type_for_po', {processed: true, po_ids: po_id_array});
+
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Processed cases for purchase orders: ', data);
+            return data;
+        }
+    },
+
     async getUnprocCases(){
         const {data, error} = await supabase.rpc('get_cases_by_type', {processed: false});
         if(error){
@@ -624,6 +665,18 @@ var action = {
             throw error;
         } else {
             console.log('Raw boxes: ', data);
+            return data;
+        }
+    },
+
+    async getUnprocCasesForPOPage(po_id_array: number[]){
+        const {data, error} = await supabase.rpc('get_cases_by_type_for_po', {processed: false, po_ids: po_id_array});
+
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Raw boxes for purchase orders: ', data);
             return data;
         }
     },
@@ -651,36 +704,6 @@ var action = {
                 console.log('Processed cases (Delivered): ', data);
                 return data.sort((a: any, b: any) => a.product_name.localeCompare(b.product_name));
             }
-
-        /* const query = supabase
-                .from('cases')
-                .select(`
-                    *,
-                    products(*),
-                    locations(*),
-                    purchase_orders(*)
-                    `)
-                .neq('products.fnsku', null).neq('products.asin', null)
-                .neq('products.fnsku', '').neq('products.asin', '')
-                .neq('status', 'Draft').neq('status', 'Submitted').neq('status', 'Ordered').neq('status', 'Inbound').neq('status', 'BO').neq('status', 'Back Ordered');
-        
-        const {data: processedCases, error} = await query;
-        if(error){
-            console.error('Error calling RPC: ', error);
-            throw error;
-        } else {
-            console.log('Processed Cases (In house): ', processedCases);
-            const flattenedCases = processedCases.filter(pCase => pCase.products != null).map(pCase => ({
-                            ...pCase,
-                            purchase_order_name: pCase.purchase_order_id != null ? pCase.purchase_orders.purchase_order_name : '',
-                            product_name: pCase.products.name,
-                            asin: pCase.products.asin,
-                            fnsku: pCase.products.fnsku,
-                            default_units_per_case: pCase.products.default_units_per_case
-                        })).sort((a, b) => a.product_name.localeCompare(b.product_name));
-                        console.log("Flattened cases: ", flattenedCases);
-            return flattenedCases;
-        } */
     },
 
     /**

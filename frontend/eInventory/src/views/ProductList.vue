@@ -417,7 +417,7 @@ import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
 import { table } from 'console';
 import ZoomDropdown from '../components/ZoomDropdown.vue';
-// import {debounce} from 'lodash';
+import {debounce} from 'lodash';
 //import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
@@ -570,9 +570,11 @@ export default {
             { field: 'weight_lbs', header: 'Weight (Lbs)' },
         ];
         /**@TODO Implement a slight delay when a user is typing into the universal search bar, this way, the database is only queried once */
-        /* this.debouncedLoad = debounce(() => {
-            this.loadPage(1);
-        }, 300); */
+        // debounced search -> call loadPage(1) after user stops typing (300ms)
+        this.onSearchDebounced = debounce(async () => {
+            this.currentPage = 1;
+            await this.loadPage(1);
+        }, 300, { trailing: true }) as (() => Promise<void>);
     },
 
     mounted() {
@@ -583,13 +585,12 @@ export default {
      
     watch: {
         searchText: {
-            async handler() {
-                await this.loadPage(1);
-            },
-            immediate: true,
-        }
+            handler() { this.onSearchDebounced(); }
+        },
     },
     methods: {
+        onSearchDebounced: async () => Promise.resolve(),
+
         async initLazyData(){
             try {
                 this.totalRecords = await action.getProductsCount(0, '', this.searchText);
@@ -670,6 +671,25 @@ export default {
 
                 this.displayProducts = rows;
                 this.currentPage = page;
+                
+                // Reset scroll position to top after new page data loads
+                this.$nextTick(() => {
+                    const dtElement = (this.$refs.dt as any)?.$el;
+                    console.log('dt element:', dtElement);
+                    
+                    // Find the scrollable table, then scroll its parent wrapper
+                    const scrollableTable = dtElement?.querySelector('.p-datatable-scrollable-table');
+                    if (scrollableTable) {
+                        // The wrapper is usually 2-3 parents up
+                        let scrollableWrapper = scrollableTable.parentElement;
+                        console.log('Found scrollable table, scrolling parent:', scrollableWrapper);
+                        if (scrollableWrapper && scrollableWrapper.scrollHeight > scrollableWrapper.clientHeight) {
+                            scrollableWrapper.scrollTop = 0;
+                            console.log('Set scroll wrapper scrollTop to 0');
+                        }
+                    }
+                });
+                
             } catch (e) {
                 console.log(e);
             } finally {
