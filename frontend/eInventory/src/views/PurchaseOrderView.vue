@@ -30,7 +30,7 @@
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 @page="onPage"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
-                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
+                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders">
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Purchase Orders</h4>
@@ -1139,9 +1139,11 @@ export default {
 
             //RECIPE VARIABLES
             recipes: [] as any[],
+            displayRecipes: [] as any[],
             recipeArray: [] as any[],
             recipeArrayEdit: {} as any,
             recipeElements: [] as any[],
+            displayRecipeElements: [] as any[],
             detailedRecipes: [] as any[],
             poRecipes: [] as any[],
             singlePoRecipes: [] as any[],
@@ -1228,6 +1230,7 @@ export default {
 
                 this.totalRecords = total;
 
+                /**@TODO Potentially optimize this by only loading vendors relevant to the current page. Was deemed not yet necessary as of 3/5/2026 */
                 // Attach vendor_name etc. the same way you do in getProducts()
                 rows.forEach(p => {
                     const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
@@ -1236,7 +1239,7 @@ export default {
 
                 this.purchaseOrders = rows;
                 this.currentPage = page;
-                this.poRecipes = await action.getPurchaseOrderRecipes();
+                
 
                 this.purchaseOrders.forEach(po => {
                     if(po.date_ordered)
@@ -1246,9 +1249,14 @@ export default {
                 });
                 
                 const poIds: number[] = this.purchaseOrders.map(po => po.purchase_order_id);
-
+                
+                const pageRecipes = await action.getRecipesAndElementsForPOs(poIds);
+                this.displayRecipes = pageRecipes.recipes;
+                this.displayRecipeElements = pageRecipes.elements;
+                this.poRecipes = await action.getPurchaseOrderRecipesForPOPage(poIds);
                 this.uBoxes = await action.getUnprocCasesForPOPage(poIds);
                 this.pCases = await action.getProcrocCasesForPOPage(poIds);
+                // await action.getRecipesAndElementsForPOs(poIds);
 
                 console.log("BOXES: ", this.uBoxes);
                 console.log("CASES: ", this.pCases);
@@ -1289,7 +1297,7 @@ export default {
                 await this.getVendors();
                 await this.getProducts();
                 // await this.getBoxes();
-                await this.getRecipes();
+                // await this.getRecipes();
                 await this.getLocations();
                 this.getDate();
                 this.loading = false;
@@ -1641,7 +1649,7 @@ export default {
             return total;
         },
 
-        /** @TODO Overhaul so that the pool math is right. Check what boxes are being used to make cases */
+        /** @TODO Split the recipes into two different arrays: one for when users are editing/creating po's and one for the recipes in pagination */
         getPoolNew(purchase_order_id: number){
             let poolArray = [] as any[];
             let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
@@ -1651,7 +1659,7 @@ export default {
             console.log("boxArray", boxArray);
             
             linkedPoRecipes.forEach(poRec => {
-                let recipeOutput = this.recipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
+                let recipeOutput = this.displayRecipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
                 console.log("recipeOutput", recipeOutput);
                 let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
                 console.log("outputKey", outputKey);
@@ -1663,7 +1671,7 @@ export default {
                 // the input products given the recipe id
                 //2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. Kept the recipeObj calls for other instances,
                 // just in case that affects any of the others. Will monitor and clean up later. 
-                let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+                let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
@@ -1888,61 +1896,72 @@ export default {
         //Created by: Gabe de la Torre
         //Date Created: ???
         //Date Last Edited: 7-5-2024
-        openNew() {
-            this.vendorDialog = false;
-            this.poBoxes = [];
-            this.poCases = [];
-            this.recipeArray = [];
-            this.selectedOrderType = "";
-            this.amount = 1;
-
-            const today = new Date();
-            let year = today.getFullYear();
-            let nickname = '';
-            let previousNumber = 0;
-            this.purchaseOrders.forEach(po => {
-                if(po.vendor_id === this.purchaseOrder.vendor_id){
-                    let titleString = po.purchase_order_name.split('-');
-                    console.log('Title String: ', titleString);
-                    if(!titleString[1])
-                        titleString = po.purchase_order_name.split('_');
-
-                    const poNickname = titleString[0];
-                    if(nickname === '')
-                        nickname = poNickname;
-
-                    let numberPortion = titleString[1];
-                    // console.log('Number portion: ',numberPortion);
-                    // console.log('Without date: ', numberPortion.substring(4,6));
-                    let poNumber = Number(numberPortion.substring(4,6));
-                    
-                    if(poNumber > previousNumber)
-                        previousNumber = poNumber;
-
-                    console.log('PO Number: ',poNumber);
+        async openNew() {
+            try {
+                this.vendorDialog = false;
+                this.poBoxes = [];
+                this.poCases = [];
+                this.recipeArray = [];
+                this.selectedOrderType = "";
+                this.amount = 1;
+                console.log("Selected Vendor: ", this.purchaseOrder.vendor_id);
+                if(this.recipes.length === 0 || this.recipeElements.length === 0){
+                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                    this.recipes = recipesAndElements.recipes;
+                    this.recipeElements = recipesAndElements.elements;
                 }
-            });
 
-            let current = previousNumber + 1;
-            console.log("PO Name (Nickname + '-' + year + current number) = ", nickname, '_', year, current);
+                const today = new Date();
+                let year = today.getFullYear();
+                let nickname = '';
+                let previousNumber = 0;
+                this.purchaseOrders.forEach(po => {
+                    if(po.vendor_id === this.purchaseOrder.vendor_id){
+                        let titleString = po.purchase_order_name.split('-');
+                        console.log('Title String: ', titleString);
+                        if(!titleString[1])
+                            titleString = po.purchase_order_name.split('_');
 
-            if(current > 9)
-                this.purchaseOrder.purchase_order_name = nickname + '-' + year + current;
-            else 
-                this.purchaseOrder.purchase_order_name = nickname + '-' + year + '0' + current;
+                        const poNickname = titleString[0];
+                        if(nickname === '')
+                            nickname = poNickname;
 
-            this.purchaseOrder.status = "Draft";
-            //this.purchaseOrder.raw = this.poBoxes;
-            //this.purchaseOrder.cases = this.poCases
+                        let numberPortion = titleString[1];
+                        // console.log('Number portion: ',numberPortion);
+                        // console.log('Without date: ', numberPortion.substring(4,6));
+                        let poNumber = Number(numberPortion.substring(4,6));
+                        
+                        if(poNumber > previousNumber)
+                            previousNumber = poNumber;
 
-            //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
-            console.log(this.purchaseOrder)
-            //console.log(this.selectedOrderType);
+                        console.log('PO Number: ',poNumber);
+                    }
+                });
+
+                let current = previousNumber + 1;
+                console.log("PO Name (Nickname + '-' + year + current number) = ", nickname, '_', year, current);
+
+                if(current > 9)
+                    this.purchaseOrder.purchase_order_name = nickname + '-' + year + current;
+                else 
+                    this.purchaseOrder.purchase_order_name = nickname + '-' + year + '0' + current;
+
+                this.purchaseOrder.status = "Draft";
+                //this.purchaseOrder.raw = this.poBoxes;
+                //this.purchaseOrder.cases = this.poCases
+
+                //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
+                console.log(this.purchaseOrder)
+                //console.log(this.selectedOrderType);
+                
+                this.newBulkArray();
+
+                this.submitted = false;
+                this.purchaseOrderDialog = true;
+            } catch (error) {
+                console.error("Error occurred while opening new purchase order:", error);
+            }
             
-            this.newBulkArray();
-
-            this.submitted = false;
-            this.purchaseOrderDialog = true;
         },
         /**
          * Calculates the total units for the purchase order, with defensive checks for undefined/null values.
@@ -2648,48 +2667,58 @@ export default {
          * Date Created: 2-17-2025
          * Date Last Edited: 2-17-2025
          */
-        editPurchaseOrder(purchaseOrder: any) {
-            this.purchaseOrder = {...purchaseOrder};
-            this.poCases = [];
-            this.poBoxes = [];
-            this.reqPoBoxes = [];
-            this.editedLine = {};
-            this.boxesToDelete = [];
-            this.delivered = [];
-            this.singlePoRecipes = [];
+        async editPurchaseOrder(purchaseOrder: any) {
+            try {
+                this.purchaseOrder = {...purchaseOrder};
+                this.poCases = [];
+                this.poBoxes = [];
+                this.reqPoBoxes = [];
+                this.editedLine = {};
+                this.boxesToDelete = [];
+                this.delivered = [];
+                this.singlePoRecipes = [];
+                if(this.recipes.length === 0 || this.recipeElements.length === 0){
+                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                    this.recipes = recipesAndElements.recipes;
+                    this.recipeElements = recipesAndElements.elements;
+                }
 
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
-            let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
+                let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
-            poRecs.forEach(recLine => {
-                let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
-                let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
-                recLine.product_name = elementKey.name;
-                recLine.product_id = elementKey.product_id;
-                recLine.units_per_case = elementKey.default_units_per_case;
-                recLine.amount = recLine.qty/recLine.units_per_case;
-            })
+                poRecs.forEach(recLine => {
+                    let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
+                    let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
+                    recLine.product_name = elementKey.name;
+                    recLine.product_id = elementKey.product_id;
+                    recLine.units_per_case = elementKey.default_units_per_case;
+                    recLine.amount = recLine.qty/recLine.units_per_case;
+                })
+                
+
+                console.log("PO Recs: ",poRecs);
+
+                this.delivered = this.getDeliveredDataTable(boxes);
+
+                // console.log("Boxes ",boxes);
+                // console.log("Cases ",cases);
+                // this.poBoxes = this.groupProducts(boxes);
+                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+                // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
+                this.singlePoRecipes = poRecs;
+
+                console.log("PO Boxes: ", this.poBoxes);
+                console.log("PO Recipes: ", this.singlePoRecipes);
+
+                console.log("reqPoBoxes ", this.reqPoBoxes);
+                console.log("delivered ", this.delivered);
+
+                this.checkPoTotals();
+                this.editPurchaseOrderDialog = true;
+            } catch (error) {
+                console.error("Error in editPurchaseOrder: ", error);
+            }
             
-
-            console.log("PO Recs: ",poRecs);
-
-            this.delivered = this.getDeliveredDataTable(boxes);
-
-            // console.log("Boxes ",boxes);
-            // console.log("Cases ",cases);
-            // this.poBoxes = this.groupProducts(boxes);
-            this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
-            // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
-            this.singlePoRecipes = poRecs;
-
-            console.log("PO Boxes: ", this.poBoxes);
-            console.log("PO Recipes: ", this.singlePoRecipes);
-
-            console.log("reqPoBoxes ", this.reqPoBoxes);
-            console.log("delivered ", this.delivered);
-
-            this.checkPoTotals();
-            this.editPurchaseOrderDialog = true;
         },
 
         onRowExpand(event: any) {
@@ -2724,8 +2753,9 @@ export default {
             let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
             let poRecElements = [] as any[];
 
+            console.log("displayRecipeElements: ", this.displayRecipeElements);
             poRecipes.forEach(poRec => {
-                let recElArray = this.recipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
+                let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
                 recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
                 poRecElements.push(recElArray);
             });
@@ -2779,12 +2809,12 @@ export default {
             console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
             //Grab the linked po recipe for the inline processed product
-            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.recipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
+            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
             
             // let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
 
             //let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
-            let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
+            let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
             //let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
 
             let linkedBoxes = [] as any[];
@@ -2845,7 +2875,7 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let recipeOutput = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        let recipeOutput = this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output');
         console.log("recipeOutput", recipeOutput);
         let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
         console.log("outputKey", outputKey);
@@ -2858,7 +2888,7 @@ export default {
         /*2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. This was also a problem on line 1600. 
         * There appears to have been a change in the structure of poRecipe at some point. Will look closer when I have the time. Right now, I am on a tight schedule.
         */
-        let rawRecInputs = this.recipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+        let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
         let totals = [] as any[];
 
@@ -4457,12 +4487,12 @@ export default {
             // console.log("Search Recipes Counter: ", counter);
             console.log("Filtered Recipes: ", this.filteredRecipes);
             const query = event.query ? event.query.toLowerCase() : '';
-            const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
+            // const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
             // Ensure filteredRecipes is an array of arrays, one per row
             if (!Array.isArray(this.filteredRecipes)) 
                 this.filteredRecipes = [];
 
-            this.filteredRecipes[counter] = allRecipes.filter(r =>
+            this.filteredRecipes[counter] = this.recipes.filter(r =>
                 r.label && r.label.toLowerCase().includes(query)
             );
             console.log("Filtered Recipes after search: ", this.filteredRecipes);
@@ -4473,12 +4503,12 @@ export default {
             // console.log("Search Recipes Counter: ", counter);
             console.log("Filtered Recipes: ", this.filteredRecipesEdit);
             const query = event.query ? event.query.toLowerCase() : '';
-            const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
+            // const allRecipes = this.selectVendorRecipes(this.purchaseOrder.vendor_id) || [];
             // Ensure filteredRecipes is an array of arrays, one per row
             if (!Array.isArray(this.filteredRecipes)) 
                 this.filteredRecipesEdit = [];
 
-            this.filteredRecipesEdit = allRecipes.filter(r =>
+            this.filteredRecipesEdit = this.recipes.filter(r =>
                 r.label && r.label.toLowerCase().includes(query)
             );
             console.log("Filtered Recipes after search: ", this.filteredRecipesEdit);

@@ -981,6 +981,27 @@ var action = {
         }
     },
 
+    //Get Purchase Order Recipes
+    async getPurchaseOrderRecipesForPOPage(poIds: number[]){
+        const query = supabase
+            .from('po_recipes')
+            .select('*')
+            .in('purchase_order_id', poIds);
+
+        /* 
+        if(filter_column)
+            query.eq(filter_column, filter_data);
+         */
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('PO Recipes for POs: ', data);
+            return data;
+        }
+    },
+
     //Add a Purchase Order Recipe
     async addPurchaseOrderRecipe(poRecipe: any){
         const {data, error} = await supabase.rpc('create_po_recipe', {record_array: [
@@ -1071,6 +1092,37 @@ var action = {
         });
     },
 
+    async getVendorsForPOPage(poVendorIds: number[]){
+        const query = supabase
+            .from('vendors')
+            .select('*')
+            .in('vendor_id', poVendorIds);
+
+        /* 
+        if(filter_column)
+            query.eq(filter_column, filter_data);
+         */
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Vendors for POs: ', data);
+            return data;
+        }
+    },
+
+    async getRecipesAndElementsForVendors(vendorId: number){
+        const {data, error} = await supabase.rpc('get_recipes_and_elements_for_vendors', {ven_id: vendorId});
+        if(error){
+            console.error('Error calling RPC:', error);
+            throw error;
+        } else {
+            console.log('RECIPES AND ELEMENTS FOR VENDOR: ', data);
+            return data;
+        }
+    },
+
     //RECIPES--------------------------------------------------------------------------------------------
     //Get recipes
     async getRecipes(){
@@ -1079,6 +1131,16 @@ var action = {
             console.error('Error calling RPC:', error);
         } else {
             console.log('RECIPES:', data);
+            return data;
+        }
+    },
+
+    async getRecipesAndElementsForPOs(poIds: number[]){
+        const {data, error} = await supabase.rpc('get_recipes_for_pos', {po_ids: poIds});
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('RECIPES AND ELEMENTS FOR POs:', data);
             return data;
         }
     },
