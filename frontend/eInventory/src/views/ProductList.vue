@@ -152,6 +152,7 @@
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="vendor_name"
                 optionValue="vendor_id" />
+                <small class="p-error" v-if="submitted && !product.vendor_id">Vendor is required.</small>
             </div>
        
             <div class="field" v-if="!product.product_id">
@@ -948,8 +949,11 @@ export default {
             //this.validateFnsku();
             this.submitted = true;
             this.validFnsku = this.validateFnsku();
-            if (this.validFnsku == true){
+
+            if (this.validFnsku == true && this.product.vendor && this.product.name){
                 this.saveProduct();
+            } else {
+                this.$toast.add({severity:'error', summary: 'Error', detail: 'Please fill in all required fields.', life: 3000});
             }
         },
         async saveProduct() {
