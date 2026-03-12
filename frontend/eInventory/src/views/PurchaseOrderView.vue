@@ -285,6 +285,30 @@
             </template>
         </Dialog>
 
+        <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '600px'}" header="Missing Default Units" :modal="true">
+            <div class="field">
+                <p>The following raw product(s) required for the processed case lack a default box amount. Please fill in below.</p>
+            </div>
+
+            <div v-for="(item, idx) in missingDefaults" :key="item.product_id" class="field">
+                <div class="grid">
+                    <div class="col-6">
+                        <div class="font-bold">{{ item.name }}</div>
+                        <div class="text-sm">Item#: {{ item.item_num }}</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="block">Default Units per Case</label>
+                        <InputNumber v-model="item.default_units_per_case" :min="1" showButtons />
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button label="Cancel" text @click="missingDefaultUnitsDialog = false" />
+                <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" autoFocus />
+            </template>
+        </Dialog>
+
         <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid">
 
             <div v-if="purchaseOrder.purchase_order_id">
@@ -476,9 +500,9 @@
                     </div>
 
                     <div v-if="poCases[counter].default_units_per_case">
-                        <DataTable :value="selectRecipeElements(poRecipe.recipeObj)">
+                        <DataTable :value="selectRecipeElements(poRecipe.recipeObj)" :rowStyle="rowStyleMissingDefault">
                             <Column field="name" header="Product Name" />
-                            <Column field="qty" header="Units per Box" >
+                            <Column header="Units per Box" >
                                 <template #body="{data}">
                                     {{ getProductInfo(data.product_id, 'default_units_per_case') }}
                                 </template>
@@ -1119,6 +1143,11 @@ export default {
             selectedProducts: [] as any[],
             totalErrorMSG: "" as string,
 
+            // MISSING DEFAULT UNITS DIALOG
+            missingDefaultUnitsDialog: false,
+            missingDefaults: [] as Array<{ product_id: number; name: string; item_num: string; default_units_per_case: number | null }>,
+            missingDefaultsRecipeIndex: null as number | null,
+
             //CASE VARIABLES
             cases: [] as any[],
             uBoxes: [] as any[],
@@ -1493,7 +1522,7 @@ export default {
          */
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
-            //console.log(prodKey)
+            console.log("Value for field " + field + "for product " + prodKey.name + ":", prodKey[field]);
             return prodKey[field];
         },
 
@@ -1517,15 +1546,10 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-3-2024
         getTotalUnitsNeeded(rawRecEl: any, poCase: any, recipeAmount: number){
-            //CHECK HOW TO STOP THE FUNCTION FROM RUNNING FOR EVERY ARRAY VALUE
-            //console.log("rawRecEl ",rawRecEl);
-            //console.log("Po CASE ",poCase);
-            let unitsPerCase = 0;
-            if(poCase.default_units_per_case)
-                unitsPerCase = poCase.default_units_per_case;
-            else if(poCase.units_per_case)
-                unitsPerCase = poCase.units_per_case;
-            return rawRecEl.qty*(unitsPerCase * recipeAmount);
+            // Defensive: avoid NaN if default units are missing
+            const unitsPerCase = poCase?.default_units_per_case || poCase?.units_per_case || 0;
+            if (!unitsPerCase || !recipeAmount || !rawRecEl?.qty) return 0;
+            return rawRecEl.qty * (unitsPerCase * recipeAmount);
         },
 
         //Description: 
@@ -1534,7 +1558,8 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-1-2024
         getTotalUnitsOrdered(rawRecEl: any, poCase: any, recipeAmount: number){
-            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            const rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            if (!rawBox || !rawBox.default_units_per_case) return 0;
             return this.getRawBoxTotal(rawRecEl, poCase, recipeAmount) * rawBox.default_units_per_case;
         },
 
@@ -1544,8 +1569,11 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-1-2024
         getRawBoxTotal(rawRecEl: any, poCase: any, recipeAmount: number){
-            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
-            return Math.ceil(this.getTotalUnitsNeeded(rawRecEl, poCase, recipeAmount) / rawBox.default_units_per_case);
+            const rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            if (!rawBox || !rawBox.default_units_per_case) return 0;
+            const unitsNeeded = this.getTotalUnitsNeeded(rawRecEl, poCase, recipeAmount);
+            if (!unitsNeeded) return 0;
+            return Math.ceil(unitsNeeded / rawBox.default_units_per_case);
         },
 
         //Description: 
@@ -1898,6 +1926,7 @@ export default {
         //Date Last Edited: 7-5-2024
         async openNew() {
             try {
+                this.loading = true;
                 this.vendorDialog = false;
                 this.poBoxes = [];
                 this.poCases = [];
@@ -1966,6 +1995,7 @@ export default {
 
                 this.submitted = false;
                 this.purchaseOrderDialog = true;
+                this.loading = false;
                 console.log("Purchase Order Dialog Opened, PO Object: ", this.purchaseOrder);
             } catch (error) {
                 console.error("Error occurred while opening new purchase order:", error);
@@ -2102,6 +2132,69 @@ export default {
         },
 
         /**
+         * If the selected processed recipe has raw ingredients missing default_units_per_case, open a dialog so the user can enter values.
+         */
+        checkMissingDefaultUnitsForRecipe(recipeObj: any, counter: number){
+            if (!recipeObj) return;
+
+            const recipeId = typeof recipeObj === 'object' && recipeObj.recipe_id ? recipeObj.recipe_id : recipeObj;
+            if (!recipeId) return;
+
+            const rawElements = this.recipeElements.filter(re => re.recipe_id === recipeId && re.type === 'input');
+            const missing = rawElements
+                .map(re => this.products.find(p => p.product_id === re.product_id))
+                .filter(p => p && (!p.default_units_per_case || p.default_units_per_case <= 0));
+
+            if (!missing.length) return;
+
+            this.missingDefaultsRecipeIndex = counter;
+            this.missingDefaults = missing.map(p => ({
+                product_id: p.product_id,
+                name: p.name,
+                item_num: p.item_num,
+                default_units_per_case: p.default_units_per_case || null,
+            }));
+            this.missingDefaultUnitsDialog = true;
+        },
+
+        async saveMissingDefaultUnits(){
+            const invalid = this.missingDefaults.some(d => {
+                const numeric = Number(d.default_units_per_case);
+                return !Number.isFinite(numeric) || numeric <= 0;
+            });
+            if (invalid) {
+                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.', life: 4000 });
+                return;
+            }
+
+            try {
+                this.loading = true;
+                for (const item of this.missingDefaults) {
+                    const product = this.products.find(p => p.product_id === item.product_id);
+                    if (!product) continue;
+                    const numeric = Number(item.default_units_per_case);
+                    product.default_units_per_case = numeric;
+                    // Update the product record on the server
+                    await action.editProduct(product, []);
+                }
+
+                // Refresh derived tables that use default_units_per_case
+                this.products = [...this.products];
+                this.missingDefaultUnitsDialog = false;
+                this.$toast.add({ severity: 'success', summary: 'Saved', detail: 'Default units were updated.', life: 3000 });
+
+                // If we were highlighting a recipe row for missing defaults, clear it now
+                this.missingDefaultsRecipeIndex = null;
+
+                this.loading = false;
+
+            } catch (error) {
+                console.error(error);
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.', life: 4000 });
+            }
+        },
+
+        /**
          * On recipe selection, updates the recipe array with the selected recipe id
          * @param recipeId - The recipe id to select
          * @param counter - The counter to update
@@ -2126,6 +2219,9 @@ export default {
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCases[counter]);
+
+            // If the selected recipe contains raw products missing default_units_per_case, prompt the user to set them
+            this.checkMissingDefaultUnitsForRecipe(recipeId, counter);
         },
 
         onRecipeSelectionEdit(recipeId: any){
@@ -3555,6 +3651,20 @@ export default {
             } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
             }
+        },
+
+        rowStyleMissingDefault(data: any) {
+            // Highlight raw recipe rows when the missing-default-unit dialog is open
+            if (!this.missingDefaultUnitsDialog) {
+                return {};
+            }
+
+            const defaultUnits = this.getProductInfo(data.product_id, 'default_units_per_case');
+            if (!defaultUnits || defaultUnits <= 0) {
+                return { font: 'bold', backgroundColor: '#ffb439' };
+            }
+
+            return {};
         },
 
         editRowStyleRaw(data: any) {
