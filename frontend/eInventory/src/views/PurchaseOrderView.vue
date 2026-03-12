@@ -656,7 +656,7 @@
             <div class="field">
                 <label for="purchase_order_name">Name</label>
                 <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
-                :disabled="purchaseOrder.purchase_order_id"/>
+                />
             </div>
 
             <div class="field">
@@ -1905,46 +1905,54 @@ export default {
                 this.selectedOrderType = "";
                 this.amount = 1;
                 console.log("Selected Vendor: ", this.purchaseOrder.vendor_id);
-                if(this.recipes.length === 0 || this.recipeElements.length === 0){
-                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
-                    this.recipes = recipesAndElements.recipes;
-                    this.recipeElements = recipesAndElements.elements;
-                }
+                /* if(this.recipes.length === 0 || this.recipeElements.length === 0){
+                    
+                } */
+
+                let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                this.recipes = recipesAndElements.recipes;
+                this.recipeElements = recipesAndElements.elements;
 
                 const today = new Date();
-                let year = today.getFullYear();
+                const year = today.getFullYear().toString();
+
                 let nickname = '';
-                let previousNumber = 0;
-                this.purchaseOrders.forEach(po => {
-                    if(po.vendor_id === this.purchaseOrder.vendor_id){
-                        let titleString = po.purchase_order_name.split('-');
-                        console.log('Title String: ', titleString);
-                        if(!titleString[1])
-                            titleString = po.purchase_order_name.split('_');
+                let maxSeqForYear = 0;
 
-                        const poNickname = titleString[0];
-                        if(nickname === '')
-                            nickname = poNickname;
+                let newestPos = await action.getNewestPurchaseOrdersByVendor(this.purchaseOrder.vendor_id);
 
-                        let numberPortion = titleString[1];
-                        // console.log('Number portion: ',numberPortion);
-                        // console.log('Without date: ', numberPortion.substring(4,6));
-                        let poNumber = Number(numberPortion.substring(4,6));
-                        
-                        if(poNumber > previousNumber)
-                            previousNumber = poNumber;
+                // Find the highest sequence number for the current year for this vendor
+                // PO name format: {vendorCode}-{YYYY}{seq}[suffix]
+                // Example: AU-202603fbm (vendor AU, year 2026, seq 03, suffix fbm)
+                newestPos.forEach(po => {
 
-                        console.log('PO Number: ',poNumber);
+                    const name = po.purchase_order_name || '';
+                    const match = name.match(/^([^_-]+)[-_](\d{4})(\d{2,3})([A-Za-z].*)?$/);
+
+                    // If it doesn't match the expected format, just skip this PO
+                    if (!match) return;
+
+                    const poNickname = match[1] || '';
+                    if (!nickname && poNickname) {
+                        nickname = poNickname;
+                    }
+
+                    const poYear = match[2];
+                    const seq = Number(match[3]);
+                    if (poYear === year && !isNaN(seq)) {
+                        maxSeqForYear = Math.max(maxSeqForYear, seq);
                     }
                 });
 
-                let current = previousNumber + 1;
-                console.log("PO Name (Nickname + '-' + year + current number) = ", nickname, '_', year, current);
+                // Reset annually: start at 1 for a new year
+                const nextSeq = maxSeqForYear + 1;
+                const seqStr = String(nextSeq).padStart(2, '0');
 
-                if(current > 9)
-                    this.purchaseOrder.purchase_order_name = nickname + '-' + year + current;
-                else 
-                    this.purchaseOrder.purchase_order_name = nickname + '-' + year + '0' + current;
+                if (!nickname) {
+                    nickname = '[COMPANY_CODE_HERE]';
+                }
+
+                this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
 
                 this.purchaseOrder.status = "Draft";
                 //this.purchaseOrder.raw = this.poBoxes;
@@ -1958,6 +1966,7 @@ export default {
 
                 this.submitted = false;
                 this.purchaseOrderDialog = true;
+                console.log("Purchase Order Dialog Opened, PO Object: ", this.purchaseOrder);
             } catch (error) {
                 console.error("Error occurred while opening new purchase order:", error);
             }

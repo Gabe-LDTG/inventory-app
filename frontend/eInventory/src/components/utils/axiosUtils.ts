@@ -869,7 +869,7 @@ var action = {
             const query = supabase
                 .from('purchase_orders')
                 .select('*')
-                .order('purchase_order_id', { ascending: true });
+                .order('purchase_order_id', { ascending: false });
     
             if (filter_data !== '') {
                 query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
@@ -911,6 +911,22 @@ var action = {
         } catch (err) {
             console.error('Error fetching purchase orders count:', err);
             return 0;
+        }
+    },
+
+    async getNewestPurchaseOrdersByVendor(vendor_id: number){
+        const {data, error} = await supabase
+            .from('purchase_orders')
+            .select('*')
+            .eq('vendor_id', vendor_id)
+            .order('purchase_order_id', { ascending: false })
+            .limit(5); // Adjust the limit as needed
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Newest Purchase Orders for Vendor: ', data);
+            return data;
         }
     },
 
