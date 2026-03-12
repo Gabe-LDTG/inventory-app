@@ -53,6 +53,9 @@
                     stripedRows
                     columnResizeMode="fit"
                     :loading="loading"
+                    :rowStyle="rowStyleProductRow"
+                    :expandedRows="expandedRows"
+                    @rowToggle="onRowToggle"
                     @page="onPage"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 >
@@ -70,7 +73,7 @@
                 <template #loading> Loading product data. Please wait. </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false" :style="{ width: '5%' }"></Column>
 
-                <Column expander header="Recipe" style="width: 5rem" @click="console.log('TESTING')" :style="{ width: '5%' }"/>
+                <Column expander header="Recipe" style="width: 5rem" :style="{ width: '5%' }"/>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
@@ -90,12 +93,43 @@
                     </div>
                 </template>
 
-                <Column field="name" header="Name" sortable :style="{ width: '20%' }"></Column>
+                <Column field="name" header="Name" sortable :style="{ width: '15%' }"></Column>
                 <Column field="vendor_name" header="Vendor" sortable :style="{ width: '10%' }"/>
-                <Column field="asin" header="ASIN" sortable :style="{ width: '10%' }"></Column>
-                <Column field="fnsku" header="FNSKU" sortable :style="{ width: '10%' }"></Column>
-                <Column field="item_num" header="Item #" sortable :style="{ width: '10%' }"/>
-                <Column field="upc" header="UPC" sortable :style="{ width: '10%' }"></Column>
+                <Column header="Default Units/Case" :style="{ width: '5%' }">
+                    <template #body="{data}">
+                        <div :class="{'warning-cell': !data.default_units_per_case || data.default_units_per_case <= 0, 'cell-content': true}">
+                            {{ (!data.default_units_per_case || data.default_units_per_case <= 0) ? '[MISSING VALUE]' : data.default_units_per_case }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="ASIN" sortable :style="{ width: '10%' }">
+                    <template #body="{data}">
+                        <div :class="{'warning-cell': isProcessedProduct(data) && !data.asin, 'cell-content': true}">
+                            {{ isProcessedProduct(data) && !data.asin ? '[MISSING VALUE]' : (data.asin || '-') }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="FNSKU" sortable :style="{ width: '10%' }">
+                    <template #body="{data}">
+                        <div :class="{'warning-cell': isProcessedProduct(data) && !data.fnsku, 'cell-content': true}">
+                            {{ isProcessedProduct(data) && !data.fnsku ? '[MISSING VALUE]' : (data.fnsku || '-') }}
+                        </div>
+                    </template>
+                </Column>
+                <Column field="item_num" header="Item #" sortable :style="{ width: '10%' }">
+                    <template #body="{data}">
+                        <div :class="{'warning-cell': !isProcessedProduct(data) && !data.item_num, 'cell-content': true}">
+                            {{ !isProcessedProduct(data) && !data.item_num ? '[MISSING VALUE]' : (data.item_num || '-') }}
+                        </div>
+                    </template>
+                </Column>   
+                <Column header="UPC" sortable :style="{ width: '10%' }">
+                    <template #body="{data}">
+                        <div :class="{'warning-cell': !isProcessedProduct(data) && !data.upc, 'cell-content': true}">
+                            {{ !isProcessedProduct(data) && !data.upc ? '[MISSING VALUE]' : (data.upc || '-') }}
+                        </div>
+                    </template>
+                </Column>
                 <Column field="notes" header="Notes" sortable :style="{ width: '10%' }"></Column>
                 <Column :exportable="false" :style="{ width: '10%' }">
                     <template #body="slotProps">
@@ -701,7 +735,38 @@ export default {
             // PrimeVue gives 0-based page index
             const newPage = event.page + 1;
             this.rowsPerPage = event.rows;
+
+            // Collapse expanded rows when changing pages
+            this.expandedRows = [];
+
             this.loadPage(newPage);
+        },
+
+        isProcessedProduct(product: any) {
+            return !!(product?.fnsku || product?.asin);
+        },
+
+        rowStyleProductRow(data: any, options?: any) {
+            if (!data) return {};
+            const processed = this.isProcessedProduct(data);
+            const rows = this.displayProducts || [];
+
+            // Determine alternating stripe index within the same type (processed vs unprocessed)
+            const rowIndex = typeof options?.rowIndex === 'number' ? options.rowIndex : rows.findIndex(r => r.product_id === data.product_id);
+            let typeCount = 0;
+            for (let i = 0; i <= rowIndex && i < rows.length; i++) {
+                const candidate = rows[i];
+                if (this.isProcessedProduct(candidate) === processed) {
+                    typeCount++;
+                }
+            }
+
+            const even = typeCount % 2 === 0;
+            if (processed) {
+                return { backgroundColor: even ? '#e6ffea' : '#ccffd1' }; // green shades
+            }
+
+            return { backgroundColor: even ? '#e8f0ff' : '#d3e3ff' }; // blue shades
         },
 
         async initVariables(){
@@ -1174,6 +1239,11 @@ export default {
         parseFile(){
             this.loading = true;
         },
+        onRowToggle(event: any) {
+            // Keep the expanded row state in sync with the table
+            this.expandedRows = event.data;
+        },
+
         onRowExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
             
@@ -1267,6 +1337,26 @@ export default {
 </script>
 
 <style>
+.warning-cell {
+  background-color: #ffb439 !important;
+  color: black;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 0.5rem;
+  box-sizing: border-box;
+}
+
+.cell-content {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 0.5rem;
+  box-sizing: border-box;
+}
+
 @media (min-width: 1024px) {
   .about {
     min-height: 100vh;
