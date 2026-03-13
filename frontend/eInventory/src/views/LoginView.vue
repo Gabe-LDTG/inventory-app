@@ -117,6 +117,7 @@ async function forgotPassword(){
 	const test = import.meta.env.VITE_SUPABASE_URL;
 	console.log("TEST: " + test);
 	console.log("URL: " + url);
+	// REMEMBER TO AUTHENTICATE PAGE IF SUPABASE PROJECT HAS TO BE REMADE
 	const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
 		redirectTo: url + '/passwordreset'
 	});
