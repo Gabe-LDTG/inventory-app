@@ -12,6 +12,8 @@
             :loading="loading"
             placeholder="Search products..."
         >
+        <!-- @TODO Adjust the panel style for better display -->
+        <!-- :panelStyle="{minWidth: '300px', width: 'auto'}" -->
             <template #content="slotProps">
                 <div>{{ slotProps }} <!-- {{ slotProps.option.name }} - {{ getDisplayValue(slotProps.option) }} --></div>
             </template>

@@ -7,7 +7,7 @@
         <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedRecipeLines"
         showGridlines stripedRows :filters="filters"
         :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
-        scrollable scrollHeight="1100px" removableSort
+        scrollable scrollHeight="800px" removableSort
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
         :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
         >

@@ -671,7 +671,8 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1000px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
+        <!-- @TODO Make the width reactive to the size of the user's monitor -->
+        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1800px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
             <div class="flex align-items-left align-self-flex-start">
                 <!-- <Button label="Header" text @click=""/> -->
                 <!-- <Button label="Product Info" text @click="" /> -->
@@ -735,12 +736,30 @@
                             :virtualScrollerOptions="{ itemSize: 38 }"
                             :class="{'p-invalid': submitted && !data.product_id}" 
                         ></Dropdown> -->
-                        <ProductAutoComplete 
+                        <!-- <ProductAutoComplete 
                             v-model="data.productObj" 
                             :displayValue="2" 
                             :vendor_id="purchaseOrder.vendor_id"
                             @update:modelValue="onRawProductAutoCompleteSelect"
-                        />
+                        /> -->
+                        <AutoComplete 
+                                v-model="data.product_id"
+                                :suggestions="filteredProducts || []"
+                                @complete="(event: any) => searchProducts(event)"
+                                @item-select="onProductSelectionAuto(data.product_id)"
+                                :dropdown="true"
+                                :optionLabel="'label'"
+                                
+                                placeholder="Select or enter a product"
+                                class="md:w-14rem"
+                                :class="{'p-invalid': submitted && !data.product_id}"
+                                :forceSelection="false"
+                            > 
+                            <template #option="slotProps">
+                                <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
+                            </template>
+                        </AutoComplete><!-- :modelValue="'label'" -->
+                            <small class="p-error" v-if="submitted && !data.product_id">Name is required.</small>
                         
                     </template>
                 </Column>
@@ -1142,6 +1161,7 @@ export default {
             product: {} as any,
             selectedProducts: [] as any[],
             totalErrorMSG: "" as string,
+            filteredProducts: [] as any[],
 
             // MISSING DEFAULT UNITS DIALOG
             missingDefaultUnitsDialog: false,
@@ -1386,11 +1406,14 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: ???
-        //Date Last Edited: 6-25-2024
+        //Date Last Edited: 3-13-2026
         async getRecipes(){
             try {
-                this.recipes = await action.getRecipes();
-                this.recipeElements = await action.getRecipeElements();
+                if(this.recipes.length === 0 || this.recipeElements.length === 0 || this.recipes[0].vendor_id !== this.purchaseOrder.vendor_id){
+                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                    this.recipes = recipesAndElements.recipes;
+                    this.recipeElements = recipesAndElements.elements;
+                }
 
                 //console.log(this.recipes);
                 //console.log(this.recipeElements);
@@ -1938,9 +1961,7 @@ export default {
                     
                 } */
 
-                let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
-                this.recipes = recipesAndElements.recipes;
-                this.recipeElements = recipesAndElements.elements;
+                await this.getRecipes();
 
                 const today = new Date();
                 const year = today.getFullYear().toString();
@@ -2237,6 +2258,12 @@ export default {
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCasesEdit = this.products.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCasesEdit);
+        },
+
+        onProductSelectionAuto(recipeId: any){
+            // Ensure recipeId is always a primitive
+            console.log("RECIPE ID BEGIN: ", recipeId);
+            
         },
 
         //Description: Validates a purchase order before creation/editing.
@@ -2782,11 +2809,7 @@ export default {
                 this.boxesToDelete = [];
                 this.delivered = [];
                 this.singlePoRecipes = [];
-                if(this.recipes.length === 0 || this.recipeElements.length === 0){
-                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
-                    this.recipes = recipesAndElements.recipes;
-                    this.recipeElements = recipesAndElements.elements;
-                }
+                await this.getRecipes();
 
                 let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
                 let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
@@ -3460,6 +3483,7 @@ export default {
                 console.log("PO in status change: ", this.purchaseOrder);
 
                 await action.editPurchaseOrder(this.purchaseOrder);
+                await this.getRecipes();
 
                 if(this.purchaseOrder.status !== 'Draft' || this.purchaseOrder.status !== 'Submitted'){
                     console.log("Check for Requests");
@@ -3527,7 +3551,7 @@ export default {
                         ship_to_amz: 0, 
                         deadline: null, 
                         warehouse_qty: 0,
-                        container_qty: Number(productKey.default_units_per_case)
+                        container_qty: Number(recipe.qty)
                     };
 
                     console.log("Created Request: ", createdRequest);
@@ -4615,6 +4639,23 @@ export default {
                 r.label && r.label.toLowerCase().includes(query)
             );
             console.log("Filtered Recipes after search: ", this.filteredRecipes);
+        },
+
+        /**@TODO Finish the AutoComplete for boxes */
+        searchProducts(event: any) {
+            console.log("Search Products Event: ", event);
+            // console.log("Search Products Counter: ", counter);
+            console.log("Filtered Products: ", this.filteredProducts);
+            const query = event.query ? event.query.toLowerCase() : '';
+            // const allProducts = this.products || [];
+            // Ensure filteredProducts is an array of arrays, one per row
+            if (!Array.isArray(this.filteredProducts)) 
+                this.filteredProducts = [];
+
+            this.filteredProducts = this.unprocProducts.filter(p =>
+                p.name && p.name.toLowerCase().includes(query)
+            );
+            console.log("Filtered Products after search: ", this.filteredProducts);
         },
 
         searchRecipesEdit(event: any) {
