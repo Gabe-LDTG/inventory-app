@@ -632,6 +632,130 @@ var action = {
         }
     },
 
+    /**
+     * @description Gets a page of cases based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getCases() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param processed 0 for all cases, 1 for processed cases only, 2 for unprocessed boxes only
+     * @param filter_column The column to filter by (e.g. 'name', 'item_num', 'vendor_name', 'status', or '' for all columns)
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for cases with 'Widget' in the name)
+     * @returns An array of cases for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     * 
+     * @TODO NEED TO FIX PAGINATION BEFORE IT CAN BE IMPLEMENTED. GRAB ALL CASES OR BOXES LINKED TO PRODUCTS PER PAGE, RATHER THAN GRABBING 25 CASES OR BOXES. THEY CANNOT BE GROUPED THAT WAY.
+     */
+    async getCasesPage(
+        page: number,
+        rowsPerPage: number,
+        processed: number,
+        filter_column: string,
+        filter_data: string
+    ){
+        let cases: any[] = [];
+    
+        // page is 1-based here; convert to 0-based indices
+        const from = (page - 1) * rowsPerPage;
+        const to   = from + rowsPerPage - 1;
+    
+        try {
+            const query = supabase
+                .from('cases')
+                .select(`
+                    *,  
+                    products(product_id, fnsku, asin, item_num, upc, name)
+                    `)
+                .order('case_id', { ascending: true });
+    
+            if(processed === 1){
+                query.or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'});
+                
+            } else if(processed === 2){
+                query.is('products.fnsku', null).is('products.asin', null);
+            } 
+    
+            if (filter_data !== '') {
+                if (filter_column === 'name')
+                    query.ilike('name', `%${filter_data}%`);
+                else if (filter_column === 'item_num')
+                    query.ilike('item_num', `%${filter_data}%`);
+                else if (filter_column === 'vendor_name')
+                    query.ilike('vendor_name', `%${filter_data}%`);
+                else if (filter_column === 'status')
+                    query.ilike('status', `%${filter_data}%`);
+                else
+                    query.or(`name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%,status.ilike.%${filter_data}%`);
+            }
+    
+            const { data, error } = await query.range(from, to);
+    
+            if (error) {
+                console.error('Error calling RPC (getProductsPage):', error);
+            } else {
+                console.log('Cases page:', data);
+                cases = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getCasesPage:', err);
+        }
+        if(processed === 1){
+            console.log('Processed cases page: ', cases);
+        } else if(processed === 2){
+            console.log('Unprocessed boxes page: ', cases);
+        }
+        return cases;
+    },
+
+    async getCasesCount(
+        processed: number,
+        filter_column: string,
+        filter_data: string
+    ){
+        try {
+            const query = supabase
+                .from('cases')
+                .select(`
+                    *,  
+                    products(fnsku, asin, item_num, upc, name)
+                    `, { count: 'exact', head: true })
+                // .filter('products.fnsku', 'neq', null)
+                // .filter('products.asin', 'neq', null)
+
+            if (processed === 1) {
+                query.or('fnsku.neq.null,asin.neq.null', {referencedTable: 'products'});
+            } else if (processed === 2) {
+                query.is('products.fnsku', null).is('products.asin', null);
+            }
+
+            if (filter_data !== '') {
+                if (filter_column === 'name')
+                    query.ilike('name', `%${filter_data}%`);
+                else if (filter_column === 'item_num')
+                    query.ilike('item_num', `%${filter_data}%`);
+                else if (filter_column === 'vendor_name')
+                    query.ilike('vendor_name', `%${filter_data}%`);
+                else if (filter_column === 'status')
+                    query.ilike('status', `%${filter_data}%`);
+                else
+                    query.or(`name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%,status.ilike.%${filter_data}%`);
+            }
+
+            const { count, error } = await query;
+                
+            if (error) {
+                throw error;
+            }
+            if(processed === 1){
+                console.log('Processed cases page count: ', count);
+            } else if(processed === 2){
+                console.log('Unprocessed boxes page count: ', count);
+            }
+            return count ?? 0;
+        } catch (err) {
+            console.error('Error fetching cases count:', err);
+            return 0;
+        }
+    },
+
     //variables have to be named c rather than case because 
     //case is reserved and can't be used as a variable name
     //

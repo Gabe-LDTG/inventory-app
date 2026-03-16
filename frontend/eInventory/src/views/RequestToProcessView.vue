@@ -113,7 +113,7 @@
                     <Calendar dateFormat="mm/dd/yy" v-model="data.deadline"/>
                 </template>
             </Column>
-            <Column field="warehouse_qty" header="Warehouse QTY">
+            <Column field="warehouse_qty" header="Store in Warehouse">
                 <template #body="{data}">
                     {{ data.warehouse_qty }}
                 </template>
@@ -121,7 +121,7 @@
                     <InputNumber v-model="data.warehouse_qty" />
                 </template>
             </Column>
-            <Column header="Total QTY" class="font-bold">
+            <Column header="Total Cases" class="font-bold">
                 <template #body="{data}">
                     {{ data.warehouse_qty + data.ship_to_amz }}
                 </template>

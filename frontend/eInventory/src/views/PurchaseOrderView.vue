@@ -278,10 +278,12 @@
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="vendor_name"
                 optionValue="vendor_id" />
+                <small class="p-error" v-if="vendorSubmitted == true && !purchaseOrder.vendor_id">Vendor is required.</small>
+
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="vendorDialog = false"/>
-                <Button label="Select" icon="pi pi-check" text @click="openNew" />
+                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
             </template>
         </Dialog>
 
@@ -1185,6 +1187,7 @@ export default {
             //VENDOR VARIABLES
             vendors: [] as any[],
             vendorDialog: false,
+            vendorSubmitted: false,
 
             //RECIPE VARIABLES
             recipes: [] as any[],
@@ -1625,9 +1628,10 @@ export default {
          * @param poID {number} The Purchase Order Id
          * @param poDiscount {number} The urchase Order discount
          * @returns Total cost for the purchase order, with discount applied if neccessary 
+         * @author Gabe de la Torre-Garcia
          * 
-         * Created By: Gabe de la Torre-Garcia
          * Created On: ???
+         * 
          * Last Edited: 2-14-2025
          */
         getCreatedCostTotal(poID: number, poDiscount: number){
@@ -1698,6 +1702,25 @@ export default {
                 total = total * discountDecimal;
             }
             return total;
+        },
+
+        /**
+         * Description: Validates that a vendor has been selected before allowing the user to create a new purchase order. 
+         * If validation fails, an error toast will appear. If validation passes, the openNew() function will be called to open the dialog for creating a new purchase order.
+         * 
+         * @author Gabe de la Torre-Garcia
+         * 
+         * Date Created: 3-16-2026
+         * 
+         * Date Last Edited: 3-16-2026
+         */
+        validateVendor(){
+            if (!this.purchaseOrder.vendor_id && this.vendorSubmitted == true) {
+                this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
+            }
+            else {
+                this.openNew();
+            }
         },
 
         /** @TODO Split the recipes into two different arrays: one for when users are editing/creating po's and one for the recipes in pagination */
