@@ -1203,7 +1203,7 @@ export default {
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
             let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
-                const key = product.product_id + ':' + product.location_id + ':' + product.status + ':' + product.purchase_order_id;
+                const key = product.product_id + ':' + product.location_id + ':' + product.status + ':' + product.purchase_order_id + ':' + product.date_received;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                 }
