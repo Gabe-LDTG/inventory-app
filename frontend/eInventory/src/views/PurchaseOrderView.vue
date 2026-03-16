@@ -725,9 +725,9 @@
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Boxes:</h3>
             </div>
-            <DataTable v-model:editingRows="editingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-save="onPOBoxRowEditSave">
+            <DataTable v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
-                    <template #editor="{data, field}">
+                    <template #editor="{data, field, index}">
                         <!-- <Dropdown v-model="data.product_id" required="true" 
                             placeholder="Select a Product" class="md:w-14rem" editable
                             :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
@@ -745,15 +745,15 @@
                             @update:modelValue="onRawProductAutoCompleteSelect"
                         /> -->
                         <AutoComplete 
-                                v-model="data.product_id"
+                                v-model="data.productObj"
                                 :suggestions="filteredProducts || []"
                                 @complete="(event: any) => searchProducts(event)"
-                                @item-select="onProductSelectionAuto(data.product_id)"
+                                @item-select="onRawProductAutoCompleteSelect(data.productObj, index)"
                                 :dropdown="true"
-                                :optionLabel="'label'"
-                                
+                                :optionLabel="(data) => data.name"
+                                :virtualScrollerOptions="{ itemSize: 38 }"
                                 placeholder="Select or enter a product"
-                                class="md:w-14rem"
+                                class="md:w-19rem"
                                 :class="{'p-invalid': submitted && !data.product_id}"
                                 :forceSelection="false"
                             > 
@@ -765,14 +765,14 @@
                         
                     </template>
                 </Column>
-                <Column header="Item #" field="">
+                <Column header="Item #">
                     <template #body={data}>
                         <div v-if="data.product_id">
                             {{ getProductInfo(data.product_id, "item_num") }}
                         </div>
                     </template>
                 </Column>
-                <Column header="UPC" field="">
+                <Column header="UPC">
                     <template #body={data}>
                         <div v-if="data.product_id">
                             {{ getProductInfo(data.product_id, "upc") }}
@@ -1149,6 +1149,8 @@ export default {
             editPurchaseOrderDialog: false,
             newPurchaseOrderProductDialog: false,
             editingRows: [] as any[],
+            rawEditingRows: [] as any[],
+            recipeEditingRows: [] as any[],
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
             statusChangeDialog: false,
@@ -1548,7 +1550,8 @@ export default {
          */
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
-            console.log("Value for field " + field + "for product " + prodKey.name + ":", prodKey[field]);
+            // console.log("Product Key for ID ", productId, ": ", prodKey);
+            // console.log("Value for field " + field + " for product " + prodKey.name + ":", prodKey[field]);
             return prodKey[field];
         },
 
@@ -2128,21 +2131,33 @@ export default {
             return product.default_units_per_case;
         },
 
-        onRawProductAutoCompleteSelect(productObj: any){
+        /**
+         * Description: When a user selects a product from the autocomplete, this function updates the current editing row with the product id, name, and default units per case.
+         * @param productObj 
+         * @TODO Figured out why the editing box is getting closed before the user clicks the check mark
+         */
+        onRawProductAutoCompleteSelect(productObj: any, index: number){
             console.log("Product AutoComplete Selection:", productObj);
+            console.log("Current editing rows before selection: ", JSON.stringify(this.rawEditingRows));
+            console.log("Index: ", index);
+            console.log("Raw Editing Row at index: ", JSON.stringify(this.rawEditingRows[index]));
             
             if (productObj && productObj.product_id) {
                 // Update the product_id in the current editing row
-                const editingRow = this.editingRows[0]; // Assuming single row editing
-                if (editingRow) {
-                    editingRow.product_id = productObj.product_id;
-                    editingRow.product_name = productObj.name;
-                    editingRow.units_per_case = productObj.default_units_per_case || 1;
-                    editingRow.total = editingRow.amount * editingRow.units_per_case;
+                if (this.rawEditingRows[0]) {
+                    this.rawEditingRows[0].product_id = productObj.product_id;
+                    this.rawEditingRows[0].product_name = productObj.name;
+                    this.rawEditingRows[0].units_per_case = productObj.default_units_per_case || 1;
+                    this.rawEditingRows[0].total = this.rawEditingRows[0].amount * this.rawEditingRows[0].units_per_case;
                 }
             }
+            console.log("Current editing rows after selection: ", JSON.stringify(this.rawEditingRows));
         },
 
+        /**
+         * 
+         * @param productObj 
+         */
         onProcessedProductAutoCompleteSelect(productObj: any){
             console.log("Processed Product AutoComplete Selection:", productObj);
             
@@ -2281,12 +2296,6 @@ export default {
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCasesEdit = this.products.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCasesEdit);
-        },
-
-        onProductSelectionAuto(recipeId: any){
-            // Ensure recipeId is always a primitive
-            console.log("RECIPE ID BEGIN: ", recipeId);
-            
         },
 
         //Description: Validates a purchase order before creation/editing.
@@ -3830,6 +3839,10 @@ export default {
             //console.log(this.poBoxes.forEach(box => console.log(box.total)));
         },
 
+        onPOBoxRowEditInit(event: any){
+            console.log("INIT EVENT ", event);
+
+        },
         /**
          * When the user saves a row while editing a purchase order, this function places the updated data into the 
          * poBox array. Then, checks to make sure that the updated unit amount is enough for the planned cases.
