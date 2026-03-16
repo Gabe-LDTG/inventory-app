@@ -198,12 +198,12 @@
                     @complete="(event: any) => searchProducts(event)"
                     @item-select="onProductSelection(eCase.productObj)" 
                     :virtualScrollerOptions="{ itemSize: 38 }"
-                    :optionLabel="'name'"
+                    :optionLabel="(data) => (displayValue === 'processed' ? data.name + ' - ' + data.fnsku : data.name + ' - ' + data.item_num)"
                     :forceSelection="false"
                 >
-                    <template #content="slotProps">
-                        <div>{{ slotProps }} <!-- {{ slotProps.option.name }} - {{ slotProps.option.fnsku }} --></div>
-                    </template>
+                    <!-- <template #content="slotProps">
+                        <div>{{ slotProps.items }} <!- {{ slotProps.option.name }} - {{ slotProps.option.fnsku }} -></div>
+                    </template> -->
                     <template #option="slotProps">
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
@@ -715,9 +715,9 @@ export default {
 
             if(typeof productObj === 'object' && productObj !== null && 'product_id' in productObj){
                 if(this.displayValue === 'processed')
-                    this.eCase.productObj = { name: productObj.name + ' - ' + productObj.fnsku, value: productObj.product_id};
+                    this.eCase.productObj = { name: productObj.name, fnsku: productObj.fnsku, value: productObj.product_id};
                 else if(this.displayValue === 'unprocessed')
-                    this.eCase.productObj = { name: productObj.name + ' - ' + productObj.item_num, value: productObj.product_id};
+                    this.eCase.productObj = { name: productObj.name, item_num: productObj.item_num, value: productObj.product_id};
 
                 this.eCase.product_id = productObj.product_id;
             }
@@ -956,8 +956,9 @@ export default {
             }
         },
         editCase(value: any) {
-            this.product = {...value}; //ASK MICHAEL
+
             this.eCase = {...value};
+            this.eCase.productObj = this.products.find(p => p.product_id === value.product_id);
             this.oldCaseValues = {...value};
             //this.productDialog = true;
             this.caseDialog = true;
