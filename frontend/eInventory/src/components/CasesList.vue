@@ -106,6 +106,12 @@
                                 {{ getPoName(data.purchase_order_id) }}
                             </template>
                         </Column>
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <Column field="date_received" header="Date Processed" />
+                        </div>
+                        <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <Column field="date_received" header="Date Received" />
+                        </div>
                         <Column field="product_name" header="Name"  />
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
                             <Column field="units_per_case" header="Units per case" />
@@ -113,7 +119,12 @@
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                             <Column field="units_per_case" header="Units per box" />
                         </div>
-                        <Column field="amount" header="Number of boxes" sortable />
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <Column field="amount" header="Number of Cases" sortable />
+                        </div>
+                        <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <Column field="amount" header="Number of Boxes" sortable />
+                        </div>
                         <Column header="Total # Of Units" sortable>
                             <template #body="{data}">
                                 {{ data.units_per_case * data.amount }}
@@ -271,7 +282,7 @@
                     <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                         <label for="date_received"> Date Received: </label>
                     </div>
-                    <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="eCase.date_received"/>
+                    <Calendar id="date_received" dateFormat="mm/dd/yy" v-model="eCase.date_received"/>
                 </div>
 
                 <div class="field">
@@ -838,11 +849,12 @@ export default {
                 // console.log("eCase: ",this.eCase);
                 // console.log("DB cases: ", this.dbCases);
 
-                // console.log(this.eCase);
+                console.log(this.eCase);
+                console.log("Case date received: ", this.eCase.date_received);
 
-                if(this.eCase.date_received)
-                this.eCase.date_received = this.eCase.date_received.split('T')[0];
-
+                /* if(this.eCase.date_received)
+                    this.eCase.date_received = this.eCase.date_received.split('T')[0];
+ */
                 // console.log('Old case values ', this.oldCaseValues);
 
                 // Match database boxes/cases by product type, location, unit quantity, and status

@@ -3,8 +3,14 @@ var helper = {
         var date = new Date(rawDate);
         //momentDate = this.eCase.date_received;
         //console.log("TESTING DATES: ", date);
+        let month = '';
+        if(date.getMonth() < 10){
+            month = '0' + (date.getMonth() + 1);
+        } else {
+            month = (date.getMonth() + 1).toString();
+        }
 
-        return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
+        return month + '/' + date.getDate() + '/' + date.getFullYear();
     },
 
     formatDateTS(rawDate: Date | null) {
@@ -22,7 +28,8 @@ var helper = {
     getDate(){
         const date = new Date();
         console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
-        return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
+        // return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
+        return (date.getMonth()+1) + '/' + date.getDate() + '/' + date.getFullYear();
     },
 
     /**
