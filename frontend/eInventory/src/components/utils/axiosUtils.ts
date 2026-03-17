@@ -805,6 +805,29 @@ var action = {
         }
     },
 
+    async getInboundBoxes(po_id: number){
+        try {
+            const query = supabase
+                .from('cases')
+                .select(`
+                    *,
+                    products(product_id, fnsku, asin, item_num, upc, name)
+                    `)
+                .eq('purchase_order_id', po_id)
+                .is('products.fnsku', null).is('products.asin', null)
+                .or('status.eq.Draft,status.eq.Submitted,status.eq.Ordered');
+            const {data, error} = await query;
+            if(error){
+                console.error('Error fetching inbound boxes: ', error);
+                throw error;
+            }
+            return data;
+        } catch (error) {
+            console.error('Error fetching inbound boxes: ', error);
+            throw error;
+        }
+    },
+
     //
     async getUnprocDeliveredBoxes(){
         const {data, error} = await supabase.rpc('get_delivered_cases_by_type', {processed: false});
@@ -1000,6 +1023,42 @@ var action = {
             }
     
             const { data, error } = await query.range(from, to);
+    
+            if (error) {
+                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
+            } else {
+                console.log('Purchase Orders page:', data);
+                purchaseOrders = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getPurchaseOrdersPage:', err);
+        }
+    
+        return purchaseOrders;
+    },
+
+     /**
+     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
+     * @returns An array of purchase orders for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     */
+    async getPurchaseOrdersPageV2(
+        page: number,
+        rowsPerPage: number,
+        filter_data: string
+    ){
+        let purchaseOrders: any[] = [];
+    
+        // page is 1-based here; convert to 0-based indices
+        const from = (page - 1) * rowsPerPage;
+        const to   = from + rowsPerPage - 1;
+    
+        try {
+            
+            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {in_page: page, in_rows_per_page: rowsPerPage, in_filter_data: filter_data});
     
             if (error) {
                 console.error('Error calling RPC (getPurchaseOrdersPage):', error);

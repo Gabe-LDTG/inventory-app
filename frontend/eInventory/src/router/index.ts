@@ -12,6 +12,7 @@ import Login from '../views/LoginView.vue'
 
 import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
+import PurchaseOrderV2 from '@/views/PurchaseOrderViewV2.vue';
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
 import PickList from '../views/Picklist.vue'
 import PasswordReset from '../views/PasswordReset.vue'
@@ -72,6 +73,7 @@ const router = createRouter({
       path: '/purchaseorders',
       name: 'PurchaseOrders',
       component: PurchaseOrder,
+      // component: PurchaseOrderV2,
         meta: { requiresAuth: true}
     },
     {

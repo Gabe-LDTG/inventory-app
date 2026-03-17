@@ -93,7 +93,7 @@
                                 <i class="pi pi-angle-right" style="color: gray"/>
                                 <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
                                 <i class="pi pi-angle-right" style="color: gray"/>
-                                <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Inbound'"/>
+                                <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openInboundDialog(slotProps.data); newStatus = 'Inbound'"/>
                                 <i class="pi pi-angle-right" style="color: gray"/>
                                 <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === 'Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
                                 <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
@@ -1007,8 +1007,6 @@
         <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
 
-
-
             <div class="block-div">
                         <div class="field">
                             <label for="name">Name:</label>
@@ -1092,14 +1090,15 @@
                         </DataTable>
                         <InputText id="notes" v-model="poCasesEdit.notes" rows="3" cols="20" />
                     </div>
-
-
-            
             
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
             </template>
+        </Dialog>
+
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true">
+
         </Dialog>
         
     </div>
@@ -1157,6 +1156,7 @@ export default {
             receivedDialog: false,
             newStatus: "",
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
+            inboundPurchaseOrderDialog: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1185,6 +1185,7 @@ export default {
             displayStatus: "",
             delivered: [] as any[],
             boxesToDelete: [] as any[],
+            inboundBoxes: [] as any[],
 
             //VENDOR VARIABLES
             vendors: [] as any[],
@@ -4743,6 +4744,20 @@ export default {
 
         saveNewPurchaseOrderProduct(){
             console.log("Saving new purchase order product");
+        },
+
+        async openInboundDialog(purchaseOrder: any){
+            try {
+                this.inboundPurchaseOrderDialog = true;
+                console.log("Purchase order in inbound dialog: ", purchaseOrder);
+                console.log("PO Boxes: ", this.poBoxes);
+                let allInboundBoxes = await action.getInboundBoxes(purchaseOrder.purchase_order_id);
+                this.inboundBoxes = helper.groupProductsByKey(allInboundBoxes, ["product_id"]);
+                console.log("Inbound boxes: ", this.inboundBoxes);
+
+            } catch (error) {
+                console.error("Error opening inbound dialog: ", error);
+            }
         },
     }
 }
