@@ -22,6 +22,7 @@
                 :paginator="true" :rows="10" :filters="filters" 
                 :selectAll="false"
                 removableSort
+                @sort="customSort"
                 showGridlines
                 stripedRows
                 @page="onPage"
@@ -29,7 +30,7 @@
                 :loading="loading"
                 @rowgroup-expand="onRowGroupExpand"
                 v-model:expandedRows="expandedRows"
-                :globalFilterFields="['product_name']"
+                :globalFilterFields="['product_name','status','location_name']"
                 :virtualScrollerOptions="{ itemSize: 46 }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
@@ -50,14 +51,6 @@
                 </template>
 
                 <template #loading> Loading product data. Please wait. </template>
-
-                <!-- <template #groupheader="slotProps">
-                    <div class="flex align-items-center gap-2" style="background-color:#ddd;">
-                        <span class="flex justify-content-start font-bold w-full">{{ slotProps.data.name }}</span>
-                        <div class="flex justify-content-end font-bold w-full">Total Number of Boxes: {{ calculateBoxTotal(slotProps.data.name) }}</div>
-                        <div class="flex justify-content-end font-bold w-full">Total QTY: {{ calculateTotalQTY(slotProps.data.name) }}</div>
-                    </div>
-                </template> -->
 
                 <div v-if="displayValue === 'processed'" class="flex align-items-center">
                     <Column expander header="Individual Cases" style="width: 5rem" />
@@ -83,15 +76,15 @@
                     <Column field="amount" header="Number of boxes" sortable />
                 </div>
 
-                <Column header="Total # Of Units" sortable>
+                <Column field="total_units" header="Total # Of Units" sortable>
                     <template #body="{data}">
-                        {{ data.units_per_case * data.amount }}
+                        {{ data.total_units }}
                     </template>
                 </Column>
 
-                <Column field="location_name" header="Location" sortable>
+                <Column field="location_name" header="Location(s)" sortable>
                     <template #body="{data}">
-                        {{ formatLocations(data.location) }}
+                        {{ data.location_name.join(", ") }}
                     </template>
                 </Column>
 
@@ -125,7 +118,7 @@
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                             <Column field="amount" header="Number of Boxes" sortable />
                         </div>
-                        <Column header="Total # Of Units" sortable>
+                        <Column header="Total # Of Units" field="total_units" sortable>
                             <template #body="{data}">
                                 {{ data.units_per_case * data.amount }}
                             </template>
@@ -518,21 +511,6 @@ export default {
                 global: { value: "", matchMode: FilterMatchMode.CONTAINS },
             } as any,
             submitted: false,
-            /* statuses: [
-				{label: 'INSTOCK', value: 'instock'},
-				{label: 'LOWSTOCK', value: 'lowstock'},
-				{label: 'OUTOFSTOCK', value: 'outofstock'}
-            ], */
-
-            /* filters: {
-                global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-                name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-                'country.name': { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-                representative: { value: null, matchMode: FilterMatchMode.IN },
-                status: { value: null, matchMode: FilterMatchMode.EQUALS },
-                verified: { value: null, matchMode: FilterMatchMode.EQUALS }
-            }, */
-            //displayLabel: this.products.name + '' + this.products.fnsku,
         }
     },
     created() {
@@ -616,9 +594,9 @@ export default {
             try {
                 this.loading = true;
                 this.dbCases = await action.getProcDeliveredCases();
-                console.log(this.dbCases);
+                // console.log(this.dbCases);
                 this.cases = this.groupBoxes(this.dbCases);
-                console.log(this.cases);
+                console.log("Grouped Cases: ",this.cases);
                 this.loading = false;
             } catch (err) {
                 console.log(err);
@@ -644,9 +622,9 @@ export default {
             try {
                 this.loading = true;
                 this.dbCases = await action.getUnprocDeliveredBoxes();
-                console.log(this.dbCases);
+                // console.log(this.dbCases);
                 this.cases = this.groupBoxes(this.dbCases);
-                console.log(this.cases);
+                console.log("Grouped Boxes: ", this.cases);
                 this.purchase_orders = await action.getPurchaseOrders();
                 /* for (let caseIdx = 0; caseIdx < this.cases.length; caseIdx++){
                     //console.log("CASE ",this.cases[caseIdx]);
@@ -723,6 +701,29 @@ export default {
                     }
                 })
                 return locationNames.toString();
+            }
+            
+        },
+
+        customSort(event: any){
+            console.log("SORT EVENT", event);
+            if(!event.sortField){
+                this.cases.sort((data1: any, data2: any) => {
+                    let value1 = data1.units_per_case * data1.amount;
+                    let value2 = data2.units_per_case * data2.amount;
+                    let result = null;
+
+                    if (value1 == null && value2 != null)
+                        result = -1;
+                    else if (value1 != null && value2 == null)
+                        result = 1;
+                    else if (value1 == null && value2 == null)
+                        result = 0;
+                    else
+                        result = value1 < value2 ? -1 : (value1 > value2 ? 1 : 0);
+
+                    return (event.order * result);
+                });
             }
             
         },
@@ -1214,14 +1215,19 @@ export default {
                 const key = product.product_id + ':' + product.units_per_case + ':' + product.status;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
+                    map[key].total_units += product.units_per_case;
                     if(map[key].location.find((l: any) => l === product.location_id) === undefined){
                         //console.log("DIFFERENT LOCATION");
+                        let location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
                         map[key].location.push(product.location_id);
+                        map[key].location_name.push(location_name);
                         // console.log(map[key].location);
                     } 
                 }
-                else // otherwise, add it to the map
-                    map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location_id], amount: 1 };
+                else{ // otherwise, add it to the map
+                    let location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
+                    map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location_id], location_name: [location_name], amount: 1 , total_units: product.units_per_case};
+                }
                 return map;
             }, { } as { [product_id: number]: (typeof boxArray)[number] & { amount: number } }));
 
