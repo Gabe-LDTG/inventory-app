@@ -282,7 +282,7 @@
 
             </div>
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="vendorDialog = false"/>
+                <Button label="Cancel" icon="pi pi-times" text @click="hideVendorDialog()"/>
                 <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
             </template>
         </Dialog>
@@ -2114,8 +2114,16 @@ export default {
             array.splice(counter,1);
         },
         hideDialog() {
-            this.purchaseOrderDialog = false;
             this.submitted = false;
+            this.purchaseOrder = {};
+            this.vendorSubmitted = false;
+            this.purchaseOrderDialog = false;
+        },
+
+        hideVendorDialog() {
+            this.vendorSubmitted = false;
+            this.purchaseOrder = {};
+            this.vendorDialog = false;
         },
         getDate(){
             const date = new Date();

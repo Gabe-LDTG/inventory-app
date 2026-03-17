@@ -229,6 +229,22 @@
                 /> -->
                 <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
             </div>
+            <div>
+                <label for="purchase_order">Purchase Order:</label>
+                <AutoComplete
+                    v-model="eCase.purchase_order_obj" 
+                    :suggestions="filtered_vendor_purchase_orders" 
+                    :dropdown="true"
+                    @complete="(event: any) => searchPurchaseOrders(event)"
+                    @item-select="onPoSelection(eCase.purchase_order_obj)" 
+                    :virtualScrollerOptions="{ itemSize: 38 }"
+                    optionLabel="purchase_order_name"
+                    :forceSelection="false"
+                >
+                
+                </AutoComplete>
+            </div>
+            
 
             <div class="field">
                 <label for="notes">Notes:</label>
@@ -435,6 +451,7 @@ import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import ZoomDropdown from './ZoomDropdown.vue';
+import { on } from 'events';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -479,6 +496,8 @@ export default {
             statuses: [] as string[], 
 
             purchase_orders: [] as any[],
+            vendor_purchase_orders: [] as any[],
+            filtered_vendor_purchase_orders: [] as any[],
 
             bulkInsertDialog: false,
             
@@ -730,6 +749,15 @@ export default {
             }
         },
 
+        onPoSelection(poObj: any){
+            console.log("PO OBJ", poObj);
+
+            if(typeof poObj === 'object' && poObj !== null && 'purchase_order_id' in poObj){
+                this.eCase.purchase_order_obj = { purchase_order_name: poObj.purchase_order_name, value: poObj.purchase_order_id};
+                this.eCase.purchase_order_id = poObj.purchase_order_id;
+            }
+        },
+
         formatCurrency(value: any) {
             if(value)
 				return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -739,7 +767,7 @@ export default {
         //EVENTUALLY PUT THIS IN A NEW TS FILE (IE "helperFunctions.ts")
 
         openNew() {
-            this.eCase = [];
+            this.eCase = {};
             this.filteredProducts = this.products;
             if(this.displayValue === 'processed')
                 this.eCase.status = 'Just Processed';
@@ -904,13 +932,16 @@ export default {
                 if(this.displayValue == 'processed'){
                     console.log('Processed');
                     await this.getProcCases();
-
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case(s) Updated', life: 3000});
+                    this.eCase = {};
                 }
                 else if(this.displayValue == 'unprocessed'){
                     console.log('Unprocessed');
                     await this.getUnprocCases();
+                    this.$toast.add({severity:'success', summary: 'Successful', detail: 'Box(es) Updated', life: 3000});
+                    this.eCase = {};
                 }
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
+                
             } catch (err) {
                 console.log(err);
                 this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
@@ -960,6 +991,7 @@ export default {
             this.eCase = {...value};
             this.eCase.productObj = this.products.find(p => p.product_id === value.product_id);
             this.oldCaseValues = {...value};
+            this.vendor_purchase_orders = this.purchase_orders.filter(po => po.vendor_id === this.products.find(p => p.product_id === value.product_id).vendor_id);
             //this.productDialog = true;
             this.caseDialog = true;
         },
@@ -1233,6 +1265,16 @@ export default {
             const allProducts = this.products;
             this.filteredProducts = allProducts.filter((product: any) =>
                 product.name && product.name.toLowerCase().includes(query)
+            );
+        },
+
+        searchPurchaseOrders(event: any){
+            console.log("Event: ", event);
+            console.log("Purchase Orders: ", this.purchase_orders);
+            const query = event.query ? event.query.toLowerCase() : '';
+            const allPOs = this.vendor_purchase_orders;
+            this.filtered_vendor_purchase_orders = allPOs.filter((po: any) =>
+                po.purchase_order_name && po.purchase_order_name.toLowerCase().includes(query)
             );
         },
 
