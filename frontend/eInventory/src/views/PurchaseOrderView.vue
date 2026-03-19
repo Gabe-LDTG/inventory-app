@@ -1230,17 +1230,26 @@ export default {
             currentPage: 1,
             rowsPerPage: 25,
             totalRecords: 0,
+            sortField: '',
+            sortOrder: 1,
 
         }
     },
     created() {
         this.initFilters();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
+        this.onSearchDebounced = debounce(async () => {
+            this.currentPage = 1;
+            await this.loadPage(1);
+        }, 300, { trailing: true }) as (() => Promise<void>);
     },
     watch: {
         purchaseOrder: {
         deep: true,
         handler() { this.lazySave(); }
+        },
+        searchText: {
+            handler() { this.onSearchDebounced(); }
         },
     },
     async mounted() {
@@ -1250,6 +1259,7 @@ export default {
     },
     methods: {
         lazySave: () => Promise.resolve(),
+        onSearchDebounced: async () => Promise.resolve(),
         
         async save(): Promise<void> { 
             try {
@@ -1272,6 +1282,7 @@ export default {
          async loadPage(page: number) {
             try {
                 this.loading = true;
+                // console.log("Search Text: ", this.searchText);
 
                 // Get total count (for paginator) and current page rows in parallel
                 const [total, rows] = await Promise.all([
