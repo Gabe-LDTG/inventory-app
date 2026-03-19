@@ -949,11 +949,22 @@ export default {
             //this.validateFnsku();
             this.submitted = true;
             this.validFnsku = this.validateFnsku();
+            console.log("VALID FNSKU ", this.validFnsku, "PRODUCT VENDOR ", this.product.vendor_id, "PRODUCT NAME ", this.product.name);
 
-            if (this.validFnsku == true && this.product.vendor && this.product.name){
+            if (this.validFnsku == true && this.product.vendor_id && this.product.name){
                 this.saveProduct();
             } else {
-                this.$toast.add({severity:'error', summary: 'Error', detail: 'Please fill in all required fields.', life: 3000});
+                let errorHeader = '';
+                if(this.validFnsku == false){
+                    errorHeader += 'Invalid FNSKU. ';
+                }
+                if(!this.product.vendor_id){
+                    errorHeader += 'Invalid Vendor. ';
+                }
+                if(!this.product.name){
+                    errorHeader += 'Invalid Product Name. ';
+                }
+                this.$toast.add({severity:'error', summary: errorHeader, detail: 'Please fill in all required fields.', life: 3000});
             }
         },
         async saveProduct() {
