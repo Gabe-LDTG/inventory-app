@@ -1004,7 +1004,9 @@ var action = {
     async getPurchaseOrdersPage(
         page: number,
         rowsPerPage: number,
-        filter_data: string
+        filter_data: string,
+        sort_field: string,
+        sort_order: number
     ){
         let purchaseOrders: any[] = [];
     
@@ -1015,8 +1017,13 @@ var action = {
         try {
             const query = supabase
                 .from('purchase_orders')
-                .select('*')
-                .order('purchase_order_id', { ascending: false });
+                .select('*');
+                
+
+            if(sort_field !== '')
+                query.order(sort_field, { ascending: sort_order === 1 });
+            else
+                query.order('purchase_order_id', { ascending: false });
     
             if (filter_data !== '') {
                 query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);

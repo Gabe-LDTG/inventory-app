@@ -1279,6 +1279,14 @@ export default {
             }
          }, 
 
+         async onSort(event: any){
+            console.log("SORT EVENT: ", event);
+            this.sortField = event.sortField;
+            this.sortOrder = event.sortOrder;
+            this.currentPage = 1;
+            await this.loadPage(1);
+         },
+
          async loadPage(page: number) {
             try {
                 this.loading = true;
@@ -1290,7 +1298,9 @@ export default {
                     action.getPurchaseOrdersPage(
                         page,
                         this.rowsPerPage,
-                        this.searchText || ''
+                        this.searchText || '',
+                        this.sortField || '',
+                        this.sortOrder
                     )
                 ]);
 
