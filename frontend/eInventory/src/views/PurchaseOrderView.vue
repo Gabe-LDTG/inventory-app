@@ -23,6 +23,7 @@
                 style="min-width: 1000px"
                 showGridlines
                 stripedRows
+                @sort="onSort"
                 scrollable 
                 scrollHeight="800px"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
