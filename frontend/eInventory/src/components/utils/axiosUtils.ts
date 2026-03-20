@@ -42,13 +42,18 @@ var action = {
 
     async getProductsForPOPage(po_id_array: number[]){
         let products = [] as any[];
+        console.log('Getting products for PO page with PO IDs: ', po_id_array);
         const {data, error} = await supabase
             .from('products')
-            .select('*')
-            .in('product_id', po_id_array);
+            .select(`
+                *,
+                cases(purchase_order_id)
+                `)
+            .in('cases.purchase_order_id', po_id_array);
         if(error){
             console.error('Error getting products for PO page:', error);
         } else {
+            console.log('Products for PO page:', data);
             products = data;
         }
         return products;
@@ -328,6 +333,8 @@ var action = {
 
         return products;
     },
+
+    
 
     /* WORKING ON PAGINATION
     
@@ -794,6 +801,7 @@ var action = {
     },
 
     async getUnprocCasesForPOPage(po_id_array: number[]){
+        let boxes: any[] = [];
         const {data, error} = await supabase.rpc('get_cases_by_type_for_po', {processed: false, po_ids: po_id_array});
 
         if(error){
@@ -801,7 +809,8 @@ var action = {
             throw error;
         } else {
             console.log('Raw boxes for purchase orders: ', data);
-            return data;
+            boxes = data;
+            return boxes;
         }
     },
 

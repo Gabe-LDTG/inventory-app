@@ -1314,6 +1314,9 @@ export default {
                     if (vendor) p['vendor_name'] = vendor['vendor_name'];
                 });
 
+                
+                this.products = await action.getProducts();
+
                 this.purchaseOrders = rows;
                 this.currentPage = page;
                 
@@ -1332,11 +1335,11 @@ export default {
                 this.displayRecipeElements = pageRecipes.elements;
                 this.poRecipes = await action.getPurchaseOrderRecipesForPOPage(poIds);
                 this.uBoxes = await action.getUnprocCasesForPOPage(poIds);
-                this.pCases = await action.getProcrocCasesForPOPage(poIds);
+                // this.pCases = await action.getProcrocCasesForPOPage(poIds); // Taking out for now because po_recipes fills the gap for this
                 // await action.getRecipesAndElementsForPOs(poIds);
 
-                console.log("BOXES: ", this.uBoxes);
-                console.log("CASES: ", this.pCases);
+                // console.log("BOXES: ", this.uBoxes);
+                // console.log("CASES: ", this.pCases);
                 
                 // Reset scroll position to top after new page data loads
                 this.$nextTick(() => {
@@ -1372,7 +1375,7 @@ export default {
                 this.loading = true;
 
                 await this.getVendors();
-                await this.getProducts();
+                // await this.getProducts();
                 // await this.getBoxes();
                 // await this.getRecipes();
                 await this.getLocations();
@@ -4062,7 +4065,8 @@ export default {
                         finalBoxArray.push(tempArray);
                     })
                 await action.bulkCreateCases(finalBoxArray);
-                await this.getBoxes();
+                await this.loadPage(this.currentPage);
+                // await this.getBoxes();
                 this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
             }
 
