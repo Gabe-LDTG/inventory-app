@@ -1013,6 +1013,7 @@ var action = {
     async getPurchaseOrdersPage(
         page: number,
         rowsPerPage: number,
+        filter_field: string,
         filter_data: string,
         sort_field: string,
         sort_order: number
@@ -1022,8 +1023,29 @@ var action = {
         // page is 1-based here; convert to 0-based indices
         const from = (page - 1) * rowsPerPage;
         const to   = from + rowsPerPage - 1;
-    
+
         try {
+            
+            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
+                in_page: page, 
+                in_rows_per_page: rowsPerPage, 
+                in_filter_field: filter_field,
+                in_filter_data: filter_data,
+                in_sort_field: sort_field,
+                in_sort_order: sort_order
+            });
+    
+            if (error) {
+                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
+            } else {
+                console.log('Purchase Orders page data:', data);
+                purchaseOrders = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getPurchaseOrdersPage:', err);
+        }
+    
+        /* try {
             const query = supabase
                 .from('purchase_orders')
                 .select('*');
@@ -1048,7 +1070,7 @@ var action = {
             }
         } catch (err) {
             console.error('Error in getPurchaseOrdersPage:', err);
-        }
+        } */
     
         return purchaseOrders;
     },

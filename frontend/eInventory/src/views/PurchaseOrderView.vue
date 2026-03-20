@@ -1227,6 +1227,7 @@ export default {
                 'Partially Delivered',
                 'Delivered',
             ],
+            filterField: '',
             searchText: '',
             currentPage: 1,
             rowsPerPage: 25,
@@ -1294,22 +1295,21 @@ export default {
                 // console.log("Search Text: ", this.searchText);
 
                 // Get total count (for paginator) and current page rows in parallel
-                const [total, rows] = await Promise.all([
-                    action.getPurchaseOrdersCount(this.searchText || ''),
+                const [data] = await Promise.all([
                     action.getPurchaseOrdersPage(
                         page,
                         this.rowsPerPage,
+                        this.filterField || '',
                         this.searchText || '',
                         this.sortField || '',
                         this.sortOrder
-                    )
-                ]);
+                    )]);            
 
-                this.totalRecords = total;
+                this.totalRecords = data.total_count;
 
                 /**@TODO Potentially optimize this by only loading vendors relevant to the current page. Was deemed not yet necessary as of 3/5/2026 */
                 // Attach vendor_name etc. the same way you do in getProducts()
-                rows.forEach(p => {
+                data.purchase_orders.forEach(p => {
                     const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
                     if (vendor) p['vendor_name'] = vendor['vendor_name'];
                 });
@@ -1317,7 +1317,7 @@ export default {
                 
                 this.products = await action.getProducts();
 
-                this.purchaseOrders = rows;
+                this.purchaseOrders = data.purchase_orders;
                 this.currentPage = page;
                 
 
