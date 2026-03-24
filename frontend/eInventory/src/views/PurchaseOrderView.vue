@@ -2440,7 +2440,7 @@ export default {
                 }
 
                 this.uBoxes.forEach(box =>{
-                    if(box.status !== 'Ready' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
+                    if((box.status !== 'Ready' && box.status !== 'On RTP') && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
                         this.purchaseOrder.status = 'Partially Delivered';
                         console.log("Box not ready: ",box)
                     }
@@ -2645,7 +2645,7 @@ export default {
             console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
             // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'Ready' && box.status !== 'Cancelled');
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'Ready' && box.status !== 'On RTP' && box.status !== 'Cancelled');
 
             let backorderCompare = 0;
 
@@ -2653,7 +2653,7 @@ export default {
                 if(wholeReceivedBoxAmount > 0){
                     // console.log(newlyArrived);
                     console.log("FULL BOX");
-                    box.status = 'Ready';
+                    box.status = 'On RTP';
                     box.date_received = this.today;
 
                     if(!box.location_id)
@@ -2668,7 +2668,7 @@ export default {
                     //If a partial box arrives, update the last box amount to partial amount a create 
                     // an additional box whose status is back ordered
                     box.units_per_case = partialBoxAmount;
-                    box.status = 'Ready';
+                    box.status = 'On RTP';
                     box.date_received = this.today;
 
                     if(!box.location_id)
@@ -3315,6 +3315,9 @@ export default {
                 case 'Ready':
                     return 'success';
 
+                case 'On RTP':
+                    return 'success';
+
                 case 'Cancelled':
                     return 'danger';
 
@@ -3664,7 +3667,7 @@ export default {
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready' || boxLine.status === 'On RTP');
             // console.log("RECEIVED BOXES", receivedBoxes);
 
             //CHANGE TO INCOMING
@@ -3708,7 +3711,7 @@ export default {
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready');
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready' || boxLine.status === 'On RTP');
             //console.log("RECEIVED BOXES", receivedBoxes);
 
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
@@ -3746,6 +3749,8 @@ export default {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
             } else if  (data.status === 'Ready') {
+                return { font: 'bold', backgroundColor: '#bbffb5' };
+            } else if  (data.status === 'On RTP') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
@@ -3931,7 +3936,7 @@ export default {
             let editedBoxes: Array<boxRow> = this.uBoxes.filter(box => 
                 box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
                 box.product_id === this.poBoxes[index].product_id &&
-                box.status !== 'Ready'
+                (box.status !== 'Ready' && box.status !== 'On RTP')
             );
 
             // If the boxes exist (the product was already in the PO and just being edited)
@@ -4290,7 +4295,7 @@ export default {
                 box.location_id = null;
                 tableData.push(box);
 
-                if (box.status === 'Ready'){
+                if (box.status === 'Ready' || box.status === 'On RTP'){
                     let readyBox = {} as any;
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
