@@ -219,10 +219,13 @@
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
                             <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                            <DataTable :value="displayInfo(slotProps.data)" :rowClass="rowClass" :rowStyle="rowStyle"
-                            sortField="name" :sortOrder="-1">
+                            <DataTable 
+                            :value="displayInfo(slotProps.data)" 
+                            :rowClass="rowClass" :rowStyle="rowStyle"
+                            sortField="name" removableSort :sortOrder="-1"
+                            >
                                 <Column field="product_name" header="Name" :sortable="true"/>
-                                <Column header="UPC" :sortable="true">
+                                <Column header="UPC" > <!-- Fix sort -->
                                     <template #body="{data}">
                                         {{ getUPC(data.product_id) }}
                                     </template>
@@ -232,7 +235,7 @@
                                         {{ getItemNum(data.product_id) }}
                                     </template>
                                 </Column>
-                                <Column field="units_per_case" header="Units per Case"  sortable/>
+                                <Column field="units_per_case" header="Units per Box"  sortable/>
                                 <Column field="amount" header="Total # of Boxes" sortable />
                                 <Column header="Total # of Units" :sortable="true">
                                     <template #body = {data}>
@@ -244,12 +247,12 @@
                                                 {{ formatSingleLocation(data.location_id) }}
                                             </template>
                                         </Column>
-                                <Column header="Unit Price" :sortable="true">
+                                <Column header="Unit Price" > <!-- Fix sort -->
                                     <template #body="{data}">
-                                        {{ formatCurrency(getUnitCost(data.product_id)) }}
+                                        {{ formatCurrency(getUnitCost(data.product_id)) }} 
                                     </template>
                                 </Column>
-                                <Column header="Total Price" class="font-bold" :sortable="true">
+                                <Column header="Total Price" class="font-bold" > <!-- Fix sort -->
                                     <template #body="{data}">
                                         {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
                                     </template>
@@ -271,14 +274,18 @@
 
         <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true">
             <div class="field">
-                <!-- <!- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -> -->
-                <Dropdown v-model="purchaseOrder.vendor_id"
-                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                :options="vendors"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="vendor_name"
-                optionValue="vendor_id" />
+                <AutoComplete 
+                    v-model="purchaseOrder.vendor"
+                    :suggestions="filteredVendors"
+                    @complete="searchVendors"
+                    @item-select="onVendorAutoCompleteSelect(purchaseOrder.vendor)"
+                    :dropdown="true"
+                    :optionLabel="'vendor_name'"
+                    placeholder="Select or enter a vendor"
+                    class="w-full md:w-14rem"
+                    :class="{'p-invalid': vendorSubmitted == true && !purchaseOrder.vendor}"
+                    :forceSelection="false"
+                />
                 <small class="p-error" v-if="vendorSubmitted == true && !purchaseOrder.vendor_id">Vendor is required.</small>
 
             </div>
@@ -1199,6 +1206,7 @@ export default {
             vendors: [] as any[],
             vendorDialog: false,
             vendorSubmitted: false,
+            filteredVendors: [] as any[],
 
             //RECIPE VARIABLES
             recipes: [] as any[],
@@ -2166,6 +2174,13 @@ export default {
             console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
         },
 
+        onVendorAutoCompleteSelect(vendorObj: any){
+            console.log("Vendor AutoComplete Selection:", vendorObj);
+            if (vendorObj && vendorObj.vendor_id) {
+                this.purchaseOrder.vendor_id = vendorObj.vendor_id;
+            }
+        },
+
         onProductSelection(productId: any){
             console.log("PRODUCT ID", productId);
 
@@ -2440,7 +2455,7 @@ export default {
                 }
 
                 this.uBoxes.forEach(box =>{
-                    if((box.status !== 'Ready' && box.status !== 'On RTP') && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
+                    if(box.status !== 'On RTP' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
                         this.purchaseOrder.status = 'Partially Delivered';
                         console.log("Box not ready: ",box)
                     }
@@ -2645,7 +2660,7 @@ export default {
             console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
             // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'Ready' && box.status !== 'On RTP' && box.status !== 'Cancelled');
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Cancelled');
 
             let backorderCompare = 0;
 
@@ -3312,9 +3327,6 @@ export default {
                 case 'BO':
                     return 'warning';
 
-                case 'Ready':
-                    return 'success';
-
                 case 'On RTP':
                     return 'success';
 
@@ -3667,7 +3679,7 @@ export default {
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready' || boxLine.status === 'On RTP');
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
             // console.log("RECEIVED BOXES", receivedBoxes);
 
             //CHANGE TO INCOMING
@@ -3711,7 +3723,7 @@ export default {
             let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'Ready' || boxLine.status === 'On RTP');
+            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
             //console.log("RECEIVED BOXES", receivedBoxes);
 
             let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
@@ -3748,8 +3760,6 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
-            } else if  (data.status === 'Ready') {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
             } else if  (data.status === 'On RTP') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else {
@@ -3936,7 +3946,7 @@ export default {
             let editedBoxes: Array<boxRow> = this.uBoxes.filter(box => 
                 box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
                 box.product_id === this.poBoxes[index].product_id &&
-                (box.status !== 'Ready' && box.status !== 'On RTP')
+                box.status !== 'On RTP'
             );
 
             // If the boxes exist (the product was already in the PO and just being edited)
@@ -4295,7 +4305,7 @@ export default {
                 box.location_id = null;
                 tableData.push(box);
 
-                if (box.status === 'Ready' || box.status === 'On RTP'){
+                if (box.status === 'On RTP'){
                     let readyBox = {} as any;
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
@@ -4708,6 +4718,15 @@ export default {
 
                 this.receivedDialog = false;
             }
+        },
+
+        searchVendors(event: any) {
+            console.log("Search Vendors Event: ", event);
+            const query = event.query ? event.query.toLowerCase() : '';
+            this.filteredVendors = this.vendors.filter(v =>
+                v.vendor_name && v.vendor_name.toLowerCase().includes(query)
+            );
+            console.log("Filtered Vendors after search: ", this.filteredVendors);
         },
 
         searchRecipes(event: any, counter: number) {
