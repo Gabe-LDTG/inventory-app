@@ -1003,7 +1003,14 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="loading"><div style="z-index: 1" class="flex flex-start font-bold"> LOADING <ProgressSpinner style="width: 15px; height: 15px" fill="transparent" /> </div></Dialog>
+        <Transition name="loader-fade">
+            <div v-if="loading" class="loading-overlay">
+                <div class="loading-card">
+                    <ProgressSpinner style="width: 64px; height: 64px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
+                    <span class="loading-label">Loading&hellip;</span>
+                </div>
+            </div>
+        </Transition>
 
         <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
@@ -1256,8 +1263,10 @@ export default {
     },
     async mounted() {
         console.log('Mounted');
+        this.loading = true;
         await this.initVariables();      // loads vendors/products/recipes you already use
         await this.loadPage(1);          // load first page for the table
+        this.loading = false;
     },
     methods: {
         lazySave: () => Promise.resolve(),
@@ -1291,7 +1300,7 @@ export default {
 
          async loadPage(page: number) {
             try {
-                this.loading = true;
+                // this.loading = true;
                 // console.log("Search Text: ", this.searchText);
 
                 // Get total count (for paginator) and current page rows
@@ -1359,7 +1368,7 @@ export default {
                 console.error(e);
             }
             finally {
-                this.loading = false;
+                // this.loading = false;
             }
         },
 
@@ -1372,7 +1381,7 @@ export default {
 
         async initVariables(){
             try {
-                this.loading = true;
+                // this.loading = true;
 
                 await this.getVendors();
                 // await this.getProducts();
@@ -1380,7 +1389,7 @@ export default {
                 // await this.getRecipes();
                 await this.getLocations();
                 this.getDate();
-                this.loading = false;
+                // this.loading = false;
 
 
             } catch (error) {
@@ -4815,6 +4824,47 @@ export default {
 .p-datatable.p-datatable-gridlines .p-datatable-border-color .p-datatable-tbody > tr {
   background: gray
   
+}
+
+/* ── Loading overlay ─────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem 3.5rem;
+  border-radius: 14px;
+  background: var(--surface-card, #1e1e2e);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.loading-label {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-color, #e0e0e0);
+  text-transform: uppercase;
+}
+
+.loader-fade-enter-active,
+.loader-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.loader-fade-enter-from,
+.loader-fade-leave-to {
+  opacity: 0;
 }
 
 </style>
