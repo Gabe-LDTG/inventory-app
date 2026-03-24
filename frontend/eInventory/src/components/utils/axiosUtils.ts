@@ -1012,23 +1012,43 @@ var action = {
      */
     async getPurchaseOrdersPage(
         page: number,
-        rowsPerPage: number,
+        rows_per_page: number,
         filter_field: string,
         filter_data: string,
         sort_field: string,
         sort_order: number
-    ){
-        let purchaseOrders: any[] = [];
+    ): Promise<{
+        total_count: number;
+        page: number;
+        rows_per_page: number;
+        purchase_orders: any[];
+        all_products: any[];
+        all_boxes: any[];
+        all_recipes: any[];
+        all_po_recipes: any[];
+        all_recipe_elements: any[];
+    }>{
+        let result = {
+            total_count: 0,
+            page,
+            rows_per_page: rows_per_page,
+            purchase_orders: [] as any[],
+            all_products: [] as any[],
+            all_boxes: [] as any[],
+            all_recipes: [] as any[],
+            all_po_recipes: [] as any[],
+            all_recipe_elements: [] as any[],
+        };
     
         // page is 1-based here; convert to 0-based indices
-        const from = (page - 1) * rowsPerPage;
-        const to   = from + rowsPerPage - 1;
+        const from = (page - 1) * rows_per_page;
+        const to   = from + rows_per_page - 1;
 
         try {
             
             const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
                 in_page: page, 
-                in_rows_per_page: rowsPerPage, 
+                in_rows_per_page: rows_per_page, 
                 in_filter_field: filter_field,
                 in_filter_data: filter_data,
                 in_sort_field: sort_field,
@@ -1036,10 +1056,10 @@ var action = {
             });
     
             if (error) {
-                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
+                console.error('Error calling RPC (getPurchaseOrdersDetails):', error);
             } else {
                 console.log('Purchase Orders page data:', data);
-                purchaseOrders = data ?? [];
+                result = data ?? result;
             }
         } catch (err) {
             console.error('Error in getPurchaseOrdersPage:', err);
@@ -1072,7 +1092,7 @@ var action = {
             console.error('Error in getPurchaseOrdersPage:', err);
         } */
     
-        return purchaseOrders;
+        return result;
     },
 
      /**

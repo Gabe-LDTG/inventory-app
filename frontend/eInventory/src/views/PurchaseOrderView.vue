@@ -1233,7 +1233,7 @@ export default {
             rowsPerPage: 25,
             totalRecords: 0,
             sortField: '',
-            sortOrder: 1,
+            sortOrder: -1,
 
         }
     },
@@ -1294,28 +1294,28 @@ export default {
                 this.loading = true;
                 // console.log("Search Text: ", this.searchText);
 
-                // Get total count (for paginator) and current page rows in parallel
-                const [data] = await Promise.all([
-                    action.getPurchaseOrdersPage(
-                        page,
-                        this.rowsPerPage,
-                        this.filterField || '',
-                        this.searchText || '',
-                        this.sortField || '',
-                        this.sortOrder
-                    )]);            
+                // Get total count (for paginator) and current page rows
+                const data = await action.getPurchaseOrdersPage(
+                    page,
+                    this.rowsPerPage,
+                    this.filterField || '',
+                    this.searchText || '',
+                    this.sortField || '',
+                    this.sortOrder
+                );            
 
                 this.totalRecords = data.total_count;
 
                 /**@TODO Potentially optimize this by only loading vendors relevant to the current page. Was deemed not yet necessary as of 3/5/2026 */
                 // Attach vendor_name etc. the same way you do in getProducts()
-                data.purchase_orders.forEach(p => {
-                    const vendor = this.vendors.find(v => p['vendor_id'] == v['vendor_id']);
+                data.purchase_orders.forEach((p: any) => {
+                    const vendor = this.vendors.find((v: any) => p['vendor_id'] == v['vendor_id']);
                     if (vendor) p['vendor_name'] = vendor['vendor_name'];
                 });
 
                 
-                this.products = await action.getProducts();
+                // this.products = await action.getProducts();
+                this.products = data.all_products;
 
                 this.purchaseOrders = data.purchase_orders;
                 this.currentPage = page;
@@ -1328,13 +1328,13 @@ export default {
                         po.date_received = po.date_received.split('T')[0];
                 });
                 
-                const poIds: number[] = this.purchaseOrders.map(po => po.purchase_order_id);
+                const poIds: number[] = this.purchaseOrders.map((po: any) => po.purchase_order_id);
                 
-                const pageRecipes = await action.getRecipesAndElementsForPOs(poIds);
-                this.displayRecipes = pageRecipes.recipes;
-                this.displayRecipeElements = pageRecipes.elements;
-                this.poRecipes = await action.getPurchaseOrderRecipesForPOPage(poIds);
-                this.uBoxes = await action.getUnprocCasesForPOPage(poIds);
+                // const pageRecipes = await action.getRecipesAndElementsForPOs(poIds);
+                this.displayRecipes = data.all_recipes;
+                this.displayRecipeElements = data.all_recipe_elements;
+                this.poRecipes = data.all_po_recipes;
+                this.uBoxes = data.all_boxes;
                 // this.pCases = await action.getProcrocCasesForPOPage(poIds); // Taking out for now because po_recipes fills the gap for this
                 // await action.getRecipesAndElementsForPOs(poIds);
 
