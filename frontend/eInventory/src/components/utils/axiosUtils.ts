@@ -40,6 +40,23 @@ var action = {
         return products;
     },
 
+    async getRawProductsForVendor(vendor_id: number){
+        let products = [] as any[];
+        console.log('Getting raw products for vendor with ID: ', vendor_id);
+        const {data, error} = await supabase
+            .from('products')
+            .select('*')
+            .eq('vendor_id', vendor_id)
+            .is('fnsku', null)
+            .is('asin', null);
+        if(error){
+            console.error('Error getting raw products for vendor:', error);
+        } else {
+            products = data;
+        }
+        return products;
+    },
+
     async getProductsForPOPage(po_id_array: number[]){
         let products = [] as any[];
         console.log('Getting products for PO page with PO IDs: ', po_id_array);
@@ -982,6 +999,41 @@ var action = {
         }
     },
 
+    async bulkEditCasesV2(c: {
+        case_id: number,
+        product_id: number,
+        units_per_case: number,
+        date_received: string | null,
+        notes: string | null,
+        location_id: number | null,
+        status: string | null,
+        purchase_order_id: number | null,
+        request_id: number | null
+    }[]){
+        console.log(c);
+        const {data, error} = await supabase.rpc('bulk_update_case_v2',{case_array: c})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
+    },
+
+
+    // @TODO Need to make a db function in supabse to edit multiple cases at the same time.
+    async editMultipleCases(c: any){
+        console.log(c);
+        const {data, error} = await supabase.rpc('',{record_array: c})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Box/Case updated: ', data);
+        }
+    },
+
+
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
     //Gets purchase orders
     async getPurchaseOrders(){
@@ -1370,6 +1422,7 @@ var action = {
     },
 
     async getRecipesAndElementsForVendors(vendorId: number){
+        console.log("Getting recipes and elements for vendor ID: ", vendorId);
         const {data, error} = await supabase.rpc('get_recipes_and_elements_for_vendors', {ven_id: vendorId});
         if(error){
             console.error('Error calling RPC:', error);

@@ -106,7 +106,7 @@
 
                 <Column header="Edit PO" :exportable="false">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit PO'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="editPurchaseOrder(slotProps.data)" />
+                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit PO'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="onPurchaseOrderDialogOpen(2, slotProps.data)" />
                     </template>
                 </Column>
 
@@ -272,26 +272,29 @@
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true">
-            <div class="field">
+        <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true" class="vendor-select-dialog">
+            <div class="field vendor-select-content">
+                <p class="vendor-select-subtitle">Choose the vendor for this purchase order.</p>
                 <AutoComplete 
                     v-model="purchaseOrder.vendor"
                     :suggestions="filteredVendors"
                     @complete="searchVendors"
-                    @item-select="onVendorAutoCompleteSelect(purchaseOrder.vendor)"
+                    @item-select="onVendorAutoCompleteSelect($event.value)"
                     :dropdown="true"
+                    @focus="searchVendors({ query: '' })"
+                    :showOnFocus="true"
                     :optionLabel="'vendor_name'"
                     placeholder="Select or enter a vendor"
-                    class="w-full md:w-14rem"
+                    class="vendor-select-autocomplete"
                     :class="{'p-invalid': vendorSubmitted == true && !purchaseOrder.vendor}"
                     :forceSelection="false"
                 />
-                <small class="p-error" v-if="vendorSubmitted == true && !purchaseOrder.vendor_id">Vendor is required.</small>
+                <small class="p-error" v-if="vendorSubmitted == true && !purchaseOrder.vendor">Vendor is required.</small>
 
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideVendorDialog()"/>
-                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
+                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; onPurchaseOrderDialogOpen(1);" />
             </template>
         </Dialog>
 
@@ -580,29 +583,25 @@
                         <div class="block-div">
                             <div class="field">
                                 <label for="name">Name:</label>
-                                <Dropdown v-model="poBox.product_id" required="true" 
-                                placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
-                                optionLabel="name"
-                                filter
-                                @change="poBox.units_per_case = onProductSelection(poBox.product_id); poBox.total = poBox.amount*poBox.units_per_case;"
-                                optionValue="product_id"
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !poBox.product_id}" 
-                                >
-
-                                <template #value="slotProps">
-                                        <div v-if="slotProps.value" class="flex align-items-center">
-                                            <div>{{ slotProps.value.product_id }}</div>
-                                        </div>
-                                        <span v-else>
-                                            {{ slotProps.placeholder }}
-                                        </span>
-                                    </template>
+                                    <AutoComplete 
+                                        v-model="poBox.productObj"
+                                        :suggestions="filteredRawProducts || []"
+                                        @complete="(event: any) => searchRawProducts(event)"
+                                        @item-select="onRawProductAutoCompleteSelectCreate($event.value, counter)"
+                                        :dropdown="true"
+                                        :optionLabel="(data) => data.name"
+                                        :virtualScrollerOptions="{ itemSize: 38 }"
+                                        placeholder="Select or enter a product"
+                                        class="md:w-19rem"
+                                        :class="{'p-invalid': submitted && !poBox.product_id}"
+                                        :forceSelection="false"
+                                    > 
                                     <template #option="slotProps">
                                         <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                                     </template>
-                                </Dropdown>
+                                </AutoComplete>
+
+
                                 <small class="p-error" v-if="submitted && !poBox.product_id">Name is required.</small>
                             </div>
 
@@ -674,7 +673,7 @@
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotalOLD() }}</div>
+                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check"  text @click="validate" />
@@ -736,27 +735,11 @@
             <DataTable v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field, index}">
-                        <!-- <Dropdown v-model="data.product_id" required="true" 
-                            placeholder="Select a Product" class="md:w-14rem" editable
-                            :options="selectVendorProducts(purchaseOrder.vendor_id, 'raw')"
-                            optionLabel="name"
-                            filter
-                            @change="data.units_per_case = onProductSelection(data.product_id); data.total = data.amount*data.units_per_case;"
-                            optionValue="product_id"
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            :class="{'p-invalid': submitted && !data.product_id}" 
-                        ></Dropdown> -->
-                        <!-- <ProductAutoComplete 
-                            v-model="data.productObj" 
-                            :displayValue="2" 
-                            :vendor_id="purchaseOrder.vendor_id"
-                            @update:modelValue="onRawProductAutoCompleteSelect"
-                        /> -->
                         <AutoComplete 
                                 v-model="data.productObj"
-                                :suggestions="filteredProducts || []"
-                                @complete="(event: any) => searchProducts(event)"
-                                @item-select="onRawProductAutoCompleteSelect(data.productObj, index)"
+                                :suggestions="filteredRawProducts || []"
+                                @complete="(event: any) => searchRawProducts(event)"
+                                @item-select="onRawProductAutoCompleteSelectEdit($event.value, data)"
                                 :dropdown="true"
                                 :optionLabel="(data) => data.name"
                                 :virtualScrollerOptions="{ itemSize: 38 }"
@@ -792,7 +775,11 @@
                         <InputNumber v-model="data[field]" @update:model-value="data.total = data.amount*data.units_per_case"/>
                     </template>
                 </Column>
-                <Column header="Units per Box" field="units_per_case"></Column>
+                <Column header="Units per Box" field="units_per_case">
+                    <template #editor="{data}">
+                        <span>{{ data.units_per_case ?? '—' }}</span>
+                    </template>
+                </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
                         <InputNumber v-model="data[field]" @update:model-value="data.amount = data.total/data.units_per_case"/>
@@ -802,8 +789,23 @@
                 <Column header="Status" field="status"></Column>
                 <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
-                    <template #body={data}>
-                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onRawProductCancel(data)"/>
+                    <template #body="{data}">
+                        <Button
+                            v-if="data.product_id"
+                            v-tooltip.top="'Cancel Product'"
+                            text
+                            icon="pi pi-ban"
+                            :disabled="Boolean(data?.d_editing) || isRawRowEditing(data)"
+                            @click="onRawProductCancel(data)"
+                        />
+                        <Button
+                            v-else
+                            v-tooltip.top="'Remove Unsaved Row'"
+                            text
+                            icon="pi pi-times"
+                            severity="secondary"
+                            @click="removeUnsavedRawRow(data)"
+                        />
                     </template>
                 </Column>
             </DataTable> 
@@ -879,7 +881,7 @@
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
                 <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                     <div>
-                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotalOLD() }}</div>
+                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                         <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                     </div>
                     
@@ -897,6 +899,21 @@
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="cancelOrderDialog = false"/>
                 <Button label="Yes" icon="pi pi-check" text @click="cancelOrder" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '480px'}" header="Confirm Product Cancellation" :modal="true">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                <span v-if="rawProductToCancel">
+                    Are you sure you want to cancel
+                    <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
+                    from this purchase order?
+                </span>
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
+                <Button label="Yes, Cancel Product" icon="pi pi-check" severity="danger" text @click="confirmRawProductCancel" />
             </template>
         </Dialog>
 
@@ -1160,6 +1177,8 @@ export default {
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
+            rawProductCancelDialog: false,
+            rawProductToCancel: null as any,
             editPurchaseOrderDialog: false,
             newPurchaseOrderProductDialog: false,
             editingRows: [] as any[],
@@ -1180,7 +1199,8 @@ export default {
             product: {} as any,
             selectedProducts: [] as any[],
             totalErrorMSG: "" as string,
-            filteredProducts: [] as any[],
+            // filteredProducts: [] as any[],
+            filteredRawProducts: [] as any[],
 
             // MISSING DEFAULT UNITS DIALOG
             missingDefaultUnitsDialog: false,
@@ -1234,6 +1254,7 @@ export default {
             tableZoom: 1,
             today: "",
             loading: false,
+            isInitializingPurchaseOrder: false,
             statuses: [
                 'Draft',
                 'Submitted',
@@ -1263,7 +1284,10 @@ export default {
     watch: {
         purchaseOrder: {
         deep: true,
-        handler() { this.lazySave(); }
+        handler() {
+            if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog) return;
+            this.lazySave();
+        }
         },
         searchText: {
             handler() { this.onSearchDebounced(); }
@@ -1423,8 +1447,12 @@ export default {
             }
         },
 
-        async getProductsForExistingPOs(){
-
+        async getRawProductsForVendor(){
+            try {
+                this.unprocProducts = await action.getRawProductsForVendor(this.purchaseOrder.vendor_id);
+            } catch (err) {
+                console.log(err);
+            }
         },
 
         async getBoxes(){
@@ -1593,7 +1621,8 @@ export default {
          */
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
-            // console.log("Product Key for ID ", productId, ": ", prodKey);
+            if (!prodKey) return null;
+            console.log("Product Key for ID ", productId, ": ", prodKey);
             // console.log("Value for field " + field + " for product " + prodKey.name + ":", prodKey[field]);
             return prodKey[field];
         },
@@ -1682,7 +1711,7 @@ export default {
          */
         getCreatedCostTotal(poID: number, poDiscount: number){
             let total = 0;
-            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID);
+            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Cost Total", usedBoxes);
             // console.log("Products List", this.products);
             usedBoxes.forEach(b => {
@@ -1710,7 +1739,7 @@ export default {
             let total = 0;
             // If editing an existing PO, sum from uBoxes
             if (this.purchaseOrder && this.purchaseOrder.purchase_order_id) {
-                (this.uBoxes || []).filter(box => box && box.purchase_order_id === this.purchaseOrder.purchase_order_id).forEach(b => {
+                (this.uBoxes || []).filter(box => box && box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status !== 'Cancelled').forEach(b => {
                     if (!b || b.product_id == null || b.units_per_case == null) return;
                     const unitCost = this.getUnitCost && typeof this.getUnitCost === 'function' ? this.getUnitCost(b.product_id) : 0;
                     if (unitCost == null) return;
@@ -1730,7 +1759,7 @@ export default {
                         total += this.getTotalCost(recEl, processedRecElKey, poRec.amount);
                     });
                 });
-                (this.poBoxes || []).forEach(b => {
+                (this.poBoxes || []).filter(b => b && b.status !== 'Cancelled').forEach(b => {
                     if (!b || b.product_id == null) return;
                     let totalUnitCost = 0;
                     if (this.selectedOrderType === 'By Box') {
@@ -1775,7 +1804,7 @@ export default {
             let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
             let boxesBeingUsed = [] as any[];
 
-            let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+            let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
             console.log("boxArray", boxArray);
             
             linkedPoRecipes.forEach(poRec => {
@@ -2018,8 +2047,9 @@ export default {
         //Date Last Edited: 7-5-2024
         async openNew() {
             try {
-                this.loading = true;
+                // this.loading = true;
                 this.vendorDialog = false;
+                this.vendorSubmitted = false;
                 this.poBoxes = [];
                 this.poCases = [];
                 this.recipeArray = [];
@@ -2030,7 +2060,7 @@ export default {
                     
                 } */
 
-                await this.getRecipes();
+                
 
                 const today = new Date();
                 const year = today.getFullYear().toString();
@@ -2085,20 +2115,76 @@ export default {
 
                 this.submitted = false;
                 this.purchaseOrderDialog = true;
-                this.loading = false;
+                // this.loading = false;
                 console.log("Purchase Order Dialog Opened, PO Object: ", this.purchaseOrder);
             } catch (error) {
                 console.error("Error occurred while opening new purchase order:", error);
             }
             
         },
+
+        /**
+         * @description Handles the opening of the purchase order dialog for both creating a new PO and editing an existing PO.
+         * Initializes necessary data such as raw products and recipes based on the vendor, and then opens the dialog with the appropriate state for either creating or editing.
+         * @param dialogType The type of dialog to open (1 for creating a new PO, 2 for editing an existing PO)
+         * @param purchaseOrder The purchase order object to edit (required if dialogType is 2)
+         * @author Gabe de la Torre-Garcia
+         * @dateCreated 3-25-2026
+         * @dateLastEdited 3-25-2026
+         */
+        async onPurchaseOrderDialogOpen(dialogType: number, purchaseOrder?: any){
+            try {
+                this.loading = true;
+                this.isInitializingPurchaseOrder = true;
+                console.log("Purchase Order Dialog opened with dialogType:", dialogType);
+
+                if (dialogType === 1) {
+                    console.log("Purchase Order Dialog opened from Create New PO flow");
+                    this.vendorSubmitted = true;
+
+                    if (!this.purchaseOrder.vendor_id) {
+                        this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
+                        return;
+                    }
+
+                    await this.getRawProductsForVendor();
+                    await this.getRecipes();
+                    await this.openNew();
+                } else if (dialogType === 2) {
+                    console.log("Purchase Order Dialog opened from Edit PO flow");
+                    console.log("Purchase Order to edit:", purchaseOrder);
+
+                    if (!purchaseOrder?.purchase_order_id) {
+                        console.warn("Edit PO flow was called without a valid purchase order.");
+                        return;
+                    }
+
+                    // Set the active PO first so vendor-scoped initialization uses the correct vendor.
+                    this.purchaseOrder = { ...purchaseOrder };
+
+                    await this.getRawProductsForVendor();
+                    await this.getRecipes();
+                    await this.editPurchaseOrder(purchaseOrder);
+                } else {
+                    console.log("Purchase Order Dialog opened with unknown dialogType:", dialogType);
+                }
+            } catch (error) {
+                console.error("Error occurred during Purchase Order Dialog initialization:", error);
+            } finally {
+                this.isInitializingPurchaseOrder = false;
+                this.loading = false;
+            }
+        },
+
+
         /**
          * Calculates the total units for the purchase order, with defensive checks for undefined/null values.
          * Filters out any undefined/null or incomplete objects in recipeArray and poBoxes.
          *
          * Fixes: TypeError: Cannot read properties of undefined (reading 'recipe_id')
+         * Commented out 3/25/2026
          */
-        calculatePoUnitTotal() {
+        /* calculatePoUnitTotal() {
             // Defensive: filter out undefined/null or incomplete objects
             console.log("Recipe Array: ", this.recipeArray);
             const validRecipeArray = (this.recipeArray || []).filter(r => r && typeof r === 'object' && r.recipe_id != null && r.amount != null);
@@ -2128,7 +2214,7 @@ export default {
             //     total += b.amount * b.units_per_case;
             // });
             return total;
-        },
+        }, */
 
         //Description: 
         //
@@ -2150,6 +2236,7 @@ export default {
                     name: '',
                     amount: 1,
                     default_units_per_case: 0,
+                    units_per_case: 0,
                     }
                 )
         },
@@ -2159,7 +2246,7 @@ export default {
         hideDialog() {
             this.submitted = false;
             this.purchaseOrder = {};
-            this.vendorSubmitted = false;
+            // this.vendorSubmitted = false;
             this.purchaseOrderDialog = false;
         },
 
@@ -2177,6 +2264,7 @@ export default {
         onVendorAutoCompleteSelect(vendorObj: any){
             console.log("Vendor AutoComplete Selection:", vendorObj);
             if (vendorObj && vendorObj.vendor_id) {
+                this.purchaseOrder.vendor = vendorObj;
                 this.purchaseOrder.vendor_id = vendorObj.vendor_id;
             }
         },
@@ -2190,26 +2278,34 @@ export default {
         },
 
         /**
-         * Description: When a user selects a product from the autocomplete, this function updates the current editing row with the product id, name, and default units per case.
-         * @param productObj 
-         * @TODO Figured out why the editing box is getting closed before the user clicks the check mark
+         * Writes a selected raw-product AutoComplete result onto any row object.
+         * Used by both the create and edit flows so assignment logic stays in one place.
+         * @param productObj The product selected from the AutoComplete suggestions
+         * @param rowData    The row object to populate (poBoxes[i] or the editing row)
          */
-        onRawProductAutoCompleteSelect(productObj: any, index: number){
-            console.log("Product AutoComplete Selection:", productObj);
-            console.log("Current editing rows before selection: ", JSON.stringify(this.rawEditingRows));
-            console.log("Index: ", index);
-            console.log("Raw Editing Row at index: ", JSON.stringify(this.rawEditingRows[index]));
-            
-            if (productObj && productObj.product_id) {
-                // Update the product_id in the current editing row
-                if (this.rawEditingRows[0]) {
-                    this.rawEditingRows[0].product_id = productObj.product_id;
-                    this.rawEditingRows[0].product_name = productObj.name;
-                    this.rawEditingRows[0].units_per_case = productObj.default_units_per_case || 1;
-                    this.rawEditingRows[0].total = this.rawEditingRows[0].amount * this.rawEditingRows[0].units_per_case;
-                }
-            }
-            console.log("Current editing rows after selection: ", JSON.stringify(this.rawEditingRows));
+        applyRawProductToRow(productObj: any, rowData: any){
+            if (!productObj?.product_id || !rowData) return;
+            rowData.productObj     = productObj;
+            rowData.product_id     = productObj.product_id;
+            rowData.product_name   = productObj.name;
+            rowData.units_per_case = productObj.default_units_per_case || 1;
+            rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
+            console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
+        },
+
+        onRawProductAutoCompleteSelectCreate(productObj: any, index: number){
+            console.log("Product AutoComplete Selection (create):", productObj, "index:", index);
+            this.applyRawProductToRow(productObj, this.poBoxes[index]);
+        },
+
+        /**
+         * Description: When a user selects a product from the autocomplete, this function updates the current editing row with the product id, name, and default units per case.
+         * @param productObj The product selected from the AutoComplete
+         * @param rowData    The PrimeVue DataTable editing-row data object
+         */
+        onRawProductAutoCompleteSelectEdit(productObj: any, rowData: any){
+            console.log("Product AutoComplete Selection (edit):", productObj);
+            this.applyRawProductToRow(productObj, rowData);
         },
 
         /**
@@ -2891,7 +2987,7 @@ export default {
          */
         async editPurchaseOrder(purchaseOrder: any) {
             try {
-                this.purchaseOrder = {...purchaseOrder};
+                // this.purchaseOrder = {...purchaseOrder};
                 this.poCases = [];
                 this.poBoxes = [];
                 this.reqPoBoxes = [];
@@ -2899,7 +2995,7 @@ export default {
                 this.boxesToDelete = [];
                 this.delivered = [];
                 this.singlePoRecipes = [];
-                await this.getRecipes();
+                // await this.getRecipes();
 
                 let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
                 let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
@@ -3178,7 +3274,7 @@ export default {
         //Date Last Edited: 5-28-2024
         getUnitCost(product_id: number){
             //RUNS TWICE FOR SOME REASON, ASK MICHAEL AT SOME POINT
-            //console.log("PRODUCT ID: ", product_id);
+            console.log("PRODUCT ID: ", product_id);
             let prod = this.products.find(p => product_id === p.product_id);
 
             //console.log(prod.price_2023);
@@ -3469,8 +3565,8 @@ export default {
         //
         //Created by: Gabe de la Torre
         //Date Created: 5-29-2024
-        //Date Last Edited: 7-08-2024
-        calculatePoUnitTotalOLD(){
+        //Date Last Edited: 3-25-2026
+        calculatePoUnitTotal(){
             let total=0;
 
             // console.log("PO Boxes",this.poBoxes)
@@ -3479,12 +3575,13 @@ export default {
             //If the PO is being edited
             if(this.purchaseOrder.purchase_order_id){
                 //console.log(this.uBoxes);
-                this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id).forEach(b => {
+                this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status !== 'Cancelled').forEach(b => {
                     total += (b.units_per_case)
                 });
             } //If the PO is being created
             else {
-                this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
+                // Edited out 3/25/2026
+                /* this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
                     //console.log(poRec);
 
                     let recipeKey = this.recipes.find(r => poRec.recipe_id === r.recipe_id);
@@ -3502,17 +3599,17 @@ export default {
                             total += this.getTotalUnitsOrdered(recEl, processedRecElKey, poRec.amount);
                         });
 
-                });
-                this.poBoxes.forEach(b => {
+                }); */
+                this.poBoxes.filter(b => b && b.status !== 'Cancelled').forEach(b => {
                     if(b.product_id){
-                        let totalUnitCost = 0;
+                        let totalUnits = 0;
                         if(this.selectedOrderType === 'By Box'){
-                            totalUnitCost = (b.units_per_case * b.amount)
+                            totalUnits = (b.units_per_case * b.amount)
                         }
                         else if(this.selectedOrderType === 'By Unit'){
-                            totalUnitCost = (Math.ceil(b.unitAmount/b.units_per_case)*b.units_per_case)
+                            totalUnits = (Math.ceil(b.unitAmount/b.units_per_case)*b.units_per_case)
                         }
-                        total += totalUnitCost;
+                        total += totalUnits;
                     }
                 });
             };
@@ -3901,6 +3998,34 @@ export default {
             console.log("INIT EVENT ", event);
 
         },
+
+        isRawRowEditing(raw_product: any){
+            if (!raw_product) return false;
+
+            if (Array.isArray(this.rawEditingRows)) {
+                return this.rawEditingRows.some((row: any) =>
+                    row === raw_product || row?.product_id === raw_product?.product_id
+                );
+            }
+
+            if (this.rawEditingRows && typeof this.rawEditingRows === 'object') {
+                const productId = raw_product?.product_id;
+                if (productId === null || productId === undefined) return false;
+                return Boolean((this.rawEditingRows as Record<string, any>)[productId]);
+            }
+
+            return false;
+        },
+
+        removeUnsavedRawRow(raw_product: any){
+            if (!raw_product || raw_product.product_id) return;
+
+            const index = this.poBoxes.findIndex((row: any) => row === raw_product);
+            if (index < 0) return;
+
+            this.poBoxes.splice(index, 1);
+        },
+
         /**
          * When the user saves a row while editing a purchase order, this function places the updated data into the 
          * poBox array. Then, checks to make sure that the updated unit amount is enough for the planned cases.
@@ -4099,9 +4224,34 @@ export default {
             this.poBoxes[index] = newData;
             this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
 
+            this.syncCurrentPurchaseOrderBoxViews();
             this.checkPoTotals();
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
-            this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+        },
+
+        /**
+         * Keeps all box-backed collections in sync after any edit/cancel/create operation.
+         * This prevents stale DataTable views that would otherwise only refresh on full page reload.
+         */
+        syncCurrentPurchaseOrderBoxViews(){
+            const currentPoId = this.purchaseOrder?.purchase_order_id;
+            if (!currentPoId) return;
+
+            // Reassign for Vue reactivity, then rebuild all current-PO views from the same source.
+            this.uBoxes = [...(this.uBoxes || [])];
+            const poAllBoxes = this.uBoxes.filter((box: any) => box.purchase_order_id === currentPoId);
+            this.purchaseOrder.individual_boxes = poAllBoxes;
+
+            const activePoBoxes = poAllBoxes.filter((box: any) => box.status !== 'Cancelled');
+            this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id']);
+
+            // Keep the paginated table row in sync too, when present.
+            const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === currentPoId);
+            if (poRowIdx > -1) {
+                const nextPo = { ...this.purchaseOrders[poRowIdx] };
+                nextPo.individual_boxes = [...poAllBoxes];
+                nextPo.grouped_boxes = [...this.poBoxes];
+                this.purchaseOrders.splice(poRowIdx, 1, nextPo);
+            }
         },
 
         /**
@@ -4246,15 +4396,146 @@ export default {
 
 
         onRawProductCancel(raw_product: any){
-            // console.log("raw_product: ", raw_product);
-            const index = this.poBoxes.findIndex(item => item.product_id === raw_product.product_id 
-                && item.status === raw_product.status
-                && item.units_per_case === raw_product.units_per_case
+            if (!raw_product) return;
+
+            // If the row is currently being edited, there is no persisted record to cancel yet.
+            if (this.isRawRowEditing(raw_product)) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Finish Editing First',
+                    detail: 'Save or cancel the row edit before canceling this product.',
+                    life: 3000
+                });
+                return;
+            }
+
+            const index = this.poBoxes.findIndex(item =>
+                item === raw_product ||
+                (item.product_id === raw_product.product_id &&
+                 item.purchase_order_id === raw_product.purchase_order_id &&
+                 item.units_per_case === raw_product.units_per_case)
             );
-            this.poBoxes[index].status = "Cancelled";
-            // console.log("Boxes after cancel: ", this.poBoxes);
-            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === raw_product.purchase_order_id && this.recipeElements.find(r => r.product_id === raw_product.product_id && r.type === 'input' && r.recipe_id === rec.recipe_id) !== undefined);
-            console.log("PO Recipe in cancel function: ", linkedPoRec);
+
+            if (index < 0 || !this.poBoxes[index]) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Unable to Cancel',
+                    detail: 'This product row could not be matched. Try saving the edit first.',
+                    life: 3000
+                });
+                return;
+            }
+
+            this.rawProductToCancel = this.poBoxes[index];
+            this.rawProductCancelDialog = true;
+        },
+
+        closeRawProductCancelDialog(){
+            this.rawProductCancelDialog = false;
+            this.rawProductToCancel = null;
+        },
+
+        async confirmRawProductCancel(){
+            if (!this.rawProductToCancel) {
+                this.closeRawProductCancelDialog();
+                return;
+            }
+
+            const target = this.rawProductToCancel;
+            const index = this.poBoxes.findIndex(item =>
+                item === target ||
+                (item.product_id === target.product_id &&
+                 item.purchase_order_id === target.purchase_order_id &&
+                 item.units_per_case === target.units_per_case)
+            );
+
+            if (index < 0 || !this.poBoxes[index]) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Unable to Cancel',
+                    detail: 'This product row could not be matched. It may have changed.',
+                    life: 3000
+                });
+                this.closeRawProductCancelDialog();
+                return;
+            }
+
+            try {
+                // Find the individual boxes that make up this poBox row
+                const individualBoxes: any[] = this.purchaseOrder.individual_boxes || [];
+                const matchingBoxes = individualBoxes
+                    .filter(b =>
+                        b.product_id === target.product_id &&
+                        b.units_per_case === target.units_per_case &&
+                        b.status !== 'Cancelled'
+                    )
+                    .slice(0, target.amount);
+
+                if (matchingBoxes.length === 0) {
+                    this.$toast.add({
+                        severity: 'warn',
+                        summary: 'No Boxes Found',
+                        detail: 'No matching individual boxes could be located for this product line.',
+                        life: 3000
+                    });
+                    this.closeRawProductCancelDialog();
+                    return;
+                }
+
+                // Build one key-value object per box for bulk_update_case_v2
+                const cancelPayload = matchingBoxes.map(b => ({
+                    case_id:            b.case_id,
+                    product_id:         b.product_id,
+                    units_per_case:     b.units_per_case,
+                    date_received:      b.date_received ?? null,
+                    notes:              b.notes ?? null,
+                    location_id:        b.location_id ?? null,
+                    status:             'Cancelled',
+                    purchase_order_id:  b.purchase_order_id,
+                    request_id:         b.request_id ?? null
+                }));
+
+                await action.bulkEditCasesV2(cancelPayload);
+
+                // Update local state to reflect the cancellation across all sources used by the UI
+                const cancelledCaseIds = new Set(matchingBoxes.map(b => b.case_id));
+
+                this.uBoxes = (this.uBoxes || []).map(box =>
+                    cancelledCaseIds.has(box.case_id)
+                        ? { ...box, status: 'Cancelled' }
+                        : box
+                );
+
+                this.syncCurrentPurchaseOrderBoxViews();
+                this.checkPoTotals();
+
+                let linkedPoRec = this.poRecipes.find(rec =>
+                    rec.purchase_order_id === target.purchase_order_id &&
+                    this.recipeElements.find(r =>
+                        r.product_id === target.product_id &&
+                        r.type === 'input' &&
+                        r.recipe_id === rec.recipe_id
+                    ) !== undefined
+                );
+                console.log("PO Recipe in cancel function: ", linkedPoRec);
+
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Product Cancelled',
+                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${matchingBoxes.length} box${matchingBoxes.length !== 1 ? 'es' : ''}).`,
+                    life: 2500
+                });
+            } catch (error) {
+                console.error("Error cancelling product: ", error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Cancellation Failed',
+                    detail: 'An error occurred while cancelling this product. Please try again.',
+                    life: 4000
+                });
+            }
+
+            this.closeRawProductCancelDialog();
         },
 
         onProcProductCancel(product_id: number){
@@ -4721,12 +5002,12 @@ export default {
         },
 
         searchVendors(event: any) {
-            console.log("Search Vendors Event: ", event);
+            // console.log("Search Vendors Event: ", event);
             const query = event.query ? event.query.toLowerCase() : '';
             this.filteredVendors = this.vendors.filter(v =>
                 v.vendor_name && v.vendor_name.toLowerCase().includes(query)
             );
-            console.log("Filtered Vendors after search: ", this.filteredVendors);
+            // console.log("Filtered Vendors after search: ", this.filteredVendors);
         },
 
         searchRecipes(event: any, counter: number) {
@@ -4746,20 +5027,20 @@ export default {
         },
 
         /**@TODO Finish the AutoComplete for boxes */
-        searchProducts(event: any) {
+        searchRawProducts(event: any) {
             console.log("Search Products Event: ", event);
             // console.log("Search Products Counter: ", counter);
-            console.log("Filtered Products: ", this.filteredProducts);
+            console.log("Filtered Products: ", this.filteredRawProducts);
             const query = event.query ? event.query.toLowerCase() : '';
             // const allProducts = this.products || [];
             // Ensure filteredProducts is an array of arrays, one per row
-            if (!Array.isArray(this.filteredProducts)) 
-                this.filteredProducts = [];
+            if (!Array.isArray(this.filteredRawProducts)) 
+                this.filteredRawProducts = [];
 
-            this.filteredProducts = this.unprocProducts.filter(p =>
+            this.filteredRawProducts = this.unprocProducts.filter(p =>
                 p.name && p.name.toLowerCase().includes(query)
             );
-            console.log("Filtered Products after search: ", this.filteredProducts);
+            console.log("Filtered Products after search: ", this.filteredRawProducts);
         },
 
         searchRecipesEdit(event: any) {
@@ -4889,6 +5170,34 @@ export default {
 .loader-fade-enter-from,
 .loader-fade-leave-to {
   opacity: 0;
+}
+
+.vendor-select-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.25rem;
+    text-align: center;
+}
+
+.vendor-select-subtitle {
+    margin: 0;
+    color: var(--text-color-secondary, #6b7280);
+    font-size: 0.95rem;
+}
+
+.vendor-select-autocomplete {
+    width: min(360px, 100%);
+}
+
+:deep(.vendor-select-autocomplete .p-inputtext) {
+    text-align: center;
+}
+
+:deep(.vendor-select-dialog .p-dialog-content) {
+    padding-top: 0.75rem;
 }
 
 </style>
