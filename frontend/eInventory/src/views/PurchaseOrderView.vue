@@ -55,8 +55,12 @@
 
                 <Column field="status" header="Status" sortable>
                     <template #body="slotProps">
-                        <div class="card flex flex-wrap  gap-2">
-                            <Tag :value="slotProps.data.status" :severity="getPOSeverity(slotProps.data)" :icon="getPOIcon(slotProps.data)" iconPos="right"/>
+                        <div class="po-status-pill" :class="`status-${(slotProps.data.status || '').toLowerCase().replace(/\s+/g, '-')}`">
+                            <div class="po-status-pill-fill" :style="{ width: getPOProgressPercent(slotProps.data.status) + '%' }"></div>
+                            <span class="po-status-pill-text">
+                                <i :class="getPOIcon(slotProps.data)"></i>
+                                {{ slotProps.data.status }}
+                            </span>
                         </div>
                     </template>
                 </Column>
@@ -81,7 +85,7 @@
 
                 <Column header="Discount">
                     <template #body="{data}">
-                        {{ data.discount ? data.discount + '%' : '0%' }}
+                        {{ data.discount ? data.discount + '% Off' : 'No Discount' }}
                     </template>
                 </Column>
 
@@ -3633,6 +3637,20 @@ export default {
             return total;
         },
 
+        getPOProgressPercent(status: string): number {
+            const progressMap: Record<string, number> = {
+                'Draft': 10,
+                'Submitted': 25,
+                'Ordered': 50,
+                'Inbound': 70,
+                'Partially Delivered': 85,
+                'Delivered': 100,
+                'Canceled': 100,
+            };
+
+            return progressMap[status] ?? 0;
+        },
+
         disablePoPhase(poStatus: string){
 
         },
@@ -5212,6 +5230,119 @@ export default {
 
 :deep(.vendor-select-dialog .p-dialog-content) {
     padding-top: 0.75rem;
+}
+
+.card {
+    border: 1px solid var(--surface-border, #d4d8dd);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+    box-shadow: 0 12px 28px rgba(8, 25, 45, 0.08);
+    overflow: hidden;
+}
+
+:deep(.card .p-toolbar) {
+    border: 0;
+    border-bottom: 1px solid var(--surface-border, #d4d8dd);
+    background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
+    padding: 0.9rem 1.1rem;
+}
+
+:deep(.card .p-datatable) {
+    border: 0;
+}
+
+:deep(.card .p-datatable .p-datatable-header) {
+    border: 0;
+    border-bottom: 1px solid var(--surface-border, #d4d8dd);
+    background: #fcfdff;
+    padding: 0.85rem 1rem;
+}
+
+:deep(.card .p-datatable .p-datatable-thead > tr > th) {
+    background: #f3f7fb;
+    color: #24384c;
+    font-weight: 700;
+    border-color: #dce3ea;
+    padding: 0.8rem 0.65rem;
+}
+
+:deep(.card .p-datatable .p-datatable-tbody > tr > td) {
+    border-color: #e7edf3;
+    padding: 0.75rem 0.65rem;
+}
+
+:deep(.card .p-datatable .p-datatable-tbody > tr:hover) {
+    background: #f6fbff;
+}
+
+:deep(.card .p-datatable .p-paginator) {
+    border: 0;
+    border-top: 1px solid var(--surface-border, #d4d8dd);
+    background: #fbfdff;
+    padding: 0.65rem 0.9rem;
+}
+
+:deep(.card .p-tag) {
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.25rem 0.6rem;
+}
+
+.po-status-pill {
+    position: relative;
+    width: 190px;
+    min-height: 30px;
+    border-radius: 999px;
+    border: 1px solid #c9d5e3;
+    background: #eef3f8;
+    overflow: hidden;
+}
+
+.po-status-pill-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(90deg, #6c93bd 0%, #4f7eaf 100%);
+    transition: width 220ms ease;
+}
+
+.po-status-pill-text {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.75rem;
+    font-weight: 700;
+    color: #12304f;
+    white-space: nowrap;
+}
+
+.po-status-pill.status-delivered .po-status-pill-fill {
+    background: linear-gradient(90deg, #2f9e63 0%, #46c07f 100%);
+}
+
+.po-status-pill.status-canceled .po-status-pill-fill {
+    background: linear-gradient(90deg, #9aa6b2 0%, #7f8b97 100%);
+}
+
+@media (max-width: 768px) {
+    .card {
+        border-radius: 12px;
+    }
+
+    :deep(.card .p-toolbar) {
+        padding: 0.75rem;
+    }
+
+    :deep(.card .p-datatable .p-datatable-header) {
+        padding: 0.7rem;
+    }
 }
 
 </style>
