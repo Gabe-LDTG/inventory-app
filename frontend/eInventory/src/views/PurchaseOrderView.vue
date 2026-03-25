@@ -79,6 +79,12 @@
                     </template>
                 </Column>
 
+                <Column header="Discount">
+                    <template #body="{data}">
+                        {{ data.discount ? data.discount + '%' : '0%' }}
+                    </template>
+                </Column>
+
                 <Column header="Total Cost">
                     <template #body="{data}">
                         {{ formatCurrency(getCreatedCostTotal(data.purchase_order_id, data.discount)) }}
@@ -168,7 +174,7 @@
                                         </Column> -->
                                         <Column header="Total Price" class="font-bold">
                                             <template #body = {data}>
-                                                {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount))}}
+                                                {{formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)*(1-(getPurchaseOrderDiscount(data.purchase_order_id)))) }}
                                             </template>
                                         </Column>
                                         <Column header="Status" sortable>
@@ -204,7 +210,7 @@
                                 </Column>
                                 <Column header="Total Price" class="font-bold">
                                     <template #body = {data}>
-                                        {{formatCurrency(getUnitCost(data.product_id)*(data.totalUnits))}}
+                                        {{formatCurrency(getUnitCost(data.product_id)*(data.totalUnits)*(1-(getPurchaseOrderDiscount(data.purchase_order_id))))}}
                                     </template>
                                 </Column>
                                 <!-- <Column header="Status" sortable>
@@ -254,7 +260,7 @@
                                 </Column>
                                 <Column header="Total Price" class="font-bold" > <!-- Fix sort -->
                                     <template #body="{data}">
-                                        {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)) }}
+                                        {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)*(1-(getPurchaseOrderDiscount(data.purchase_order_id)))) }}
                                     </template>
                                 </Column >
                                 <Column field="notes" header="Notes" class="font-bold"></Column>
@@ -3266,6 +3272,14 @@ export default {
         console.log("returnArray", returnArray);
 
         return this.groupProducts(returnArray);
+        },
+
+        getPurchaseOrderDiscount(purchase_order_id: number){
+            let discount = 0;
+            let po = this.purchaseOrders.find(po => po.purchase_order_id === purchase_order_id);
+                if(po.discount)
+                    discount = po.discount/100;
+            return discount;
         },
 
         //Description: Gets the unit cost for a specific product
