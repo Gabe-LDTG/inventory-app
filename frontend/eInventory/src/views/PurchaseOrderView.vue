@@ -7,7 +7,7 @@
                     <Button label="New PO" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
                  </template>
 
-            </Toolbar>
+            </Toolbar> 
 
             <!-- :rowStyle="rowStyle" -->
             <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
