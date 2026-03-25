@@ -209,14 +209,14 @@ async function loadPage(page: number) {
         loading.value = true;
 
         // Get total count (for paginator) and current page rows in parallel
-        const [total, rows] = await Promise.all([
+        /* const [total, rows] = await Promise.all([
             action.getPurchaseOrdersCount(searchText.value || ''),
             action.getPurchaseOrdersPage(
                 page,
                 rowsPerPage.value,
                 searchText.value || ''
             )
-        ]);
+        ]); */
 
         const test = await action.getPurchaseOrdersPageV2(
             page,
@@ -226,17 +226,17 @@ async function loadPage(page: number) {
 
         console.log("TESTING PAGINATION V2: ", test);
 
-        totalRecords.value = total;
+        // totalRecords.value = total;
 
         /**@TODO Potentially optimize this by only loading vendors relevant to the current page. Was deemed not yet necessary as of 3/5/2026 */
         // Attach vendor_name etc. the same way you do in getProducts()
-        rows.forEach(p => {
+        /* rows.forEach(p => {
             const vendor = vendors.value.find(v => p['vendor_id'] == v['vendor_id']);
             if (vendor) p['vendor_name'] = vendor['vendor_name'];
         });
 
         purchaseOrders.value = rows;
-        currentPage.value = page;
+        currentPage.value = page; */
         
 
         purchaseOrders.value.forEach(po => {
