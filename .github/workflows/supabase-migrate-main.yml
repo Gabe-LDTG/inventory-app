@@ -1,0 +1,44 @@
+name: Supabase Migrate Main
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-migrate-main.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrate-main
+  cancel-in-progress: false
+
+jobs:
+  migrate-main:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL_MAIN: ${{ secrets.SUPABASE_DB_URL_MAIN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate main DB URL secret
+        run: |
+          if [ -z "$SUPABASE_DB_URL_MAIN" ]; then
+            echo "SUPABASE_DB_URL_MAIN is not set."
+            exit 1
+          fi
+
+      - name: Dry run migrations against main
+        run: supabase db push --dry-run --db-url "$SUPABASE_DB_URL_MAIN"
+
+      - name: Apply migrations to main
+        run: supabase db push --db-url "$SUPABASE_DB_URL_MAIN"
