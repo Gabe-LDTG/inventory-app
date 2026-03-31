@@ -1,4 +1,4 @@
-﻿SET check_function_bodies = false;
+SET check_function_bodies = false;
 ALTER TYPE public.case_with_product_name ADD ATTRIBUTE recipe_id bigint;
 ALTER TYPE public.case_with_product_name DROP ATTRIBUTE request_id;
 CREATE OR REPLACE FUNCTION public._get_purchase_order_ids_helper(in_page integer, in_rows_per_page integer, in_filter_field text, in_filter_data text, in_sort_field text, in_sort_order integer)

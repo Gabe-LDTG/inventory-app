@@ -2,16 +2,16 @@
     <div>
         <div class="card">
             <Toast />
-            <Toolbar class="mb-4">
+            <Toolbar class="mb-4 pl-toolbar">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
+                    <Button label="New" icon="pi pi-plus" class="mr-2 pl-action-btn pl-action-btn--primary" @click="openNew" />
+                    <Button label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
                 </template>
 
                 <template #end>
-                    <Button label="Processed" severity="success" @click="displayType = 'proc'; toggleProducts(displayType)" />
-                    <Button label="All" severity="help" @click="displayType = 'all'; toggleProducts(displayType)" />
-                    <Button label="Unprocessed" severity="info" @click="displayType = 'unproc'; toggleProducts(displayType)" />
+                    <Button label="Processed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--processed', { 'is-active': displayType === 'proc' }]" @click="toggleProducts('proc')" />
+                    <Button label="All" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--all', { 'is-active': displayType === 'all' || !displayType }]" @click="toggleProducts('all')" />
+                    <Button label="Unprocessed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--unprocessed', { 'is-active': displayType === 'unproc' }]" @click="toggleProducts('unproc')" />
                 </template>
 
                 <!-- <template #end>
@@ -21,6 +21,15 @@
             </Toolbar>
 
             <!-- :rowStyle="rowStyle" -->
+            <div class="dt-loading-wrapper">
+            <Transition name="loader-fade">
+                <div v-if="tableLoading" class="dt-loading-overlay">
+                    <div class="loading-card">
+                        <ProgressSpinner style="width: 48px; height: 48px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
+                        <span class="loading-label">Loading&hellip;</span>
+                    </div>
+                </div>
+            </Transition>
             <!-- <DataTable ref="dt" :value="displayProducts" v-model:selection="selectedProducts" dataKey="product_id"
                 :paginator="false" :rows="10" :filters="filters"
                 :selectAll="false"
@@ -49,7 +58,7 @@
                     scrollHeight="800px"
                     stripedRows
                     columnResizeMode="fit"
-                    :loading="loading"
+                    :loading="tableLoading"
                     :rowStyle="rowStyleProductRow"
                     :expandedRows="expandedRows"
                     @rowToggle="onRowToggle"
@@ -133,276 +142,307 @@
                 <Column field="notes" header="Notes" sortable :style="{ width: '10%' }"></Column>
                 <Column :exportable="false" :style="{ width: '10%' }">
                     <template #body="slotProps">
-                        <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2" style="color: blue;" @click="displayProductInfo(slotProps.data)"/> 
-                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
-                        <Button icon="pi pi-trash" v-tooltip.top="'Delete Product'" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--info" @click="displayProductInfo(slotProps.data)"/>
+                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--edit" @click="editProduct(slotProps.data)" />
+                        <Button icon="pi pi-trash" v-tooltip.top="'Delete Product'" outlined rounded class="pl-icon-btn pl-icon-btn--danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
                 </Column>
             </DataTable>
+            </div>
         </div>
 
-        <Dialog v-model:visible="productDialog" :style="{width: '450px'}" :header="getProductDialogName()" :modal="true" class="p-fluid">
-            <div class="field">
-                <label for="vendor">Vendor</label>
-                <!-- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> -->
-                <Dropdown v-model="product.vendor_id"
-                placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                :options="vendors"
-                filter
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="vendor_name"
-                optionValue="vendor_id" />
-                <small class="p-error" v-if="submitted && !product.vendor_id">Vendor is required.</small>
-            </div>
-       
-            <div class="field" v-if="!product.product_id">
-                <label for="name">Name</label>
-                <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
-                <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
-            </div>
-
-            <div class="field">
-                <label for="default_units_per_case">Default Units per Case</label>
-                <InputText v-model="product.default_units_per_case" />
-            </div>
-
-            <div class="field">
-                <label for="asin">ASIN</label>
-                <InputText id="asin" v-model="product.asin"/>
-            </div>
-
-            <div class="field">
-                <label for="fnsku">FNSKU</label>
-                <InputText id="fnsku" v-model="product.fnsku" />
-                <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
-            </div>
-
-            <div class="field">
-                <label for="upc">UPC</label>
-                <InputText id="upc" v-model="product.upc"/>
-            </div>
-            
-            <div class="field">
-                <label for="item_num">Item Number</label>
-                <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
-            </div>
-
-            <div class="field">
-                <label for="price_2023">Current Unit Price</label>
-                <InputNumber v-model="product.price_2023" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="notes">Notes</label>
-                <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
-            </div>
-
-            <div class="field">
-                <label for="30_day_storage_cost">30 Day Storage Cost</label>
-                <InputNumber v-model="product['30_day_storage_cost']" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="amz_fees_cost">Amz Fees Cost</label>
-                <InputNumber v-model="product.amz_fees_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="amz_fulfilment_cost">Amz Fulfilment Cost</label>
-                <InputNumber v-model="product.amz_fulfilment_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <!-- MAKE DROPDOWN -->
-            <div class="field">
-                <label for="bag_size">Bag Size</label>
-                <!-- <InputText id="bag_size" v-model="product.bag_size" rows="3" cols="20" /> -->
-                <Dropdown v-model="product.bag_size"
-                placeholder="Select a Bag Size" class="w-full md:w-14rem" 
-                :options="bags"
-                @change="updateBagCost"
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="size"
-                optionValue="size" />
-            </div>
-
-            <div class="field">
-                <label for="bag_cost">Bag Cost</label>
-                <InputNumber v-model="product.bag_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="box_type">Box Type</label>
-                <!-- <InputText id="box_type" v-model="product.box_type" rows="3" cols="20" /> -->
-                <Dropdown v-model="product.box_type"
-                placeholder="Select a Bag Size" class="w-full md:w-14rem" 
-                :options="boxes"
-                @change="updateBoxCost"
-                :virtualScrollerOptions="{ itemSize: 38 }"
-                optionLabel="size"
-                optionValue="size" />
-            </div>
-
-            <div class="field">
-                <label for="box_cost">Box Cost</label>
-                <InputNumber v-model="product.box_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>            
-
-            <div class="field">
-                <label for="date_added">Date Added</label>
-                <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
-            </div>
-
-            <div class="field">
-                <label for="do_we_carry">Do We Carry?</label>
-                <Dropdown v-model="product.do_we_carry"
-                placeholder="Do We Carry?" class="w-full md:w-14rem" editable
-                :options="binary"/>
-            </div>
-
-            <div class="field">
-                <label for="holiday_storage_cost">Holiday Storage Cost</label>
-                <InputNumber v-model="product.holiday_storage_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="in_shipping_cost">In-shipping Cost</label>
-                <InputNumber v-model="product.in_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="item_cost">Item Cost</label>
-                <InputNumber v-model="product.item_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="labor_cost">Labor Cost</label>
-                <InputNumber v-model="product.labor_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="map">Map</label>
-                <InputNumber v-model="product.labor_cost" inputId="minmaxfraction" :minFractionDigits="2" />
-            </div>
-
-            <div class="field">
-                <label for="meltable">Meltable</label>
-                <Dropdown v-model="product.meltable"
-                placeholder="Meltable?" class="w-full md:w-14rem" editable
-                :options="binary"/>
-            </div>
-
-            <div class="field">
-                <label for="misc_cost">Misc Cost</label>
-                <InputNumber v-model="product.misc_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="out_shipping_cost">Out-shipping Cost</label>
-                <InputNumber v-model="product.out_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <!-- MAKE THE YEARLY PRICES A TABLE AT SOME POINT -->
-            <div class="field">
-                <label for="price_2021">Price 2021</label>
-                <InputNumber v-model="product.price_2021" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="price_2022">Price 2022</label>
-                <InputNumber v-model="product.price_2022" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
-                <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
-            </div>
-            
-            <div class="field">
-                <label for="total_cost">Total Cost</label>
-                <InputNumber v-model="product.total_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-            
-            <div class="field">
-                <label for="total_holiday_cost">Total Holiday Cost</label>
-                <InputNumber v-model="product.total_holiday_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
-            </div>
-
-            <div class="field">
-                <div v-if="product.fnsku || product.asin">
-                <label for="weight_lbs">Weight per Case (lbs)</label>
-                <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
-                </div>
-                <div v-else>
-                    <label for="weight_lbs">Weight per Box (lbs)</label>
-                    <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
-                </div>
-            </div>
-
-            <div class="field" v-if="product.fnsku || product.asin">
-                <label>Product(s) Needed</label>
-                <template class="caseCard" v-for="(ing, counter) in recipesInUse">
-
-                    <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
-
-                        <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
-                        <div class="block-div">
-                            <div class="field">
-                                <label for="name">Product Needed:</label>
-                                <Dropdown v-model="ing.product_id" required="true" 
-                                placeholder="Select a Product" class="md:w-14rem" editable
-                                :options="unprocessedProducts"
-                                optionLabel="name"
-                                filter
-                                optionValue="product_id"
-                                :virtualScrollerOptions="{ itemSize: 38 }"
-                                :class="{'p-invalid': submitted && !ing.product_id}" 
-                                >
-
-                                <template #value="slotProps">
-                                        <div v-if="slotProps.value" class="flex align-items-center">
-                                            <div>{{ slotProps.value.product_id }}</div>
-                                        </div>
-                                        <span v-else>
-                                            {{ slotProps.placeholder }}
-                                        </span>
-                                    </template>
-                                    <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
-                                    </template>
-                                </Dropdown>
-                                <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
-                            </div>
-
-                            <div class="field">
-                                <label for="qty">QTY:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !ing.qty}"
-                                v-model="ing.qty" showButtons/>
-                                <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
-                            </div>
-
+        <Dialog v-model:visible="productDialog" :style="{ width: '980px', maxWidth: '95vw' }" :header="getProductDialogName()" :modal="true" class="p-fluid pl-product-dialog">
+            <div class="pl-dialog-layout">
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Core Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="vendor">Vendor</label>
+                            <Dropdown v-model="product.vendor_id"
+                            placeholder="Select a Vendor" class="w-full md:w-14rem" editable
+                            :options="vendors"
+                            filter
+                            :virtualScrollerOptions="{ itemSize: 38 }"
+                            optionLabel="vendor_name"
+                            optionValue="vendor_id" />
+                            <small class="p-error" v-if="submitted && !product.vendor_id">Vendor is required.</small>
                         </div>
 
-                    </div>
-                </template>
+                        <div class="field" v-if="!product.product_id">
+                            <label for="name">Name</label>
+                            <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
+                            <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
+                        </div>
 
-                <Button label="Add another product" text @click="addIngredient"/>
+                        <div class="field">
+                            <label for="notes">Notes</label>
+                            <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
+                        </div>
+
+                        <div class="field">
+                            <label for="date_added">Date Added</label>
+                            <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="do_we_carry">Do We Carry?</label>
+                            <Dropdown v-model="product.do_we_carry"
+                            placeholder="Do We Carry?" class="w-full md:w-14rem" editable
+                            :options="binary"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="meltable">Meltable</label>
+                            <Dropdown v-model="product.meltable"
+                            placeholder="Meltable?" class="w-full md:w-14rem" editable
+                            :options="binary"/>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Identifiers</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="asin">ASIN</label>
+                            <InputText id="asin" v-model="product.asin"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="fnsku">FNSKU</label>
+                            <InputText id="fnsku" v-model="product.fnsku" />
+                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
+                        </div>
+
+                        <div class="field">
+                            <label for="upc">UPC</label>
+                            <InputText id="upc" v-model="product.upc"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="item_num">Item Number</label>
+                            <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Packaging And Size</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="default_units_per_case">Default Units per Case</label>
+                            <InputText v-model="product.default_units_per_case" />
+                        </div>
+
+                        <div class="field">
+                            <label for="bag_size">Bag Size</label>
+                            <Dropdown v-model="product.bag_size"
+                            placeholder="Select a Bag Size" class="w-full md:w-14rem"
+                            :options="bags"
+                            @change="updateBagCost"
+                            :virtualScrollerOptions="{ itemSize: 38 }"
+                            optionLabel="size"
+                            optionValue="size" />
+                        </div>
+
+                        <div class="field">
+                            <label for="bag_cost">Bag Cost</label>
+                            <InputNumber v-model="product.bag_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="box_type">Box Type</label>
+                            <Dropdown v-model="product.box_type"
+                            placeholder="Select a Bag Size" class="w-full md:w-14rem"
+                            :options="boxes"
+                            @change="updateBoxCost"
+                            :virtualScrollerOptions="{ itemSize: 38 }"
+                            optionLabel="size"
+                            optionValue="size" />
+                        </div>
+
+                        <div class="field">
+                            <label for="box_cost">Box Cost</label>
+                            <InputNumber v-model="product.box_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <div v-if="product.fnsku || product.asin">
+                                <label for="weight_lbs">Weight per Case (lbs)</label>
+                                <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+                            </div>
+                            <div v-else>
+                                <label for="weight_lbs">Weight per Box (lbs)</label>
+                                <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Pricing And Costs</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="price_2023">Current Unit Price</label>
+                            <InputNumber v-model="product.price_2023" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="price_2022">Price 2022</label>
+                            <InputNumber v-model="product.price_2022" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="price_2021">Price 2021</label>
+                            <InputNumber v-model="product.price_2021" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="item_cost">Item Cost</label>
+                            <InputNumber v-model="product.item_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="in_shipping_cost">In-shipping Cost</label>
+                            <InputNumber v-model="product.in_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="out_shipping_cost">Out-shipping Cost</label>
+                            <InputNumber v-model="product.out_shipping_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="30_day_storage_cost">30 Day Storage Cost</label>
+                            <InputNumber v-model="product['30_day_storage_cost']" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="holiday_storage_cost">Holiday Storage Cost</label>
+                            <InputNumber v-model="product.holiday_storage_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="amz_fees_cost">Amz Fees Cost</label>
+                            <InputNumber v-model="product.amz_fees_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="amz_fulfilment_cost">Amz Fulfilment Cost</label>
+                            <InputNumber v-model="product.amz_fulfilment_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="labor_cost">Labor Cost</label>
+                            <InputNumber v-model="product.labor_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="misc_cost">Misc Cost</label>
+                            <InputNumber v-model="product.misc_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="map">Map</label>
+                            <InputNumber v-model="product.labor_cost" inputId="minmaxfraction" :minFractionDigits="2" />
+                        </div>
+
+                        <div class="field">
+                            <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
+                            <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
+                        </div>
+
+                        <div class="field">
+                            <label for="total_cost">Total Cost</label>
+                            <InputNumber v-model="product.total_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+
+                        <div class="field">
+                            <label for="total_holiday_cost">Total Holiday Cost</label>
+                            <InputNumber v-model="product.total_holiday_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pl-dialog-section" v-if="product.fnsku || product.asin">
+                    <h4 class="pl-dialog-section-title">Processed Product Recipe</h4>
+                    <div class="field">
+                        <label>Product(s) Needed</label>
+                        <template class="caseCard" v-for="(ing, counter) in recipesInUse">
+
+                            <div class ="caseCard">
+                                <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
+
+                                <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
+                                <div class="block-div">
+                                    <div class="field">
+                                        <label for="name">Product Needed:</label>
+                                        <Dropdown v-model="ing.product_id" required="true"
+                                        placeholder="Select a Product" class="md:w-14rem" editable
+                                        :options="unprocessedProducts"
+                                        optionLabel="name"
+                                        filter
+                                        optionValue="product_id"
+                                        :virtualScrollerOptions="{ itemSize: 38 }"
+                                        :class="{'p-invalid': submitted && !ing.product_id}"
+                                        >
+
+                                        <template #value="slotProps">
+                                                <div v-if="slotProps.value" class="flex align-items-center">
+                                                    <div>{{ slotProps.value.product_id }}</div>
+                                                </div>
+                                                <span v-else>
+                                                    {{ slotProps.placeholder }}
+                                                </span>
+                                            </template>
+                                            <template #option="slotProps">
+                                                <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
+                                            </template>
+                                        </Dropdown>
+                                        <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
+                                    </div>
+
+                                    <div class="field">
+                                        <label for="qty">QTY:</label>
+                                        <InputNumber inputId="stacked-buttons" required="true"
+                                        :class="{'p-invalid': submitted && !ing.qty}"
+                                        v-model="ing.qty" showButtons/>
+                                        <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </template>
+
+                        <Button label="Add another product" class="pl-action-btn pl-action-btn--secondary" @click="addIngredient"/>
+                    </div>
+                </section>
             </div>
 
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" text @click="validate" />
+                <Button label="Cancel" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="hideDialog"/>
+                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" />
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="productInfoDialog" :header="product.Name+' Details'" :modal="true">
-            <Button label="Toggle Filter" @click="toggleFilter()"/>
-            
-            <div v-for="(item, index) in product">
-                <label>{{ index }}: </label><br>
-                {{ item }} <br><br>
+        <Dialog v-model:visible="productInfoDialog" :style="{ width: '900px', maxWidth: '95vw' }" :header="product.Name+' Details'" :modal="true" class="pl-product-info-dialog">
+            <div class="pl-product-info-toolbar">
+                <Button label="Toggle Filter" class="pl-action-btn pl-action-btn--secondary" @click="toggleFilter()"/>
             </div>
+
+            <div class="pl-product-info-sections" v-if="getProductInfoSections().length">
+                <section class="pl-dialog-section" v-for="section in getProductInfoSections()" :key="section.title">
+                    <h4 class="pl-dialog-section-title">{{ section.title }}</h4>
+                    <div class="pl-product-info-grid">
+                        <div class="pl-product-info-item" v-for="item in section.items" :key="item.label">
+                            <span class="pl-product-info-label">{{ item.label }}</span>
+                            <span class="pl-product-info-value">{{ item.value }}</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <p v-else class="pl-empty-state">No details available.</p>
         </Dialog>
 
         <Dialog v-model:visible="deleteProductDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
@@ -411,8 +451,8 @@
                 <span v-if="product">Are you sure you want to delete <b>{{product.name}}</b>?</span>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deleteProductDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" text @click="deleteProduct" />
+                <Button label="No" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="deleteProductDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteProduct" />
             </template>
         </Dialog>
 
@@ -422,8 +462,8 @@
                 <span v-if="product">Are you sure you want to delete the selected product(s)?</span>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deleteProductsDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedProducts" />
+                <Button label="No" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="deleteProductsDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteSelectedProducts" />
             </template>
         </Dialog>
 
@@ -561,6 +601,7 @@ export default {
             working: false,
 
             loading: false,
+            tableLoading: false,
 
             expandedRows: [],
         }
@@ -608,14 +649,17 @@ export default {
         // debounced search -> call loadPage(1) after user stops typing (300ms)
         this.onSearchDebounced = debounce(async () => {
             this.currentPage = 1;
+            this.tableLoading = true;
             await this.loadPage(1);
         }, 300, { trailing: true }) as (() => Promise<void>);
     },
 
-    mounted() {
+    async mounted() {
         console.log('Mounted');
-        this.initVariables();      // loads vendors/products/recipes you already use
-        this.loadPage(1);          // load first page for the table
+        this.tableLoading = true;
+        await this.initVariables();      // loads vendors/products/recipes you already use
+
+        await this.loadPage(1);          // load first page for the table
     },
      
     watch: {
@@ -676,7 +720,7 @@ export default {
 
         async loadPage(page: number) {
             try {
-                this.loading = true;
+                this.tableLoading = true;
 
                 // Map your displayType to the processed flag used by the backend
                 const processedFlag =
@@ -728,7 +772,7 @@ export default {
             } catch (e) {
                 console.log(e);
             } finally {
-                this.loading = false;
+                this.tableLoading = false;
             }
         },
 
@@ -1303,6 +1347,81 @@ export default {
 
         },
 
+        getProductInfoSections(){
+            const productMap = (this.product && typeof this.product === 'object') ? this.product : {};
+            const sectionConfig = [
+                {
+                    title: 'Core Details',
+                    keys: ['Name', 'Vendor', 'Date Added', 'Do We Carry?', 'Meltable?', 'Notes']
+                },
+                {
+                    title: 'Packaging And Size',
+                    keys: ['Default Units per Case', 'Bag Size', 'Bag Cost', 'Box Type', 'Box Cost', 'Weight (Lbs)']
+                },
+                {
+                    title: 'Pricing And Costs',
+                    keys: [
+                        'Current Unit Price',
+                        'Price 2022',
+                        'Price 2021',
+                        'Item Cost',
+                        'In-shipping Cost',
+                        'Out-shipping Cost',
+                        '30 Day Storage Cost',
+                        'Holiday Storage Cost',
+                        'Amz Fees Cost',
+                        'Amz Fulfilment Cost',
+                        'Labor Cost',
+                        'Misc Cost',
+                        'Map',
+                        'Process Time per Unit Sec',
+                        'Total Cost',
+                        'Total Holiday Cost'
+                    ]
+                },
+                {
+                    title: 'Identifiers',
+                    keys: ['ASIN', 'FNSKU', 'UPC', 'Item Number', 'Item Number #1', 'Item Number #2', 'Item Number #3', 'Item Number #4', 'Item Number #5', 'Item Number #6']
+                }
+            ];
+
+            const assignedKeys = new Set<string>();
+            const sections = sectionConfig
+                .map(section => {
+                    const items = section.keys
+                        .filter((key: string) => Object.prototype.hasOwnProperty.call(productMap, key))
+                        .map((key: string) => {
+                            assignedKeys.add(key);
+                            return {
+                                label: key,
+                                value: productMap[key] ?? '-'
+                            };
+                        });
+
+                    return {
+                        title: section.title,
+                        items,
+                    };
+                })
+                .filter(section => section.items.length > 0);
+
+            const otherItems = Object.entries(productMap)
+                .filter(([key]) => !assignedKeys.has(key))
+                .map(([key, value]) => ({
+                    label: key,
+                    value: value ?? '-',
+                }));
+
+            if (otherItems.length) {
+                sections.push({
+                    title: 'Other',
+                    items: otherItems,
+                });
+            }
+
+            return sections;
+        },
+
         getProductRecipes(productId: number){
 
             let outputProduct = this.recipeElements.find(re => re.type === 'output' && re.product_id === productId);
@@ -1352,6 +1471,253 @@ export default {
 </script>
 
 <style>
+.card {
+    --pl-transition-fast: 160ms ease;
+    --pl-primary-border: #1f8c56;
+    --pl-primary-top: #44c783;
+    --pl-primary-bottom: #2ca765;
+    --pl-secondary-border: #91a8bf;
+    --pl-secondary-top: #f7fbff;
+    --pl-secondary-bottom: #ebf2f8;
+    --pl-secondary-text: #1b3b59;
+    --pl-danger-border: #c66a6a;
+    --pl-danger-top: #ffe7e7;
+    --pl-danger-bottom: #ffd4d4;
+    --pl-danger-text: #7e1f1f;
+}
+
+.pl-action-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.75rem;
+    transition: all var(--pl-transition-fast);
+}
+
+.pl-action-btn--primary {
+    border: 1px solid var(--pl-primary-border);
+    background: linear-gradient(180deg, var(--pl-primary-top) 0%, var(--pl-primary-bottom) 100%);
+    color: #ffffff;
+}
+
+.pl-action-btn--primary:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+}
+
+.pl-action-btn--secondary {
+    border: 1px solid var(--pl-secondary-border);
+    background: linear-gradient(180deg, var(--pl-secondary-top) 0%, var(--pl-secondary-bottom) 100%);
+    color: var(--pl-secondary-text);
+}
+
+.pl-action-btn--secondary:hover {
+    border-color: #7193b5;
+    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+}
+
+.pl-action-btn--processed:hover {
+    border-color: #2a9b63;
+    background: linear-gradient(180deg, #ebfff3 0%, #d5f5e3 100%);
+    color: #145537;
+}
+
+.pl-action-btn--all:hover {
+    border-color: #9cabb9;
+    background: linear-gradient(180deg, #f4f7fa 0%, #e7edf3 100%);
+    color: #2f4a63;
+}
+
+.pl-action-btn--secondary.is-active {
+    border-color: #5f95cf;
+    background: linear-gradient(180deg, #d9ecff 0%, #c2e0ff 100%);
+    color: #123e66;
+    box-shadow: inset 0 0 0 1px rgba(24, 86, 148, 0.2);
+}
+
+.pl-action-btn--processed.is-active {
+    border-color: #1f8c56;
+    background: linear-gradient(180deg, #dff8ea 0%, #c4ebd6 100%);
+    color: #135233;
+    box-shadow: inset 0 0 0 1px rgba(20, 109, 67, 0.2);
+}
+
+.pl-action-btn--unprocessed.is-active {
+    border-color: #5f95cf;
+    background: linear-gradient(180deg, #d9ecff 0%, #c2e0ff 100%);
+    color: #123e66;
+    box-shadow: inset 0 0 0 1px rgba(24, 86, 148, 0.2);
+}
+
+.pl-action-btn--all.is-active {
+    border-color: #91a8bf;
+    background: linear-gradient(180deg, #eef3f8 0%, #e1e9f1 100%);
+    color: #294661;
+    box-shadow: inset 0 0 0 1px rgba(66, 92, 116, 0.14);
+}
+
+.dt-loading-wrapper {
+    position: relative;
+}
+
+.dt-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 32, 51, 0.25);
+    backdrop-filter: blur(2px);
+    border-radius: 12px;
+}
+
+.loading-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1.4rem 1.8rem;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #d5e2ef;
+    box-shadow: 0 10px 30px rgba(16, 35, 55, 0.2);
+}
+
+.loading-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #234765;
+    text-transform: uppercase;
+}
+
+.loader-fade-enter-active,
+.loader-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.loader-fade-enter-from,
+.loader-fade-leave-to {
+    opacity: 0;
+}
+
+.pl-action-btn--danger {
+    border: 1px solid var(--pl-danger-border);
+    background: linear-gradient(180deg, var(--pl-danger-top) 0%, var(--pl-danger-bottom) 100%);
+    color: var(--pl-danger-text);
+}
+
+.pl-action-btn--danger:hover {
+    border-color: #ae5252;
+    background: linear-gradient(180deg, #ffdddd 0%, #ffc5c5 100%);
+}
+
+.pl-icon-btn {
+    transition: all var(--pl-transition-fast);
+}
+
+.pl-icon-btn--info {
+    color: #2a6aa5;
+    border-color: #8fb1d1;
+}
+
+.pl-icon-btn--edit {
+    color: #1f8c56;
+    border-color: #91c7ab;
+}
+
+.pl-icon-btn--danger {
+    color: #b43a3a;
+    border-color: #d89b9b;
+}
+
+.pl-icon-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(16, 35, 55, 0.14);
+}
+
+.pl-dialog-layout {
+    display: grid;
+    gap: 1rem;
+    padding-top: 0.25rem;
+}
+
+.pl-dialog-section {
+    border: 1px solid #d6e2ee;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.pl-dialog-section-title {
+    margin: 0 0 0.8rem;
+    color: #21415f;
+    font-size: 0.98rem;
+    font-weight: 700;
+}
+
+.pl-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.6rem 0.9rem;
+}
+
+.pl-product-info-toolbar {
+    margin-bottom: 0.9rem;
+}
+
+.pl-product-info-sections {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.pl-product-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.pl-product-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: #f4f8fc;
+    border: 1px solid #dce8f3;
+}
+
+.pl-product-info-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #45647f;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.pl-product-info-value {
+    color: #203849;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.pl-empty-state {
+    margin: 0;
+    color: #506b82;
+}
+
+:deep(.pl-product-dialog .p-dialog-content),
+:deep(.pl-product-info-dialog .p-dialog-content) {
+    background: #f4f8fc;
+}
+
+:deep(.pl-toolbar.p-toolbar) {
+    border: 1px solid var(--surface-border, #d4d8dd);
+    border-radius: 12px;
+    background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
+}
+
 .warning-cell {
   background-color: #ffb439 !important;
   color: black;
