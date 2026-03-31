@@ -10,6 +10,15 @@
             </Toolbar> 
 
             <!-- :rowStyle="rowStyle" -->
+            <div class="dt-loading-wrapper">
+            <Transition name="loader-fade">
+                <div v-if="tableLoading" class="dt-loading-overlay">
+                    <div class="loading-card">
+                        <ProgressSpinner style="width: 48px; height: 48px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
+                        <span class="loading-label">Loading&hellip;</span>
+                    </div>
+                </div>
+            </Transition>
             <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
                 dataKey="purchase_order_id"
                 :paginator="true" 
@@ -280,6 +289,7 @@
                 </template>
 
             </DataTable>
+            </div>
         </div>
 
         <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true" class="vendor-select-dialog">
@@ -1280,6 +1290,7 @@ export default {
             totalRecords: 0,
             sortField: '',
             sortOrder: -1,
+            tableLoading: false,
 
         }
     },
@@ -1288,6 +1299,7 @@ export default {
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
         this.onSearchDebounced = debounce(async () => {
             this.currentPage = 1;
+            this.tableLoading = true;
             await this.loadPage(1);
         }, 300, { trailing: true }) as (() => Promise<void>);
     },
@@ -1337,6 +1349,7 @@ export default {
             this.sortField = event.sortField;
             this.sortOrder = event.sortOrder;
             this.currentPage = 1;
+            this.tableLoading = true;
             await this.loadPage(1);
          },
 
@@ -1411,6 +1424,7 @@ export default {
             }
             finally {
                 // this.loading = false;
+                this.tableLoading = false;
             }
         },
 
@@ -5173,6 +5187,23 @@ export default {
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(3px);
+}
+
+/* ── Table-scoped loading overlay ────────────────────────────── */
+.dt-loading-wrapper {
+  position: relative;
+}
+
+.dt-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  border-radius: 6px;
 }
 
 .loading-card {
