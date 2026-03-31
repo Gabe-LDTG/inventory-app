@@ -4,8 +4,9 @@
             <Toast />
             <Toolbar class="mb-4 pl-toolbar">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" class="mr-2 pl-action-btn pl-action-btn--primary" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts" />
+                    <span class="p-input-icon-right">
+                        <InputText v-model="searchText" placeholder="Search..." />
+                    </span>
                 </template>
 
                 <template #end>
@@ -46,6 +47,7 @@
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"> -->
                 <DataTable
                     ref="dt"
+                    class="pl-product-table"
                     :value="displayProducts"
                     v-model:selection="selectedProducts"
                     dataKey="product_id"
@@ -71,11 +73,11 @@
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Products</h4>
-                        <ZoomDropdown v-model="tableZoom" />
-						<span class="p-input-icon-right">
-                            <!-- <i class="pi pi-search" /> -->
-                            <InputText v-model="searchText" placeholder="Search..." />
-                        </span>
+						<div class="flex flex-wrap gap-2 align-items-center">
+                            <ZoomDropdown v-model="tableZoom" />
+                            <Button label="New" icon="pi pi-plus" class="pl-action-btn pl-action-btn--primary" @click="openNew" />
+                            <Button label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || selectedProducts.length === 0" />
+                        </div>
 					</div>
                 </template>
 
@@ -1226,7 +1228,7 @@ export default {
             try {
                 //WHEN THERE ARE VALUES THAT CAN BE DELETED FIRST, NO TOAST MESSAGE GOES UP, BUT THE ITEMS GET
                 //REMOVED. TALK TO MICHAEL ABOUT IT TOMORROW
-                if(this.selectedProducts){
+                if(this.selectedProducts && this.selectedProducts.length > 0){
                     await action.batchDeleteProduct(this.selectedProducts);
                     this.getProducts();
                     this.$toast.add({severity:'success', summary: 'Successful', detail: 'Product(s) Deleted', life: 3000});
@@ -1716,6 +1718,10 @@ export default {
     border: 1px solid var(--surface-border, #d4d8dd);
     border-radius: 12px;
     background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
+}
+
+.pl-product-table .p-datatable-thead > tr > th .p-checkbox {
+    display: none;
 }
 
 .warning-cell {
