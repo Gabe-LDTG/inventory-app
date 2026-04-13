@@ -1391,7 +1391,7 @@ export default {
 
                 
                 // this.products = await action.getProducts();
-                this.products = data.all_products;
+                this.mergeProductsIntoCache(data.all_products || []);
 
                 this.purchaseOrders = data.purchase_orders;
                 this.currentPage = page;
@@ -1469,6 +1469,8 @@ export default {
             try {
                 //this.products = await action.getUnprocProducts();
                 this.products = await action.getProducts();
+                this.procProducts = [];
+                this.unprocProducts = [];
 
                 this.products.forEach(p => {
                     if (p.fnsku || p.asin)
@@ -1489,6 +1491,45 @@ export default {
             } catch (err) {
                 console.log(err);
             }
+        },
+
+        async getProcProductsForVendor(){
+            try {
+                this.procProducts = await action.getProcessedProductsForVendor(this.purchaseOrder.vendor_id);
+            } catch (err) {
+                console.log(err);
+            }
+        },
+
+        async getAllProductsForVendor(){
+            try {
+                const vendorProducts = await action.getAllProductsForVendor(this.purchaseOrder.vendor_id);
+                this.mergeProductsIntoCache(vendorProducts || []);
+            } catch (err) {
+                console.log(err);
+            }
+        },
+
+        mergeProductsIntoCache(incomingProducts: any[]){
+            if (!Array.isArray(incomingProducts) || incomingProducts.length === 0) {
+                return;
+            }
+
+            const productById = new Map<number, any>();
+
+            (this.products || []).forEach((product: any) => {
+                if (product?.product_id !== undefined && product?.product_id !== null) {
+                    productById.set(product.product_id, product);
+                }
+            });
+
+            incomingProducts.forEach((product: any) => {
+                if (product?.product_id !== undefined && product?.product_id !== null) {
+                    productById.set(product.product_id, product);
+                }
+            });
+
+            this.products = Array.from(productById.values());
         },
 
         async getBoxes(){
@@ -1605,7 +1646,7 @@ export default {
             console.log("INPUT PRODUCTS: ", inputProducts);
 
             inputProducts.forEach(ir => {
-                let inProd = this.products.find(p => p.product_id === ir.product_id);
+                let inProd = this.unprocProducts.find(p => p.product_id === ir.product_id);
                 ir.name = inProd.name;
             })
 
@@ -1613,22 +1654,6 @@ export default {
             //console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
             return inputProducts;
-        },
-
-        /**
-         * Use a product ID to grab all of the key metadata
-         * 
-         * @param productId {number} The ID for the product key the user wants
-         * @returns An object containing the desired product key
-         * 
-         * Created by: Gabe de la Torre
-         * Date Created: 5-30-2024
-         * Date Last Edited: 5-30-2024
-         */
-        getProductKey(productId: number){
-            let foundProd = this.products.find(p => p.product_id === productId);
-            console.log(foundProd);
-            return foundProd;
         },
 
         //Description: Gets vendor name from the id
@@ -1719,7 +1744,7 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-1-2024
         getTotalCost(rawRecEl: any, poCase: any, recipeAmount: number){
-            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            let rawBox = this.unprocProducts.find(p => p.product_id === rawRecEl.product_id);
             return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase, recipeAmount); 
         },
         getCreatedUnitTotal(poID: number){
@@ -2174,6 +2199,8 @@ export default {
                 this.isInitializingPurchaseOrder = true;
                 console.log("Purchase Order Dialog opened with dialogType:", dialogType);
 
+                
+
                 if (dialogType === 1) {
                     console.log("Purchase Order Dialog opened from Create New PO flow");
                     this.vendorSubmitted = true;
@@ -2183,7 +2210,11 @@ export default {
                         return;
                     }
 
+                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                    await this.getAllProductsForVendor();
+
                     await this.getRawProductsForVendor();
+                    await this.getProcProductsForVendor();
                     await this.getRecipes();
                     await this.openNew();
                 } else if (dialogType === 2) {
@@ -2198,7 +2229,11 @@ export default {
                     // Set the active PO first so vendor-scoped initialization uses the correct vendor.
                     this.purchaseOrder = { ...purchaseOrder };
 
+                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                    await this.getAllProductsForVendor();
+
                     await this.getRawProductsForVendor();
+                    await this.getProcProductsForVendor();
                     await this.getRecipes();
                     await this.editPurchaseOrder(purchaseOrder);
                 } else {
@@ -2466,7 +2501,7 @@ export default {
             console.log("PO RECIPE ID: ", this.poRecipes[counter].recipe_id);
             let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
+            this.poCases[counter] = this.procProducts.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCases[counter]);
 
             // If the selected recipe contains raw products missing default_units_per_case, prompt the user to set them
@@ -2484,7 +2519,7 @@ export default {
             console.log("RECIPE ID: ", id);
             let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCasesEdit = this.products.find(p => p.product_id === recipeElement.product_id);
+            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCasesEdit);
         },
 
