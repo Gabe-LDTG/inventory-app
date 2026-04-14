@@ -1496,26 +1496,40 @@ export default {
     transition: all var(--pl-transition-fast);
 }
 
-.pl-action-btn--primary {
-    border: 1px solid var(--pl-primary-border);
-    background: linear-gradient(180deg, var(--pl-primary-top) 0%, var(--pl-primary-bottom) 100%);
-    color: #ffffff;
+.cl-action-btn--primary {
+    border: 1px solid var(--cl-primary-border);
+    background: linear-gradient(180deg, #e6f8ee 0%, #d2f0e0 100%);
+    color: #17653d;
 }
 
-.pl-action-btn--primary:hover {
-    filter: brightness(0.96);
-    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+.cl-action-btn--primary:hover {
+    border-color: #1b7a49;
+    background: linear-gradient(180deg, #dbf4e7 0%, #c4e8d6 100%);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.18);
 }
 
-.pl-action-btn--secondary {
-    border: 1px solid var(--pl-secondary-border);
-    background: linear-gradient(180deg, var(--pl-secondary-top) 0%, var(--pl-secondary-bottom) 100%);
-    color: var(--pl-secondary-text);
+.cl-action-btn--secondary {
+    border: 1px solid var(--cl-secondary-border);
+    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
+    color: var(--cl-secondary-text);
 }
 
-.pl-action-btn--secondary:hover {
+.cl-action-btn--secondary:hover {
+    border-color: #b57171;
+    background: linear-gradient(180deg, #ffecec 0%, #ffdada 100%);
+    color: #7a2626;
+}
+
+.cl-action-btn--utility {
+    border: 1px solid var(--cl-secondary-border);
+    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
+    color: var(--cl-secondary-text);
+}
+
+.cl-action-btn--utility:hover {
     border-color: #7193b5;
     background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+    color: #1b3b59;
 }
 
 .pl-action-btn--processed:hover {

@@ -152,10 +152,13 @@
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="caseDialog" :style="{width: '1200px'}" header="Case Details" :modal="true" class="p-fluid">
-            
-            <div class="field"> 
-                <label for="name">Name:</label>
+        <Dialog v-model:visible="caseDialog" :style="{ width: '980px', maxWidth: '95vw' }" header="Case Details" :modal="true" class="p-fluid cl-case-dialog">
+            <div class="cl-dialog-layout">
+                <section class="cl-dialog-section">
+                    <h4 class="cl-dialog-section-title">Core Details</h4>
+                    <div class="cl-fields-grid">
+                        <div class="field">
+                            <label for="name">Name</label>
                 <!-- <Dropdown v-model="eCase.product_id" required="true" 
                 placeholder="Select a Product" class="md:w-14rem" editable
                 :options="products"
@@ -183,29 +186,29 @@
                         </div>
                     </template>
                 </Dropdown> -->
-                <AutoComplete 
-                    v-model="eCase.productObj" 
-                    :suggestions="filteredProducts" 
-                    :dropdown="true"
-                    :class="{'p-invalid': submitted && !eCase.productObj}" 
-                    @complete="(event: any) => searchProducts(event)"
-                    @item-select="onProductSelection(eCase.productObj)" 
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    :optionLabel="(data) => (displayValue === 'processed' ? data.name + ' - ' + data.fnsku : data.name + ' - ' + data.item_num)"
-                    :forceSelection="false"
-                >
+                            <AutoComplete 
+                                v-model="eCase.productObj" 
+                                :suggestions="filteredProducts" 
+                                :dropdown="true"
+                                :class="{'p-invalid': submitted && !eCase.productObj}" 
+                                @complete="(event: any) => searchProducts(event)"
+                                @item-select="onProductSelection(eCase.productObj)" 
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                :optionLabel="(data) => (displayValue === 'processed' ? data.name + ' - ' + data.fnsku : data.name + ' - ' + data.item_num)"
+                                :forceSelection="false"
+                            >
                     <!-- <template #content="slotProps">
                         <div>{{ slotProps.items }} <!- {{ slotProps.option.name }} - {{ slotProps.option.fnsku }} -></div>
                     </template> -->
-                    <template #option="slotProps">
-                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                            <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
-                        </div>
-                        <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
-                        </div>
-                    </template>
-                </AutoComplete>
+                                <template #option="slotProps">
+                                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                                    </div>
+                                    <div v-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
+                                    </div>
+                                </template>
+                            </AutoComplete>
 
                 <!-- <AutoComplete 
                     v-model="poRecipe.recipeObj"
@@ -220,101 +223,102 @@
                     :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
                     :forceSelection="false"
                 /> -->
-                <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
+                            <small class="p-error" v-if="submitted && !eCase.product_id">Name is required.</small>
+                        </div>
+
+                        <div class="field">
+                            <label for="purchase_order">Purchase Order</label>
+                            <AutoComplete
+                                v-model="eCase.purchase_order_obj" 
+                                :suggestions="filtered_vendor_purchase_orders" 
+                                :dropdown="true"
+                                @complete="(event: any) => searchPurchaseOrders(event)"
+                                @item-select="onPoSelection(eCase.purchase_order_obj)" 
+                                :virtualScrollerOptions="{ itemSize: 38 }"
+                                optionLabel="purchase_order_name"
+                                :forceSelection="false"
+                            />
+                        </div>
+
+                        <div class="field">
+                            <label for="notes">Notes</label>
+                            <InputText id="notes" v-model="eCase.notes" rows="3" cols="20" />
+                        </div>
+
+                        <div class="field">
+                            <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                                <label for="date_received">Case QTY</label>
+                            </div>
+                            <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                                <label for="date_received">Box QTY</label>
+                            </div>
+                            <InputNumber inputId="stacked-buttons" required="true" 
+                            :class="{'p-invalid': submitted && !eCase.units_per_case}"
+                            v-model="eCase.units_per_case" showButtons/>
+                            <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
+                        </div>
+
+                        <div v-show="!eCase.case_id" class="field">
+                            <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                                <label for="date_received">How Many Processed?</label>
+                            </div>
+                            <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                                <label for="date_received">How Many Received?</label>
+                            </div>
+                            <InputNumber inputId="stacked-buttons" required="true" 
+                            v-model="amount" showButtons/>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="cl-dialog-section">
+                    <h4 class="cl-dialog-section-title">Location And Status</h4>
+                    <div class="cl-fields-grid">
+                        <div class="field">
+                            <label for="location">Location</label>
+                            <Dropdown v-model="eCase.location_id"
+                            placeholder="Select a Location" class="cl-location-control" editable
+                            :options="locations"
+                            filter
+                            :virtualScrollerOptions="{ itemSize: 38 }"
+                            optionLabel="name"
+                            optionValue="location_id" />
+                            <Button label="Add Location" icon="pi pi-plus" class="cl-action-btn cl-action-btn--utility cl-location-control cl-location-btn" @click="newLocation()"  />
+                        </div>
+
+                        <div class="field">
+                            <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                                <label for="date_received">Date Processed</label>
+                            </div>
+                            <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                                <label for="date_received">Date Received</label>
+                            </div>
+                            <Calendar id="date_received" dateFormat="mm/dd/yy" v-model="eCase.date_received"/>
+                        </div>
+
+                        <div class="field">
+                            <label>Status</label>
+                            <Dropdown v-model="eCase.status"
+                            placeholder="Select a Status" class="w-full md:w-14rem" editable
+                            :options="statuses"/>
+                        </div>
+
+                    </div>
+                </section>
             </div>
-            <div>
-                <label for="purchase_order">Purchase Order:</label>
-                <AutoComplete
-                    v-model="eCase.purchase_order_obj" 
-                    :suggestions="filtered_vendor_purchase_orders" 
-                    :dropdown="true"
-                    @complete="(event: any) => searchPurchaseOrders(event)"
-                    @item-select="onPoSelection(eCase.purchase_order_obj)" 
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="purchase_order_name"
-                    :forceSelection="false"
-                >
-                
-                </AutoComplete>
-            </div>
-            
-
-            <div class="field">
-                <label for="notes">Notes:</label>
-                <InputText id="notes" v-model="eCase.notes" rows="3" cols="20" />
-            </div>
-
-            <div class="grid gap-4">
-                <div class="field">
-                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                        <label for="date_received"> Case QTY: </label>
-                    </div>
-                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                        <label for="date_received"> Box QTY: </label>
-                    </div>
-                    <InputNumber inputId="stacked-buttons" required="true" 
-                    :class="{'p-invalid': submitted && !eCase.units_per_case}"
-                    v-model="eCase.units_per_case" showButtons/>
-                    <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
-                </div>
-
-                <div v-show="!eCase.case_id" class="field">
-                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                        <label for="date_received"> How Many Processed? </label>
-                    </div>
-                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                        <label for="date_received"> How Many Received? </label>
-                    </div>
-                    <InputNumber inputId="stacked-buttons" required="true" 
-                    v-model="amount" showButtons/>
-                </div>
-            </div>
-            <br>
-            <div class="grid gap-4">
-                <div class="field">
-                    <label for="location">Location:</label>
-                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                    <Dropdown v-model="eCase.location_id"
-                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                    :options="locations"
-                    filter
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="name"
-                    optionValue="location_id" />
-                    <Button label="Add Location" icon="pi pi-plus" @click="newLocation()"  />
-                </div>
-
-                <div class="field">
-                    <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                        <label for="date_received"> Date Processed: </label>
-                    </div>
-                    <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                        <label for="date_received"> Date Received: </label>
-                    </div>
-                    <Calendar id="date_received" dateFormat="mm/dd/yy" v-model="eCase.date_received"/>
-                </div>
-
-                <div class="field">
-                    <label>Status:</label>
-                    <Dropdown v-model="eCase.status"
-                    placeholder="Select a Status" class="w-full md:w-14rem" editable
-                    :options="statuses"/>
-                </div>
-            </div>
-            
-
-            
-
-            
 
             <template #footer>
-                <div v-show="eCase.case_id" class="field">
-                    <label for="amount">How Many to Edit?</label>
-                    <InputNumber inputId="stacked-buttons" required="true" 
-                    v-model="eCase.amount" showButtons/>
+                <div class="cl-footer-row">
+                    <div v-show="eCase.case_id" class="field cl-footer-highlight">
+                        <label for="amount">How Many to Edit?</label>
+                        <InputNumber inputId="stacked-buttons" required="true" 
+                        v-model="eCase.amount" showButtons/>
+                    </div>
+                    <div class="cl-footer-actions">
+                        <Button label="Cancel" icon="pi pi-times" class="cl-action-btn cl-action-btn--secondary" @click="hideDialog"/>
+                        <Button label="Save" icon="pi pi-check" class="cl-action-btn cl-action-btn--primary" @click="saveCase" />
+                    </div>
                 </div>
-                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" text @click="saveCase" />
                 <!-- <Button label="Edit One" icon="pi pi-check" text @click="saveCase" />
                 <Button label="Edit All" /> -->
             </template>
@@ -659,6 +663,14 @@ export default {
             }
         }, 
 
+        async getPurchaseOrders(){
+            try {
+                this.purchase_orders = await action.getPurchaseOrders();
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
         //Description: 
         //
         //Created by: Gabe de la Torre
@@ -987,12 +999,36 @@ export default {
                 this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
             }
         },
-        editCase(value: any) {
+        async editCase(value: any) {
+
+            if (!this.purchase_orders.length) {
+                await this.getPurchaseOrders();
+            }
 
             this.eCase = {...value};
-            this.eCase.productObj = this.products.find(p => p.product_id === value.product_id);
+
+            const selectedProduct = this.products.find(p => p.product_id === value.product_id);
+            this.eCase.productObj = selectedProduct;
+
+            const selectedPo = this.purchase_orders.find(po => po.purchase_order_id === value.purchase_order_id);
+            if (selectedPo) {
+                this.eCase.purchase_order_obj = {
+                    purchase_order_name: selectedPo.purchase_order_name,
+                    purchase_order_id: selectedPo.purchase_order_id,
+                };
+            } else if (value.purchase_order_name) {
+                this.eCase.purchase_order_obj = {
+                    purchase_order_name: value.purchase_order_name,
+                    purchase_order_id: value.purchase_order_id,
+                };
+            } else {
+                this.eCase.purchase_order_obj = null;
+            }
+
             this.oldCaseValues = {...value};
-            this.vendor_purchase_orders = this.purchase_orders.filter(po => po.vendor_id === this.products.find(p => p.product_id === value.product_id).vendor_id);
+            this.vendor_purchase_orders = selectedProduct
+                ? this.purchase_orders.filter(po => po.vendor_id === selectedProduct.vendor_id)
+                : [];
             //this.productDialog = true;
             this.caseDialog = true;
         },
@@ -1296,6 +1332,129 @@ export default {
 </script>
 
 <style>
+.card {
+    --cl-transition-fast: 160ms ease;
+    --cl-primary-border: #1f8c56;
+    --cl-primary-top: #44c783;
+    --cl-primary-bottom: #2ca765;
+    --cl-secondary-border: #91a8bf;
+    --cl-secondary-top: #f7fbff;
+    --cl-secondary-bottom: #ebf2f8;
+    --cl-secondary-text: #1b3b59;
+}
+
+.cl-dialog-layout {
+    display: grid;
+    gap: 1rem;
+    padding-top: 0.25rem;
+}
+
+.cl-dialog-section {
+    border: 1px solid #d6e2ee;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.cl-dialog-section-title {
+    margin: 0 0 0.8rem;
+    color: #21415f;
+    font-size: 0.98rem;
+    font-weight: 700;
+}
+
+.cl-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.6rem 0.9rem;
+}
+
+.cl-action-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.75rem;
+    transition: all var(--cl-transition-fast);
+}
+
+.cl-action-btn--primary {
+    border: 1px solid var(--cl-primary-border);
+    background: linear-gradient(180deg, #e6f8ee 0%, #d2f0e0 100%);
+    color: #17653d;
+}
+
+.cl-action-btn--primary:hover {
+    border-color: #1b7a49;
+    background: linear-gradient(180deg, #dbf4e7 0%, #c4e8d6 100%);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.18);
+}
+
+.cl-action-btn--secondary {
+    border: 1px solid var(--cl-secondary-border);
+    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
+    color: var(--cl-secondary-text);
+}
+
+.cl-action-btn--secondary:hover {
+    border-color: #b57171;
+    background: linear-gradient(180deg, #ffecec 0%, #ffdada 100%);
+    color: #7a2626;
+}
+
+.cl-action-btn--utility {
+    border: 1px solid var(--cl-secondary-border);
+    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
+    color: var(--cl-secondary-text);
+}
+
+.cl-action-btn--utility:hover {
+    border-color: #7193b5;
+    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+    color: #1b3b59;
+}
+
+.cl-location-control {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (min-width: 768px) {
+    .cl-location-control {
+        width: 14rem;
+    }
+}
+
+.cl-location-btn {
+    margin-top: 0.5rem;
+}
+
+.cl-footer-row {
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.cl-footer-highlight {
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid #c6d7e8;
+    background: linear-gradient(180deg, #f6fbff 0%, #edf5fd 100%);
+    min-width: 210px;
+}
+
+.cl-footer-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+:deep(.cl-case-dialog .p-dialog-content) {
+    background: #f4f8fc;
+}
+
 @media (min-width: 1024px) {
   .about {
     min-height: 100vh;

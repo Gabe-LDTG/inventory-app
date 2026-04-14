@@ -3073,11 +3073,27 @@ export default {
 
                 poRecs.forEach(recLine => {
                     let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
+                    if (!outputElement) return;
+
                     let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
+                    if (!elementKey) return;
+
+                    const recipeKey = this.recipes.find(r => r.recipe_id === recLine.recipe_id);
+
                     recLine.product_name = elementKey.name;
                     recLine.product_id = elementKey.product_id;
+                    recLine.productObj = elementKey;
                     recLine.units_per_case = elementKey.default_units_per_case;
                     recLine.amount = recLine.qty/recLine.units_per_case;
+
+                    if (recipeKey) {
+                        recLine.recipeObj = recipeKey;
+                    } else {
+                        recLine.recipeObj = {
+                            recipe_id: recLine.recipe_id,
+                            label: recLine.product_name,
+                        };
+                    }
                 })
                 
 
@@ -3089,6 +3105,18 @@ export default {
                 // console.log("Cases ",cases);
                 // this.poBoxes = this.groupProducts(boxes);
                 this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+                this.poBoxes.forEach((box: any) => {
+                    const rawProduct = this.unprocProducts.find(p => p.product_id === box.product_id)
+                        || this.products.find(p => p.product_id === box.product_id);
+
+                    if (!rawProduct) return;
+
+                    box.productObj = rawProduct;
+                    box.product_name = rawProduct.name;
+                    if (!box.units_per_case) {
+                        box.units_per_case = rawProduct.default_units_per_case;
+                    }
+                });
                 // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
                 this.singlePoRecipes = poRecs;
 
@@ -3659,8 +3687,8 @@ export default {
                 });
             } //If the PO is being created
             else {
-                // Edited out 3/25/2026
-                /* this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
+                // Calculate units from recipes, before boxes are actually linked to PO
+                this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
                     //console.log(poRec);
 
                     let recipeKey = this.recipes.find(r => poRec.recipe_id === r.recipe_id);
@@ -3678,7 +3706,8 @@ export default {
                             total += this.getTotalUnitsOrdered(recEl, processedRecElKey, poRec.amount);
                         });
 
-                }); */
+                });
+                // Grab any boxes directly linked during PO creation, either by box or by unit, and calculate their total units
                 this.poBoxes.filter(b => b && b.status !== 'Cancelled').forEach(b => {
                     if(b.product_id){
                         let totalUnits = 0;
