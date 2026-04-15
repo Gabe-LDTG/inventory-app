@@ -40,6 +40,22 @@ var action = {
         return products;
     },
 
+    async getAllProductsForVendor(vendor_id: number){
+        let products = [] as any[];
+        console.log('Getting all products for vendor with ID: ', vendor_id);
+        const {data, error} = await supabase
+            .from('products')
+            .select('*')
+            .eq('vendor_id', vendor_id);
+        if(error){
+            console.error('Error getting all products for vendor:', error);
+        } else {
+            products = data;
+        }
+        return products;
+
+    },
+
     async getRawProductsForVendor(vendor_id: number){
         let products = [] as any[];
         console.log('Getting raw products for vendor with ID: ', vendor_id);
@@ -51,6 +67,22 @@ var action = {
             .is('asin', null);
         if(error){
             console.error('Error getting raw products for vendor:', error);
+        } else {
+            products = data;
+        }
+        return products;
+    },
+
+    async getProcessedProductsForVendor(vendor_id: number){
+        let products = [] as any[];
+        console.log('Getting processed products for vendor with ID: ', vendor_id);
+        const {data, error} = await supabase
+            .from('products')
+            .select('*')
+            .eq('vendor_id', vendor_id)
+            .or('fnsku.neq.null,asin.neq.null');
+        if(error){
+            console.error('Error getting processed products for vendor:', error);
         } else {
             products = data;
         }

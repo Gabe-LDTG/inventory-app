@@ -155,7 +155,9 @@ Run from repo root where the supabase folder exists.
 $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
 $diffFrom = "postgresql://postgres.tnryadvlppdcltotziia:nJgw8KIf%26WQs%241@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=disable"
 $diffTo   = "postgresql://postgres.kvjpxssezujwtaxzmjze:3vH9%26jDt1HgQc2@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=disable"
-supabase db diff --from "$diffFrom" --to "$diffTo" | Out-File -FilePath "supabase\migrations\${timestamp}_bugs_to_main_delta.sql" -Encoding UTF8
+$migrationPath = "supabase\migrations\${timestamp}_bugs_to_main_delta.sql"
+$sql = supabase db diff --from "$diffFrom" --to "$diffTo"
+[System.IO.File]::WriteAllText($migrationPath, $sql, (New-Object System.Text.UTF8Encoding($false)))
 ```
 
 Verify the file was created:
@@ -230,7 +232,9 @@ Use this exact loop each time:
 $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
 $diffFrom = "postgresql://postgres.tnryadvlppdcltotziia:nJgw8KIf%26WQs%241@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=disable"
 $diffTo   = "postgresql://postgres.kvjpxssezujwtaxzmjze:3vH9%26jDt1HgQc2@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=disable"
-supabase db diff --from "$diffFrom" --to "$diffTo" | Out-File -FilePath "supabase\migrations\${timestamp}_bugs_to_main_delta.sql" -Encoding UTF8
+$migrationPath = "supabase\migrations\${timestamp}_bugs_to_main_delta.sql"
+$sql = supabase db diff --from "$diffFrom" --to "$diffTo"
+[System.IO.File]::WriteAllText($migrationPath, $sql, (New-Object System.Text.UTF8Encoding($false)))
 ```
 
 3. Commit migration file.
@@ -310,6 +314,19 @@ supabase db diff --from "$env:SUPABASE_DB_URL_MAIN_DIRECT" --to "$env:SUPABASE_D
 ```
 
 Then apply the delta migration to main, not the snapshot file.
+
+### Problem: push says `syntax error at or near "SET"` at statement 0
+
+- Cause: migration file was saved with a UTF-8 BOM (for example from `Out-File -Encoding UTF8` in Windows PowerShell). PostgreSQL sees the hidden BOM character before `SET`.
+- Fix existing file:
+
+```powershell
+$path = "supabase\migrations\20260331125900_bugs_to_main_delta.sql"
+$content = Get-Content -Raw -Path $path
+[System.IO.File]::WriteAllText((Resolve-Path $path), $content, (New-Object System.Text.UTF8Encoding($false)))
+```
+
+- Prevention: save diff output using UTF-8 without BOM as shown in sections 1.2 and 5.
 
 ### Problem: branch metadata says main even though you pulled bugs
 

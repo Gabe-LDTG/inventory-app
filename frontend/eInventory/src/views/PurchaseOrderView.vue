@@ -2,10 +2,14 @@
     <div>
         <div class="card">
             <Toast />
-            <Toolbar class="mb-4">
+            <Toolbar class="mb-4 po-toolbar">
                 <template #start>
-                    <Button label="New PO" icon="pi pi-plus" severity="success" class="mr-2" @click="vendorSelect()" />
-                 </template>
+                    <div class="po-toolbar-filters">
+                        <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
+                            <InputText v-model="searchText" placeholder="Search purchase orders..." />
+                        </span>
+                    </div>
+                </template>
 
             </Toolbar> 
 
@@ -36,19 +40,23 @@
                 scrollable 
                 scrollHeight="800px"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
-                :loading="loading"
+                :loading="tableLoading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
                 @page="onPage"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders">
                 <template #header>
-                    <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div class="flex flex-wrap gap-2 align-items-center justify-content-between po-table-header">
                         <h4 class="m-0">Manage Purchase Orders</h4>
-                        <ZoomDropdown v-model="tableZoom" />
-                        <span class="p-input-icon-right">
-                            <!-- <i class="pi pi-search" /> -->
-                            <InputText v-model="searchText" placeholder="Search..." />
-                        </span>
+                        <div class="po-header-actions">
+                            <ZoomDropdown v-model="tableZoom" />
+                            <Button
+                                label="New PO"
+                                icon="pi pi-plus"
+                                class="po-action-btn po-action-btn--primary"
+                                @click="vendorSelect()"
+                            />
+                        </div>
                     </div>
                 </template>
 
@@ -106,26 +114,32 @@
 
                 <Column header="PO Phase" :exportable="false">
                     <template #body="slotProps">
-
-                        <div style="min-width: 235px" >
-                            <div class="flex flex-wrap align-items-center "> 
-                                <Button icon="pi pi-envelope" v-tooltip.top="'PO Submitted'" :disabled="slotProps.data.status === 'Submitted' || slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Submitted'"/>
-                                <i class="pi pi-angle-right" style="color: gray"/>
-                                <Button icon="pi pi-box" v-tooltip.top="'PO Ordered'" :disabled="slotProps.data.status === 'Ordered' || slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="info" class="mr-2" @click="openStatusChangeDialog(slotProps.data); newStatus = 'Ordered'"/>
-                                <i class="pi pi-angle-right" style="color: gray"/>
-                                <Button icon="pi pi-truck" v-tooltip.top="'PO Inbound'" :disabled="slotProps.data.status === 'Inbound' || slotProps.data.status === 'Partially Delivered' || slotProps.data.status === 'Delivered'" rounded severity="warning" class="mr-2" @click="openInboundDialog(slotProps.data); newStatus = 'Inbound'"/>
-                                <i class="pi pi-angle-right" style="color: gray"/>
-                                <Button icon="pi pi-check" v-tooltip.top="'PO Delivered'" :disabled="slotProps.data.status === 'Delivered'" rounded class="mr-2" @click="confirmOrderReceived(slotProps.data)" />
-                                <!-- <Button icon="pi pi-times" outlined rounded severity="danger" @click="confirmCancelOrder(slotProps.data)" /> -->
-                                
-                            </div>
+                        <div class="po-phase-rail" v-tooltip.top="'Skip ahead is allowed. Previous phases are locked.'">
+                            <button
+                                v-for="step in poPhaseSteps"
+                                :key="step.status"
+                                type="button"
+                                class="po-phase-step"
+                                :class="getPoPhaseStepClass(slotProps.data.status, step.status)"
+                                :disabled="!canAdvanceToPhase(slotProps.data.status, step.status)"
+                                @click="onPoPhaseStepClick(slotProps.data, step.status)">
+                                <i :class="step.icon"></i>
+                                <span>{{ step.label }}</span>
+                            </button>
                         </div>
                     </template>
                 </Column>
 
                 <Column header="Edit PO" :exportable="false">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit PO'" :disabled="slotProps.data.status === ''" rounded class="mr-2" @click="onPurchaseOrderDialogOpen(2, slotProps.data)" />
+                        <Button
+                            label="Edit"
+                            icon="pi pi-pencil"
+                            v-tooltip.top="'Edit PO'"
+                            :disabled="slotProps.data.status === ''"
+                            class="po-action-btn po-action-btn--secondary"
+                            @click="onPurchaseOrderDialogOpen(2, slotProps.data)"
+                        />
                     </template>
                 </Column>
 
@@ -1047,15 +1061,6 @@
             </template>
         </Dialog>
 
-        <Transition name="loader-fade">
-            <div v-if="loading" class="loading-overlay">
-                <div class="loading-card">
-                    <ProgressSpinner style="width: 64px; height: 64px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
-                    <span class="loading-label">Loading&hellip;</span>
-                </div>
-            </div>
-        </Transition>
-
         <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
 
@@ -1283,6 +1288,12 @@ export default {
                 'Partially Delivered',
                 'Delivered',
             ],
+            poPhaseSteps: [
+                { label: 'Submitted', status: 'Submitted', icon: 'pi pi-envelope' },
+                { label: 'Ordered', status: 'Ordered', icon: 'pi pi-box' },
+                { label: 'Inbound', status: 'Inbound', icon: 'pi pi-truck' },
+                { label: 'Delivered', status: 'Delivered', icon: 'pi pi-check' },
+            ],
             filterField: '',
             searchText: '',
             currentPage: 1,
@@ -1317,10 +1328,10 @@ export default {
     },
     async mounted() {
         console.log('Mounted');
-        this.loading = true;
+        this.tableLoading = true;
         await this.initVariables();      // loads vendors/products/recipes you already use
+        
         await this.loadPage(1);          // load first page for the table
-        this.loading = false;
     },
     methods: {
         lazySave: () => Promise.resolve(),
@@ -1355,6 +1366,7 @@ export default {
 
          async loadPage(page: number) {
             try {
+                this.tableLoading = true;
                 // this.loading = true;
                 // console.log("Search Text: ", this.searchText);
 
@@ -1379,7 +1391,7 @@ export default {
 
                 
                 // this.products = await action.getProducts();
-                this.products = data.all_products;
+                this.mergeProductsIntoCache(data.all_products || []);
 
                 this.purchaseOrders = data.purchase_orders;
                 this.currentPage = page;
@@ -1457,6 +1469,8 @@ export default {
             try {
                 //this.products = await action.getUnprocProducts();
                 this.products = await action.getProducts();
+                this.procProducts = [];
+                this.unprocProducts = [];
 
                 this.products.forEach(p => {
                     if (p.fnsku || p.asin)
@@ -1477,6 +1491,45 @@ export default {
             } catch (err) {
                 console.log(err);
             }
+        },
+
+        async getProcProductsForVendor(){
+            try {
+                this.procProducts = await action.getProcessedProductsForVendor(this.purchaseOrder.vendor_id);
+            } catch (err) {
+                console.log(err);
+            }
+        },
+
+        async getAllProductsForVendor(){
+            try {
+                const vendorProducts = await action.getAllProductsForVendor(this.purchaseOrder.vendor_id);
+                this.mergeProductsIntoCache(vendorProducts || []);
+            } catch (err) {
+                console.log(err);
+            }
+        },
+
+        mergeProductsIntoCache(incomingProducts: any[]){
+            if (!Array.isArray(incomingProducts) || incomingProducts.length === 0) {
+                return;
+            }
+
+            const productById = new Map<number, any>();
+
+            (this.products || []).forEach((product: any) => {
+                if (product?.product_id !== undefined && product?.product_id !== null) {
+                    productById.set(product.product_id, product);
+                }
+            });
+
+            incomingProducts.forEach((product: any) => {
+                if (product?.product_id !== undefined && product?.product_id !== null) {
+                    productById.set(product.product_id, product);
+                }
+            });
+
+            this.products = Array.from(productById.values());
         },
 
         async getBoxes(){
@@ -1593,7 +1646,7 @@ export default {
             console.log("INPUT PRODUCTS: ", inputProducts);
 
             inputProducts.forEach(ir => {
-                let inProd = this.products.find(p => p.product_id === ir.product_id);
+                let inProd = this.unprocProducts.find(p => p.product_id === ir.product_id);
                 ir.name = inProd.name;
             })
 
@@ -1601,22 +1654,6 @@ export default {
             //console.log("PRODUCTS USED ", usedProducts);
             //this.poCases[counter].recInfo = usedProducts;
             return inputProducts;
-        },
-
-        /**
-         * Use a product ID to grab all of the key metadata
-         * 
-         * @param productId {number} The ID for the product key the user wants
-         * @returns An object containing the desired product key
-         * 
-         * Created by: Gabe de la Torre
-         * Date Created: 5-30-2024
-         * Date Last Edited: 5-30-2024
-         */
-        getProductKey(productId: number){
-            let foundProd = this.products.find(p => p.product_id === productId);
-            console.log(foundProd);
-            return foundProd;
         },
 
         //Description: Gets vendor name from the id
@@ -1707,7 +1744,7 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-1-2024
         getTotalCost(rawRecEl: any, poCase: any, recipeAmount: number){
-            let rawBox = this.products.find(p => p.product_id === rawRecEl.product_id);
+            let rawBox = this.unprocProducts.find(p => p.product_id === rawRecEl.product_id);
             return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase, recipeAmount); 
         },
         getCreatedUnitTotal(poID: number){
@@ -2162,6 +2199,8 @@ export default {
                 this.isInitializingPurchaseOrder = true;
                 console.log("Purchase Order Dialog opened with dialogType:", dialogType);
 
+                
+
                 if (dialogType === 1) {
                     console.log("Purchase Order Dialog opened from Create New PO flow");
                     this.vendorSubmitted = true;
@@ -2171,7 +2210,11 @@ export default {
                         return;
                     }
 
+                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                    await this.getAllProductsForVendor();
+
                     await this.getRawProductsForVendor();
+                    await this.getProcProductsForVendor();
                     await this.getRecipes();
                     await this.openNew();
                 } else if (dialogType === 2) {
@@ -2186,7 +2229,11 @@ export default {
                     // Set the active PO first so vendor-scoped initialization uses the correct vendor.
                     this.purchaseOrder = { ...purchaseOrder };
 
+                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                    await this.getAllProductsForVendor();
+
                     await this.getRawProductsForVendor();
+                    await this.getProcProductsForVendor();
                     await this.getRecipes();
                     await this.editPurchaseOrder(purchaseOrder);
                 } else {
@@ -2454,7 +2501,7 @@ export default {
             console.log("PO RECIPE ID: ", this.poRecipes[counter].recipe_id);
             let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCases[counter] = this.products.find(p => p.product_id === recipeElement.product_id);
+            this.poCases[counter] = this.procProducts.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCases[counter]);
 
             // If the selected recipe contains raw products missing default_units_per_case, prompt the user to set them
@@ -2472,7 +2519,7 @@ export default {
             console.log("RECIPE ID: ", id);
             let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
             console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCasesEdit = this.products.find(p => p.product_id === recipeElement.product_id);
+            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCasesEdit);
         },
 
@@ -3026,11 +3073,27 @@ export default {
 
                 poRecs.forEach(recLine => {
                     let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
+                    if (!outputElement) return;
+
                     let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
+                    if (!elementKey) return;
+
+                    const recipeKey = this.recipes.find(r => r.recipe_id === recLine.recipe_id);
+
                     recLine.product_name = elementKey.name;
                     recLine.product_id = elementKey.product_id;
+                    recLine.productObj = elementKey;
                     recLine.units_per_case = elementKey.default_units_per_case;
                     recLine.amount = recLine.qty/recLine.units_per_case;
+
+                    if (recipeKey) {
+                        recLine.recipeObj = recipeKey;
+                    } else {
+                        recLine.recipeObj = {
+                            recipe_id: recLine.recipe_id,
+                            label: recLine.product_name,
+                        };
+                    }
                 })
                 
 
@@ -3042,6 +3105,18 @@ export default {
                 // console.log("Cases ",cases);
                 // this.poBoxes = this.groupProducts(boxes);
                 this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+                this.poBoxes.forEach((box: any) => {
+                    const rawProduct = this.unprocProducts.find(p => p.product_id === box.product_id)
+                        || this.products.find(p => p.product_id === box.product_id);
+
+                    if (!rawProduct) return;
+
+                    box.productObj = rawProduct;
+                    box.product_name = rawProduct.name;
+                    if (!box.units_per_case) {
+                        box.units_per_case = rawProduct.default_units_per_case;
+                    }
+                });
                 // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
                 this.singlePoRecipes = poRecs;
 
@@ -3612,8 +3687,8 @@ export default {
                 });
             } //If the PO is being created
             else {
-                // Edited out 3/25/2026
-                /* this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
+                // Calculate units from recipes, before boxes are actually linked to PO
+                this.recipeArray.filter(poRec => poRec.recipe_id).forEach(poRec => {
                     //console.log(poRec);
 
                     let recipeKey = this.recipes.find(r => poRec.recipe_id === r.recipe_id);
@@ -3631,7 +3706,8 @@ export default {
                             total += this.getTotalUnitsOrdered(recEl, processedRecElKey, poRec.amount);
                         });
 
-                }); */
+                });
+                // Grab any boxes directly linked during PO creation, either by box or by unit, and calculate their total units
                 this.poBoxes.filter(b => b && b.status !== 'Cancelled').forEach(b => {
                     if(b.product_id){
                         let totalUnits = 0;
@@ -3663,6 +3739,65 @@ export default {
             };
 
             return progressMap[status] ?? 0;
+        },
+
+        getPoPhaseRank(status: string): number {
+            const rankMap: Record<string, number> = {
+                'Draft': 0,
+                'Submitted': 1,
+                'Ordered': 2,
+                'Inbound': 3,
+                'Partially Delivered': 3,
+                'Delivered': 4,
+                'Canceled': 5,
+            };
+
+            return rankMap[status] ?? 0;
+        },
+
+        canAdvanceToPhase(currentStatus: string, targetStatus: string): boolean {
+            if (!targetStatus || currentStatus === 'Canceled' || currentStatus === 'Delivered') {
+                return false;
+            }
+
+            const currentRank = this.getPoPhaseRank(currentStatus);
+            const targetRank = this.getPoPhaseRank(targetStatus);
+
+            return targetRank >= currentRank;
+        },
+
+        getPoPhaseStepClass(currentStatus: string, targetStatus: string): Record<string, boolean> {
+            const currentRank = this.getPoPhaseRank(currentStatus);
+            const targetRank = this.getPoPhaseRank(targetStatus);
+            const isDeliveredCurrent = currentStatus === 'Delivered' && targetStatus === 'Delivered';
+
+            return {
+                'is-complete': targetRank < currentRank,
+                'is-current': targetRank === currentRank && currentStatus !== 'Partially Delivered' && !isDeliveredCurrent,
+                'is-partial': currentStatus === 'Partially Delivered' && targetStatus === 'Inbound',
+                'is-next': targetRank > currentRank,
+                'is-delivered': isDeliveredCurrent,
+            };
+        },
+
+        onPoPhaseStepClick(purchaseOrder: any, targetStatus: string) {
+            if (!this.canAdvanceToPhase(purchaseOrder.status, targetStatus) || purchaseOrder.status === targetStatus) {
+                return;
+            }
+
+            if (targetStatus === 'Inbound') {
+                this.newStatus = targetStatus;
+                this.openInboundDialog(purchaseOrder);
+                return;
+            }
+
+            if (targetStatus === 'Delivered') {
+                this.confirmOrderReceived(purchaseOrder);
+                return;
+            }
+
+            this.newStatus = targetStatus;
+            this.openStatusChangeDialog(purchaseOrder);
         },
 
         disablePoPhase(poStatus: string){
@@ -5177,18 +5312,6 @@ export default {
   
 }
 
-/* ── Loading overlay ─────────────────────────────────────────── */
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(3px);
-}
-
 /* ── Table-scoped loading overlay ────────────────────────────── */
 .dt-loading-wrapper {
   position: relative;
@@ -5264,6 +5387,33 @@ export default {
 }
 
 .card {
+    --po-pill-radius: 999px;
+    --po-pill-height: 30px;
+    --po-pill-font-size: 0.73rem;
+    --po-pill-font-weight: 700;
+    --po-transition-fast: 160ms ease;
+    --po-transition-medium: 220ms ease;
+
+    --po-blue-border: #7faad6;
+    --po-blue-soft: #dcedff;
+    --po-blue-strong: #72a9e2;
+    --po-blue-text: #103f73;
+
+    --po-gray-border: #98a4b0;
+    --po-gray-soft: #e2e7ec;
+    --po-gray-strong: #cfd7df;
+    --po-gray-text: #3d4a57;
+
+    --po-yellow-border: #d9ad20;
+    --po-yellow-soft: #fff4bf;
+    --po-yellow-strong: #ffe17a;
+    --po-yellow-text: #5e4702;
+
+    --po-green-border: #239b59;
+    --po-green-soft: #84e8ae;
+    --po-green-strong: #3fc87a;
+    --po-green-text: #0a3f23;
+
     border: 1px solid var(--surface-border, #d4d8dd);
     border-radius: 16px;
     background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
@@ -5276,6 +5426,61 @@ export default {
     border-bottom: 1px solid var(--surface-border, #d4d8dd);
     background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
     padding: 0.9rem 1.1rem;
+}
+
+.po-toolbar-filters {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.po-toolbar-filter {
+    min-width: 170px;
+}
+
+.po-toolbar-filter--search {
+    min-width: 260px;
+}
+
+.po-table-header {
+    gap: 0.8rem;
+}
+
+.po-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.po-action-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.po-action-btn--primary {
+    border: 1px solid #1f8c56;
+    background: linear-gradient(180deg, #44c783 0%, #2ca765 100%);
+    color: #ffffff;
+}
+
+.po-action-btn--primary:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+}
+
+.po-action-btn--secondary {
+    border: 1px solid #91a8bf;
+    background: linear-gradient(180deg, #f7fbff 0%, #ebf2f8 100%);
+    color: #1b3b59;
+}
+
+.po-action-btn--secondary:hover {
+    border-color: #7193b5;
+    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
 }
 
 :deep(.card .p-datatable) {
@@ -5323,10 +5528,10 @@ export default {
 .po-status-pill {
     position: relative;
     width: 190px;
-    min-height: 30px;
-    border-radius: 999px;
-    border: 1px solid #c9d5e3;
-    background: #eef3f8;
+    min-height: var(--po-pill-height);
+    border-radius: var(--po-pill-radius);
+    border: 1px solid var(--po-blue-border);
+    background: linear-gradient(180deg, #edf5ff 0%, #e3effd 100%);
     overflow: hidden;
 }
 
@@ -5336,35 +5541,158 @@ export default {
     top: 0;
     bottom: 0;
     width: 0;
-    background: linear-gradient(90deg, #6c93bd 0%, #4f7eaf 100%);
-    transition: width 220ms ease;
+    background: linear-gradient(90deg, #9fc6ef 0%, #7caee2 100%);
+    transition: width var(--po-transition-medium);
 }
 
 .po-status-pill-text {
     position: relative;
     z-index: 1;
     height: 100%;
-    min-height: 30px;
+    min-height: var(--po-pill-height);
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     padding: 0.25rem 0.75rem;
-    font-weight: 700;
-    color: #12304f;
+    font-size: var(--po-pill-font-size);
+    font-weight: var(--po-pill-font-weight);
+    color: var(--po-blue-text);
     white-space: nowrap;
 }
 
+.po-status-pill.status-draft {
+    border-color: var(--po-blue-border);
+}
+
+.po-status-pill.status-submitted,
+.po-status-pill.status-ordered {
+    border-color: #6a9fd6;
+}
+
+.po-status-pill.status-inbound,
+.po-status-pill.status-partially-delivered {
+    border-color: var(--po-yellow-border);
+    background: linear-gradient(180deg, #fff9de 0%, #fff5cb 100%);
+}
+
+.po-status-pill.status-inbound .po-status-pill-fill,
+.po-status-pill.status-partially-delivered .po-status-pill-fill {
+    background: linear-gradient(90deg, #ffe8a2 0%, #ffd86b 100%);
+}
+
+.po-status-pill.status-inbound .po-status-pill-text,
+.po-status-pill.status-partially-delivered .po-status-pill-text {
+    color: var(--po-yellow-text);
+}
+
 .po-status-pill.status-delivered .po-status-pill-fill {
-    background: linear-gradient(90deg, #2f9e63 0%, #46c07f 100%);
+    background: linear-gradient(90deg, var(--po-green-soft) 0%, var(--po-green-strong) 100%);
+}
+
+.po-status-pill.status-delivered {
+    border-color: var(--po-green-border);
+    background: linear-gradient(180deg, #effcf5 0%, #e0f7eb 100%);
+}
+
+.po-status-pill.status-delivered .po-status-pill-text {
+    color: var(--po-green-text);
 }
 
 .po-status-pill.status-canceled .po-status-pill-fill {
-    background: linear-gradient(90deg, #9aa6b2 0%, #7f8b97 100%);
+    background: linear-gradient(90deg, #c8d0d8 0%, #acb6c0 100%);
+}
+
+.po-status-pill.status-canceled {
+    border-color: var(--po-gray-border);
+    background: linear-gradient(180deg, #f0f3f6 0%, #e8edf1 100%);
+}
+
+.po-status-pill.status-canceled .po-status-pill-text {
+    color: var(--po-gray-text);
+}
+
+.po-phase-rail {
+    min-width: 230px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+
+.po-phase-step {
+    appearance: none;
+    border: 1px solid var(--po-blue-border);
+    border-radius: var(--po-pill-radius);
+    background: linear-gradient(180deg, var(--po-blue-soft) 0%, #d2e7ff 100%);
+    color: var(--po-blue-text);
+    font-size: var(--po-pill-font-size);
+    font-weight: var(--po-pill-font-weight);
+    line-height: 1;
+    min-height: var(--po-pill-height);
+    padding: 0.35rem 0.3rem;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.2rem;
+    transition: all var(--po-transition-fast);
+}
+
+.po-phase-step:disabled {
+    cursor: not-allowed;
+    opacity: 0.9;
+}
+
+.po-phase-step.is-complete {
+    background: linear-gradient(180deg, var(--po-gray-soft) 0%, var(--po-gray-strong) 100%);
+    border-color: var(--po-gray-border);
+    color: var(--po-gray-text);
+}
+
+.po-phase-step.is-current,
+.po-phase-step.is-partial {
+    background: linear-gradient(180deg, var(--po-yellow-soft) 0%, var(--po-yellow-strong) 100%);
+    border-color: var(--po-yellow-border);
+    color: var(--po-yellow-text);
+    box-shadow: inset 0 0 0 1px rgba(190, 144, 15, 0.4);
+}
+
+.po-phase-step.is-next {
+    cursor: pointer;
+    background: linear-gradient(180deg, var(--po-blue-soft) 0%, var(--po-blue-strong) 100%);
+    border-color: var(--po-blue-border);
+    color: var(--po-blue-text);
+}
+
+.po-phase-step.is-next:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #d2e9ff 0%, #a8d3ff 100%);
+    border-color: #5f95cf;
+    box-shadow: 0 3px 8px rgba(35, 91, 154, 0.16);
+}
+
+.po-phase-step.is-delivered {
+    background: linear-gradient(180deg, var(--po-green-soft) 0%, var(--po-green-strong) 100%);
+    border-color: var(--po-green-border);
+    color: var(--po-green-text);
+    box-shadow: inset 0 0 0 1px rgba(10, 63, 35, 0.22);
 }
 
 @media (max-width: 768px) {
     .card {
         border-radius: 12px;
+    }
+
+    .po-toolbar-filters {
+        align-items: stretch;
+    }
+
+    .po-toolbar-filter,
+    .po-toolbar-filter--search {
+        min-width: 100%;
+    }
+
+    .po-header-actions {
+        width: 100%;
+        justify-content: space-between;
     }
 
     :deep(.card .p-toolbar) {
