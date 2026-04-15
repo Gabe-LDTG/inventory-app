@@ -1285,8 +1285,6 @@ export default {
                 'Submitted',
                 'Ordered',
                 'Inbound',
-                'Partially Delivered',
-                'Delivered',
             ],
             poPhaseSteps: [
                 { label: 'Submitted', status: 'Submitted', icon: 'pi pi-envelope' },
