@@ -1554,25 +1554,45 @@ var action = {
     //REQUESTS--------------------------------------------------------------------------------------------
     // Get requests
     async getRequests(status: string){
-        const query = supabase
+        /**@TODO move filtering and data collection to a backend function 4-15-26 */
+        const validPoStatuses = ['Ordered', 'Inbound', 'Partially Delivered', 'Delivered'];
+
+        const nullPoQuery = supabase
             .from('requests_to_process')
             .select('*')
             .order('request_id')
-            .filter('status','neq', status);
-        /* 
-        if(filter_column)
-            query.eq(filter_column, filter_data);
-        
-            .in('status', ['Ordered','Inbound','Ready'])
-         */
-        const {data, error} = await query;
-        if(error){
-            console.error('Error calling RPC: ', error);
-            throw error;
-        } else {
-            console.log('Requests to Process: ', data);
-            return data;
+            .is('purchase_order_id', null)
+            .filter('status', 'neq', status);
+
+        const linkedPoQuery = supabase
+            .from('requests_to_process')
+            .select('*, purchase_orders!inner(status)')
+            .order('request_id')
+            .filter('status', 'neq', status)
+            .in('purchase_orders.status', validPoStatuses);
+
+        const [nullPoResult, linkedPoResult] = await Promise.all([nullPoQuery, linkedPoQuery]);
+
+        if (nullPoResult.error) {
+            console.error('Error calling RPC: ', nullPoResult.error);
+            throw nullPoResult.error;
         }
+
+        if (linkedPoResult.error) {
+            console.error('Error calling RPC: ', linkedPoResult.error);
+            throw linkedPoResult.error;
+        }
+
+        const normalizedLinked = (linkedPoResult.data || []).map((row: any) => {
+            const { purchase_orders, ...requestRow } = row;
+            return requestRow;
+        });
+
+        const merged = [...(nullPoResult.data || []), ...normalizedLinked]
+            .sort((a: any, b: any) => (a.request_id || 0) - (b.request_id || 0));
+
+        console.log('Requests to Process: ', merged);
+        return merged;
     },
 
     async getRequestedRecipes(){
