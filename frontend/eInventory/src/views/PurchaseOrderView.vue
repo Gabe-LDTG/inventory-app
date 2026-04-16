@@ -356,7 +356,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
 
             <div v-if="purchaseOrder.purchase_order_id">
 
@@ -443,7 +443,7 @@
 
             </div>
 
-            <div v-else>
+            <div v-else class="po-create-layout">
                 <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
                 <div class="field">
                     <label for="purchase_order_name">Name</label>
@@ -490,7 +490,7 @@
 
                 <!--------------------------------------- RECIPES ---------------------------------------------->
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planning Processed Case(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Planning Processed Case(s):</h3>
                 </div>
 
                 <template class="caseCard" v-for="(poRecipe, counter) in recipeArray">
@@ -588,12 +588,12 @@
 
                 </template>
 
-                <Button label="Add another product" text @click="addBulkLine(recipeArray); addBulkLine(poCases);"/> 
+                <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(recipeArray); addBulkLine(poCases);"/> 
 
                 
                 <!-- RAW ----------------------------------------------------------------------------------- -->
                 <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Box(s):</h3>
+                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Raw Box(s):</h3>
                 </div>
 
                 <div class="field">
@@ -701,7 +701,7 @@
 
                 </template>
 
-            <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
+            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(poBoxes)"/>
 
             </div>
 
@@ -709,18 +709,19 @@
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
-                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check"  text @click="validate" />
+                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
+                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" />
             </template>
         </Dialog>
 
         <!-- @TODO Make the width reactive to the size of the user's monitor -->
-        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1800px'}" header="Edit Purchase Order" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1800px'}" header="Edit Purchase Order" :modal="true" class="p-fluid po-edit-dialog">
             <div class="flex align-items-left align-self-flex-start">
                 <!-- <Button label="Header" text @click=""/> -->
                 <!-- <Button label="Product Info" text @click="" /> -->
             </div>
-            
+
+            <div class="po-edit-layout">
             <div class="field">
                 <label for="purchase_order_name">Name</label>
                 <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
@@ -762,11 +763,12 @@
                 <label for="date_received">Date received</label>
                 <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
             </div>
-            
+
+            <section class="po-edit-section-card">
             <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Raw Boxes:</h3>
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
-            <DataTable v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+            <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field, index}">
                         <AutoComplete 
@@ -843,14 +845,16 @@
                     </template>
                 </Column>
             </DataTable> 
-            <Button label="Add another product" text @click="addBulkLine(poBoxes)"/>
+            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addBulkLine(poBoxes)"/>
             <br>
+            </section>
 
+            <section class="po-edit-section-card">
             <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Planned Processed Case(s):</h3>
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Planned Processed Case(s)</h3>
             </div>
             <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
-            <DataTable v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
+            <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field}">
                         <ProductAutoComplete 
@@ -908,8 +912,11 @@
                     </template>
                 </Column> -->
             </DataTable>
-            <Button label="Add another product" text @click="openNewPurchaseOrderProductDialog"/>
+            <!-- <Button label="Add another product" text @click="openNewPurchaseOrderProductDialog"/> -->
+             I will add a button for planned cases soon :3
             <br>
+            </section>
+            </div>
 
             <template #footer>
                 <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
@@ -919,7 +926,7 @@
                         <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                     </div>
                     
-                    <Button label="Close"  @click="editPurchaseOrderDialog = false"/>
+                    <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
                 </div>
                 <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
             </template>
@@ -1285,8 +1292,6 @@ export default {
                 'Submitted',
                 'Ordered',
                 'Inbound',
-                'Partially Delivered',
-                'Delivered',
             ],
             poPhaseSteps: [
                 { label: 'Submitted', status: 'Submitted', icon: 'pi pi-envelope' },
@@ -2588,7 +2593,7 @@ export default {
                         await this.confirmCreate();
                     }
 
-                    if(this.purchaseOrder.status !== 'Draft' || this.purchaseOrder.status !== 'Submitted'){
+                    if(this.purchaseOrder.status !== 'Draft' && this.purchaseOrder.status !== 'Submitted'){
                         await this.checkForRequests();
                     }
 
@@ -2622,7 +2627,7 @@ export default {
                 }
 
                 this.uBoxes.forEach(box =>{
-                    if(box.status !== 'On RTP' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
+                    if(box.status !== 'On RTP' && box.status !== 'Ready' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
                         this.purchaseOrder.status = 'Partially Delivered';
                         console.log("Box not ready: ",box)
                     }
@@ -2827,7 +2832,7 @@ export default {
             console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
             // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Cancelled');
+            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Ready' && box.status !== 'Cancelled');
 
             let backorderCompare = 0;
 
@@ -3381,7 +3386,7 @@ export default {
         //Date Last Edited: 5-28-2024
         getUnitCost(product_id: number){
             //RUNS TWICE FOR SOME REASON, ASK MICHAEL AT SOME POINT
-            console.log("PRODUCT ID: ", product_id);
+            // console.log("PRODUCT ID: ", product_id);
             let prod = this.products.find(p => product_id === p.product_id);
 
             //console.log(prod.price_2023);
@@ -3531,6 +3536,7 @@ export default {
                     return 'warning';
 
                 case 'On RTP':
+                case 'Ready':
                     return 'success';
 
                 case 'Cancelled':
@@ -3853,7 +3859,7 @@ export default {
                 await action.editPurchaseOrder(this.purchaseOrder);
                 await this.getRecipes();
 
-                if(this.purchaseOrder.status !== 'Draft' || this.purchaseOrder.status !== 'Submitted'){
+                if(this.purchaseOrder.status !== 'Draft' && this.purchaseOrder.status !== 'Submitted'){
                     console.log("Check for Requests");
                     await this.checkForRequests();
                 }   
@@ -3881,18 +3887,38 @@ export default {
             console.log(this.purchaseOrder);
             console.log(this.poRecipes);
 
-            let neededPoRecipes = this.poRecipes.filter(recipe => recipe.purchase_order_id === this.purchaseOrder.purchase_order_id)
+            const poId = this.purchaseOrder?.purchase_order_id;
+            if (!poId) {
+                console.warn("Skipping request check: purchase_order_id is missing.");
+                return;
+            }
+
+            const poRecipes = Array.isArray(this.poRecipes) ? this.poRecipes : [];
+            const recipeElements = Array.isArray(this.recipeElements) ? this.recipeElements : [];
+            const existingRequests = Array.isArray(requests) ? requests : [];
+
+            let neededPoRecipes = poRecipes.filter(recipe => recipe.purchase_order_id === poId)
             console.log("Needed Po Recipes: ", neededPoRecipes);
 
-            neededPoRecipes.forEach(async (recipe) =>  {
+            const skippedRecipeIds: number[] = [];
 
-                let neededRecElement = this.recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
+            for (const recipe of neededPoRecipes) {
+
+                let neededRecElement = recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
                 console.log("Needed Recipe Element: ", neededRecElement);
+
+                if (!neededRecElement || !neededRecElement.product_id) {
+                    console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
+                    if (recipe?.recipe_id) {
+                        skippedRecipeIds.push(recipe.recipe_id);
+                    }
+                    continue;
+                }
 
                 let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
                 console.log("Product Key: ", productKey);
 
-                let recRequest = requests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
                 console.log("Recipe Request: ", recRequest);
                 if(!recRequest){
                     // No request made for this recipe yet, make one
@@ -3910,7 +3936,7 @@ export default {
                         container_qty: number;
                     } = {
                         product_id: Number(neededRecElement.product_id),
-                        purchase_order_id: Number(this.purchaseOrder.purchase_order_id),
+                        purchase_order_id: Number(poId),
                         notes: null, 
                         status: '5 ON ORDER', 
                         labels_printed: false, 
@@ -3925,8 +3951,20 @@ export default {
                     console.log("Created Request: ", createdRequest);
 
                     await action.addRequest(createdRequest);
+
+                    // Keep local dedupe list in sync so duplicate requests are not created in the same run.
+                    existingRequests.push(createdRequest);
                 }
-            });
+            }
+
+            if (skippedRecipeIds.length > 0) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Request Check Skipped',
+                    detail: `Skipped ${skippedRecipeIds.length} recipe(s) because their output mapping is missing.`,
+                    life: 5000,
+                });
+            }
         },
 
         initFilters() {
@@ -4038,7 +4076,7 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
-            } else if  (data.status === 'On RTP') {
+            } else if  (data.status === 'On RTP' || data.status === 'Ready') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: '#C0EEFF' };
@@ -4252,7 +4290,8 @@ export default {
             let editedBoxes: Array<boxRow> = this.uBoxes.filter(box => 
                 box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
                 box.product_id === this.poBoxes[index].product_id &&
-                box.status !== 'On RTP'
+                box.status !== 'On RTP' &&
+                box.status !== 'Ready'
             );
 
             // If the boxes exist (the product was already in the PO and just being edited)
@@ -4761,13 +4800,15 @@ export default {
             // let boxes = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
 
             for(const box of poBoxes){
-                let location = null;
-                box.moment = 'Requested';
-                location = box.location_id;
-                box.location_id = null;
-                tableData.push(box);
+                const location = box.location_id ?? null;
+                const requestedBox = {
+                    ...box,
+                    moment: 'Requested',
+                    location_id: null,
+                };
+                tableData.push(requestedBox);
 
-                if (box.status === 'On RTP'){
+                if (box.status === 'On RTP' || box.status === 'Ready'){
                     let readyBox = {} as any;
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
@@ -4784,7 +4825,7 @@ export default {
                     tableData.push(readyBox);
                 }
 
-                if (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered'){
+                if (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'){
                     let awaitedBox = {} as any;
                     awaitedBox.case_id = box.case_id;
                     awaitedBox.date_received = box.data_received;
@@ -4804,7 +4845,7 @@ export default {
 
             console.log("BOXES", tableData);
 
-            const keyStringArray = ["product_id", "moment", "location"];
+            const keyStringArray = ["product_id", "moment", "location_id"];
             // const displayArray = this.groupProductsByKey(tableData, keyStringArray);
             const displayArray = helper.groupItemsByKey(tableData, keyStringArray);
             displayArray.forEach((line: { total: number; amount: number; units_per_case: number; }) => {
@@ -4867,7 +4908,7 @@ export default {
             this.receivedLocationsArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
 
             if (this.editedLine === undefined){
-                let bundleArray = this.delivered.filter(box => box.product_id === product_id && box.moment === "Newly Arrived" || box.moment === "Back Ordered");
+                let bundleArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
                 this.editedLine = {};
                 this.editedLine.amount = 0;
                 this.editedLine.total = 0;
@@ -4987,7 +5028,7 @@ export default {
                 this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
             } else {
                 // Grab all PO boxes that are not received already
-                let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound') || box.moment === "Newly Arrived" );
+                let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
                 console.log("awaitedBoxes", awaitedBoxes);
                 // console.log("Received locations array:", this.receivedLocationsArray);
 
@@ -4999,7 +5040,7 @@ export default {
                     console.log("PO Boxes: ", this.poBoxes);
                     // 
                     this.poBoxes.forEach(box => {
-                        if (box.product_id === receivedLocKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
+                        if (box.product_id === receivedLocKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
                             box.location_id = receivedLocKey.location_id;
                             box.amount = receivedLocKey.amount;
                             box.total = receivedLocKey.total;
@@ -5044,7 +5085,7 @@ export default {
                     });
 
                     this.poBoxes.forEach(box => {
-                            if (box.product_id === receivedLocKey.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered') ){
+                            if (box.product_id === receivedLocKey.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered') ){
                                 boxKey = box;
                                 box.location_id = receivedLocKey.location_id;
                                 box.amount = receivedLocKey.amount;
@@ -5119,7 +5160,7 @@ export default {
                        
                     }
 
-                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Indbound' || box.status === 'Partially Delivered'));
+                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
                     console.log("AWAITED BOXES IN DIALOG SAVE", awaitedBoxArray);
                     console.log("LOCATION ARRAY", locationAmountArray);
 
@@ -5483,6 +5524,109 @@ export default {
     background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
 }
 
+:deep(.po-create-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+.po-create-layout {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.po-create-layout > .field {
+    margin-bottom: 0;
+}
+
+.po-create-section-title {
+    margin: 0;
+    color: #1d3f5e;
+    letter-spacing: 0.01em;
+}
+
+.po-create-dialog .caseCard {
+    border: 1px solid #c7d8e8;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 14px rgba(15, 46, 79, 0.08);
+    margin-bottom: 0.75rem;
+}
+
+.po-create-dialog .block-div {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.7rem 0.9rem;
+}
+
+.po-create-dialog .field label {
+    font-weight: 700;
+    color: #2a4761;
+    margin-bottom: 0.3rem;
+}
+
+.po-create-dialog .p-datatable {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.po-create-dialog .p-dialog-footer {
+    border-top: 1px solid #d4e1ee;
+    background: #f4f8fc;
+}
+
+.po-create-add-btn {
+    width: max-content;
+    justify-self: end;
+}
+
+:deep(.po-edit-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+.po-edit-layout {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.po-edit-layout > .field {
+    margin-bottom: 0;
+}
+
+.po-edit-section-card {
+    border: 1px solid #c7d8e8;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 14px rgba(15, 46, 79, 0.08);
+}
+
+.po-edit-section-title {
+    margin: 0;
+    color: #1d3f5e;
+    letter-spacing: 0.01em;
+}
+
+.po-edit-data-table {
+    border: 1px solid #d4e1ee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.po-edit-dialog .field label {
+    font-weight: 700;
+    color: #2a4761;
+}
+
+.po-edit-add-btn {
+    width: max-content;
+    justify-self: end;
+}
+
+.po-edit-dialog .p-dialog-footer {
+    border-top: 1px solid #d4e1ee;
+    background: #f4f8fc;
+}
+
 :deep(.card .p-datatable) {
     border: 0;
 }
@@ -5533,6 +5677,8 @@ export default {
     border: 1px solid var(--po-blue-border);
     background: linear-gradient(180deg, #edf5ff 0%, #e3effd 100%);
     overflow: hidden;
+    isolation: isolate;
+    z-index: 0;
 }
 
 .po-status-pill-fill {
@@ -5543,6 +5689,7 @@ export default {
     width: 0;
     background: linear-gradient(90deg, #9fc6ef 0%, #7caee2 100%);
     transition: width var(--po-transition-medium);
+    z-index: 0;
 }
 
 .po-status-pill-text {
@@ -5558,6 +5705,21 @@ export default {
     font-weight: var(--po-pill-font-weight);
     color: var(--po-blue-text);
     white-space: nowrap;
+    z-index: 1;
+}
+
+:deep(.card .p-datatable-scrollable-header) {
+    position: relative;
+    z-index: 6;
+}
+
+:deep(.card .p-datatable-scrollable-header-box) {
+    background: #f3f7fb;
+}
+
+:deep(.card .p-datatable-scrollable-body) {
+    position: relative;
+    z-index: 1;
 }
 
 .po-status-pill.status-draft {

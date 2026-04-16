@@ -565,6 +565,8 @@ export default {
             try {
                 this.requestsToProcess = await action.getRequests(this.statusFilter);
 
+                console.log("requestsToProcess", this.requestsToProcess);
+
                 // let cases = helper.groupProducts(this.pCases);
                 // console.log("cases", cases);
 
@@ -573,17 +575,35 @@ export default {
                 // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
                 for(const request of this.requestsToProcess){
+                    console.log("request", request);
                     let productKey = this.products.find(p => p.product_id === request.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
+
+                    // Skip orphaned requests that reference a PO filtered out by backend status rules.
+                    if (request.purchase_order_id && !purchaseOrder) {
+                        console.warn("Skipping request with missing purchase order", request);
+                        continue;
+                    }
+
+                    // Defensive guard for stale requests that reference missing products.
+                    if (!productKey) {
+                        console.warn("Skipping request with missing product", request);
+                        continue;
+                    }
 
                     let requestedRecipe = {units_per_case: productKey.default_units_per_case, qty: 0}; 
 
                     if(!purchaseOrder)
                         purchaseOrder = {purchase_order_name: 'No linked PO'};
-                    else 
-                        requestedRecipe = this.reqRecipes.find(recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id);
+                    else {
+                        const matchedRecipe = this.reqRecipes.find(
+                            recipe => recipe.purchase_order_id === purchaseOrder.purchase_order_id && recipe.product_id === request.product_id
+                        );
+                        if (matchedRecipe)
+                            requestedRecipe = matchedRecipe;
+                    }
 
-                    // console.log(requestedRecipe);
+                    console.log("requestedRecipe", requestedRecipe);
 
                     if (requestedRecipe.qty === 0)
                         requestedRecipe.qty = requestedRecipe.units_per_case*(request.warehouse_qty + request.ship_to_amz);

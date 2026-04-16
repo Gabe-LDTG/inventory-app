@@ -177,35 +177,6 @@
                         </div>
 
                         <div class="field">
-                            <label for="notes">Notes</label>
-                            <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
-                        </div>
-
-                        <div class="field">
-                            <label for="date_added">Date Added</label>
-                            <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="do_we_carry">Do We Carry?</label>
-                            <Dropdown v-model="product.do_we_carry"
-                            placeholder="Do We Carry?" class="w-full md:w-14rem" editable
-                            :options="binary"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="meltable">Meltable</label>
-                            <Dropdown v-model="product.meltable"
-                            placeholder="Meltable?" class="w-full md:w-14rem" editable
-                            :options="binary"/>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="pl-dialog-section">
-                    <h4 class="pl-dialog-section-title">Identifiers</h4>
-                    <div class="pl-fields-grid">
-                        <div class="field">
                             <label for="asin">ASIN</label>
                             <InputText id="asin" v-model="product.asin"/>
                         </div>
@@ -225,6 +196,17 @@
                             <label for="item_num">Item Number</label>
                             <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
                         </div>
+
+                        <div class="field">
+                            <label for="notes">Notes</label>
+                            <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
+                        </div>
+
+                        <div class="field">
+                            <label for="date_added">Date Added</label>
+                            <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
+                        </div>
+                        
                     </div>
                 </section>
 
@@ -346,12 +328,17 @@
 
                         <div class="field">
                             <label for="map">Map</label>
-                            <InputNumber v-model="product.labor_cost" inputId="minmaxfraction" :minFractionDigits="2" />
+                            <InputNumber v-model="product.map" inputId="minmaxfraction" :minFractionDigits="2" />
                         </div>
 
                         <div class="field">
                             <label for="process_time_per_unit_sec">Process Time per Unit Sec</label>
                             <InputNumber v-model="product.process_time_per_unit_sec" inputId="integeronly" />
+                        </div>
+
+                        <div class="field">
+                            <label for="unit_box_cost">Unit Box Cost</label>
+                            <InputNumber v-model="product.unit_box_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
                         </div>
 
                         <div class="field">
@@ -362,6 +349,25 @@
                         <div class="field">
                             <label for="total_holiday_cost">Total Holiday Cost</label>
                             <InputNumber v-model="product.total_holiday_cost" inputId="currency-us" mode="currency" currency="USD" locale="en-US" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Other</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="do_we_carry">Do We Carry?</label>
+                            <Dropdown v-model="product.do_we_carry"
+                            placeholder="Do We Carry?" class="w-full md:w-14rem" editable
+                            :options="binary"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="meltable">Meltable</label>
+                            <Dropdown v-model="product.meltable"
+                            placeholder="Meltable?" class="w-full md:w-14rem" editable
+                            :options="binary"/>
                         </div>
                     </div>
                 </section>
@@ -626,6 +632,9 @@ export default {
             { field: 'in_shipping_cost', header: 'In-shipping Cost' },
             { field: 'item_cost', header: 'Item Cost'},
             { field: 'item_num', header: 'Item Number'},
+            { field: 'upc', header: 'UPC'},
+            { field: 'fnsku', header: 'FNSKU'},
+            { field: 'asin', header: 'ASIN'},
             { field: 'item_num_1', header: 'Item Number #1'},
             { field: 'item_num_2', header: 'Item Number #2'},
             { field: 'item_num_3', header: 'Item Number #3'},
@@ -635,6 +644,7 @@ export default {
             { field: 'labor_cost', header: 'Labor Cost' },
             { field: 'name', header: 'Name' },
             { field: 'map', header: 'Map' },
+            { field: 'notes', header: 'Notes' },
             { field: 'meltable', header: 'Meltable?' },
             { field: 'misc_cost', header: 'Misc Cost' },
             { field: 'unit_box_cost', header: 'Unit Box Cost'},
@@ -1351,10 +1361,31 @@ export default {
 
         getProductInfoSections(){
             const productMap = (this.product && typeof this.product === 'object') ? this.product : {};
+            const usdFormatter = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+            });
+            const monetaryLabelPattern = /(cost|price|map)/i;
+
+            const formatDisplayValue = (label: string, value: any) => {
+                if (value === null || value === undefined || value === '') return '-';
+
+                if (monetaryLabelPattern.test(label)) {
+                    if (typeof value === 'number') return usdFormatter.format(value);
+
+                    const parsed = Number(value);
+                    if (!Number.isNaN(parsed)) return usdFormatter.format(parsed);
+
+                    return String(value).startsWith('$') ? value : `$${value}`;
+                }
+
+                return value;
+            };
+
             const sectionConfig = [
                 {
                     title: 'Core Details',
-                    keys: ['Name', 'Vendor', 'Date Added', 'Do We Carry?', 'Meltable?', 'Notes']
+                    keys: ['Name', 'Vendor', 'Date Added', 'UPC', 'Item Number', 'Notes', 'ASIN', 'FNSKU']
                 },
                 {
                     title: 'Packaging And Size',
@@ -1378,12 +1409,9 @@ export default {
                         'Map',
                         'Process Time per Unit Sec',
                         'Total Cost',
-                        'Total Holiday Cost'
+                        'Total Holiday Cost',
+                        'Unit Box Cost'
                     ]
-                },
-                {
-                    title: 'Identifiers',
-                    keys: ['ASIN', 'FNSKU', 'UPC', 'Item Number', 'Item Number #1', 'Item Number #2', 'Item Number #3', 'Item Number #4', 'Item Number #5', 'Item Number #6']
                 }
             ];
 
@@ -1396,7 +1424,7 @@ export default {
                             assignedKeys.add(key);
                             return {
                                 label: key,
-                                value: productMap[key] ?? '-'
+                                value: formatDisplayValue(key, productMap[key])
                             };
                         });
 
@@ -1411,7 +1439,7 @@ export default {
                 .filter(([key]) => !assignedKeys.has(key))
                 .map(([key, value]) => ({
                     label: key,
-                    value: value ?? '-',
+                    value: formatDisplayValue(key, value),
                 }));
 
             if (otherItems.length) {
@@ -1496,46 +1524,52 @@ export default {
     transition: all var(--pl-transition-fast);
 }
 
-.cl-action-btn--primary {
-    border: 1px solid var(--cl-primary-border);
+.pl-action-btn--primary {
+    border: 1px solid var(--pl-primary-border);
     background: linear-gradient(180deg, #e6f8ee 0%, #d2f0e0 100%);
     color: #17653d;
 }
 
-.cl-action-btn--primary:hover {
+.pl-action-btn--primary:hover {
     border-color: #1b7a49;
     background: linear-gradient(180deg, #dbf4e7 0%, #c4e8d6 100%);
     box-shadow: 0 3px 8px rgba(33, 128, 76, 0.18);
 }
 
-.cl-action-btn--secondary {
-    border: 1px solid var(--cl-secondary-border);
-    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
-    color: var(--cl-secondary-text);
+.pl-action-btn--secondary {
+    border: 1px solid var(--pl-secondary-border);
+    background: linear-gradient(180deg, var(--pl-secondary-top) 0%, var(--pl-secondary-bottom) 100%);
+    color: var(--pl-secondary-text);
 }
 
-.cl-action-btn--secondary:hover {
-    border-color: #b57171;
-    background: linear-gradient(180deg, #ffecec 0%, #ffdada 100%);
-    color: #7a2626;
-}
-
-.cl-action-btn--utility {
-    border: 1px solid var(--cl-secondary-border);
-    background: linear-gradient(180deg, var(--cl-secondary-top) 0%, var(--cl-secondary-bottom) 100%);
-    color: var(--cl-secondary-text);
-}
-
-.cl-action-btn--utility:hover {
+.pl-action-btn--secondary:hover {
     border-color: #7193b5;
     background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
     color: #1b3b59;
 }
 
-.pl-action-btn--processed:hover {
-    border-color: #2a9b63;
-    background: linear-gradient(180deg, #ebfff3 0%, #d5f5e3 100%);
+.pl-action-btn--processed {
+    border: 1px solid #2b9a64;
+    background: linear-gradient(180deg, #e9fff2 0%, #d3f3e1 100%);
     color: #145537;
+}
+
+.pl-action-btn--processed:hover {
+    border-color: #258a58;
+    background: linear-gradient(180deg, #e1f9ec 0%, #c5e8d4 100%);
+    color: #11482f;
+}
+
+.pl-action-btn--unprocessed {
+    border: 1px solid #6ea3da;
+    background: linear-gradient(180deg, #edf5ff 0%, #dbeaff 100%);
+    color: #1f4f7c;
+}
+
+.pl-action-btn--unprocessed:hover {
+    border-color: #5d93cb;
+    background: linear-gradient(180deg, #e4f0ff 0%, #cfe3ff 100%);
+    color: #17456f;
 }
 
 .pl-action-btn--all:hover {
