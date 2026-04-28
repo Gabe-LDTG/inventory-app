@@ -1020,7 +1020,7 @@ export default {
                 if(!this.product.name){
                     errorHeader += 'Invalid Product Name. ';
                 }
-                this.$toast.add({severity:'error', summary: errorHeader, detail: 'Please fill in all required fields.', life: 3000});
+                this.$toast.add({severity:'error', summary: errorHeader, detail: 'Please fill in all required fields.'});
             }
         },
         async saveProduct() {
@@ -1067,7 +1067,7 @@ export default {
                 return editedProduct;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -1106,7 +1106,7 @@ export default {
                 return addedProduct;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
         editProduct(product: any) {
@@ -1199,7 +1199,7 @@ export default {
             } catch (err) {
                 console.log(err);
 
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
         findIndexById(id: number) {
@@ -1249,7 +1249,7 @@ export default {
                 //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             } finally {
                 this.selectedProducts = [];
             }

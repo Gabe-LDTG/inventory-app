@@ -957,7 +957,7 @@ export default {
                 
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -996,7 +996,7 @@ export default {
             } catch (err: any) {
                 console.log(err);
                 // console.log("CREATE CATCH")
-                this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data});
             }
         },
         async editCase(value: any) {

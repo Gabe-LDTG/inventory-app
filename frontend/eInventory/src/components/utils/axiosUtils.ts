@@ -868,18 +868,37 @@ var action = {
             const query = supabase
                 .from('cases')
                 .select(`
-                    *,
+                    case_id,
+                    purchase_order_id,
+                    product_id,
+                    units_per_case,
+                    status,
+                    invoice_id,
+                    notes,
                     products(product_id, fnsku, asin, item_num, upc, name)
                     `)
                 .eq('purchase_order_id', po_id)
-                .is('products.fnsku', null).is('products.asin', null)
-                .or('status.eq.Draft,status.eq.Submitted,status.eq.Ordered');
+                .is('invoice_id', null)
+                .is('products.fnsku', null)
+                .is('products.asin', null);
             const {data, error} = await query;
             if(error){
                 console.error('Error fetching inbound boxes: ', error);
                 throw error;
             }
-            return data;
+
+            return (data || [])
+                .filter((box: any) => {
+                    const normalizedStatus = (box.status || '').toLowerCase();
+                    return normalizedStatus !== 'canceled' && normalizedStatus !== 'cancelled';
+                })
+                .map((box: any) => ({
+                    ...box,
+                    product_name: box.products?.name || `Product #${box.product_id}`,
+                    item_num: box.products?.item_num || '',
+                    fnsku: box.products?.fnsku || '',
+                    upc: box.products?.upc || ''
+                }));
         } catch (error) {
             console.error('Error fetching inbound boxes: ', error);
             throw error;
@@ -1297,13 +1316,18 @@ var action = {
     },
 
     //Delete a purchase order
-    /* async deletePurchaseOrder(id: any){
+    async deletePurchaseOrder(id: any){
 
-        return axios.delete(BASE_URL+"/purchaseOrders/"+id)
-        .catch(error => {
-            console.log(error);
-        })
-    }, */
+        const {data, error} = await supabase.from('purchase_orders').delete().eq('purchase_order_id', id);
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Deleted: ', data);
+            return data;
+        }
+
+    },
 
     //Get Purchase Order Recipes
     async getPurchaseOrderRecipes(){

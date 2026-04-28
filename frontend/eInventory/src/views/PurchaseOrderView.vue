@@ -1161,8 +1161,56 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '900px' }">
+            <div class="flex flex-column gap-3">
+                <p class="m-0">
+                    Eligible boxes are grouped by product and units per box. This list excludes canceled boxes and boxes already linked to an invoice for this purchase order.
+                </p>
 
+                <DataTable v-if="inboundBoxesLoading" :value="[{ id: 1 }, { id: 2 }, { id: 3 }]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Product">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--product"></div>
+                        </template>
+                    </Column>
+                    <Column header="Item #">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--item"></div>
+                        </template>
+                    </Column>
+                    <Column header="Units per Box">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number"></div>
+                        </template>
+                    </Column>
+                    <Column header="Box Count">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number"></div>
+                        </template>
+                    </Column>
+                    <Column header="Total Units">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number skeleton-line--total"></div>
+                        </template>
+                    </Column>
+                </DataTable>
+
+                <DataTable v-else :value="inboundBoxes" stripedRows showGridlines responsiveLayout="scroll">
+                    <template #empty>
+                        No eligible boxes are available to inbound for this purchase order.
+                    </template>
+
+                    <Column field="product_name" header="Product" sortable />
+                    <Column field="item_num" header="Item #" sortable />
+                    <Column field="units_per_case" header="Units per Box" sortable />
+                    <Column field="amount" header="Box Count" sortable />
+                    <Column header="Total Units" sortable>
+                        <template #body="{ data }">
+                            {{ data.amount * data.units_per_case }}
+                        </template>
+                    </Column>
+                </DataTable>
+            </div>
         </Dialog>
         
     </div>
@@ -1223,6 +1271,7 @@ export default {
             newStatus: "",
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
+            inboundBoxesLoading: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -2452,7 +2501,7 @@ export default {
                 return !Number.isFinite(numeric) || numeric <= 0;
             });
             if (invalid) {
-                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.', life: 4000 });
+                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.' });
                 return;
             }
 
@@ -2479,7 +2528,7 @@ export default {
 
             } catch (error) {
                 console.error(error);
-                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.', life: 4000 });
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.' });
             }
         },
 
@@ -2644,7 +2693,7 @@ export default {
                 return editedPurchaseOrder;
             } catch (error) {
                 console.log(error);
-                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: error});
             }
         },
 
@@ -3019,7 +3068,7 @@ export default {
                 return addedPurchaseOrderId;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -3612,7 +3661,7 @@ export default {
             } catch (err) {
                 console.log(err);
 
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -4406,7 +4455,7 @@ export default {
                 await action.bulkEditCases(boxesToUpdate);
                 this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
                 /* if(cancelledTotal > 0){
-                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
+                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled'});
                 } */
 
             }        
@@ -5025,7 +5074,7 @@ export default {
             
             // Check to make sure that the user has entered locations for each line 
             if (this.locationSubmitted === true && numErr > 0) {
-                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
+                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n')});
             } else {
                 // Grab all PO boxes that are not received already
                 let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
@@ -5310,15 +5359,28 @@ export default {
 
         async openInboundDialog(purchaseOrder: any){
             try {
+                this.inboundBoxesLoading = true;
+                this.inboundBoxes = [];
                 this.inboundPurchaseOrderDialog = true;
                 console.log("Purchase order in inbound dialog: ", purchaseOrder);
                 console.log("PO Boxes: ", this.poBoxes);
                 let allInboundBoxes = await action.getInboundBoxes(purchaseOrder.purchase_order_id);
-                this.inboundBoxes = helper.groupProductsByKey(allInboundBoxes, ["product_id"]);
+                this.inboundBoxes = helper
+                    .groupProductsByKey(allInboundBoxes, [])
+                    .sort((a: any, b: any) => {
+                        const productCompare = (a.product_name || '').localeCompare(b.product_name || '');
+                        if (productCompare !== 0) {
+                            return productCompare;
+                        }
+
+                        return Number(a.units_per_case || 0) - Number(b.units_per_case || 0);
+                    });
                 console.log("Inbound boxes: ", this.inboundBoxes);
 
             } catch (error) {
                 console.error("Error opening inbound dialog: ", error);
+            } finally {
+                this.inboundBoxesLoading = false;
             }
         },
     }
@@ -5336,6 +5398,28 @@ export default {
 .block-div {
    display: inline-flex;
    justify-content: space-between;
+ }
+.inbound-skeleton-table {
+     pointer-events: none;
+ }
+.skeleton-line {
+     height: 0.95rem;
+     border-radius: 999px;
+     background: linear-gradient(90deg, #e6edf5 0%, #f6fafe 50%, #e6edf5 100%);
+     background-size: 200% 100%;
+     animation: inbound-skeleton-shimmer 1.2s ease-in-out infinite;
+ }
+.skeleton-line--product {
+     width: 78%;
+ }
+.skeleton-line--item {
+     width: 52%;
+ }
+.skeleton-line--number {
+     width: 44px;
+ }
+.skeleton-line--total {
+     width: 62px;
  }
  .caseCard{
    border-style: solid;
@@ -5397,6 +5481,15 @@ export default {
 .loader-fade-enter-from,
 .loader-fade-leave-to {
   opacity: 0;
+}
+
+@keyframes inbound-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .vendor-select-content {
