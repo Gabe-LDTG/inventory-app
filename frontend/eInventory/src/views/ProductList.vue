@@ -177,27 +177,6 @@
                         </div>
 
                         <div class="field">
-                            <label for="asin">ASIN</label>
-                            <InputText id="asin" v-model="product.asin"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="fnsku">FNSKU</label>
-                            <InputText id="fnsku" v-model="product.fnsku" />
-                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="upc">UPC</label>
-                            <InputText id="upc" v-model="product.upc"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="item_num">Item Number</label>
-                            <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
-                        </div>
-
-                        <div class="field">
                             <label for="notes">Notes</label>
                             <InputText id="notes" v-model="product.notes" rows="3" cols="20" />
                         </div>
@@ -208,6 +187,37 @@
                         </div>
                         
                     </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Raw Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="upc">UPC</label>
+                            <InputText id="upc" v-model="product.upc"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="item_num">Item Number</label>
+                            <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+                        </div>
+                   </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Processed Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="asin">ASIN</label>
+                            <InputText id="asin" v-model="product.asin"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="fnsku">FNSKU</label>
+                            <InputText id="fnsku" v-model="product.fnsku" />
+                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
+                        </div>
+                   </div>
                 </section>
 
                 <section class="pl-dialog-section">
@@ -1385,7 +1395,15 @@ export default {
             const sectionConfig = [
                 {
                     title: 'Core Details',
-                    keys: ['Name', 'Vendor', 'Date Added', 'UPC', 'Item Number', 'Notes', 'ASIN', 'FNSKU']
+                    keys: ['Name', 'Vendor', 'Date Added', 'Notes']
+                },
+                {
+                    title: 'Raw Details',
+                    keys: ['Item Number', 'UPC']
+                },
+                {
+                    title: 'Processed Details',
+                    keys: ['ASIN', 'FNSKU']
                 },
                 {
                     title: 'Packaging And Size',
