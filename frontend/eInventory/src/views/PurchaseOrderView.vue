@@ -356,6 +356,24 @@
             </template>
         </Dialog>
 
+        <Dialog v-model:visible="missingVendorNicknameDialog" :style="{width: '500px'}" header="Missing Company Code" :modal="true">
+            <div class="field">
+                <p>This vendor does not have a company code. Please enter one below — it will be used as the prefix for this purchase order's name.</p>
+            </div>
+            <div class="field">
+                <div class="grid">
+                    <div class="col-12">
+                        <label class="block font-bold mb-2">Company Code</label>
+                        <InputText v-model="pendingVendorNickname" class="w-full" placeholder="e.g. Aurora → AU" />
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Cancel" text @click="missingVendorNicknameDialog = false" />
+                <Button label="Save" icon="pi pi-check" @click="saveMissingVendorNickname" :disabled="!pendingVendorNickname.trim()" autoFocus />
+            </template>
+        </Dialog>
+
         <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
 
             <div v-if="purchaseOrder.purchase_order_id">
@@ -1302,6 +1320,10 @@ export default {
             missingDefaults: [] as Array<{ product_id: number; name: string; item_num: string; default_units_per_case: number | null }>,
             missingDefaultsRecipeIndex: null as number | null,
 
+            // MISSING VENDOR NICKNAME DIALOG
+            missingVendorNicknameDialog: false,
+            pendingVendorNickname: '',
+
             //CASE VARIABLES
             cases: [] as any[],
             uBoxes: [] as any[],
@@ -2175,6 +2197,38 @@ export default {
             return vendorRecipes;
         },
 
+        async continueOpenNewWithNickname(nickname: string){
+            const today = new Date();
+            const year = today.getFullYear().toString();
+            let maxSeqForYear = 0;
+
+            const newestPos = await action.getNewestPurchaseOrdersByVendor(this.purchaseOrder.vendor_id);
+
+            newestPos.forEach((po: any) => {
+                const name = po.purchase_order_name || '';
+                const match = name.match(/^([^_-]+)[-_](\d{4})(\d{2,3})([A-Za-z].*)?$/);
+
+                if (!match) return;
+
+                const poYear = match[2];
+                const seq = Number(match[3]);
+                if (poYear === year && !isNaN(seq)) {
+                    maxSeqForYear = Math.max(maxSeqForYear, seq);
+                }
+            });
+
+            const nextSeq = maxSeqForYear + 1;
+            const seqStr = String(nextSeq).padStart(2, '0');
+
+            this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
+            this.purchaseOrder.status = 'Draft';
+
+            this.newBulkArray();
+            this.submitted = false;
+            this.purchaseOrderDialog = true;
+            console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+        },
+
         //Description: 
         //
         //Created by: Gabe de la Torre
@@ -2190,68 +2244,19 @@ export default {
                 this.recipeArray = [];
                 this.selectedOrderType = "";
                 this.amount = 1;
-                console.log("Selected Vendor: ", this.purchaseOrder.vendor_id);
-                /* if(this.recipes.length === 0 || this.recipeElements.length === 0){
-                    
-                } */
+                console.log("Purchase Order: ", this.purchaseOrder);
 
-                
-
-                const today = new Date();
-                const year = today.getFullYear().toString();
-
-                let nickname = '';
-                let maxSeqForYear = 0;
-
-                let newestPos = await action.getNewestPurchaseOrdersByVendor(this.purchaseOrder.vendor_id);
-
-                // Find the highest sequence number for the current year for this vendor
-                // PO name format: {vendorCode}-{YYYY}{seq}[suffix]
-                // Example: AU-202603fbm (vendor AU, year 2026, seq 03, suffix fbm)
-                newestPos.forEach(po => {
-
-                    const name = po.purchase_order_name || '';
-                    const match = name.match(/^([^_-]+)[-_](\d{4})(\d{2,3})([A-Za-z].*)?$/);
-
-                    // If it doesn't match the expected format, just skip this PO
-                    if (!match) return;
-
-                    const poNickname = match[1] || '';
-                    if (!nickname && poNickname) {
-                        nickname = poNickname;
-                    }
-
-                    const poYear = match[2];
-                    const seq = Number(match[3]);
-                    if (poYear === year && !isNaN(seq)) {
-                        maxSeqForYear = Math.max(maxSeqForYear, seq);
-                    }
-                });
-
-                // Reset annually: start at 1 for a new year
-                const nextSeq = maxSeqForYear + 1;
-                const seqStr = String(nextSeq).padStart(2, '0');
+                const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
+                console.log("Nickname from vendor record: ", nickname);
 
                 if (!nickname) {
-                    nickname = '[COMPANY_CODE_HERE]';
+                    // Vendor has no company code — prompt the user before building PO name
+                    this.pendingVendorNickname = '';
+                    this.missingVendorNicknameDialog = true;
+                    return;
                 }
 
-                this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
-
-                this.purchaseOrder.status = "Draft";
-                //this.purchaseOrder.raw = this.poBoxes;
-                //this.purchaseOrder.cases = this.poCases
-
-                //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
-                console.log(this.purchaseOrder)
-                //console.log(this.selectedOrderType);
-                
-                this.newBulkArray();
-
-                this.submitted = false;
-                this.purchaseOrderDialog = true;
-                // this.loading = false;
-                console.log("Purchase Order Dialog Opened, PO Object: ", this.purchaseOrder);
+                await this.continueOpenNewWithNickname(nickname);
             } catch (error) {
                 console.error("Error occurred while opening new purchase order:", error);
             }
@@ -2415,6 +2420,52 @@ export default {
             if (vendorObj && vendorObj.vendor_id) {
                 this.purchaseOrder.vendor = vendorObj;
                 this.purchaseOrder.vendor_id = vendorObj.vendor_id;
+            }
+        },
+
+        async saveMissingVendorNickname() {
+            const nickname = this.pendingVendorNickname.trim();
+            if (!nickname) return;
+            const selectedVendor = this.purchaseOrder?.vendor;
+
+            if (!selectedVendor?.vendor_id) {
+                this.$toast.add({ severity: 'error', summary: 'Vendor Missing', detail: 'Please select a vendor first.' });
+                return;
+            }
+
+            this.loading = true;
+            const vendorToUpdate = {
+                ...selectedVendor,
+                vendor_nickname: nickname,
+            };
+
+            try {
+                const updatedVendor: any = await action.editVendor(vendorToUpdate);
+
+                this.purchaseOrder.vendor = {
+                    ...selectedVendor,
+                    ...(updatedVendor || {}),
+                    vendor_nickname: nickname,
+                };
+                this.purchaseOrder.vendor_id = this.purchaseOrder.vendor.vendor_id || selectedVendor.vendor_id;
+
+                const vendorIdx = this.vendors.findIndex((v: any) => v.vendor_id === this.purchaseOrder.vendor_id);
+                if (vendorIdx !== -1) {
+                    this.vendors[vendorIdx] = {
+                        ...this.vendors[vendorIdx],
+                        ...this.purchaseOrder.vendor,
+                        vendor_nickname: nickname,
+                    };
+                }
+
+                this.pendingVendorNickname = '';
+                this.missingVendorNicknameDialog = false;
+                await this.continueOpenNewWithNickname(nickname);
+            } catch (error: any) {
+                console.error(error);
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save company code.' });
+            } finally {
+                this.loading = false;
             }
         },
 

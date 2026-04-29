@@ -1442,19 +1442,27 @@ var action = {
 
     //Edit a vendor
     async editVendor(vendor: any){
-        return axios.put(BASE_URL+"/vendors/"+vendor.vendor_id, {
-            vendor_name: vendor.vendor_name,
-            vendor_nickname: vendor.vendor_nickname,
-            contact_email: vendor.contact_email,
-            contact_name: vendor.contact_name
-        }).then((res) => {
-            console.log(res);
-            return res.data;
-
-        }).catch(error => {
-            console.log(error);
+        try {
+            const {data, error} = await supabase
+                .from('vendors')
+                .update({
+                    vendor_name: vendor.vendor_name,
+                    vendor_nickname: vendor.vendor_nickname,
+                    contact_email: vendor.contact_email,
+                    contact_name: vendor.contact_name
+                })
+                .eq('vendor_id', vendor.vendor_id);
+            if(error){
+                console.error('Error editing vendor:', error);
+                throw error;
+            } else {
+                console.log('Vendor Updated:', data);
+                return data;
+            }
+        } catch (error) {
+            console.error('Error editing vendor:', error);
             throw error;
-        });
+        }
     },
 
     async getVendorsForPOPage(poVendorIds: number[]){

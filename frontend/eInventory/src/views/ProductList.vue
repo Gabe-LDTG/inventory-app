@@ -391,8 +391,8 @@
                             <div class ="caseCard">
                                 <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
 
-                                <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
-                                <div class="block-div">
+                                <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4>
+                                <div class="pl-fields-grid">
                                     <div class="field">
                                         <label for="name">Product Needed:</label>
                                         <Dropdown v-model="ing.product_id" required="true"
@@ -420,11 +420,11 @@
                                         <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
                                     </div>
 
-                                    <div class="field">
+                                    <div class="field" style="max-width: 10rem;">
                                         <label for="qty">QTY:</label>
                                         <InputNumber inputId="stacked-buttons" required="true"
                                         :class="{'p-invalid': submitted && !ing.qty}"
-                                        v-model="ing.qty" showButtons/>
+                                        v-model="ing.qty" showButtons />
                                         <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
                                     </div>
 
