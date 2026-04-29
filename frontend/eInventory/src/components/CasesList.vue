@@ -316,7 +316,7 @@
                     </div>
                     <div class="cl-footer-actions">
                         <Button label="Cancel" icon="pi pi-times" class="cl-action-btn cl-action-btn--secondary" @click="hideDialog"/>
-                        <Button label="Save" icon="pi pi-check" class="cl-action-btn cl-action-btn--primary" @click="saveCase" />
+                        <Button label="Save" icon="pi pi-check" class="cl-action-btn cl-action-btn--primary" @click="saveCase" :disabled="saving" :loading="saving" />
                     </div>
                 </div>
                 <!-- <Button label="Edit One" icon="pi pi-check" text @click="saveCase" />
@@ -504,6 +504,8 @@ export default {
             amount: 1,
 
             loading: false,
+
+            saving: false,
 
             today: "",
 
@@ -843,6 +845,8 @@ export default {
         //Date Created: ???
         //Date Last Edited: 6-12-2024
         async saveCase() {
+            if (this.saving) return;
+            this.saving = true;
             try {
                 this.submitted = true;
                 console.log(this.eCase);
@@ -863,6 +867,8 @@ export default {
                 }
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
 
         },

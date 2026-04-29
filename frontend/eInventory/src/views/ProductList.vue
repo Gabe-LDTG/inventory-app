@@ -440,7 +440,7 @@
 
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" />
+                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -617,6 +617,8 @@ export default {
             columns: [] as any[],
 
             working: false,
+
+            saving: false,
 
             loading: false,
             tableLoading: false,
@@ -1035,18 +1037,24 @@ export default {
         },
         async saveProduct() {
             //this.submitted = true;
+            if (this.saving) return;
+            this.saving = true;
 
-			if (this.product.name.trim()) {
-                if (this.product.product_id) {
-                    await this.confirmEdit();
-                }
-                else {
-                    await this.confirmCreate();
-                }
+			try {
+                if (this.product.name.trim()) {
+                    if (this.product.product_id) {
+                        await this.confirmEdit();
+                    }
+                    else {
+                        await this.confirmCreate();
+                    }
 
-                this.productDialog = false;
-                //this.selectedProducts = null;
-                this.product = {};
+                    this.productDialog = false;
+                    //this.selectedProducts = null;
+                    this.product = {};
+                }
+            } finally {
+                this.saving = false;
             }
         },
         /**

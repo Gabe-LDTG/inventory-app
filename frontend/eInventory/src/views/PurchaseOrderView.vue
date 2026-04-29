@@ -710,7 +710,7 @@
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" />
+                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -919,14 +919,28 @@
             </div>
 
             <template #footer>
-                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <div>
-                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
-                        <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                <div class="po-edit-footer-wrap">
+                    <div class="flex flex-nowrap gap-2 align-items-center justify-content-between">
+                        <div>
+                            <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                            <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                        </div>
+                        <div class="po-edit-footer-actions">
+                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
+                            <div class="po-autosave-banner" :class="{ 'is-visible': autoSaveState !== 'idle' }">
+                                <div v-if="autoSaveState !== 'idle'" class="po-autosave-indicator">
+                                    <template v-if="autoSaveState === 'saving'">
+                                        <ProgressSpinner style="width: 18px; height: 18px" strokeWidth="4" animationDuration=".8s" />
+                                        <span>Saving changes...</span>
+                                    </template>
+                                    <template v-else>
+                                        <i class="pi pi-check-circle po-autosave-check"></i>
+                                        <span>Changes saved</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
                 </div>
                 <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
             </template>
@@ -964,7 +978,7 @@
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="statusChangeDialog = false; newStatus=''"/>
-                <Button label="Yes" icon="pi pi-check" text @click="confirmStatusChange" />
+                <Button label="Yes" icon="pi pi-check" text @click="confirmStatusChange" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -1357,6 +1371,9 @@ export default {
             sortOrder: -1,
             tableLoading: false,
 
+            saving: false,
+            autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
+
         }
     },
     created() {
@@ -1393,6 +1410,7 @@ export default {
         
         async save(): Promise<void> { 
             try {
+                this.autoSaveState = 'saving';
                 if(this.purchaseOrder.purchase_order_id){
                     const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
                     console.log(editedPO);
@@ -1404,7 +1422,9 @@ export default {
                     const poIdx = this.purchaseOrders.findIndex(po => po.purchase_order_id === editedPO.purchase_order_id);
                     this.purchaseOrders[poIdx] = editedPO;
                 }
+                this.autoSaveState = 'saved';
             } catch (error) {
+                this.autoSaveState = 'idle';
                 console.error(error);
             }
          }, 
@@ -2248,8 +2268,11 @@ export default {
          * @dateLastEdited 3-25-2026
          */
         async onPurchaseOrderDialogOpen(dialogType: number, purchaseOrder?: any){
+            let previousTableLoading = this.tableLoading;
             try {
+                this.autoSaveState = 'idle';
                 this.loading = true;
+                this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
                 console.log("Purchase Order Dialog opened with dialogType:", dialogType);
 
@@ -2298,6 +2321,7 @@ export default {
             } finally {
                 this.isInitializingPurchaseOrder = false;
                 this.loading = false;
+                this.tableLoading = previousTableLoading;
             }
         },
 
@@ -2631,6 +2655,8 @@ export default {
             }
         },
         async savePurchaseOrder() {
+            if (this.saving) return;
+            this.saving = true;
             try {
                 //this.submitted = true;
                 if (this.purchaseOrder.purchase_order_name.trim()) {
@@ -2654,6 +2680,8 @@ export default {
                 }
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
         },
 
@@ -3898,6 +3926,8 @@ export default {
          * Date Last Edited: 7-23-2024 
          */
         async confirmStatusChange(){
+            if (this.saving) return;
+            this.saving = true;
             try {
                 this.purchaseOrder.status = this.newStatus; 
                 if (this.purchaseOrder.status === 'Ordered')
@@ -3915,6 +3945,8 @@ export default {
                 this.statusChangeDialog = false;
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
         },
 
@@ -5718,6 +5750,45 @@ export default {
 .po-edit-dialog .p-dialog-footer {
     border-top: 1px solid #d4e1ee;
     background: #f4f8fc;
+}
+
+.po-edit-footer-wrap {
+    width: 100%;
+    padding-top: 0.5rem;
+}
+
+.po-edit-footer-actions {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 180px;
+}
+
+.po-autosave-banner {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    min-height: 22px;
+    margin-top: 0.35rem;
+    visibility: hidden;
+}
+
+.po-autosave-banner.is-visible {
+    visibility: visible;
+}
+
+.po-autosave-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #36506a;
+}
+
+.po-autosave-check {
+    color: #1f8c56;
+    font-size: 1rem;
 }
 
 :deep(.card .p-datatable) {
