@@ -857,6 +857,7 @@
                             v-tooltip.top="'Cancel Product'"
                             text
                             icon="pi pi-ban"
+                            severity="danger"
                             :disabled="Boolean(data?.d_editing) || isRawRowEditing(data)"
                             @click="onRawProductCancel(data)"
                         />
@@ -1033,7 +1034,7 @@
                 </div>
             </div>
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
+                <Button label="Close" icon="pi pi-times" text severity="danger" @click="closeRawProductCancelDialog"/>
                 <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0 || isRawCancelOverMax()" :loading="loading" />
             </template>
         </Dialog>
