@@ -975,18 +975,42 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '480px'}" header="Confirm Product Cancellation" :modal="true">
-            <div class="confirmation-content">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                <span v-if="rawProductToCancel">
-                    Are you sure you want to cancel
-                    <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
-                    from this purchase order?
-                </span>
+        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '500px'}" header="Cancel Product" :modal="true">
+            <div class="field" v-if="rawProductToCancel">
+                <p class="m-0 mb-3">
+                    Cancel <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
+                    ({{ rawProductToCancel.units_per_case }} units per box, {{ rawProductToCancel.amount }} box{{ rawProductToCancel.amount !== 1 ? 'es' : '' }} total)
+                </p>
+                
+                <div class="mb-4">
+                    <div class="mb-3">
+                        <RadioButton v-model="rawProductCancelOption" value="boxes" inputId="cancel-boxes" />
+                        <label for="cancel-boxes" class="ml-2">Cancel by Box Count</label>
+                    </div>
+                    <div v-if="rawProductCancelOption === 'boxes'" class="field ml-5 mb-3">
+                        <label class="block font-bold mb-2">Number of Boxes to Cancel</label>
+                        <InputNumber v-model="rawProductCancelAmount" :min="1" :max="rawProductToCancel.amount" class="w-full" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <RadioButton v-model="rawProductCancelOption" value="units" inputId="cancel-units" />
+                        <label for="cancel-units" class="ml-2">Cancel by Unit Quantity</label>
+                    </div>
+                    <div v-if="rawProductCancelOption === 'units'" class="field ml-5">
+                        <label class="block font-bold mb-2">Number of Units to Cancel</label>
+                        <InputNumber v-model="rawProductCancelAmount" :min="1" :max="rawProductToCancel.amount * rawProductToCancel.units_per_case" class="w-full" />
+                        <small class="p-d-block mt-2 text-color-secondary">Max: {{ rawProductToCancel.amount * rawProductToCancel.units_per_case }} units</small>
+                    </div>
+                </div>
+
+                <div v-if="getRawCancelPreview()" class="p-3 border-round border-1 surface-border bg-blue-50 text-900">
+                    <div class="font-bold mb-1">Preview</div>
+                    <small>{{ getRawCancelPreview() }}</small>
+                </div>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
-                <Button label="Yes, Cancel Product" icon="pi pi-check" severity="danger" text @click="confirmRawProductCancel" />
+                <Button label="Cancel" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
+                <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0" :loading="loading" />
             </template>
         </Dialog>
 
@@ -1255,6 +1279,7 @@ import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
 import InputNumber from 'primevue/inputnumber';
+import RadioButton from 'primevue/radiobutton';
 import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
@@ -1323,6 +1348,10 @@ export default {
             // MISSING VENDOR NICKNAME DIALOG
             missingVendorNicknameDialog: false,
             pendingVendorNickname: '',
+
+            // RAW PRODUCT CANCEL OPTIONS
+            rawProductCancelOption: 'boxes' as 'boxes' | 'units',
+            rawProductCancelAmount: 0 as number,
 
             //CASE VARIABLES
             cases: [] as any[],
@@ -4779,39 +4808,56 @@ export default {
             }
 
             this.rawProductToCancel = this.poBoxes[index];
+            this.rawProductCancelOption = 'boxes';
+            this.rawProductCancelAmount = 1;
             this.rawProductCancelDialog = true;
         },
 
         closeRawProductCancelDialog(){
             this.rawProductCancelDialog = false;
             this.rawProductToCancel = null;
+            this.rawProductCancelOption = 'boxes';
+            this.rawProductCancelAmount = 0;
+        },
+
+        getRawCancelPreview(){
+            const target = this.rawProductToCancel;
+            const amount = Number(this.rawProductCancelAmount || 0);
+            if (!target || amount <= 0) return '';
+
+            const poLabel = this.purchaseOrder?.purchase_order_name || `#${target.purchase_order_id ?? 'N/A'}`;
+
+            if (this.rawProductCancelOption === 'boxes') {
+                if (amount > (target.amount || 0)) return '';
+                return `Will cancel ${amount} box${amount !== 1 ? 'es' : ''} from PO ${poLabel}.`;
+            }
+
+            const unitsPerCase = Number(target.units_per_case || 0);
+            const totalUnits = Number(target.amount || 0) * unitsPerCase;
+            if (!unitsPerCase || amount > totalUnits) return '';
+
+            const fullBoxesCancelled = Math.floor(amount / unitsPerCase);
+            const partialCancelledUnits = amount % unitsPerCase;
+
+            if (partialCancelledUnits === 0) {
+                return `Will cancel ${amount} units (${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''}) from PO ${poLabel}.`;
+            }
+
+            const remainingUnits = unitsPerCase - partialCancelledUnits;
+            return `Will cancel ${amount} units from PO ${poLabel}: ${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''} plus 1 split box. Split result: original box becomes ${partialCancelledUnits} units and Cancelled; new partial box is ${remainingUnits} units and stays linked to PO ${poLabel}.`;
         },
 
         async confirmRawProductCancel(){
-            if (!this.rawProductToCancel) {
+            if (!this.rawProductToCancel || !this.rawProductCancelAmount) {
                 this.closeRawProductCancelDialog();
                 return;
             }
 
             const target = this.rawProductToCancel;
-            const index = this.poBoxes.findIndex(item =>
-                item === target ||
-                (item.product_id === target.product_id &&
-                 item.purchase_order_id === target.purchase_order_id &&
-                 item.units_per_case === target.units_per_case)
-            );
-
-            if (index < 0 || !this.poBoxes[index]) {
-                this.$toast.add({
-                    severity: 'warn',
-                    summary: 'Unable to Cancel',
-                    detail: 'This product row could not be matched. It may have changed.',
-                    life: 3000
-                });
-                this.closeRawProductCancelDialog();
-                return;
-            }
-
+            const cancelAmount = this.rawProductCancelAmount;
+            const cancelOption = this.rawProductCancelOption;
+            
+            this.loading = true;
             try {
                 // Find the individual boxes that make up this poBox row
                 const individualBoxes: any[] = this.purchaseOrder.individual_boxes || [];
@@ -4834,48 +4880,142 @@ export default {
                     return;
                 }
 
-                // Build one key-value object per box for bulk_update_case_v2
-                const cancelPayload = matchingBoxes.map(b => ({
-                    case_id:            b.case_id,
-                    product_id:         b.product_id,
-                    units_per_case:     b.units_per_case,
-                    date_received:      b.date_received ?? null,
-                    notes:              b.notes ?? null,
-                    location_id:        b.location_id ?? null,
-                    status:             'Cancelled',
-                    purchase_order_id:  b.purchase_order_id,
-                    request_id:         b.request_id ?? null
-                }));
+                let boxesToCancel: any[] = [];
+                let partialBoxData: any = null;
+                const cancelPayload: any[] = [];
+
+                if (cancelOption === 'boxes') {
+                    // Simple box cancellation: cancel the first N boxes
+                    if (cancelAmount > matchingBoxes.length) {
+                        this.$toast.add({
+                            severity: 'warn',
+                            summary: 'Invalid Amount',
+                            detail: `You can only cancel up to ${matchingBoxes.length} box${matchingBoxes.length !== 1 ? 'es' : ''}.`,
+                            life: 3000
+                        });
+                        this.closeRawProductCancelDialog();
+                        return;
+                    }
+
+                    boxesToCancel = matchingBoxes.slice(0, cancelAmount);
+                    boxesToCancel.forEach((b: any) => {
+                        cancelPayload.push({
+                            case_id:            b.case_id,
+                            product_id:         b.product_id,
+                            units_per_case:     b.units_per_case,
+                            date_received:      b.date_received ?? null,
+                            notes:              b.notes ?? null,
+                            location_id:        b.location_id ?? null,
+                            status:             'Cancelled',
+                            purchase_order_id:  b.purchase_order_id,
+                            request_id:         b.request_id ?? null
+                        });
+                    });
+                } else {
+                    // Unit-based cancellation with partial-box split logic
+                    const totalUnitsAvailable = matchingBoxes.reduce((sum: number, box: any) => sum + (Number(box.units_per_case) || 0), 0);
+                    if (cancelAmount > totalUnitsAvailable) {
+                        this.$toast.add({
+                            severity: 'warn',
+                            summary: 'Invalid Amount',
+                            detail: `You can only cancel up to ${totalUnitsAvailable} unit${totalUnitsAvailable !== 1 ? 's' : ''}.`,
+                            life: 3000
+                        });
+                        this.closeRawProductCancelDialog();
+                        return;
+                    }
+
+                    let unitsLeftToCancel = cancelAmount;
+
+                    for (const box of matchingBoxes) {
+                        if (unitsLeftToCancel <= 0) break;
+
+                        const boxUnits = Number(box.units_per_case) || 0;
+                        if (!boxUnits) continue;
+
+                        // Full-box cancellation
+                        if (unitsLeftToCancel >= boxUnits) {
+                            boxesToCancel.push(box);
+                            cancelPayload.push({
+                                case_id:            box.case_id,
+                                product_id:         box.product_id,
+                                units_per_case:     boxUnits,
+                                date_received:      box.date_received ?? null,
+                                notes:              box.notes ?? null,
+                                location_id:        box.location_id ?? null,
+                                status:             'Cancelled',
+                                purchase_order_id:  box.purchase_order_id,
+                                request_id:         box.request_id ?? null
+                            });
+                            unitsLeftToCancel -= boxUnits;
+                            continue;
+                        }
+
+                        // Split-box cancellation: cancel part of this box, keep the remainder as a new partial box
+                        const cancelledUnits = unitsLeftToCancel;
+                        const remainingUnits = boxUnits - cancelledUnits;
+
+                        boxesToCancel.push(box);
+                        cancelPayload.push({
+                            case_id:            box.case_id,
+                            product_id:         box.product_id,
+                            units_per_case:     cancelledUnits,
+                            date_received:      box.date_received ?? null,
+                            notes:              `Partial cancellation (${cancelledUnits} units cancelled from ${boxUnits})`,
+                            location_id:        box.location_id ?? null,
+                            status:             'Cancelled',
+                            purchase_order_id:  box.purchase_order_id,
+                            request_id:         box.request_id ?? null
+                        });
+
+                        partialBoxData = {
+                            product_id: box.product_id,
+                            units_per_case: remainingUnits,
+                            purchase_order_id: this.purchaseOrder?.purchase_order_id || box.purchase_order_id || target.purchase_order_id || null,
+                            status: box.status,
+                            date_received: box.date_received ?? null,
+                            notes: `Partial box created during cancellation (${remainingUnits} units remaining)`,
+                            location_id: box.location_id ?? null,
+                            request_id: box.request_id ?? null
+                        };
+
+                        unitsLeftToCancel = 0;
+                    }
+                }
+
+                if (!cancelPayload.length) {
+                    this.$toast.add({
+                        severity: 'warn',
+                        summary: 'No Changes Applied',
+                        detail: 'No boxes were eligible for cancellation.',
+                        life: 3000
+                    });
+                    this.closeRawProductCancelDialog();
+                    return;
+                }
 
                 await action.bulkEditCasesV2(cancelPayload);
 
-                // Update local state to reflect the cancellation across all sources used by the UI
-                const cancelledCaseIds = new Set(matchingBoxes.map(b => b.case_id));
+                // If we created a partial box, add it to inventory
+                if (partialBoxData) {
+                    await action.addCase(partialBoxData);
+                }
 
-                this.uBoxes = (this.uBoxes || []).map(box =>
-                    cancelledCaseIds.has(box.case_id)
-                        ? { ...box, status: 'Cancelled' }
-                        : box
-                );
+                // Pull fresh DB state so new partial boxes and unit changes are reflected in all views.
+                await this.getBoxes();
 
                 this.syncCurrentPurchaseOrderBoxViews();
                 this.checkPoTotals();
 
-                let linkedPoRec = this.poRecipes.find(rec =>
-                    rec.purchase_order_id === target.purchase_order_id &&
-                    this.recipeElements.find(r =>
-                        r.product_id === target.product_id &&
-                        r.type === 'input' &&
-                        r.recipe_id === rec.recipe_id
-                    ) !== undefined
-                );
-                console.log("PO Recipe in cancel function: ", linkedPoRec);
+                const cancelDescription = cancelOption === 'boxes' 
+                    ? `${cancelAmount} box${cancelAmount !== 1 ? 'es' : ''}`
+                    : `${cancelAmount} units`;
 
                 this.$toast.add({
                     severity: 'success',
                     summary: 'Product Cancelled',
-                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${matchingBoxes.length} box${matchingBoxes.length !== 1 ? 'es' : ''}).`,
-                    life: 2500
+                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${cancelDescription})${partialBoxData ? ' - partial box created with remainder.' : ''}`,
+                    life: 3000
                 });
             } catch (error) {
                 console.error("Error cancelling product: ", error);
@@ -4885,9 +5025,10 @@ export default {
                     detail: 'An error occurred while cancelling this product. Please try again.',
                     life: 4000
                 });
+            } finally {
+                this.loading = false;
+                this.closeRawProductCancelDialog();
             }
-
-            this.closeRawProductCancelDialog();
         },
 
         onProcProductCancel(product_id: number){
