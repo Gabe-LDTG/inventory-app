@@ -251,7 +251,15 @@
                         </div> 
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
-                            <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <div class="flex justify-content-between align-items-center mb-2">
+                                <h4 class="m-0">Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                                <Button
+                                    :label="slotProps.data.showCancelledProducts ? 'Hide Canceled Products' : 'Show Canceled Products'"
+                                    :severity="slotProps.data.showCancelledProducts ? 'secondary' : 'danger'"
+                                    size="small"
+                                    @click="slotProps.data.showCancelledProducts = !slotProps.data.showCancelledProducts"
+                                />
+                            </div>
                             <DataTable 
                             :value="displayInfo(slotProps.data)" 
                             :rowClass="rowClass" :rowStyle="rowStyle"
@@ -989,7 +997,15 @@
                     </div>
                     <div v-if="rawProductCancelOption === 'boxes'" class="field ml-5 mb-3">
                         <label class="block font-bold mb-2">Number of Boxes to Cancel</label>
-                        <InputNumber v-model="rawProductCancelAmount" :min="1" :max="rawProductToCancel.amount" class="w-full" />
+                        <InputNumber
+                            v-model="rawProductCancelAmount"
+                            :min="1"
+                            :max="rawProductToCancel.amount"
+                            :useGrouping="false"
+                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
+                            @input="onRawProductCancelAmountInput"
+                        />
+                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
                     </div>
                     
                     <div class="mb-3">
@@ -998,19 +1014,27 @@
                     </div>
                     <div v-if="rawProductCancelOption === 'units'" class="field ml-5">
                         <label class="block font-bold mb-2">Number of Units to Cancel</label>
-                        <InputNumber v-model="rawProductCancelAmount" :min="1" :max="rawProductToCancel.amount * rawProductToCancel.units_per_case" class="w-full" />
+                        <InputNumber
+                            v-model="rawProductCancelAmount"
+                            :min="1"
+                            :max="rawProductToCancel.amount * rawProductToCancel.units_per_case"
+                            :useGrouping="false"
+                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
+                            @input="onRawProductCancelAmountInput"
+                        />
+                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
                         <small class="p-d-block mt-2 text-color-secondary">Max: {{ rawProductToCancel.amount * rawProductToCancel.units_per_case }} units</small>
                     </div>
                 </div>
 
-                <div v-if="getRawCancelPreview()" class="p-3 border-round border-1 surface-border bg-blue-50 text-900">
-                    <div class="font-bold mb-1">Preview</div>
-                    <small>{{ getRawCancelPreview() }}</small>
+                <div v-if="getRawCancelPreview() || getRawCancelValidationMessage()" :class="['p-3 border-round border-1', isRawCancelOverMax() ? 'surface-border bg-red-50 text-900' : 'surface-border bg-blue-50 text-900']">
+                    <div class="font-bold mb-1">{{ isRawCancelOverMax() ? 'Warning' : 'Preview' }}</div>
+                    <small :class="{ 'p-error': isRawCancelOverMax() }">{{ isRawCancelOverMax() ? getRawCancelValidationMessage() : getRawCancelPreview() }}</small>
                 </div>
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
-                <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0" :loading="loading" />
+                <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0 || isRawCancelOverMax()" :loading="loading" />
             </template>
         </Dialog>
 
@@ -3266,7 +3290,7 @@ export default {
                 // console.log("Boxes ",boxes);
                 // console.log("Cases ",cases);
                 // this.poBoxes = this.groupProducts(boxes);
-                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id', 'units_per_case', 'status']);
                 this.poBoxes.forEach((box: any) => {
                     const rawProduct = this.unprocProducts.find(p => p.product_id === box.product_id)
                         || this.products.find(p => p.product_id === box.product_id);
@@ -3300,6 +3324,10 @@ export default {
             this.$toast.add({ severity: 'info', summary: 'Purchase Order Expanded', detail: event.data.purchase_order_name, life: 3000 });
             
             console.log("EVENT DATA ",event.data);
+
+            if (event?.data && event.data.showCancelledProducts === undefined) {
+                event.data.showCancelledProducts = false;
+            }
 
             this.displayStatus = "";
         },
@@ -3338,7 +3366,11 @@ export default {
             let total = 0;
 
             // linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
-            linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id && b.status !== 'Cancelled');
+            const includeCancelled = !!po.showCancelledProducts;
+            linkedBoxes = this.uBoxes.filter((b: any) =>
+                b.purchase_order_id === po.purchase_order_id &&
+                (includeCancelled || b.status !== 'Cancelled')
+            );
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(po.displayStatus === "Processed"){
@@ -4237,6 +4269,8 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            } else if (data.status === 'Cancelled') {
+                return { font: 'bold', backgroundColor: '#e3b2b2', color: '#5f2222' };
             } else if  (data.status === 'On RTP' || data.status === 'Ready') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else {
@@ -4623,7 +4657,7 @@ export default {
             this.purchaseOrder.individual_boxes = poAllBoxes;
 
             const activePoBoxes = poAllBoxes.filter((box: any) => box.status !== 'Cancelled');
-            this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id']);
+            this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id', 'units_per_case', 'status']);
 
             // Keep the paginated table row in sync too, when present.
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === currentPoId);
@@ -4818,6 +4852,37 @@ export default {
             this.rawProductToCancel = null;
             this.rawProductCancelOption = 'boxes';
             this.rawProductCancelAmount = 0;
+        },
+
+        onRawProductCancelAmountInput(event: any){
+            const nextValue = Number(event?.value ?? 0);
+            this.rawProductCancelAmount = Number.isFinite(nextValue) ? nextValue : 0;
+        },
+
+        getRawCancelMax(){
+            const target = this.rawProductToCancel;
+            if (!target) return 0;
+
+            if (this.rawProductCancelOption === 'boxes') {
+                return Number(target.amount || 0);
+            }
+
+            return Number(target.amount || 0) * Number(target.units_per_case || 0);
+        },
+
+        isRawCancelOverMax(){
+            const amount = Number(this.rawProductCancelAmount || 0);
+            const max = this.getRawCancelMax();
+            return amount > 0 && max > 0 && amount > max;
+        },
+
+        getRawCancelValidationMessage(){
+            if (!this.isRawCancelOverMax()) return '';
+
+            const amount = Number(this.rawProductCancelAmount || 0);
+            const max = this.getRawCancelMax();
+            const unitLabel = this.rawProductCancelOption === 'boxes' ? 'box(es)' : 'unit(s)';
+            return `Entered amount (${amount}) exceeds max allowed (${max} ${unitLabel}).`;
         },
 
         getRawCancelPreview(){
@@ -5645,6 +5710,9 @@ export default {
 .skeleton-line--total {
      width: 62px;
  }
+.raw-cancel-input--invalid :is(.p-inputtext, input) {
+    background-color: #ffe3e3 !important;
+}
  .caseCard{
    border-style: solid;
    border-radius: 5px;
