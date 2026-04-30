@@ -251,7 +251,15 @@
                         </div> 
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Unprocessed'">
-                            <h4>Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <div class="flex justify-content-between align-items-center mb-2">
+                                <h4 class="m-0">Unprocessed Product(s) in Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                                <Button
+                                    :label="slotProps.data.showCancelledProducts ? 'Hide Canceled Products' : 'Show Canceled Products'"
+                                    :severity="slotProps.data.showCancelledProducts ? 'secondary' : 'danger'"
+                                    size="small"
+                                    @click="slotProps.data.showCancelledProducts = !slotProps.data.showCancelledProducts"
+                                />
+                            </div>
                             <DataTable 
                             :value="displayInfo(slotProps.data)" 
                             :rowClass="rowClass" :rowStyle="rowStyle"
@@ -353,6 +361,24 @@
             <template #footer>
                 <Button label="Cancel" text @click="missingDefaultUnitsDialog = false" />
                 <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" autoFocus />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="missingVendorNicknameDialog" :style="{width: '500px'}" header="Missing Company Code" :modal="true">
+            <div class="field">
+                <p>This vendor does not have a company code. Please enter one below — it will be used as the prefix for this purchase order's name.</p>
+            </div>
+            <div class="field">
+                <div class="grid">
+                    <div class="col-12">
+                        <label class="block font-bold mb-2">Company Code</label>
+                        <InputText v-model="pendingVendorNickname" class="w-full" placeholder="e.g. Aurora → AU" />
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Cancel" text @click="missingVendorNicknameDialog = false" />
+                <Button label="Save" icon="pi pi-check" @click="saveMissingVendorNickname" :disabled="!pendingVendorNickname.trim()" autoFocus />
             </template>
         </Dialog>
 
@@ -710,7 +736,7 @@
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" />
+                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -831,6 +857,7 @@
                             v-tooltip.top="'Cancel Product'"
                             text
                             icon="pi pi-ban"
+                            severity="danger"
                             :disabled="Boolean(data?.d_editing) || isRawRowEditing(data)"
                             @click="onRawProductCancel(data)"
                         />
@@ -919,14 +946,28 @@
             </div>
 
             <template #footer>
-                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
-                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <div>
-                        <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
-                        <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                <div class="po-edit-footer-wrap">
+                    <div class="flex flex-nowrap gap-2 align-items-center justify-content-between">
+                        <div>
+                            <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
+                            <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                        </div>
+                        <div class="po-edit-footer-actions">
+                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
+                            <div class="po-autosave-banner" :class="{ 'is-visible': autoSaveState !== 'idle' }">
+                                <div v-if="autoSaveState !== 'idle'" class="po-autosave-indicator">
+                                    <template v-if="autoSaveState === 'saving'">
+                                        <ProgressSpinner style="width: 18px; height: 18px" strokeWidth="4" animationDuration=".8s" />
+                                        <span>Saving changes...</span>
+                                    </template>
+                                    <template v-else>
+                                        <i class="pi pi-check-circle po-autosave-check"></i>
+                                        <span>Changes saved</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
                 </div>
                 <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
             </template>
@@ -943,18 +984,58 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '480px'}" header="Confirm Product Cancellation" :modal="true">
-            <div class="confirmation-content">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                <span v-if="rawProductToCancel">
-                    Are you sure you want to cancel
-                    <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
-                    from this purchase order?
-                </span>
+        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '500px'}" header="Cancel Product" :modal="true">
+            <div class="field" v-if="rawProductToCancel">
+                <p class="m-0 mb-3">
+                    Cancel <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
+                    ({{ rawProductToCancel.units_per_case }} units per box, {{ rawProductToCancel.amount }} box{{ rawProductToCancel.amount !== 1 ? 'es' : '' }} total)
+                </p>
+                
+                <div class="mb-4">
+                    <div class="mb-3">
+                        <RadioButton v-model="rawProductCancelOption" value="boxes" inputId="cancel-boxes" />
+                        <label for="cancel-boxes" class="ml-2">Cancel by Box Count</label>
+                    </div>
+                    <div v-if="rawProductCancelOption === 'boxes'" class="field ml-5 mb-3">
+                        <label class="block font-bold mb-2">Number of Boxes to Cancel</label>
+                        <InputNumber
+                            v-model="rawProductCancelAmount"
+                            :min="1"
+                            :max="rawProductToCancel.amount"
+                            :useGrouping="false"
+                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
+                            @input="onRawProductCancelAmountInput"
+                        />
+                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <RadioButton v-model="rawProductCancelOption" value="units" inputId="cancel-units" />
+                        <label for="cancel-units" class="ml-2">Cancel by Unit Quantity</label>
+                    </div>
+                    <div v-if="rawProductCancelOption === 'units'" class="field ml-5">
+                        <label class="block font-bold mb-2">Number of Units to Cancel</label>
+                        <InputNumber
+                            v-model="rawProductCancelAmount"
+                            :min="1"
+                            :max="rawProductToCancel.amount * rawProductToCancel.units_per_case"
+                            :useGrouping="false"
+                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
+                            @input="onRawProductCancelAmountInput"
+                        />
+                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
+                        <small class="p-d-block mt-2 text-color-secondary">Max: {{ rawProductToCancel.amount * rawProductToCancel.units_per_case }} units</small>
+                    </div>
+                </div>
+
+                <div v-if="getRawCancelPreview() || getRawCancelValidationMessage()" :class="['p-3 border-round border-1', isRawCancelOverMax() ? 'surface-border bg-red-50 text-900' : 'surface-border bg-blue-50 text-900']">
+                    <div class="font-bold mb-1">{{ isRawCancelOverMax() ? 'Warning' : 'Preview' }}</div>
+                    <small :class="{ 'p-error': isRawCancelOverMax() }">{{ isRawCancelOverMax() ? getRawCancelValidationMessage() : getRawCancelPreview() }}</small>
+                </div>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="closeRawProductCancelDialog"/>
-                <Button label="Yes, Cancel Product" icon="pi pi-check" severity="danger" text @click="confirmRawProductCancel" />
+                <Button label="Close" icon="pi pi-times" text severity="danger" @click="closeRawProductCancelDialog"/>
+                <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0 || isRawCancelOverMax()" :loading="loading" />
             </template>
         </Dialog>
 
@@ -964,7 +1045,7 @@
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="statusChangeDialog = false; newStatus=''"/>
-                <Button label="Yes" icon="pi pi-check" text @click="confirmStatusChange" />
+                <Button label="Yes" icon="pi pi-check" text @click="confirmStatusChange" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -1161,8 +1242,56 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '900px' }">
+            <div class="flex flex-column gap-3">
+                <p class="m-0">
+                    Eligible boxes are grouped by product and units per box. This list excludes canceled boxes and boxes already linked to an invoice for this purchase order.
+                </p>
 
+                <DataTable v-if="inboundBoxesLoading" :value="[{ id: 1 }, { id: 2 }, { id: 3 }]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Product">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--product"></div>
+                        </template>
+                    </Column>
+                    <Column header="Item #">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--item"></div>
+                        </template>
+                    </Column>
+                    <Column header="Units per Box">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number"></div>
+                        </template>
+                    </Column>
+                    <Column header="Box Count">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number"></div>
+                        </template>
+                    </Column>
+                    <Column header="Total Units">
+                        <template #body>
+                            <div class="skeleton-line skeleton-line--number skeleton-line--total"></div>
+                        </template>
+                    </Column>
+                </DataTable>
+
+                <DataTable v-else :value="inboundBoxes" stripedRows showGridlines responsiveLayout="scroll">
+                    <template #empty>
+                        No eligible boxes are available to inbound for this purchase order.
+                    </template>
+
+                    <Column field="product_name" header="Product" sortable />
+                    <Column field="item_num" header="Item #" sortable />
+                    <Column field="units_per_case" header="Units per Box" sortable />
+                    <Column field="amount" header="Box Count" sortable />
+                    <Column header="Total Units" sortable>
+                        <template #body="{ data }">
+                            {{ data.amount * data.units_per_case }}
+                        </template>
+                    </Column>
+                </DataTable>
+            </div>
         </Dialog>
         
     </div>
@@ -1175,6 +1304,7 @@ import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
 import InputNumber from 'primevue/inputnumber';
+import RadioButton from 'primevue/radiobutton';
 import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
@@ -1223,6 +1353,7 @@ export default {
             newStatus: "",
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
+            inboundBoxesLoading: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1238,6 +1369,14 @@ export default {
             missingDefaultUnitsDialog: false,
             missingDefaults: [] as Array<{ product_id: number; name: string; item_num: string; default_units_per_case: number | null }>,
             missingDefaultsRecipeIndex: null as number | null,
+
+            // MISSING VENDOR NICKNAME DIALOG
+            missingVendorNicknameDialog: false,
+            pendingVendorNickname: '',
+
+            // RAW PRODUCT CANCEL OPTIONS
+            rawProductCancelOption: 'boxes' as 'boxes' | 'units',
+            rawProductCancelAmount: 0 as number,
 
             //CASE VARIABLES
             cases: [] as any[],
@@ -1308,6 +1447,9 @@ export default {
             sortOrder: -1,
             tableLoading: false,
 
+            saving: false,
+            autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
+
         }
     },
     created() {
@@ -1344,6 +1486,7 @@ export default {
         
         async save(): Promise<void> { 
             try {
+                this.autoSaveState = 'saving';
                 if(this.purchaseOrder.purchase_order_id){
                     const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
                     console.log(editedPO);
@@ -1355,7 +1498,9 @@ export default {
                     const poIdx = this.purchaseOrders.findIndex(po => po.purchase_order_id === editedPO.purchase_order_id);
                     this.purchaseOrders[poIdx] = editedPO;
                 }
+                this.autoSaveState = 'saved';
             } catch (error) {
+                this.autoSaveState = 'idle';
                 console.error(error);
             }
          }, 
@@ -2106,6 +2251,38 @@ export default {
             return vendorRecipes;
         },
 
+        async continueOpenNewWithNickname(nickname: string){
+            const today = new Date();
+            const year = today.getFullYear().toString();
+            let maxSeqForYear = 0;
+
+            const newestPos = await action.getNewestPurchaseOrdersByVendor(this.purchaseOrder.vendor_id);
+
+            newestPos.forEach((po: any) => {
+                const name = po.purchase_order_name || '';
+                const match = name.match(/^([^_-]+)[-_](\d{4})(\d{2,3})([A-Za-z].*)?$/);
+
+                if (!match) return;
+
+                const poYear = match[2];
+                const seq = Number(match[3]);
+                if (poYear === year && !isNaN(seq)) {
+                    maxSeqForYear = Math.max(maxSeqForYear, seq);
+                }
+            });
+
+            const nextSeq = maxSeqForYear + 1;
+            const seqStr = String(nextSeq).padStart(2, '0');
+
+            this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
+            this.purchaseOrder.status = 'Draft';
+
+            this.newBulkArray();
+            this.submitted = false;
+            this.purchaseOrderDialog = true;
+            console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+        },
+
         //Description: 
         //
         //Created by: Gabe de la Torre
@@ -2121,68 +2298,19 @@ export default {
                 this.recipeArray = [];
                 this.selectedOrderType = "";
                 this.amount = 1;
-                console.log("Selected Vendor: ", this.purchaseOrder.vendor_id);
-                /* if(this.recipes.length === 0 || this.recipeElements.length === 0){
-                    
-                } */
+                console.log("Purchase Order: ", this.purchaseOrder);
 
-                
-
-                const today = new Date();
-                const year = today.getFullYear().toString();
-
-                let nickname = '';
-                let maxSeqForYear = 0;
-
-                let newestPos = await action.getNewestPurchaseOrdersByVendor(this.purchaseOrder.vendor_id);
-
-                // Find the highest sequence number for the current year for this vendor
-                // PO name format: {vendorCode}-{YYYY}{seq}[suffix]
-                // Example: AU-202603fbm (vendor AU, year 2026, seq 03, suffix fbm)
-                newestPos.forEach(po => {
-
-                    const name = po.purchase_order_name || '';
-                    const match = name.match(/^([^_-]+)[-_](\d{4})(\d{2,3})([A-Za-z].*)?$/);
-
-                    // If it doesn't match the expected format, just skip this PO
-                    if (!match) return;
-
-                    const poNickname = match[1] || '';
-                    if (!nickname && poNickname) {
-                        nickname = poNickname;
-                    }
-
-                    const poYear = match[2];
-                    const seq = Number(match[3]);
-                    if (poYear === year && !isNaN(seq)) {
-                        maxSeqForYear = Math.max(maxSeqForYear, seq);
-                    }
-                });
-
-                // Reset annually: start at 1 for a new year
-                const nextSeq = maxSeqForYear + 1;
-                const seqStr = String(nextSeq).padStart(2, '0');
+                const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
+                console.log("Nickname from vendor record: ", nickname);
 
                 if (!nickname) {
-                    nickname = '[COMPANY_CODE_HERE]';
+                    // Vendor has no company code — prompt the user before building PO name
+                    this.pendingVendorNickname = '';
+                    this.missingVendorNicknameDialog = true;
+                    return;
                 }
 
-                this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
-
-                this.purchaseOrder.status = "Draft";
-                //this.purchaseOrder.raw = this.poBoxes;
-                //this.purchaseOrder.cases = this.poCases
-
-                //console.log(this.purchaseOrders[0].date_ordered.split('T')[0]);
-                console.log(this.purchaseOrder)
-                //console.log(this.selectedOrderType);
-                
-                this.newBulkArray();
-
-                this.submitted = false;
-                this.purchaseOrderDialog = true;
-                // this.loading = false;
-                console.log("Purchase Order Dialog Opened, PO Object: ", this.purchaseOrder);
+                await this.continueOpenNewWithNickname(nickname);
             } catch (error) {
                 console.error("Error occurred while opening new purchase order:", error);
             }
@@ -2199,8 +2327,11 @@ export default {
          * @dateLastEdited 3-25-2026
          */
         async onPurchaseOrderDialogOpen(dialogType: number, purchaseOrder?: any){
+            let previousTableLoading = this.tableLoading;
             try {
+                this.autoSaveState = 'idle';
                 this.loading = true;
+                this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
                 console.log("Purchase Order Dialog opened with dialogType:", dialogType);
 
@@ -2249,6 +2380,7 @@ export default {
             } finally {
                 this.isInitializingPurchaseOrder = false;
                 this.loading = false;
+                this.tableLoading = previousTableLoading;
             }
         },
 
@@ -2342,6 +2474,52 @@ export default {
             if (vendorObj && vendorObj.vendor_id) {
                 this.purchaseOrder.vendor = vendorObj;
                 this.purchaseOrder.vendor_id = vendorObj.vendor_id;
+            }
+        },
+
+        async saveMissingVendorNickname() {
+            const nickname = this.pendingVendorNickname.trim();
+            if (!nickname) return;
+            const selectedVendor = this.purchaseOrder?.vendor;
+
+            if (!selectedVendor?.vendor_id) {
+                this.$toast.add({ severity: 'error', summary: 'Vendor Missing', detail: 'Please select a vendor first.' });
+                return;
+            }
+
+            this.loading = true;
+            const vendorToUpdate = {
+                ...selectedVendor,
+                vendor_nickname: nickname,
+            };
+
+            try {
+                const updatedVendor: any = await action.editVendor(vendorToUpdate);
+
+                this.purchaseOrder.vendor = {
+                    ...selectedVendor,
+                    ...(updatedVendor || {}),
+                    vendor_nickname: nickname,
+                };
+                this.purchaseOrder.vendor_id = this.purchaseOrder.vendor.vendor_id || selectedVendor.vendor_id;
+
+                const vendorIdx = this.vendors.findIndex((v: any) => v.vendor_id === this.purchaseOrder.vendor_id);
+                if (vendorIdx !== -1) {
+                    this.vendors[vendorIdx] = {
+                        ...this.vendors[vendorIdx],
+                        ...this.purchaseOrder.vendor,
+                        vendor_nickname: nickname,
+                    };
+                }
+
+                this.pendingVendorNickname = '';
+                this.missingVendorNicknameDialog = false;
+                await this.continueOpenNewWithNickname(nickname);
+            } catch (error: any) {
+                console.error(error);
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save company code.' });
+            } finally {
+                this.loading = false;
             }
         },
 
@@ -2452,7 +2630,7 @@ export default {
                 return !Number.isFinite(numeric) || numeric <= 0;
             });
             if (invalid) {
-                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.', life: 4000 });
+                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.' });
                 return;
             }
 
@@ -2479,7 +2657,7 @@ export default {
 
             } catch (error) {
                 console.error(error);
-                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.', life: 4000 });
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.' });
             }
         },
 
@@ -2582,6 +2760,8 @@ export default {
             }
         },
         async savePurchaseOrder() {
+            if (this.saving) return;
+            this.saving = true;
             try {
                 //this.submitted = true;
                 if (this.purchaseOrder.purchase_order_name.trim()) {
@@ -2605,6 +2785,8 @@ export default {
                 }
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
         },
 
@@ -2644,7 +2826,7 @@ export default {
                 return editedPurchaseOrder;
             } catch (error) {
                 console.log(error);
-                this.$toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: error});
             }
         },
 
@@ -3019,7 +3201,7 @@ export default {
                 return addedPurchaseOrderId;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -3109,7 +3291,7 @@ export default {
                 // console.log("Boxes ",boxes);
                 // console.log("Cases ",cases);
                 // this.poBoxes = this.groupProducts(boxes);
-                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id']);
+                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id', 'units_per_case', 'status']);
                 this.poBoxes.forEach((box: any) => {
                     const rawProduct = this.unprocProducts.find(p => p.product_id === box.product_id)
                         || this.products.find(p => p.product_id === box.product_id);
@@ -3143,6 +3325,10 @@ export default {
             this.$toast.add({ severity: 'info', summary: 'Purchase Order Expanded', detail: event.data.purchase_order_name, life: 3000 });
             
             console.log("EVENT DATA ",event.data);
+
+            if (event?.data && event.data.showCancelledProducts === undefined) {
+                event.data.showCancelledProducts = false;
+            }
 
             this.displayStatus = "";
         },
@@ -3181,7 +3367,11 @@ export default {
             let total = 0;
 
             // linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
-            linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === po.purchase_order_id && b.status !== 'Cancelled');
+            const includeCancelled = !!po.showCancelledProducts;
+            linkedBoxes = this.uBoxes.filter((b: any) =>
+                b.purchase_order_id === po.purchase_order_id &&
+                (includeCancelled || b.status !== 'Cancelled')
+            );
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
             if(po.displayStatus === "Processed"){
@@ -3612,7 +3802,7 @@ export default {
             } catch (err) {
                 console.log(err);
 
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -3849,6 +4039,8 @@ export default {
          * Date Last Edited: 7-23-2024 
          */
         async confirmStatusChange(){
+            if (this.saving) return;
+            this.saving = true;
             try {
                 this.purchaseOrder.status = this.newStatus; 
                 if (this.purchaseOrder.status === 'Ordered')
@@ -3866,6 +4058,8 @@ export default {
                 this.statusChangeDialog = false;
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
         },
 
@@ -4076,6 +4270,8 @@ export default {
         rowStyle(data: any) {
             if (data.status === 'BO') {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            } else if (data.status === 'Cancelled') {
+                return { font: 'bold', backgroundColor: '#e3b2b2', color: '#5f2222' };
             } else if  (data.status === 'On RTP' || data.status === 'Ready') {
                 return { font: 'bold', backgroundColor: '#bbffb5' };
             } else {
@@ -4406,7 +4602,7 @@ export default {
                 await action.bulkEditCases(boxesToUpdate);
                 this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
                 /* if(cancelledTotal > 0){
-                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled', life: 10000});
+                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled'});
                 } */
 
             }        
@@ -4462,7 +4658,7 @@ export default {
             this.purchaseOrder.individual_boxes = poAllBoxes;
 
             const activePoBoxes = poAllBoxes.filter((box: any) => box.status !== 'Cancelled');
-            this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id']);
+            this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id', 'units_per_case', 'status']);
 
             // Keep the paginated table row in sync too, when present.
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === currentPoId);
@@ -4647,39 +4843,87 @@ export default {
             }
 
             this.rawProductToCancel = this.poBoxes[index];
+            this.rawProductCancelOption = 'boxes';
+            this.rawProductCancelAmount = 1;
             this.rawProductCancelDialog = true;
         },
 
         closeRawProductCancelDialog(){
             this.rawProductCancelDialog = false;
             this.rawProductToCancel = null;
+            this.rawProductCancelOption = 'boxes';
+            this.rawProductCancelAmount = 0;
+        },
+
+        onRawProductCancelAmountInput(event: any){
+            const nextValue = Number(event?.value ?? 0);
+            this.rawProductCancelAmount = Number.isFinite(nextValue) ? nextValue : 0;
+        },
+
+        getRawCancelMax(){
+            const target = this.rawProductToCancel;
+            if (!target) return 0;
+
+            if (this.rawProductCancelOption === 'boxes') {
+                return Number(target.amount || 0);
+            }
+
+            return Number(target.amount || 0) * Number(target.units_per_case || 0);
+        },
+
+        isRawCancelOverMax(){
+            const amount = Number(this.rawProductCancelAmount || 0);
+            const max = this.getRawCancelMax();
+            return amount > 0 && max > 0 && amount > max;
+        },
+
+        getRawCancelValidationMessage(){
+            if (!this.isRawCancelOverMax()) return '';
+
+            const amount = Number(this.rawProductCancelAmount || 0);
+            const max = this.getRawCancelMax();
+            const unitLabel = this.rawProductCancelOption === 'boxes' ? 'box(es)' : 'unit(s)';
+            return `Entered amount (${amount}) exceeds max allowed (${max} ${unitLabel}).`;
+        },
+
+        getRawCancelPreview(){
+            const target = this.rawProductToCancel;
+            const amount = Number(this.rawProductCancelAmount || 0);
+            if (!target || amount <= 0) return '';
+
+            const poLabel = this.purchaseOrder?.purchase_order_name || `#${target.purchase_order_id ?? 'N/A'}`;
+
+            if (this.rawProductCancelOption === 'boxes') {
+                if (amount > (target.amount || 0)) return '';
+                return `Will cancel ${amount} box${amount !== 1 ? 'es' : ''} from PO ${poLabel}.`;
+            }
+
+            const unitsPerCase = Number(target.units_per_case || 0);
+            const totalUnits = Number(target.amount || 0) * unitsPerCase;
+            if (!unitsPerCase || amount > totalUnits) return '';
+
+            const fullBoxesCancelled = Math.floor(amount / unitsPerCase);
+            const partialCancelledUnits = amount % unitsPerCase;
+
+            if (partialCancelledUnits === 0) {
+                return `Will cancel ${amount} units (${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''}) from PO ${poLabel}.`;
+            }
+
+            const remainingUnits = unitsPerCase - partialCancelledUnits;
+            return `Will cancel ${amount} units from PO ${poLabel}: ${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''} plus 1 split box. Split result: original box becomes ${partialCancelledUnits} units and Cancelled; new partial box is ${remainingUnits} units and stays linked to PO ${poLabel}.`;
         },
 
         async confirmRawProductCancel(){
-            if (!this.rawProductToCancel) {
+            if (!this.rawProductToCancel || !this.rawProductCancelAmount) {
                 this.closeRawProductCancelDialog();
                 return;
             }
 
             const target = this.rawProductToCancel;
-            const index = this.poBoxes.findIndex(item =>
-                item === target ||
-                (item.product_id === target.product_id &&
-                 item.purchase_order_id === target.purchase_order_id &&
-                 item.units_per_case === target.units_per_case)
-            );
-
-            if (index < 0 || !this.poBoxes[index]) {
-                this.$toast.add({
-                    severity: 'warn',
-                    summary: 'Unable to Cancel',
-                    detail: 'This product row could not be matched. It may have changed.',
-                    life: 3000
-                });
-                this.closeRawProductCancelDialog();
-                return;
-            }
-
+            const cancelAmount = this.rawProductCancelAmount;
+            const cancelOption = this.rawProductCancelOption;
+            
+            this.loading = true;
             try {
                 // Find the individual boxes that make up this poBox row
                 const individualBoxes: any[] = this.purchaseOrder.individual_boxes || [];
@@ -4702,48 +4946,142 @@ export default {
                     return;
                 }
 
-                // Build one key-value object per box for bulk_update_case_v2
-                const cancelPayload = matchingBoxes.map(b => ({
-                    case_id:            b.case_id,
-                    product_id:         b.product_id,
-                    units_per_case:     b.units_per_case,
-                    date_received:      b.date_received ?? null,
-                    notes:              b.notes ?? null,
-                    location_id:        b.location_id ?? null,
-                    status:             'Cancelled',
-                    purchase_order_id:  b.purchase_order_id,
-                    request_id:         b.request_id ?? null
-                }));
+                let boxesToCancel: any[] = [];
+                let partialBoxData: any = null;
+                const cancelPayload: any[] = [];
+
+                if (cancelOption === 'boxes') {
+                    // Simple box cancellation: cancel the first N boxes
+                    if (cancelAmount > matchingBoxes.length) {
+                        this.$toast.add({
+                            severity: 'warn',
+                            summary: 'Invalid Amount',
+                            detail: `You can only cancel up to ${matchingBoxes.length} box${matchingBoxes.length !== 1 ? 'es' : ''}.`,
+                            life: 3000
+                        });
+                        this.closeRawProductCancelDialog();
+                        return;
+                    }
+
+                    boxesToCancel = matchingBoxes.slice(0, cancelAmount);
+                    boxesToCancel.forEach((b: any) => {
+                        cancelPayload.push({
+                            case_id:            b.case_id,
+                            product_id:         b.product_id,
+                            units_per_case:     b.units_per_case,
+                            date_received:      b.date_received ?? null,
+                            notes:              b.notes ?? null,
+                            location_id:        b.location_id ?? null,
+                            status:             'Cancelled',
+                            purchase_order_id:  b.purchase_order_id,
+                            request_id:         b.request_id ?? null
+                        });
+                    });
+                } else {
+                    // Unit-based cancellation with partial-box split logic
+                    const totalUnitsAvailable = matchingBoxes.reduce((sum: number, box: any) => sum + (Number(box.units_per_case) || 0), 0);
+                    if (cancelAmount > totalUnitsAvailable) {
+                        this.$toast.add({
+                            severity: 'warn',
+                            summary: 'Invalid Amount',
+                            detail: `You can only cancel up to ${totalUnitsAvailable} unit${totalUnitsAvailable !== 1 ? 's' : ''}.`,
+                            life: 3000
+                        });
+                        this.closeRawProductCancelDialog();
+                        return;
+                    }
+
+                    let unitsLeftToCancel = cancelAmount;
+
+                    for (const box of matchingBoxes) {
+                        if (unitsLeftToCancel <= 0) break;
+
+                        const boxUnits = Number(box.units_per_case) || 0;
+                        if (!boxUnits) continue;
+
+                        // Full-box cancellation
+                        if (unitsLeftToCancel >= boxUnits) {
+                            boxesToCancel.push(box);
+                            cancelPayload.push({
+                                case_id:            box.case_id,
+                                product_id:         box.product_id,
+                                units_per_case:     boxUnits,
+                                date_received:      box.date_received ?? null,
+                                notes:              box.notes ?? null,
+                                location_id:        box.location_id ?? null,
+                                status:             'Cancelled',
+                                purchase_order_id:  box.purchase_order_id,
+                                request_id:         box.request_id ?? null
+                            });
+                            unitsLeftToCancel -= boxUnits;
+                            continue;
+                        }
+
+                        // Split-box cancellation: cancel part of this box, keep the remainder as a new partial box
+                        const cancelledUnits = unitsLeftToCancel;
+                        const remainingUnits = boxUnits - cancelledUnits;
+
+                        boxesToCancel.push(box);
+                        cancelPayload.push({
+                            case_id:            box.case_id,
+                            product_id:         box.product_id,
+                            units_per_case:     cancelledUnits,
+                            date_received:      box.date_received ?? null,
+                            notes:              `Partial cancellation (${cancelledUnits} units cancelled from ${boxUnits})`,
+                            location_id:        box.location_id ?? null,
+                            status:             'Cancelled',
+                            purchase_order_id:  box.purchase_order_id,
+                            request_id:         box.request_id ?? null
+                        });
+
+                        partialBoxData = {
+                            product_id: box.product_id,
+                            units_per_case: remainingUnits,
+                            purchase_order_id: this.purchaseOrder?.purchase_order_id || box.purchase_order_id || target.purchase_order_id || null,
+                            status: box.status,
+                            date_received: box.date_received ?? null,
+                            notes: `Partial box created during cancellation (${remainingUnits} units remaining)`,
+                            location_id: box.location_id ?? null,
+                            request_id: box.request_id ?? null
+                        };
+
+                        unitsLeftToCancel = 0;
+                    }
+                }
+
+                if (!cancelPayload.length) {
+                    this.$toast.add({
+                        severity: 'warn',
+                        summary: 'No Changes Applied',
+                        detail: 'No boxes were eligible for cancellation.',
+                        life: 3000
+                    });
+                    this.closeRawProductCancelDialog();
+                    return;
+                }
 
                 await action.bulkEditCasesV2(cancelPayload);
 
-                // Update local state to reflect the cancellation across all sources used by the UI
-                const cancelledCaseIds = new Set(matchingBoxes.map(b => b.case_id));
+                // If we created a partial box, add it to inventory
+                if (partialBoxData) {
+                    await action.addCase(partialBoxData);
+                }
 
-                this.uBoxes = (this.uBoxes || []).map(box =>
-                    cancelledCaseIds.has(box.case_id)
-                        ? { ...box, status: 'Cancelled' }
-                        : box
-                );
+                // Pull fresh DB state so new partial boxes and unit changes are reflected in all views.
+                await this.getBoxes();
 
                 this.syncCurrentPurchaseOrderBoxViews();
                 this.checkPoTotals();
 
-                let linkedPoRec = this.poRecipes.find(rec =>
-                    rec.purchase_order_id === target.purchase_order_id &&
-                    this.recipeElements.find(r =>
-                        r.product_id === target.product_id &&
-                        r.type === 'input' &&
-                        r.recipe_id === rec.recipe_id
-                    ) !== undefined
-                );
-                console.log("PO Recipe in cancel function: ", linkedPoRec);
+                const cancelDescription = cancelOption === 'boxes' 
+                    ? `${cancelAmount} box${cancelAmount !== 1 ? 'es' : ''}`
+                    : `${cancelAmount} units`;
 
                 this.$toast.add({
                     severity: 'success',
                     summary: 'Product Cancelled',
-                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${matchingBoxes.length} box${matchingBoxes.length !== 1 ? 'es' : ''}).`,
-                    life: 2500
+                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${cancelDescription})${partialBoxData ? ' - partial box created with remainder.' : ''}`,
+                    life: 3000
                 });
             } catch (error) {
                 console.error("Error cancelling product: ", error);
@@ -4753,9 +5091,10 @@ export default {
                     detail: 'An error occurred while cancelling this product. Please try again.',
                     life: 4000
                 });
+            } finally {
+                this.loading = false;
+                this.closeRawProductCancelDialog();
             }
-
-            this.closeRawProductCancelDialog();
         },
 
         onProcProductCancel(product_id: number){
@@ -5025,7 +5364,7 @@ export default {
             
             // Check to make sure that the user has entered locations for each line 
             if (this.locationSubmitted === true && numErr > 0) {
-                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n'), life: 3000});
+                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n')});
             } else {
                 // Grab all PO boxes that are not received already
                 let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
@@ -5310,15 +5649,28 @@ export default {
 
         async openInboundDialog(purchaseOrder: any){
             try {
+                this.inboundBoxesLoading = true;
+                this.inboundBoxes = [];
                 this.inboundPurchaseOrderDialog = true;
                 console.log("Purchase order in inbound dialog: ", purchaseOrder);
                 console.log("PO Boxes: ", this.poBoxes);
                 let allInboundBoxes = await action.getInboundBoxes(purchaseOrder.purchase_order_id);
-                this.inboundBoxes = helper.groupProductsByKey(allInboundBoxes, ["product_id"]);
+                this.inboundBoxes = helper
+                    .groupProductsByKey(allInboundBoxes, [])
+                    .sort((a: any, b: any) => {
+                        const productCompare = (a.product_name || '').localeCompare(b.product_name || '');
+                        if (productCompare !== 0) {
+                            return productCompare;
+                        }
+
+                        return Number(a.units_per_case || 0) - Number(b.units_per_case || 0);
+                    });
                 console.log("Inbound boxes: ", this.inboundBoxes);
 
             } catch (error) {
                 console.error("Error opening inbound dialog: ", error);
+            } finally {
+                this.inboundBoxesLoading = false;
             }
         },
     }
@@ -5337,6 +5689,31 @@ export default {
    display: inline-flex;
    justify-content: space-between;
  }
+.inbound-skeleton-table {
+     pointer-events: none;
+ }
+.skeleton-line {
+     height: 0.95rem;
+     border-radius: 999px;
+     background: linear-gradient(90deg, #e6edf5 0%, #f6fafe 50%, #e6edf5 100%);
+     background-size: 200% 100%;
+     animation: inbound-skeleton-shimmer 1.2s ease-in-out infinite;
+ }
+.skeleton-line--product {
+     width: 78%;
+ }
+.skeleton-line--item {
+     width: 52%;
+ }
+.skeleton-line--number {
+     width: 44px;
+ }
+.skeleton-line--total {
+     width: 62px;
+ }
+.raw-cancel-input--invalid :is(.p-inputtext, input) {
+    background-color: #ffe3e3 !important;
+}
  .caseCard{
    border-style: solid;
    border-radius: 5px;
@@ -5397,6 +5774,15 @@ export default {
 .loader-fade-enter-from,
 .loader-fade-leave-to {
   opacity: 0;
+}
+
+@keyframes inbound-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .vendor-select-content {
@@ -5625,6 +6011,45 @@ export default {
 .po-edit-dialog .p-dialog-footer {
     border-top: 1px solid #d4e1ee;
     background: #f4f8fc;
+}
+
+.po-edit-footer-wrap {
+    width: 100%;
+    padding-top: 0.5rem;
+}
+
+.po-edit-footer-actions {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 180px;
+}
+
+.po-autosave-banner {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    min-height: 22px;
+    margin-top: 0.35rem;
+    visibility: hidden;
+}
+
+.po-autosave-banner.is-visible {
+    visibility: visible;
+}
+
+.po-autosave-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #36506a;
+}
+
+.po-autosave-check {
+    color: #1f8c56;
+    font-size: 1rem;
 }
 
 :deep(.card .p-datatable) {

@@ -170,31 +170,10 @@
                             <small class="p-error" v-if="submitted && !product.vendor_id">Vendor is required.</small>
                         </div>
 
-                        <div class="field" v-if="!product.product_id">
+                        <div class="field">
                             <label for="name">Name</label>
                             <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                             <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="asin">ASIN</label>
-                            <InputText id="asin" v-model="product.asin"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="fnsku">FNSKU</label>
-                            <InputText id="fnsku" v-model="product.fnsku" />
-                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="upc">UPC</label>
-                            <InputText id="upc" v-model="product.upc"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="item_num">Item Number</label>
-                            <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
                         </div>
 
                         <div class="field">
@@ -208,6 +187,37 @@
                         </div>
                         
                     </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Raw Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="upc">UPC</label>
+                            <InputText id="upc" v-model="product.upc"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="item_num">Item Number</label>
+                            <InputText id="item_num" v-model="product.item_num" rows="3" cols="20" />
+                        </div>
+                   </div>
+                </section>
+
+                <section class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Processed Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="asin">ASIN</label>
+                            <InputText id="asin" v-model="product.asin"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="fnsku">FNSKU</label>
+                            <InputText id="fnsku" v-model="product.fnsku" />
+                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
+                        </div>
+                   </div>
                 </section>
 
                 <section class="pl-dialog-section">
@@ -381,8 +391,8 @@
                             <div class ="caseCard">
                                 <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
 
-                                <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4><br>
-                                <div class="block-div">
+                                <h4 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h4>
+                                <div class="pl-fields-grid">
                                     <div class="field">
                                         <label for="name">Product Needed:</label>
                                         <Dropdown v-model="ing.product_id" required="true"
@@ -410,11 +420,11 @@
                                         <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
                                     </div>
 
-                                    <div class="field">
+                                    <div class="field" style="max-width: 10rem;">
                                         <label for="qty">QTY:</label>
                                         <InputNumber inputId="stacked-buttons" required="true"
                                         :class="{'p-invalid': submitted && !ing.qty}"
-                                        v-model="ing.qty" showButtons/>
+                                        v-model="ing.qty" showButtons />
                                         <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
                                     </div>
 
@@ -430,7 +440,7 @@
 
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" />
+                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -607,6 +617,8 @@ export default {
             columns: [] as any[],
 
             working: false,
+
+            saving: false,
 
             loading: false,
             tableLoading: false,
@@ -1020,23 +1032,29 @@ export default {
                 if(!this.product.name){
                     errorHeader += 'Invalid Product Name. ';
                 }
-                this.$toast.add({severity:'error', summary: errorHeader, detail: 'Please fill in all required fields.', life: 3000});
+                this.$toast.add({severity:'error', summary: errorHeader, detail: 'Please fill in all required fields.'});
             }
         },
         async saveProduct() {
             //this.submitted = true;
+            if (this.saving) return;
+            this.saving = true;
 
-			if (this.product.name.trim()) {
-                if (this.product.product_id) {
-                    await this.confirmEdit();
-                }
-                else {
-                    await this.confirmCreate();
-                }
+			try {
+                if (this.product.name.trim()) {
+                    if (this.product.product_id) {
+                        await this.confirmEdit();
+                    }
+                    else {
+                        await this.confirmCreate();
+                    }
 
-                this.productDialog = false;
-                //this.selectedProducts = null;
-                this.product = {};
+                    this.productDialog = false;
+                    //this.selectedProducts = null;
+                    this.product = {};
+                }
+            } finally {
+                this.saving = false;
             }
         },
         /**
@@ -1067,7 +1085,7 @@ export default {
                 return editedProduct;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -1106,7 +1124,7 @@ export default {
                 return addedProduct;
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
         editProduct(product: any) {
@@ -1199,7 +1217,7 @@ export default {
             } catch (err) {
                 console.log(err);
 
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
         findIndexById(id: number) {
@@ -1249,7 +1267,7 @@ export default {
                 //this.$toast.add({severity:'success', summary: 'Successful', detail: 'Products Deleted', life: 3000});
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             } finally {
                 this.selectedProducts = [];
             }
@@ -1385,7 +1403,15 @@ export default {
             const sectionConfig = [
                 {
                     title: 'Core Details',
-                    keys: ['Name', 'Vendor', 'Date Added', 'UPC', 'Item Number', 'Notes', 'ASIN', 'FNSKU']
+                    keys: ['Name', 'Vendor', 'Date Added', 'Notes']
+                },
+                {
+                    title: 'Raw Details',
+                    keys: ['Item Number', 'UPC']
+                },
+                {
+                    title: 'Processed Details',
+                    keys: ['ASIN', 'FNSKU']
                 },
                 {
                     title: 'Packaging And Size',

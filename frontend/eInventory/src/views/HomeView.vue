@@ -95,17 +95,83 @@
             <span class="node">Verify</span>
           </div> -->
 
+          <details class="sub-guide" open>
+            <summary>General Details</summary>
+            <ul class="general-list">
+              <li
+                v-for="(step, stepIndex) in item.generalDetails"
+                :key="item.routeName + '-general-' + stepIndex"
+              >
+                <span>{{ getStepText(step) }}</span>
+                <ul v-if="getSubsteps(step).length" class="substep-list">
+                  <li
+                    v-for="(substep, subIndex) in getSubsteps(step)"
+                    :key="item.routeName + '-general-sub-' + stepIndex + '-' + subIndex"
+                  >
+                    {{ substep }}
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </details>
+
           <details class="sub-guide">
             <summary>Create</summary>
             <ol>
-              <li v-for="step in item.createSteps" :key="item.routeName + '-create-' + step">{{ step }}</li>
+              <li
+                v-for="(step, stepIndex) in item.createSteps"
+                :key="item.routeName + '-create-' + stepIndex"
+              >
+                <span>{{ getStepText(step) }}</span>
+                <ul v-if="getSubsteps(step).length" class="substep-list">
+                  <li
+                    v-for="(substep, subIndex) in getSubsteps(step)"
+                    :key="item.routeName + '-create-sub-' + stepIndex + '-' + subIndex"
+                  >
+                    {{ substep }}
+                  </li>
+                </ul>
+              </li>
             </ol>
           </details>
 
           <details class="sub-guide">
             <summary>Edit</summary>
             <ol>
-              <li v-for="step in item.editSteps" :key="item.routeName + '-edit-' + step">{{ step }}</li>
+              <li
+                v-for="(step, stepIndex) in item.editSteps"
+                :key="item.routeName + '-edit-' + stepIndex"
+              >
+                <span>{{ getStepText(step) }}</span>
+                <ul v-if="getSubsteps(step).length" class="substep-list">
+                  <li
+                    v-for="(substep, subIndex) in getSubsteps(step)"
+                    :key="item.routeName + '-edit-sub-' + stepIndex + '-' + subIndex"
+                  >
+                    {{ substep }}
+                  </li>
+                </ul>
+              </li>
+            </ol>
+          </details>
+
+          <details v-if="item.receivingSteps && item.receivingSteps.length" class="sub-guide">
+            <summary>Receiving</summary>
+            <ol>
+              <li
+                v-for="(step, stepIndex) in item.receivingSteps"
+                :key="item.routeName + '-receiving-' + stepIndex"
+              >
+                <span>{{ getStepText(step) }}</span>
+                <ul v-if="getSubsteps(step).length" class="substep-list">
+                  <li
+                    v-for="(substep, subIndex) in getSubsteps(step)"
+                    :key="item.routeName + '-receiving-sub-' + stepIndex + '-' + subIndex"
+                  >
+                    {{ substep }}
+                  </li>
+                </ul>
+              </li>
             </ol>
           </details>
 
@@ -125,9 +191,18 @@ interface WalkthroughItem {
   routeName: string;
   summary: string;
   visualLabel: string;
-  createSteps: string[];
-  editSteps: string[];
+  generalDetails: WalkthroughStep[];
+  createSteps: WalkthroughStep[];
+  editSteps: WalkthroughStep[];
+  receivingSteps?: WalkthroughStep[];
 }
+
+type WalkthroughStep =
+  | string
+  | {
+      text: string;
+      substeps?: string[];
+    };
 
 interface StatusConfig {
   key: string;
@@ -140,97 +215,225 @@ const walkthroughs: WalkthroughItem[] = [
   {
     title: 'Product Keys',
     routeName: 'ProductList',
-    summary: 'Create and maintain your catalog so every downstream workflow has clean product data.',
+    summary: 'All processed and unprocessed product keys, with info on pricing, unit counts, vendors, etc.',
     visualLabel: 'Catalog Setup Flow',
+    generalDetails: [
+      'By default, both processed and unprocessed products are displayed in the product key list, but users can filter by product type using the buttons in the top right corner of the page.',
+      'A recipe dropdown exists for processed products that shows the raw product requirements for that processed product. If a product is raw, the dropdown will say "No recipe - item is raw".',
+    ],
     createSteps: [
-      'Add base product info (name, vendor, fnsku/item number).',
-      'Confirm units-per-case defaults and processing attributes.',
-      'Validate searchability so PO and case pages can resolve the product fast.'
+      'Click the "New" button in the top right corner of the table',
+      {
+        text: 'Add base product info (name, vendor, fnsku/item number).',
+        substeps: [
+          "Currently, the system tracks processed products with FNSKU and ASIN, any product missing these is considered unprocessed.",
+          "A user is able to add FNSKU and ASIN at any time to convert an unprocessed product to a processed one.",
+          "SOON: We will add a required field to designate product type as 'processed' vs 'unprocessed' to remove ambiguity and tracking issues around missing identifiers."
+        ]
+      },
+      {
+        text: 'Confirm units-per-case defaults and processing attributes.',
+        substeps: [
+          "Certain fields, such as 'Box Cost', autofill based on linked fields(e.g. 'Box Type').",
+          "These autofilled fields can be overwritten, and are set up simply for convenience."
+        ]
+      },
+      {
+        text: 'For processed products, an additional window appears at the bottom of the form to create the processing recipe.',
+        substeps: [
+          "Each product needed box in the recipe list will ask for a raw product, and the quantiy of raw units needed for one processed unit.",
+          "For multipacks, simply click 'Add another product' to add the additional raw product types. Users can click the red 'X' in the corneer of the product box to remove that product from the recipe.",
+          "e.g. 1 unit of 'Blokus/Clue/Monopoly 3pk' requires 1 unit of 'Blokus' and 1 unit of 'Clue' and 1 unit of 'Monopoly'.",
+
+        ]
+      },
+      
+      'Click "Save" at the bottom of the form and the new product key will be added to the list.'
     ],
     editSteps: [
-      'Search for the product key by name, fnsku, or item number.',
-      'Update pricing, defaults, or vendor mapping fields.',
-      'Save and verify downstream pages resolve the updated key correctly.'
+      'On the line for the product you want to edit, click the little green pencil icon. If confused, hovering over the icon will display a tooltip that says "Edit this product".',
+      'Update whichever field(s) need changes.',
+      'Click the save button at the bottom of the form to save changes.'
     ]
   },
   {
     title: 'Purchase Orders',
     routeName: 'PurchaseOrders',
-    summary: 'Plan inbound inventory by vendor and attach line-item recipes for production accuracy.',
+    summary: 'Purchase orders, containing details on planned cases, inbound product, and pricing.',
     visualLabel: 'Planning Flow',
+    generalDetails: [
+      {
+        text: 'On the main list, users can click the dropdown in the "Order Info" column to see products displayed either by planned cases or the raw product list.',
+        substeps: [
+          "The 'Processed' button displays planned cases, with an additional dropdown for the raw boxes specifically linked to said case(s). It also displays a separate list containing all raw products in the Purchase Order that are not linked to a specific plan.",
+          "The 'Unprocessed' button displays a much simpler list of all raw products in the Purchase Order separated by product type, units per box, location, notes, and status. The products are highlighted by statues to make distinction easier (blue for not arrived, yellow for back ordered, red for canceled, green for ready)."
+        ]
+      },
+        { 
+          text: 'Users can change which phase the Purchase Order is in by clicking on of the phases in the "PO Phase" column.',
+          substeps: [
+            'NOTE: Soon, inbounding will be a more involved process that will create invoices linked to the Purchase Order.'
+          ]
+        }
+    ], 
     createSteps: [
-      'Create a purchase order and assign the vendor.',
-      'Add line items, quantities, and recipe bindings.',
-      'Mark statuses as they move from drafted to received.'
+      'Click the "New PO" button in the top right corner of the table. This opens the vendor select form.',
+      {
+        text: 'Assign the vendor using the dropdown.',
+        substeps: [
+          "If the vendor does not have a nickname yet, a follow-up dialog appears so you can add the vendor's nickname before continuing.",
+          "This nickname will be used as the vendor code for autonaming the PO (e.g. Aurora nickname is AU).",
+          "The autofilled name can be edited if needed before saving the PO."
+        ]
+      },
+      'Fill out any/all relevant fields, such as the current status, discounts, notes, etc.',
+      {
+        text: 'Add all cases planned to be created using this order. For each case, specify the product, quantity, and how many cases should be made.',
+        substeps: [
+          "When a processed product is selected, a table will open that shows the user the raw products required to complete the desired quantity of processed units.",
+          "The table includes important details, like total units needed, total units ordered (in case needed units doesn't evenly divide into default box quantity), and total price of ordering all raw units."
+        ]
+      }, 
+      {
+        text: 'If raw products are needed that are not linked to a current plan, the user can add them at the bottom of the form by selecting how they would like to order said products: by box or by unit.',
+        substeps: [
+          "If ordering by box, the user can select product type, how many boxes to order, and add any notes to the boxes. The system will then display the total number of units ordered and the total price.",
+          "If ordering by unit, the user selects the product type, how many units to order, and adds any notes. The system will then calculate how many boxes are needed to fulfill the unit order (rounding up to ensure based on default box quantities) and display that number of boxes along with the total price."
+        ]
+      },
+      'Click "Save" at the bottom of the form and the new purchase order will be added to the list.'
     ],
     editSteps: [
-      'Open the purchase order and review current status/line items.',
-      'Adjust quantities, notes, or recipe assignments.',
+      'On the line of the desired Purchase Order, click the "Edit" button.',
+      {
+        text: 'This opens a form where the user can edit all PO fields, with the exception of vendor',
+        substeps: [
+          'The edit form will autosave, so there is no need to click a save button. A small icon in the bottom right of the form will notify users that the edits have been saved.',
+          'When a user edits raw boxes and lowers the unit quantity to an amount that makes the planned cases impossible (e.g. setting total raw Monopoly units to 120, even though there is a planned case for 144), the system will flag the planned case and notify the user to either update the planned unit amount or add more raw products to the order. ',
+          'NOTE: This edit form, will soon undergo changes, including more streamlined/clean performance, and the ability to add new planned cases to Purchase Orders that have already been created.'
+        ]
+      },
       'Re-save and confirm updates are reflected in receiving workflows.'
-    ]
+    ], 
+    receivingSteps: [
+      'Currently, receiving products begins with selecting the "Delivered" button in the "PO Phase" column of the desired Purchase Order Line. This will trigger a dialog box to confirm the delivery.',
+      {
+        text: 'The form that opens will display the following list, separated by Product type: the requested number of products, the received products, and the products that are still being awaited.',
+      },
+      {
+        text: 'On any awaited product, click the pencil icon at the end of the line. Hovering over it will display a tooltip that says "Inventory newly-received product". This will open another form for receiving boxes.',
+      },
+      {
+        text: 'In this new form, the user can click into any of the cells to edit the total number of boxes and total number of units that have arrived, as well as where they have been stored.',
+        substeps: [
+          "When the user clicks into the location cell, a '+' button appears that allows users to add new locations if the location where the product is being stored has not yet been added to the inventory. Click it, fill in the form for the new name, and save the new location. Then it can be used for storing.",
+          "NOTE: Currently, the system only reads one location to store per round of receiving product. The goal of this receiving form is to add the ability for users to store in multiple locations, should the need arise."
+        ]
+      },
+      'Once the user clicks the save button, the selected quantity of raw product that has been received will change to the status "Newly Arrived"',
+      {
+        text: 'After all received product has properly been stored and noted, the user will click save, and the system will set all arrived product to ready, and all remaining product to backordered.',
+        substeps: [
+          "When any amount of raw product arrives that is linked to a planned case, a request to process is automatically generated."
+        ] 
+      }
+    ],
   },
   {
     title: 'Unprocessed Product',
     routeName: 'UnprocessedCases',
-    summary: 'Track inbound boxes before conversion so request planning has reliable source stock.',
+    summary: 'Unprocessed product boxes, with details on location, status, and quantities.',
     visualLabel: 'Receiving Flow',
+    generalDetails: [
+      'The list on this page groups products together by product type and units per box. The "Location(s)" column groups together all pallets where this product is found. To see the boxes separated by location, click the dropdown button in the "Individual Boxes" column.'
+    ],
     createSteps: [
-      'Receive boxes against product and purchase order.',
-      'Set location and status for floor visibility.',
-      'Correct quantity/location in bulk when warehouse data changes.'
+      'Click the "New" button in the top right corner of the table.',
+      { 
+        text: 'Fill in product, quantity, location, and status details for the new box.',
+        substeps: [
+          "If the box is in a location is new, click the 'Add Location' button to create the new location without leaving the form.",
+          "The 'How Many Received?' field determines how many boxes will be added to the inventory."
+        ]
+      },
+      'Click "Save" in the bottom right corner of the form.'
     ],
     editSteps: [
-      'Open the grouped row to inspect individual boxes.',
-      'Select a record and adjust quantity, status, or location.',
-      'Save changes and verify grouped totals recalculate correctly.'
+      'Click the dropdown arrow in the "Individual Boxes" column.',
+      'Click the green pencil icon on the line of the box you want to edit. For clarity, hovering over the icon will display a tooltip that says "Edit".',
+      'Update the fields that need changes, such as quantity, location, or status.',
+      'Set the total number of boxes edited with the "How Many to Edit?" field. The default will be all boxes on the line.',
+      'Click "Save" in the bottom right corner of the form to apply changes.'
     ]
   },
   {
     title: 'Request To Process',
     routeName: 'RequestToProcess',
-    summary: 'Convert demand into executable work by matching requests with available unprocessed boxes.',
+    summary: 'Requested cases that still need to be processed, used to track and manage processing requests.',
     visualLabel: 'Request Planning Flow',
+    generalDetails: [
+      'Until a "Processed Product Page" is created, the "Request to Process" page has a completed status and any request that is completed is hidden by default, but can be view by clicking the "Show Completed Requests" button.'
+    ],
     createSteps: [
-      'Create a processing request by product and quantity.',
-      'Match available source inventory and reserve boxes.',
-      'Send approved requests to picklist generation.'
+      'Click the "+ Request" button.',
+      'Fill in the desired case product type, how many cases will be shipped to amazon, how many will store, and the unit quantity per case. The "Case QTY" field will auto populate with the default units of a selected product, but can be changed manually for partial boxes.',
+      'Click the "Add Request" button to create the request.'
     ],
     editSteps: [
-      'Find the request by request ID or product filter.',
-      'Adjust quantity, assignment, or reservation linkage.',
-      'Save and validate picklist readiness state.'
+      'Requests can be edited directly from the list by clicking on non bolded cells.',
+      'When the user clicks enter, or clicks out of the field they are editing, the request will automatically update and notify the user.'
     ]
   },
   {
     title: 'Picklists',
     routeName: 'Picklists',
-    summary: 'Generate actionable floor instructions so work moves consistently from plan to output.',
+    summary: 'Generate picklists of raw product to grab for processing.',
     visualLabel: 'Execution Flow',
+    generalDetails: [
+      'This page is in very early baby mode :3. Currently it is used to grab raw products needed for fulfilling requests. Eventually, the option to generate raw picklists directly will be added.'
+    ],
     createSteps: [
-      'Group approved requests into a picklist batch.',
-      'Assign lanes or staging areas to reduce travel time.',
-      'Complete picks and verify used case IDs for traceability.'
+      'Click the "Add Picklist" button.',
+      { 
+        text: 'Select the requests you would like product picked for.', 
+        substeps: [
+          "There is a dropdown in the top left corner of the form that allows the user to specify if they want to pick for all cases in the request, or only the cases either shipping or storing."
+        ]
+      },
+      'Click the "Create Picklist " button. (Actually does not work rn alot has changed in the system so sorry will fix <3)'
     ],
     editSteps: [
-      'Open an existing picklist and inspect element assignments.',
-      'Update lane/location and line notes as floor conditions change.',
-      'Save and confirm all linked requests remain valid.'
+      'Click directly on the line of the picklist you want to edit.',
+      'A form will open with each raw product type, and a summary of total units and all locations, as well as the desired lane location.',
+      'A button exists that allows users to expand all products to see each individual location, or collapse all products to only display the summary.',
+      'To pick a product, click the "x" button located in the expanded table that separates boxes by location and unit amount. The system automatically updates to display the product as picked.'
     ]
   },
   {
     title: 'Processed Cases',
     routeName: 'ProcessedCases',
-    summary: 'Review completed output and status so outbound readiness is always visible.',
+    summary: 'Processed cases, with details on status, location, and quantities.',
     visualLabel: 'Completion Flow',
+    generalDetails: [
+      'The list on this page groups products together by product type and units per box. The "Location(s)" column groups together all pallets where this product is found. To see the cases separated by location, click the dropdown button in the "Individual Cases" column.'
+    ],
     createSteps: [
-      'Inspect grouped processed cases by product and status.',
-      'Edit quantities/locations in controlled batches when needed.',
-      'Confirm ready-to-ship totals for fulfillment handoff.'
+      'Click the "New" button in the top right corner of the table.',
+      { 
+        text: 'Fill in product, quantity, location, and status details for the new case.',
+        substeps: [
+          "If the case is in a location is new, click the 'Add Location' button to create the new location without leaving the form.",
+          "The 'How Many Processed?' field determines how many cases will be added to the inventory."
+        ]
+      },
+      'Click "Save" in the bottom right corner of the form.'
     ],
     editSteps: [
-      'Expand grouped lines to target specific processed cases.',
-      'Edit status, location, or quantity corrections as needed.',
-      'Save and re-check shipment readiness totals.'
+      'Click the dropdown arrow in the "Individual Cases" column.',
+      'Click the green pencil icon on the line of the case you want to edit. For clarity, hovering over the icon will display a tooltip that says "Edit".',
+      'Update the fields that need changes, such as quantity, location, or status.',
+      'Set the total number of cases edited with the "How Many to Edit?" field. The default will be all cases on the line.',
+      'Click "Save" in the bottom right corner of the form to apply changes.'
     ]
   }
   /* {
@@ -274,6 +477,12 @@ const poStatuses: StatusConfig[] = [
 ];
 
 const normalize = (value: string | null | undefined): string => (value || '').trim().toLowerCase();
+
+const getStepText = (step: WalkthroughStep): string =>
+  typeof step === 'string' ? step : step.text;
+
+const getSubsteps = (step: WalkthroughStep): string[] =>
+  typeof step === 'string' ? [] : step.substeps || [];
 
 const poStatusLegend = computed(() => {
   const counts = poStatuses.map((status) => ({ ...status, count: 0 }));
@@ -673,8 +882,26 @@ onUnmounted(() => {
   padding: 0 1.25rem 0.65rem;
 }
 
+.general-list {
+  margin: 0;
+  padding: 0 1.25rem 0.65rem;
+  list-style: disc;
+  display: grid;
+  gap: 0.35rem;
+}
+
 .sub-guide li {
   color: #2b4a3d;
+}
+
+.substep-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+
+.substep-list li {
+  color: #36556f;
 }
 
 .open-link {

@@ -2,9 +2,13 @@
     <div>
         <div class="card">
             <Toast />
-            <Toolbar class="mb-4">
+            <Toolbar class="mb-4 cl-toolbar">
                 <template #start>
-                    <Button label=" New" icon="pi pi-plus" severity="success" class="mr-2 inline-block" @click="openNew" />
+                    <div class="cl-toolbar-start">
+                        <span class="p-input-icon-right cl-toolbar-search">
+                            <InputText v-model="filters['global'].value" placeholder="Search..." />
+                        </span>
+                    </div>
                     <!-- <Button label=" Delete" icon="pi pi-trash" class="mr-2 inline-block" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedCases" /> -->
                     <!-- <Button label=" New Purchase Order" icon="pi pi-upload" class="mr-2 inline-block" @click="openBulk()"  /> -->
                 </template>
@@ -12,13 +16,14 @@
                 <template #end>
                     
                     <!-- <FileUpload mode="basic" :customUpload="true" :maxFileSize="1000000" label="Import" chooseLabel="Import" class="mr-2 inline-block" @upload="onUpload" /> -->
-                    <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV()"  />
+                    <Button label="Export" icon="pi pi-upload" class="cl-toolbar-btn cl-toolbar-btn--secondary" @click="exportCSV()"  />
                 </template>
             </Toolbar>
 
             <!-- sortMode="single" sortField="name"  WAS MAKING REMOVEABLE SORT BREAK-->
             <!-- MIGHT HAVE BEEN TO ORGANIZE TTHE GROUPED ITEMS BY NAME. WILL WORK ON IF NEED BE -->
             <DataTable ref="dt" :value="cases" v-model:selection="selectedCases" dataKey="case_id"
+                class="cl-stable-table"
                 :paginator="true" :rows="10" :filters="filters" 
                 :selectAll="false"
                 removableSort
@@ -32,6 +37,7 @@
                 v-model:expandedRows="expandedRows"
                 :globalFilterFields="['product_name','status','location_name']"
                 :virtualScrollerOptions="{ itemSize: 46 }"
+                :tableStyle="{ tableLayout: 'fixed', width: '100%' }"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[5,10,25,100,500,1000]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products">
                 <template #header>
@@ -40,27 +46,24 @@
                         
                         <h4 v-else-if="displayValue === 'unprocessed'" class="m-0">Manage Boxes</h4>
                         
-                        <ZoomDropdown v-model="tableZoom" />
-
-                        <!-- <Button type="button"  label="Display Ordered Cases" outlined @click="ordersFiltered = !ordersFiltered; onFilter()" /> -->
-
-						<span class="p-input-icon-right">
-                            <InputText v-model="filters['global'].value" placeholder="Search..." />
-                        </span>
+						<div class="cl-header-actions">
+                            <ZoomDropdown v-model="tableZoom" />
+                            <Button label="New" icon="pi pi-plus" class="cl-toolbar-btn cl-toolbar-btn--primary" @click="openNew" />
+                        </div>
 					</div>
                 </template>
 
                 <template #loading> Loading product data. Please wait. </template>
 
                 <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                    <Column expander header="Individual Cases" style="width: 5rem" />
+                    <Column expander header="Individual Cases" style="width: 2rem" />
                 </div>
                 <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                    <Column expander header="Individual Boxes" style="width: 5rem" />
+                    <Column expander header="Individual Boxes" style="width: 3rem" />
                 </div>
-                <Column field="product_name" header="Name" sortable />
+                <Column field="product_name" header="Name" sortable style="width: 15rem" />
                 
-                <Column field="status" header="Status" sortable>
+                <Column field="status" header="Status" sortable style="width: 10rem">
                     <template #body="slotProps">
                         <div class="card flex flex-wrap  gap-2">
                             <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
@@ -68,80 +71,84 @@
                     </template>
                 </Column>
                 <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                    <Column field="units_per_case" header="Units per case" sortable/>
-                    <Column field="amount" header="Number of cases" sortable />
+                    <Column field="units_per_case" header="Units per case" sortable style="width: 8rem"/>
+                    <Column field="amount" header="Number of cases" sortable style="width: 8rem" />
                 </div>
                 <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                    <Column field="units_per_case" header="Units per box" sortable/>
-                    <Column field="amount" header="Number of boxes" sortable />
+                    <Column field="units_per_case" header="Units per box" sortable style="width: 8rem"/>
+                    <Column field="amount" header="Number of boxes" sortable style="width: 8rem" />
                 </div>
 
-                <Column field="total_units" header="Total # Of Units" sortable>
+                <Column field="total_units" header="Total # Of Units" sortable style="width: 9rem">
                     <template #body="{data}">
                         {{ data.total_units }}
                     </template>
                 </Column>
 
-                <Column field="location_name" header="Location(s)" sortable>
+                <Column field="location_name" header="Location(s)" sortable style="width: 14rem">
                     <template #body="{data}">
-                        {{ data.location_name.join(", ") }}
+                        <span class="cl-fixed-cell" :title="data.location_name.join(', ')">
+                            {{ data.location_name.join(", ") }}
+                        </span>
                     </template>
                 </Column>
 
                 <template #expansion="{data}" style="background-color: '#16a085'">
                     <DataTable :value="getIndivCases(data.product_id, data.units_per_case)" v-model:selection="selectedCases" dataKey="case_id"
+                    class="cl-stable-table"
                     removableSort
                     :paginator="true" :rows="5"
+                    :tableStyle="{ tableLayout: 'fixed', width: '100%' }"
                     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport">
-                        <Column header="PO">
+                        <Column header="PO" style="width: 7rem">
                             <template #body="{data}">
                                 {{ getPoName(data.purchase_order_id) }}
                             </template>
                         </Column>
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                            <Column field="date_received" header="Date Processed" />
+                            <Column field="date_received" header="Date Processed" style="width: 8rem" />
                         </div>
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <Column field="date_received" header="Date Received" />
+                            <Column field="date_received" header="Date Received" style="width: 8rem" />
                         </div>
-                        <Column field="product_name" header="Name"  />
+                        <Column field="product_name" header="Name" style="width: 11rem" />
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                            <Column field="units_per_case" header="Units per case" />
+                            <Column field="units_per_case" header="Units per case" style="width: 7rem" />
                         </div>
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <Column field="units_per_case" header="Units per box" />
+                            <Column field="units_per_case" header="Units per box" style="width: 7rem" />
                         </div>
                         <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                            <Column field="amount" header="Number of Cases" sortable />
+                            <Column field="amount" header="Number of Cases" sortable style="width: 7rem" />
                         </div>
                         <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                            <Column field="amount" header="Number of Boxes" sortable />
+                            <Column field="amount" header="Number of Boxes" sortable style="width: 7rem" />
                         </div>
-                        <Column header="Total # Of Units" field="total_units" sortable>
+                        <Column header="Total # Of Units" field="total_units" sortable style="width: 8rem">
                             <template #body="{data}">
                                 {{ data.units_per_case * data.amount }}
                             </template>
                         </Column>
-                        <Column field="location_name" header="Location">
+                        <Column field="location_name" header="Location" style="width: 8rem">
                             <template #body="slotProps">
                                 {{ getIndivLocation(slotProps.data.location_id) }}
                             </template>
                         </Column>
-                        <Column field="status" header="Status" sortable>
+                        <Column field="status" header="Status" sortable style="width: 9rem">
                             <template #body="slotProps">
                                 <div class="card flex flex-wrap  gap-2">
                                     <Tag :value="slotProps.data.status" :severity="getCaseSeverity(slotProps.data)" :icon="getCaseIcon(slotProps.data)" iconPos="right"/>
                                 </div>
                             </template>
                         </Column>
-                        <Column field="notes" header="Notes" sortable/>
+                        <Column field="notes" header="Notes" sortable style="width: 11rem"/>
                         <!-- <Column field="date_received" header="Date received" sortable >
                             <template #body="slotProps">
                                 {{ slotProps.data.date_received }}
                             </template>
                         </Column> -->
-                        <Column :exportable="false" style="min-width:8rem">
+                        <Column :exportable="false" style="width: 8rem">
                             <template #body="slotProps">
                                 <Button icon="pi pi-pencil"  v-tooltip.top="'Edit'" outlined rounded class="mr-2" @click="editCase(slotProps.data)" />
                                 <Button icon="pi pi-trash"  v-tooltip.top="'Delete'" outlined rounded severity="danger" @click="confirmDeleteCase(slotProps.data)" />
@@ -258,16 +265,6 @@
                             <small class="p-error" v-if="submitted && !eCase.units_per_case">Amount is required.</small>
                         </div>
 
-                        <div v-show="!eCase.case_id" class="field">
-                            <div v-if="displayValue === 'processed'" class="flex align-items-center">
-                                <label for="date_received">How Many Processed?</label>
-                            </div>
-                            <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
-                                <label for="date_received">How Many Received?</label>
-                            </div>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            v-model="amount" showButtons/>
-                        </div>
                     </div>
                 </section>
 
@@ -309,6 +306,15 @@
 
             <template #footer>
                 <div class="cl-footer-row">
+                    <div v-show="!eCase.case_id" class="field cl-footer-highlight">
+                        <div v-if="displayValue === 'processed'" class="flex align-items-center">
+                            <label for="amount">How Many Processed?</label>
+                        </div>
+                        <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
+                            <label for="amount">How Many Received?</label>
+                        </div>
+                        <InputNumber inputId="stacked-buttons" required="true" v-model="amount" showButtons/>
+                    </div>
                     <div v-show="eCase.case_id" class="field cl-footer-highlight">
                         <label for="amount">How Many to Edit?</label>
                         <InputNumber inputId="stacked-buttons" required="true" 
@@ -316,7 +322,7 @@
                     </div>
                     <div class="cl-footer-actions">
                         <Button label="Cancel" icon="pi pi-times" class="cl-action-btn cl-action-btn--secondary" @click="hideDialog"/>
-                        <Button label="Save" icon="pi pi-check" class="cl-action-btn cl-action-btn--primary" @click="saveCase" />
+                        <Button label="Save" icon="pi pi-check" class="cl-action-btn cl-action-btn--primary" @click="saveCase" :disabled="saving" :loading="saving" />
                     </div>
                 </div>
                 <!-- <Button label="Edit One" icon="pi pi-check" text @click="saveCase" />
@@ -504,6 +510,8 @@ export default {
             amount: 1,
 
             loading: false,
+
+            saving: false,
 
             today: "",
 
@@ -843,6 +851,8 @@ export default {
         //Date Created: ???
         //Date Last Edited: 6-12-2024
         async saveCase() {
+            if (this.saving) return;
+            this.saving = true;
             try {
                 this.submitted = true;
                 console.log(this.eCase);
@@ -863,6 +873,8 @@ export default {
                 }
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.saving = false;
             }
 
         },
@@ -957,7 +969,7 @@ export default {
                 
             } catch (err) {
                 console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err});
             }
         },
 
@@ -996,7 +1008,7 @@ export default {
             } catch (err: any) {
                 console.log(err);
                 // console.log("CREATE CATCH")
-                this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data, life: 3000});
+                this.$toast.add({severity:'error', summary: 'Error', detail: err.request.data});
             }
         },
         async editCase(value: any) {
@@ -1343,6 +1355,60 @@ export default {
     --cl-secondary-text: #1b3b59;
 }
 
+:deep(.cl-toolbar.p-toolbar) {
+    border: 1px solid var(--surface-border, #d4d8dd);
+    border-radius: 12px;
+    background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
+}
+
+.cl-toolbar-start {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.cl-toolbar-search {
+    min-width: 260px;
+}
+
+.cl-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.cl-toolbar-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.cl-toolbar-btn--primary {
+    border: 1px solid #1f8c56;
+    background: linear-gradient(180deg, #44c783 0%, #2ca765 100%);
+    color: #ffffff;
+}
+
+.cl-toolbar-btn--primary:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+}
+
+.cl-toolbar-btn--secondary {
+    border: 1px solid #91a8bf;
+    background: linear-gradient(180deg, #f7fbff 0%, #ebf2f8 100%);
+    color: #1b3b59;
+}
+
+.cl-toolbar-btn--secondary:hover {
+    border-color: #7193b5;
+    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+    color: #1b3b59;
+}
+
 .cl-dialog-layout {
     display: grid;
     gap: 1rem;
@@ -1432,7 +1498,7 @@ export default {
     width: 100%;
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 0.85rem;
     flex-wrap: wrap;
 }
@@ -1449,10 +1515,44 @@ export default {
 .cl-footer-actions {
     display: flex;
     gap: 0.5rem;
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.cl-fixed-cell {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+:deep(.cl-stable-table .p-datatable-thead > tr > th),
+:deep(.cl-stable-table .p-datatable-tbody > tr > td) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 :deep(.cl-case-dialog .p-dialog-content) {
     background: #f4f8fc;
+}
+
+:deep(.p-inputnumber .p-inputnumber-button) {
+    border-color: #8fb0ca;
+    background: linear-gradient(180deg, #f7fbff 0%, #e9f2fb 100%);
+    color: #1f4765;
+    min-width: 2rem;
+}
+
+:deep(.p-inputnumber .p-inputnumber-button:hover) {
+    border-color: #6e96b8;
+    background: linear-gradient(180deg, #eff6fd 0%, #dfeefd 100%);
+    color: #16364e;
+}
+
+:deep(.p-inputnumber .p-inputnumber-button:focus-visible) {
+    outline: 2px solid #8dc2ff;
+    outline-offset: -2px;
 }
 
 @media (min-width: 1024px) {

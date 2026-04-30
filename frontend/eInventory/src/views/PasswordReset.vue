@@ -51,7 +51,7 @@ async function onPasswordReset() {
       toast.add({severity:'success', summary: 'Password Reset!', life: 3000});
     }
   } catch (error) {
-    toast.add({severity:'error', summary: 'Error', detail: error, life: 3000});
+    toast.add({severity:'error', summary: 'Error', detail: error});
   }
 }
 
