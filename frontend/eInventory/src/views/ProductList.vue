@@ -1,18 +1,21 @@
 <template>
-    <div>
+    <div class="pl-scale-shell">
+        <div class="pl-scale-root">
         <div class="card">
             <Toast />
             <Toolbar class="mb-4 pl-toolbar">
                 <template #start>
-                    <span class="p-input-icon-right">
+                    <span class="p-input-icon-right pl-toolbar-search">
                         <InputText v-model="searchText" placeholder="Search..." />
                     </span>
                 </template>
 
                 <template #end>
-                    <Button label="Processed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--processed', { 'is-active': displayType === 'proc' }]" @click="toggleProducts('proc')" />
-                    <Button label="All" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--all', { 'is-active': displayType === 'all' || !displayType }]" @click="toggleProducts('all')" />
-                    <Button label="Unprocessed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--unprocessed', { 'is-active': displayType === 'unproc' }]" @click="toggleProducts('unproc')" />
+                    <div class="pl-toolbar-actions">
+                        <Button label="Processed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--processed', { 'is-active': displayType === 'proc' }]" @click="toggleProducts('proc')" />
+                        <Button label="All" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--all', { 'is-active': displayType === 'all' || !displayType }]" @click="toggleProducts('all')" />
+                        <Button label="Unprocessed" :class="['pl-action-btn', 'pl-action-btn--secondary', 'pl-action-btn--unprocessed', { 'is-active': displayType === 'unproc' }]" @click="toggleProducts('unproc')" />
+                    </div>
                 </template>
 
                 <!-- <template #end>
@@ -57,7 +60,7 @@
                     removableSort
                     showGridlines
                     scrollable 
-                    scrollHeight="800px"
+                    scrollHeight="calc(100vh - 230px)"
                     stripedRows
                     columnResizeMode="fit"
                     :loading="tableLoading"
@@ -73,7 +76,7 @@
                 <template #header>
                     <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <h4 class="m-0">Manage Products</h4>
-						<div class="flex flex-wrap gap-2 align-items-center">
+						<div class="flex flex-wrap gap-2 align-items-center pl-table-header-actions">
                             <ZoomDropdown v-model="tableZoom" />
                             <Button label="New" icon="pi pi-plus" class="pl-action-btn pl-action-btn--primary" @click="openNew" />
                             <Button label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || selectedProducts.length === 0" />
@@ -82,9 +85,9 @@
                 </template>
 
                 <template #loading> Loading product data. Please wait. </template>
-                <Column selectionMode="multiple" style="width: 3rem" :exportable="false" :style="{ width: '5%' }"></Column>
+                <Column selectionMode="multiple" :exportable="false" :style="{ width: '60px', minWidth: '60px' }"></Column>
 
-                <Column expander header="Recipe" style="width: 5rem" :style="{ width: '5%' }"/>
+                <Column expander header="Recipe" :style="{ width: '80px', minWidth: '80px' }"/>
 
                 <template #expansion="slotProps">
                     <div class="p-3">
@@ -104,45 +107,45 @@
                     </div>
                 </template>
 
-                <Column field="name" header="Name" sortable :style="{ width: '15%' }"></Column>
-                <Column field="vendor_name" header="Vendor" sortable :style="{ width: '10%' }"/>
-                <Column header="Default Units/Case" :style="{ width: '5%' }">
+                <Column field="name" header="Name" sortable :style="{ width: '200px', minWidth: '200px' }"></Column>
+                <Column field="vendor_name" header="Vendor" sortable :style="{ width: '150px', minWidth: '150px' }"/>
+                <Column header="Default Units/Case" :style="{ width: '130px', minWidth: '130px' }">
                     <template #body="{data}">
                         <div :class="{'warning-cell': !data.default_units_per_case || data.default_units_per_case <= 0, 'cell-content': true}">
                             {{ (!data.default_units_per_case || data.default_units_per_case <= 0) ? '[MISSING VALUE]' : data.default_units_per_case }}
                         </div>
                     </template>
                 </Column>
-                <Column header="ASIN" sortable :style="{ width: '10%' }">
+                <Column header="ASIN" sortable :style="{ width: '150px', minWidth: '150px' }">
                     <template #body="{data}">
                         <div :class="{'warning-cell': isProcessedProduct(data) && !data.asin, 'cell-content': true}">
                             {{ isProcessedProduct(data) && !data.asin ? '[MISSING VALUE]' : (data.asin || '-') }}
                         </div>
                     </template>
                 </Column>
-                <Column header="FNSKU" sortable :style="{ width: '10%' }">
+                <Column header="FNSKU" sortable :style="{ width: '150px', minWidth: '150px' }">
                     <template #body="{data}">
                         <div :class="{'warning-cell': isProcessedProduct(data) && !data.fnsku, 'cell-content': true}">
                             {{ isProcessedProduct(data) && !data.fnsku ? '[MISSING VALUE]' : (data.fnsku || '-') }}
                         </div>
                     </template>
                 </Column>
-                <Column field="item_num" header="Item #" sortable :style="{ width: '10%' }">
+                <Column field="item_num" header="Item #" sortable :style="{ width: '130px', minWidth: '130px' }">
                     <template #body="{data}">
                         <div :class="{'warning-cell': !isProcessedProduct(data) && !data.item_num, 'cell-content': true}">
                             {{ !isProcessedProduct(data) && !data.item_num ? '[MISSING VALUE]' : (data.item_num || '-') }}
                         </div>
                     </template>
                 </Column>   
-                <Column header="UPC" sortable :style="{ width: '10%' }">
+                <Column header="UPC" sortable :style="{ width: '150px', minWidth: '150px' }">
                     <template #body="{data}">
                         <div :class="{'warning-cell': !isProcessedProduct(data) && !data.upc, 'cell-content': true}">
                             {{ !isProcessedProduct(data) && !data.upc ? '[MISSING VALUE]' : (data.upc || '-') }}
                         </div>
                     </template>
                 </Column>
-                <Column field="notes" header="Notes" sortable :style="{ width: '10%' }"></Column>
-                <Column :exportable="false" :style="{ width: '10%' }">
+                <Column field="notes" header="Notes" sortable :style="{ width: '160px', minWidth: '160px' }"></Column>
+                <Column :exportable="false" :style="{ width: '180px', minWidth: '180px' }">
                     <template #body="slotProps">
                         <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--info" @click="displayProductInfo(slotProps.data)"/>
                         <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--edit" @click="editProduct(slotProps.data)" />
@@ -501,7 +504,8 @@
                 <Button label="Select" icon="pi pi-check" text @click="openNew" />
             </template>
         </Dialog> -->
-	</div>
+    	</div>
+        </div>
 </template>
 
 <script lang="ts">
@@ -685,6 +689,8 @@ export default {
 
         await this.loadPage(1);          // load first page for the table
     },
+
+
      
     watch: {
         searchText: {
@@ -693,6 +699,8 @@ export default {
     },
     methods: {
         onSearchDebounced: async () => Promise.resolve(),
+
+
 
         async initLazyData(){
             try {
@@ -1523,10 +1531,16 @@ export default {
             this.loadPage(1);
         },
     }
+
+    ,computed: {}
 }
 </script>
 
 <style>
+.pl-scale-shell {
+    width: 100%;
+}
+
 .card {
     --pl-transition-fast: 160ms ease;
     --pl-primary-border: #1f8c56;
@@ -1794,6 +1808,29 @@ export default {
     background: linear-gradient(90deg, #f7fbff 0%, #eef5ff 100%);
 }
 
+.pl-toolbar-search {
+    min-width: 220px;
+}
+
+.pl-toolbar-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.pl-table-header-actions {
+    justify-content: flex-end;
+}
+
+:deep(.pl-product-table .p-datatable-wrapper) {
+    overflow-x: auto;
+}
+
+:deep(.pl-product-table .p-datatable-table) {
+    min-width: 1350px;
+}
+
 .pl-product-table .p-datatable-thead > tr > th .p-checkbox {
     display: none;
 }
@@ -1824,5 +1861,40 @@ export default {
     display: flex;
     align-items: center;
   }
+}
+
+@media (max-width: 1024px) {
+    :deep(.pl-product-table .p-datatable-table) {
+        min-width: 980px;
+    }
+}
+
+@media (max-width: 768px) {
+    .pl-toolbar-search {
+        width: 100%;
+    }
+
+    .pl-toolbar-search :deep(.p-inputtext) {
+        width: 100%;
+    }
+
+    .pl-toolbar-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .pl-toolbar-actions :deep(.p-button) {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .pl-table-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    :deep(.pl-product-table .p-datatable-table) {
+        min-width: 860px;
+    }
 }
 </style>
