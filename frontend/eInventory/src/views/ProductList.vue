@@ -170,7 +170,7 @@
                             <small class="p-error" v-if="submitted && !product.vendor_id">Vendor is required.</small>
                         </div>
 
-                        <div class="field" v-if="!product.product_id">
+                        <div class="field">
                             <label for="name">Name</label>
                             <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                             <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
