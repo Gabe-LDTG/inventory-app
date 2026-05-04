@@ -1,34 +1,56 @@
 <template>
-    <div class="card">
+    <div class="card rtp-page">
         <Toast />
 
+        <Toolbar class="mb-4 po-toolbar">
+            <template #start>
+                <div class="po-toolbar-filters">
+                    <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
+                        <InputText v-model="searchText" placeholder="Search requests..." />
+                    </span>
+                </div>
+            </template>
+        </Toolbar>
+
+        <div class="dt-loading-wrapper">
+        <Transition name="loader-fade">
+            <div v-if="loading" class="dt-loading-overlay">
+                <div class="loading-card">
+                    <ProgressSpinner style="width: 48px; height: 48px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
+                    <span class="loading-label">Loading&hellip;</span>
+                </div>
+            </div>
+        </Transition>
         <!-- Sorting was messing with the cell saving function. Might implement later -->
         <!-- sortMode="single" sortField="priority" :sortOrder=1 -->
         <DataTable ref="dt" :value="R2Parray" v-model:selection="selectedRecipeLines"
         showGridlines stripedRows :filters="filters"
-        :loading="loading" :paginator="true" :rows="40" :rowStyle="requestRowStyle"
+        :loading="loading" :paginator="true" :rows="rowsPerPage" :totalRecords="totalRecords" :lazy="true"
+        :rowStyle="requestRowStyle"
         scrollable scrollHeight="800px" removableSort
+        @sort="onSort"
         editMode="cell" @cell-edit-complete="onRequestCellEdit"
+        @page="onPage"
+        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" :rowsPerPageOptions="[10, 25, 40, 100, 250]"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} requests"
         :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
         >
             <template #header>
-                <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="flex flex-wrap gap-2 align-items-center justify-content-between po-table-header">
                     <h4 class="m-0">Request To Proccess List</h4>
-                    <ZoomDropdown v-model="tableZoom" />
-                    <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" severity="success" class="mr-2"/>  
-                    <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
-                    <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)">
-                        <div v-if="statusFilter === '0 COMPLETED'">
-                            <span>Show Completed Requests</span>
-                        </div>
-                        <div v-else>
-                            <span>Hide Completed Requests</span>
-                        </div>
-                    </Button>
-                    <!-- <span class="p-input-icon-right">
-                        <i class="pi pi-search" />
-                        <InputText v-model="filters['global'].value" placeholder="Search..." />
-                    </span> -->
+                    <div class="po-header-actions">
+                        <ZoomDropdown v-model="tableZoom" />
+                        <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" class="po-action-btn po-action-btn--primary"/>  
+                        <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
+                        <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)" class="po-action-btn po-action-btn--secondary">
+                            <div v-if="statusFilter === '0 COMPLETED'">
+                                <span>Show Completed Requests</span>
+                            </div>
+                            <div v-else>
+                                <span>Hide Completed Requests</span>
+                            </div>
+                        </Button>
+                    </div>
                 </div>
             </template>
             <template #empty>No cases in the request to process</template>
@@ -101,7 +123,7 @@
                     <InputNumber v-model="data.ship_to_amz" />
                 </template>
             </Column>
-            <Column field="deadline" header="Deadline" >
+            <Column field="deadline" header="Deadline" sortable>
                 <!-- NOTE: FIX THE 'NaN' thing -->
                  <!-- v-show="data.deadline !== NaN" -->
                 <template  #body="{data}">
@@ -166,6 +188,7 @@
             <Column field="bag_size" header="Bags" class="font-bold"></Column>
             <Column field="box_type" header="Boxes" class="font-bold"></Column>
         </DataTable>
+        </div>
 
 
     </div>
@@ -422,6 +445,18 @@ export default {
 
             tableZoom: 1,
 
+            // PAGINATION VARIABLES
+            currentPage: 1,
+            rowsPerPage: 40,
+            totalRecords: 0,
+
+            // FILTER / SORT VARIABLES
+            filterField: '',
+            searchText: '',
+            sortField: 'deadline',
+            sortOrder: 1,
+            searchDebounceHandle: null as any,
+
             // DATATABLE VARIABLES
             filters: {
                 global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -435,16 +470,28 @@ export default {
         this.initVariables();
 
     },
+    watch: {
+        searchText(){
+            if (this.searchDebounceHandle) {
+                clearTimeout(this.searchDebounceHandle);
+            }
+
+            this.searchDebounceHandle = setTimeout(() => {
+                this.currentPage = 1;
+                this.getRequestsToProcess();
+            }, 300);
+        }
+    },
     methods: {
         async initVariables(){
             try {
                 this.loading = true;
-                await this.getPurchaseOrders();
-                await this.getProducts();
-                await this.getBoxes();
-                await this.getRecipes();
+                // await this.getPurchaseOrders();   // now populated from rtpPageData
+                // await this.getProducts();          // now populated from rtpPageData
+                await this.getBoxes();               // still needed for picklist (uBoxes, pCases)
+                // await this.getRecipes();           // now populated from rtpPageData
                 await this.getLocations();
-                await this.getRequestsToProccess();
+                await this.getRequestsToProcess();
                 this.getDate();
                 this.loading = false;
 
@@ -561,9 +608,37 @@ export default {
          * Date Created: ???
          * Date Last Edited: 3-19-2025
          */
-        async getRequestsToProccess(){
+        async getRequestsToProcess(){
+            this.loading = true;
             try {
-                this.requestsToProcess = await action.getRequests(this.statusFilter);
+                // New paginated RPC call — log result to verify shape before wiring UI
+                const rtpPageData = await action.getRequestsToProcessPage(
+                    this.currentPage,
+                    this.rowsPerPage,
+                    this.filterField || 'global',
+                    this.searchText || '',
+                    this.sortField || 'request_id',
+                    (this.sortOrder === 1 || this.sortOrder === -1) ? this.sortOrder : 1,
+                    this.statusFilter
+                );
+                console.log('rtpPageData', rtpPageData);
+
+                // Populate main variables from rtpPageData
+                this.purchaseOrders = rtpPageData.all_purchase_orders ?? [];
+                this.poRecipes = rtpPageData.all_po_recipes ?? [];
+                this.reqRecipes = rtpPageData.all_recipes ?? [];
+                this.recipeElements = rtpPageData.all_recipe_elements ?? [];
+                this.products = rtpPageData.all_products ?? [];
+                this.procProducts = this.products.filter((p: any) => p.fnsku || p.asin);
+                this.unprocProducts = this.products.filter((p: any) => !p.fnsku && !p.asin);
+                this.purchaseOrders.forEach((po: any) => {
+                    if(po.date_ordered) po.date_ordered = po.date_ordered.split('T')[0];
+                    if(po.date_received) po.date_received = po.date_received.split('T')[0];
+                });
+                this.totalRecords = rtpPageData.total_count ?? 0;
+                this.requestsToProcess = rtpPageData.requests_to_process ?? [];
+
+                // this.requestsToProcess = await action.getRequests(this.statusFilter);
 
                 console.log("requestsToProcess", this.requestsToProcess);
 
@@ -575,7 +650,7 @@ export default {
                 // console.log("casesWithR2PsAndPOs",casesWithR2PsAndPOs);
 
                 for(const request of this.requestsToProcess){
-                    console.log("request", request);
+                    // console.log("request", request);
                     let productKey = this.products.find(p => p.product_id === request.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
 
@@ -603,7 +678,7 @@ export default {
                             requestedRecipe = matchedRecipe;
                     }
 
-                    console.log("requestedRecipe", requestedRecipe);
+                    // console.log("requestedRecipe", requestedRecipe);
 
                     if (requestedRecipe.qty === 0)
                         requestedRecipe.qty = requestedRecipe.units_per_case*(request.warehouse_qty + request.ship_to_amz);
@@ -632,6 +707,8 @@ export default {
                 this.R2Parray = returnArray;
             } catch (error) {
                 console.log(error);
+            } finally {
+                this.loading = false;
             }
         },
 
@@ -855,7 +932,7 @@ export default {
                 
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Request Updated', life: 10000});
                 
-                this.getRequestsToProccess();
+                this.getRequestsToProcess();
 
                 this.requestsUpdateArray = [];
 
@@ -1264,13 +1341,26 @@ export default {
             
         },
 
+        onPage(event: any){
+            this.currentPage = event.page + 1;
+            this.rowsPerPage = event.rows;
+            this.getRequestsToProcess();
+        },
+
+        async onSort(event: any){
+            this.sortField = event.sortField || '';
+            this.sortOrder = event.sortOrder || -1;
+            this.currentPage = 1;
+            await this.getRequestsToProcess();
+        },
+
         async toggleStatus(){
             if(this.statusFilter === '0 COMPLETED')
                 this.statusFilter = ''
             else 
                 this.statusFilter = '0 COMPLETED'
 
-            await this.getRequestsToProccess();
+            await this.getRequestsToProcess();
         },
 
         statusFilterSeverity(status: string){
@@ -1285,6 +1375,168 @@ export default {
 }
 </script>
 <style >
+.rtp-page {
+    border: 1px solid var(--surface-border, #d4d8dd);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+    box-shadow: 0 12px 28px rgba(8, 25, 45, 0.08);
+    overflow: hidden;
+}
+
+.po-table-header {
+    gap: 0.8rem;
+}
+
+.po-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.po-toolbar-filters {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.po-action-btn {
+    border-radius: 10px;
+    font-weight: 700;
+    min-height: 2.1rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.po-action-btn--primary {
+    border: 1px solid #1f8c56;
+    background: linear-gradient(180deg, #44c783 0%, #2ca765 100%);
+    color: #ffffff;
+}
+
+.po-action-btn--primary:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+}
+
+.po-action-btn--secondary {
+    border: 1px solid #91a8bf;
+    background: linear-gradient(180deg, #f7fbff 0%, #ebf2f8 100%);
+    color: #1b3b59;
+}
+
+.po-action-btn--secondary:hover {
+    border-color: #7193b5;
+    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+}
+
+.po-toolbar-filter {
+    min-width: 170px;
+}
+
+.po-toolbar-filter--search {
+    min-width: 260px;
+}
+
+.po-toolbar-filter--search :deep(.p-inputtext) {
+    border-radius: 10px;
+    border-color: #b6c8da;
+    background: #f8fbff;
+}
+
+.po-toolbar-filter--search :deep(.p-inputtext:focus) {
+    border-color: #6b95bf;
+    box-shadow: 0 0 0 1px rgba(107, 149, 191, 0.15);
+}
+
+.dt-loading-wrapper {
+    position: relative;
+}
+
+.dt-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(2px);
+    border-radius: 6px;
+}
+
+.loading-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2.5rem 3.5rem;
+    border-radius: 14px;
+    background: var(--surface-card, #1e1e2e);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.loading-label {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-color, #e0e0e0);
+    text-transform: uppercase;
+}
+
+.loader-fade-enter-active,
+.loader-fade-leave-active {
+    transition: opacity 0.25s ease;
+}
+
+.loader-fade-enter-from,
+.loader-fade-leave-to {
+    opacity: 0;
+}
+
+.rtp-page :deep(.p-datatable) {
+    border: 0;
+}
+
+.rtp-page :deep(.p-datatable .p-datatable-header) {
+    border: 0;
+    border-bottom: 1px solid var(--surface-border, #d4d8dd);
+    background: #fcfdff;
+    padding: 0.85rem 1rem;
+}
+
+.rtp-page :deep(.p-datatable .p-datatable-thead > tr > th) {
+    background: #f3f7fb;
+    color: #24384c;
+    font-weight: 700;
+    border-color: #dce3ea;
+    padding: 0.8rem 0.65rem;
+}
+
+.rtp-page :deep(.p-datatable .p-datatable-tbody > tr > td) {
+    border-color: #e7edf3;
+    padding: 0.75rem 0.65rem;
+}
+
+.rtp-page :deep(.p-datatable .p-datatable-tbody > tr:hover) {
+    background: #f6fbff;
+}
+
+.rtp-page :deep(.p-datatable .p-paginator) {
+    border: 0;
+    border-top: 1px solid var(--surface-border, #d4d8dd);
+    background: #fbfdff;
+    padding: 0.65rem 0.9rem;
+}
+
+.rtp-page :deep(.p-tag) {
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.25rem 0.6rem;
+}
+
 .datatable-fullscreen {
   display: flex;
   flex-direction: column;

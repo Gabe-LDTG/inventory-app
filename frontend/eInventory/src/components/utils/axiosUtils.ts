@@ -1584,6 +1584,70 @@ var action = {
     },
 
     //REQUESTS--------------------------------------------------------------------------------------------
+    /**
+     * @description Gets a page of requests-to-process records based on paging, search, and sort options.
+     * Mirrors the purchase order page loader pattern so RTP can be driven by backend RPC pagination.
+     *
+     * NOTE: This expects a Supabase RPC named `get_requests_to_process_with_details`.
+     * If your SQL function name or arg names differ, update this call accordingly.
+     */
+    async getRequestsToProcessPage(
+        page: number,
+        rows_per_page: number,
+        filter_field: string,
+        filter_data: string,
+        sort_field: string,
+        sort_order: number,
+        status_exclude: string
+    ): Promise<{
+        total_count: number;
+        page: number;
+        rows_per_page: number;
+        requests_to_process: any[];
+        all_purchase_orders: any[];
+        all_po_recipes: any[];
+        all_recipes: any[];
+        all_recipe_elements: any[];
+        all_products: any[];
+    }> {
+        let result = {
+            total_count: 0,
+            page,
+            rows_per_page,
+            requests_to_process: [] as any[],
+            all_purchase_orders: [] as any[],
+            all_po_recipes: [] as any[],
+            all_recipes: [] as any[],
+            all_recipe_elements: [] as any[],
+            all_products: [] as any[],
+        };
+
+        try {
+            const { data, error } = await supabase.rpc('get_requests_to_process_with_details', {
+                in_page: page,
+                in_rows_per_page: rows_per_page,
+                in_filter_field: filter_field,
+                in_filter_data: filter_data,
+                in_sort_field: sort_field,
+                in_sort_order: sort_order,
+                in_status_exclude: status_exclude,
+            });
+
+            if (error) {
+                console.error('Error calling RPC (getRequestsToProcessPage):', error);
+                throw error;
+            }
+
+            console.log('Requests to Process page data:', data);
+            result = data ?? result;
+        } catch (err) {
+            console.error('Error in getRequestsToProcessPage:', err);
+            throw err;
+        }
+
+        return result;
+    },
+
     // Get requests
     async getRequests(status: string){
         /**@TODO move filtering and data collection to a backend function 4-15-26 */
