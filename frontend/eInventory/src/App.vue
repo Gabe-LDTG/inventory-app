@@ -1,8 +1,42 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { supabase } from './clients/supabase';
+import { computed, watch } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast';
+import { useAuthStore } from '@/stores/auth';
+import { pinia } from '@/stores';
 
 const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const authStore = useAuthStore(pinia);
+
+const canAccessAdminTabs = computed(() => {
+  const role = authStore.companyRole;
+  return role === 'Admin' || role === 'Management';
+});
+
+watch(
+  () => route.query.denied,
+  (denied) => {
+    if (typeof denied !== 'string' || denied.length === 0) {
+      return;
+    }
+
+    toast.add({
+      severity: 'warn',
+      summary: 'Access Restricted',
+      detail: `You do not have access to ${denied}.`,
+      life: 100000,
+    });
+
+    const { denied: _removed, ...remainingQuery } = route.query;
+    router.replace({
+      name: route.name as string,
+      params: route.params,
+      query: remainingQuery,
+    });
+  }
+);
 </script>
 
 <!-- <script lang="ts">
@@ -28,22 +62,20 @@ export default {
 </script> -->
 
 <template>
+  <Toast />
   <header>
     <img alt="Vue logo" class="logo" src="@/assets/echapps rgb.png" width="200" height="50" />
 
       <nav v-if="route.name != 'Login' && route.name != 'PasswordReset'"> 
         <RouterLink :to="{name: 'Home'}">Home</RouterLink>
-        <!-- <RouterLink :to="{name: 'Login'}">Login</RouterLink> -->
-        <RouterLink :to="{ name: 'ProductList' }">Product Keys</RouterLink>
-        <RouterLink :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink>
+        <RouterLink v-if="canAccessAdminTabs" :to="{ name: 'ProductList' }">Product Keys</RouterLink>
+        <RouterLink v-if="canAccessAdminTabs" :to="{ name: 'PurchaseOrders' }">Purchase Orders</RouterLink>
         <RouterLink :to="{ name: 'UnprocessedCases' }">Unprocessed Product</RouterLink>
-        <!-- SPOT FOR WORK ORDERS -->
-        <RouterLink :to="{ name: 'RequestToProcess' }">Request To Process</RouterLink>
+        <RouterLink v-if="canAccessAdminTabs" :to="{ name: 'RequestToProcess' }">Request To Process</RouterLink>
         <RouterLink :to="{ name: 'Picklists'}">Picklists</RouterLink>
         <RouterLink :to="{ name: 'ProcessedCases' }">Processed Cases</RouterLink>
-        <!-- SPOT FOR SHIPPING LOGS -->
-        <RouterLink :to="{ name: 'Import' }">Import</RouterLink>
-        <RouterLink to="/about">About</RouterLink> 
+        <RouterLink v-if="canAccessAdminTabs" :to="{ name: 'Import' }">Import</RouterLink>
+        <RouterLink :to="{ name: 'about' }">About</RouterLink> 
       </nav>
   
   </header>

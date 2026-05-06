@@ -78,8 +78,8 @@
                         <h4 class="m-0">Manage Products</h4>
 						<div class="flex flex-wrap gap-2 align-items-center pl-table-header-actions">
                             <ZoomDropdown v-model="tableZoom" />
-                            <Button label="New" icon="pi pi-plus" class="pl-action-btn pl-action-btn--primary" @click="openNew" />
-                            <Button label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || selectedProducts.length === 0" />
+                            <Button v-if="canManageProducts" label="New" icon="pi pi-plus" class="pl-action-btn pl-action-btn--primary" @click="openNew" />
+                            <Button v-if="canManageProducts" label="Delete" icon="pi pi-trash" class="pl-action-btn pl-action-btn--danger" @click="confirmDeleteSelected" :disabled="!selectedProducts || selectedProducts.length === 0" />
                         </div>
 					</div>
                 </template>
@@ -148,8 +148,8 @@
                 <Column :exportable="false" :style="{ width: '180px', minWidth: '180px' }">
                     <template #body="slotProps">
                         <Button icon="pi pi-cog" v-tooltip.top="'Product Details'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--info" @click="displayProductInfo(slotProps.data)"/>
-                        <Button icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--edit" @click="editProduct(slotProps.data)" />
-                        <Button icon="pi pi-trash" v-tooltip.top="'Delete Product'" outlined rounded class="pl-icon-btn pl-icon-btn--danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button v-if="canManageProducts" icon="pi pi-pencil" v-tooltip.top="'Edit Product'" outlined rounded class="mr-2 pl-icon-btn pl-icon-btn--edit" @click="editProduct(slotProps.data)" />
+                        <Button v-if="canManageProducts" icon="pi pi-trash" v-tooltip.top="'Delete Product'" outlined rounded class="pl-icon-btn pl-icon-btn--danger" @click="confirmDeleteProduct(slotProps.data)" />
                     </template>
                 </Column>
             </DataTable>
@@ -443,7 +443,7 @@
 
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
+                <Button v-if="canManageProducts" label="Save" icon="pi pi-check" class="pl-action-btn pl-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
         </Dialog>
 
@@ -473,7 +473,7 @@
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="deleteProductDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteProduct" />
+                <Button v-if="canManageProducts" label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteProduct" />
             </template>
         </Dialog>
 
@@ -484,7 +484,7 @@
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" class="pl-action-btn pl-action-btn--secondary" @click="deleteProductsDialog = false"/>
-                <Button label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteSelectedProducts" />
+                <Button v-if="canManageProducts" label="Yes" icon="pi pi-check" class="pl-action-btn pl-action-btn--danger" @click="deleteSelectedProducts" />
             </template>
         </Dialog>
 
@@ -512,9 +512,10 @@
 import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
-import { table } from 'console';
 import ZoomDropdown from '../components/ZoomDropdown.vue';
 import {debounce} from 'lodash';
+import { useAuthStore } from '@/stores/auth';
+import { pinia } from '@/stores';
 //import Papa from "papaparse";
 
 //REFERENCE FOR PAGES
@@ -986,6 +987,7 @@ export default {
 			return;
         },
         openNew() {
+            if (!this.canManageProducts) return;
             this.product = [];
             this.submitted = false;
             this.productDialog = true;
@@ -1045,6 +1047,7 @@ export default {
         },
         async saveProduct() {
             //this.submitted = true;
+            if (!this.canManageProducts) return;
             if (this.saving) return;
             this.saving = true;
 
@@ -1136,6 +1139,7 @@ export default {
             }
         },
         editProduct(product: any) {
+            if (!this.canManageProducts) return;
             this.recipesInUse = [];
             this.product = {...product}; //ASK MICHAEL
 
@@ -1205,6 +1209,7 @@ export default {
             this.productInfoDialog = true;
         },
         confirmDeleteProduct(product: any) {
+            if (!this.canManageProducts) return;
             this.product = product;
             this.deleteProductDialog = true;
         },
@@ -1258,6 +1263,7 @@ export default {
             console.log("Functionality not finished");
         },
         confirmDeleteSelected() {
+            if (!this.canManageProducts) return;
             this.deleteProductsDialog = true;
         },
         async deleteSelectedProducts() {
@@ -1532,7 +1538,15 @@ export default {
         },
     }
 
-    ,computed: {}
+    ,computed: {
+        authStore() {
+            return useAuthStore(pinia);
+        },
+        canManageProducts(): boolean {
+            const role = this.authStore.companyRole;
+            return role === 'Admin' || role === 'Management';
+        },
+    }
 }
 </script>
 

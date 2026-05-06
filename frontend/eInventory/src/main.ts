@@ -57,7 +57,6 @@ app.use(PrimeVue);
 app.use(ToastService);
 
 const authStore = useAuthStore(pinia);
-authStore.initialize();
 
 axios.defaults.withCredentials = true;
 
@@ -96,5 +95,9 @@ app.component('Toolbar', Toolbar);
 app.directive('Tooltip', Tooltip);
 
 
+const startApp = async () => {
+	await authStore.initialize();
+	app.mount('#app');
+};
 
-app.mount('#app');
+startApp();

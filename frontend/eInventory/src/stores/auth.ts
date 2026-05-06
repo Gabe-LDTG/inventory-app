@@ -1,16 +1,48 @@
 import { defineStore } from 'pinia';
 import { supabase } from '@/clients/supabase';
 
+type UserProfile = {
+  id: string;
+  company_role: string | null;
+  full_name: string | null;
+};
+
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         user: null as any,
+        profile: null as UserProfile | null,
         initialized: false,
     }),
     getters: {
         userId: (state) => state.user?.id ?? null,
         isAuthenticated: (state) => !!state.user,
+        companyRole: (state) => state.profile?.company_role ?? null,
     },
     actions: {
+
+        async fetchProfile(userId: string | null) {
+            if (!userId) {
+                this.profile = null;
+                return null;
+            }
+
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, company_role, full_name')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Error fetching profile:', error);
+                this.profile = null;
+                return null;
+            }
+
+            this.profile = data ?? null;
+            return this.profile;
+        },
+
         async initialize(){
             if (this.initialized) return;
 
@@ -21,6 +53,7 @@ export const useAuthStore = defineStore('auth', {
                     this.user = null;
                 } else {
                     this.user = data?.session?.user ?? null;
+                    await this.fetchProfile(this.user?.id ?? null);
                 }
             } catch (error) {
                 console.error('Error getting auth session:', error);
@@ -29,8 +62,9 @@ export const useAuthStore = defineStore('auth', {
                 this.initialized = true;
             }
 
-            supabase.auth.onAuthStateChange((_event, session) => {
+            supabase.auth.onAuthStateChange(async (_event, session) => {
                 this.user = session?.user ?? null;
+                await this.fetchProfile(this.user?.id ?? null);
             });
         },
 

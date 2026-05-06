@@ -19,6 +19,12 @@ import PickList from '../views/Picklist.vue'
 import PasswordReset from '../views/PasswordReset.vue'
 
 let localUser;
+const ADMIN_ONLY_ROUTE_NAMES = new Set([
+  'ProductList',
+  'PurchaseOrders',
+  'RequestToProcess',
+  'Import',
+]);
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -94,33 +100,40 @@ const router = createRouter({
   ]
 })
 
-async function getUser(next:any) {
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAuth) {
+    return true;
+  }
+
   const authStore = useAuthStore(pinia);
   await authStore.initialize();
+
   localUser = authStore.user;
 
   if (!localUser) {
     localUser = await action.getSessionUser();
     authStore.user = localUser;
+    await authStore.fetchProfile(localUser?.id ?? null);
   }
 
-  if(localUser == null){
-    next('/login')
+  if (!localUser) {
+    return { name: 'Login' };
   }
-  else{
-    next();
-  }
-}
 
-router.beforeEach((to, from, next) => {
-  // console.log("in beforeEach");
-  // console.log(route);
-  if (to.meta.requiresAuth){
-    getUser(next);
+  const companyRole = authStore.companyRole;
+  const routeName = String(to.name ?? '');
+  const canAccessAdminRoutes = companyRole === 'Admin' || companyRole === 'Management';
+
+  if (!canAccessAdminRoutes && ADMIN_ONLY_ROUTE_NAMES.has(routeName)) {
+    return {
+      name: 'Home',
+      query: {
+        denied: routeName,
+      },
+    };
   }
-  else {
-    next();
-  }
+
+  return true;
 });
 
 export default router
