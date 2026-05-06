@@ -1,6 +1,7 @@
-import { createRouter, createWebHistory, useRoute } from 'vue-router'
-// @ts-ignore
-import { supabase } from '../clients/supabase';
+import { createRouter, createWebHistory } from 'vue-router'
+import action from '@/components/utils/axiosUtils';
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 // VIEWS
 import HomeView from '../views/HomeView.vue'
@@ -17,10 +18,7 @@ import RequestToProcessView from '@/views/RequestToProcessView.vue'
 import PickList from '../views/Picklist.vue'
 import PasswordReset from '../views/PasswordReset.vue'
 
-import axios from "axios";
-
 let localUser;
-const route = useRoute();
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -97,9 +95,16 @@ const router = createRouter({
 })
 
 async function getUser(next:any) {
-  // console.log("in GetUser");
-  localUser = await supabase.auth.getSession();
-  if(localUser.data.session == null){
+  const authStore = useAuthStore(pinia);
+  await authStore.initialize();
+  localUser = authStore.user;
+
+  if (!localUser) {
+    localUser = await action.getSessionUser();
+    authStore.user = localUser;
+  }
+
+  if(localUser == null){
     next('/login')
   }
   else{

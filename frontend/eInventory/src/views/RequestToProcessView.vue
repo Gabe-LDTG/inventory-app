@@ -320,13 +320,19 @@ import { FilterMatchMode } from 'primevue/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import ZoomDropdown from "../components/ZoomDropdown.vue";
+import { useAuthStore } from "@/stores/auth";
+import { pinia } from "@/stores";
 
 /** @TODO Try to fix module later */
 // @ts-ignore
 import html2pdf from "html2pdf.js";
 import InputNumber from 'primevue/inputnumber';
 
-// https://pspdfkit.com/blog/2022/how-to-generate-a-pdf-with-vuejs/
+const RTP_FILTERS_STORAGE_KEY_BASE = 'einventory:v2:view:RequestToProcess:filters';
+const RTP_FILTERS_STORAGE_KEY_V2_LEGACY = 'einventory:v2:view:RequestToProcess:filters';
+const RTP_FILTERS_STORAGE_KEY_LEGACY = 'rtp_filters_v1';
+const RTP_FILTERS_VERSION = 2;
+const RTP_FILTERS_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
 export default {
     components: {
@@ -456,6 +462,8 @@ export default {
             sortField: 'deadline',
             sortOrder: 1,
             searchDebounceHandle: null as any,
+            persistDebounceHandle: null as any,
+            filtersStorageKey: `${RTP_FILTERS_STORAGE_KEY_BASE}:user:anonymous`,
 
             // DATATABLE VARIABLES
             filters: {
@@ -467,8 +475,7 @@ export default {
         }
     },
     created(){
-        this.initVariables();
-
+        this.initPage();
     },
     watch: {
         searchText(){
@@ -480,9 +487,140 @@ export default {
                 this.currentPage = 1;
                 this.getRequestsToProcess();
             }, 300);
-        }
+
+            this.persistFiltersDebounced();
+        },
+        statusFilter(){ this.persistFiltersDebounced(); },
+        sortField(){ this.persistFiltersDebounced(); },
+        sortOrder(){ this.persistFiltersDebounced(); },
+        currentPage(){ this.persistFiltersDebounced(); },
+        rowsPerPage(){ this.persistFiltersDebounced(); },
+        filterField(){ this.persistFiltersDebounced(); },
     },
     methods: {
+        async initPage(){
+            await this.initializeFiltersStorageKey();
+            this.restorePersistedFilters();
+            await this.initVariables();
+        },
+
+        async initializeFiltersStorageKey(){
+            try {
+                const authStore = useAuthStore(pinia);
+                await authStore.initialize();
+                const userId = authStore.userId;
+                const scope = userId ? `user:${userId}` : 'user:anonymous';
+                this.filtersStorageKey = `${RTP_FILTERS_STORAGE_KEY_BASE}:${scope}`;
+            } catch {
+                this.filtersStorageKey = `${RTP_FILTERS_STORAGE_KEY_BASE}:user:anonymous`;
+            }
+        },
+
+        persistFiltersDebounced(){
+            if (this.persistDebounceHandle) {
+                clearTimeout(this.persistDebounceHandle);
+            }
+
+            this.persistDebounceHandle = setTimeout(() => {
+                this.persistFilters();
+            }, 200);
+        },
+
+        persistFilters(){
+            const payload = {
+                v: RTP_FILTERS_VERSION,
+                savedAt: Date.now(),
+                ttlMs: RTP_FILTERS_TTL_MS,
+                state: {
+                    searchText: this.searchText,
+                    statusFilter: this.statusFilter,
+                    sortField: this.sortField,
+                    sortOrder: this.sortOrder,
+                    currentPage: this.currentPage,
+                    rowsPerPage: this.rowsPerPage,
+                    filterField: this.filterField,
+                },
+            };
+
+            localStorage.setItem(this.filtersStorageKey, JSON.stringify(payload));
+        },
+
+        restorePersistedFilters(){
+            try {
+                const rawV2 = localStorage.getItem(this.filtersStorageKey);
+
+                if (rawV2) {
+                    const savedV2 = JSON.parse(rawV2);
+                    if (savedV2.v !== RTP_FILTERS_VERSION) return;
+
+                    const savedAt = Number(savedV2.savedAt ?? 0);
+                    const ttlMs = Number(savedV2.ttlMs ?? RTP_FILTERS_TTL_MS);
+                    const isExpired = savedAt > 0 && ttlMs > 0 && (Date.now() - savedAt) > ttlMs;
+                    if (isExpired) {
+                        localStorage.removeItem(this.filtersStorageKey);
+                        return;
+                    }
+
+                    const state = savedV2.state ?? {};
+                    this.searchText = state.searchText ?? this.searchText;
+                    this.statusFilter = state.statusFilter ?? this.statusFilter;
+                    this.sortField = state.sortField ?? this.sortField;
+                    this.sortOrder = state.sortOrder ?? this.sortOrder;
+                    this.currentPage = state.currentPage ?? this.currentPage;
+                    this.rowsPerPage = state.rowsPerPage ?? this.rowsPerPage;
+                    this.filterField = state.filterField ?? this.filterField;
+                    return;
+                }
+
+                // Backward compatibility for the original v2 shared key.
+                const rawV2Legacy = localStorage.getItem(RTP_FILTERS_STORAGE_KEY_V2_LEGACY);
+                if (rawV2Legacy) {
+                    const savedV2Legacy = JSON.parse(rawV2Legacy);
+                    if (savedV2Legacy.v === RTP_FILTERS_VERSION) {
+                        const state = savedV2Legacy.state ?? {};
+                        this.searchText = state.searchText ?? this.searchText;
+                        this.statusFilter = state.statusFilter ?? this.statusFilter;
+                        this.sortField = state.sortField ?? this.sortField;
+                        this.sortOrder = state.sortOrder ?? this.sortOrder;
+                        this.currentPage = state.currentPage ?? this.currentPage;
+                        this.rowsPerPage = state.rowsPerPage ?? this.rowsPerPage;
+                        this.filterField = state.filterField ?? this.filterField;
+
+                        this.persistFilters();
+                        localStorage.removeItem(RTP_FILTERS_STORAGE_KEY_V2_LEGACY);
+                        return;
+                    }
+                }
+
+                // Backward compatibility for the original flat payload shape.
+                const rawLegacy = localStorage.getItem(RTP_FILTERS_STORAGE_KEY_LEGACY);
+                if (!rawLegacy) return;
+
+                const savedLegacy = JSON.parse(rawLegacy);
+                if (savedLegacy.v !== 1) return;
+
+                this.searchText = savedLegacy.searchText ?? this.searchText;
+                this.statusFilter = savedLegacy.statusFilter ?? this.statusFilter;
+                this.sortField = savedLegacy.sortField ?? this.sortField;
+                this.sortOrder = savedLegacy.sortOrder ?? this.sortOrder;
+                this.currentPage = savedLegacy.currentPage ?? this.currentPage;
+                this.rowsPerPage = savedLegacy.rowsPerPage ?? this.rowsPerPage;
+                this.filterField = savedLegacy.filterField ?? this.filterField;
+
+                // Migrate immediately to namespaced storage and clear the legacy key.
+                this.persistFilters();
+                localStorage.removeItem(RTP_FILTERS_STORAGE_KEY_LEGACY);
+            } catch {
+                // Ignore malformed local storage entries.
+            }
+        },
+
+        clearPersistedFilters(){
+            localStorage.removeItem(this.filtersStorageKey);
+            localStorage.removeItem(RTP_FILTERS_STORAGE_KEY_V2_LEGACY);
+            localStorage.removeItem(RTP_FILTERS_STORAGE_KEY_LEGACY);
+        },
+
         async initVariables(){
             try {
                 this.loading = true;

@@ -9,6 +9,27 @@ import type ProcessedCases from "@/views/ProcessedCases.vue";
 const BASE_URL = "http://localhost:5000";
 
 var action = {
+    // AUTH COMMANDS--------------------------------------------------------------------------------------------
+    async getSessionUser(){
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                console.error('Error getting auth session:', error);
+                return null;
+            }
+
+            return data?.session?.user ?? null;
+        } catch (error) {
+            console.error('Error getting auth session:', error);
+            return null;
+        }
+    },
+
+    async getSessionUserId(){
+        const sessionUser = await this.getSessionUser();
+        return sessionUser?.id ?? null;
+    },
+
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
