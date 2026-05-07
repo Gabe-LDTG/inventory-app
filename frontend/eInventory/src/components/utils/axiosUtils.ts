@@ -1106,195 +1106,7 @@ var action = {
     },
 
 
-    //PURCHASE ORDERS----------------------------------------------------------------------------------------
-    //Gets purchase orders
-    async getPurchaseOrders(){
-        // const {data, error} = await supabase.rpc('get_purchase_orders');
-
-        const query = supabase
-            .from('purchase_orders')
-            .select('*')
-            .order('purchase_order_id');
-
-        const {data, error} = await query;
-        if(error){
-            console.error('Error calling RPC: ', error);
-            throw error;
-        } else {
-            console.log('Purchase Orders: ', data);
-            return data;
-        }
-    },
-
-    /**
-     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
-     * @param page The page number to retrieve (1-based index)
-     * @param rowsPerPage The number of rows to display per page
-     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
-     * @returns An array of purchase orders for the specified page and filters
-     * @author Gabe de la Torre-Garcia
-     */
-    async getPurchaseOrdersPage(
-        page: number,
-        rows_per_page: number,
-        filter_field: string,
-        filter_data: string,
-        sort_field: string,
-        sort_order: number
-    ): Promise<{
-        total_count: number;
-        page: number;
-        rows_per_page: number;
-        purchase_orders: any[];
-        all_products: any[];
-        all_boxes: any[];
-        all_recipes: any[];
-        all_po_recipes: any[];
-        all_recipe_elements: any[];
-    }>{
-        let result = {
-            total_count: 0,
-            page,
-            rows_per_page: rows_per_page,
-            purchase_orders: [] as any[],
-            all_products: [] as any[],
-            all_boxes: [] as any[],
-            all_recipes: [] as any[],
-            all_po_recipes: [] as any[],
-            all_recipe_elements: [] as any[],
-        };
-    
-        // page is 1-based here; convert to 0-based indices
-        const from = (page - 1) * rows_per_page;
-        const to   = from + rows_per_page - 1;
-
-        try {
-            
-            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
-                in_page: page, 
-                in_rows_per_page: rows_per_page, 
-                in_filter_field: filter_field,
-                in_filter_data: filter_data,
-                in_sort_field: sort_field,
-                in_sort_order: sort_order
-            });
-    
-            if (error) {
-                console.error('Error calling RPC (getPurchaseOrdersDetails):', error);
-            } else {
-                console.log('Purchase Orders page data:', data);
-                result = data ?? result;
-            }
-        } catch (err) {
-            console.error('Error in getPurchaseOrdersPage:', err);
-        }
-    
-        /* try {
-            const query = supabase
-                .from('purchase_orders')
-                .select('*');
-                
-
-            if(sort_field !== '')
-                query.order(sort_field, { ascending: sort_order === 1 });
-            else
-                query.order('purchase_order_id', { ascending: false });
-    
-            if (filter_data !== '') {
-                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
-            }
-    
-            const { data, error } = await query.range(from, to);
-    
-            if (error) {
-                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
-            } else {
-                console.log('Purchase Orders page:', data);
-                purchaseOrders = data ?? [];
-            }
-        } catch (err) {
-            console.error('Error in getPurchaseOrdersPage:', err);
-        } */
-    
-        return result;
-    },
-
-     /**
-     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
-     * @param page The page number to retrieve (1-based index)
-     * @param rowsPerPage The number of rows to display per page
-     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
-     * @returns An array of purchase orders for the specified page and filters
-     * @author Gabe de la Torre-Garcia
-     */
-    async getPurchaseOrdersPageV2(
-        page: number,
-        rowsPerPage: number,
-        filter_data: string
-    ){
-        let purchaseOrders: any[] = [];
-    
-        // page is 1-based here; convert to 0-based indices
-        const from = (page - 1) * rowsPerPage;
-        const to   = from + rowsPerPage - 1;
-    
-        try {
-            
-            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {in_page: page, in_rows_per_page: rowsPerPage, in_filter_data: filter_data});
-    
-            if (error) {
-                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
-            } else {
-                console.log('Purchase Orders page:', data);
-                purchaseOrders = data ?? [];
-            }
-        } catch (err) {
-            console.error('Error in getPurchaseOrdersPage:', err);
-        }
-    
-        return purchaseOrders;
-    },
-
-    async getPurchaseOrdersCount(
-        filter_data: string
-    ){
-        try {
-            const query = supabase
-                .from('purchase_orders')
-                .select('*', { count: 'exact', head: true });
-
-            if (filter_data !== '') {
-                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
-            }
-
-            const { count, error } = await query;
-                
-            if (error) {
-                throw error;
-            }
-            return count ?? 0;
-        } catch (err) {
-            console.error('Error fetching purchase orders count:', err);
-            return 0;
-        }
-    },
-
-    async getNewestPurchaseOrdersByVendor(vendor_id: number){
-        const {data, error} = await supabase
-            .from('purchase_orders')
-            .select('*')
-            .eq('vendor_id', vendor_id)
-            .order('purchase_order_id', { ascending: false })
-            .limit(5); // Adjust the limit as needed
-        if(error){
-            console.error('Error calling RPC: ', error);
-            throw error;
-        } else {
-            console.log('Newest Purchase Orders for Vendor: ', data);
-            return data;
-        }
-    },
-
+    //RECORD LOCKS------------------------------------------------------------------------------------------
     /**
      * Fetches the current active lock for a single record.
      *
@@ -1408,6 +1220,168 @@ var action = {
                 onChange();
             })
             .subscribe();
+    },
+
+
+    //PURCHASE ORDERS----------------------------------------------------------------------------------------
+    //Gets purchase orders
+    async getPurchaseOrders(){
+        // const {data, error} = await supabase.rpc('get_purchase_orders');
+
+        const query = supabase
+            .from('purchase_orders')
+            .select('*')
+            .order('purchase_order_id');
+
+        const {data, error} = await query;
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Orders: ', data);
+            return data;
+        }
+    },
+
+    /**
+     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
+     * @returns An array of purchase orders for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     */
+    async getPurchaseOrdersPage(
+        page: number,
+        rows_per_page: number,
+        filter_field: string,
+        filter_data: string,
+        sort_field: string,
+        sort_order: number
+    ): Promise<{
+        total_count: number;
+        page: number;
+        rows_per_page: number;
+        purchase_orders: any[];
+        all_products: any[];
+        all_boxes: any[];
+        all_recipes: any[];
+        all_po_recipes: any[];
+        all_recipe_elements: any[];
+        all_po_raw_lines: any[];
+        all_invoices: any[];
+    }>{
+        let result = {
+            total_count: 0,
+            page,
+            rows_per_page: rows_per_page,
+            purchase_orders: [] as any[],
+            all_products: [] as any[],
+            all_boxes: [] as any[],
+            all_recipes: [] as any[],
+            all_po_recipes: [] as any[],
+            all_recipe_elements: [] as any[],
+            all_po_raw_lines: [] as any[],
+            all_invoices: [] as any[],
+        };
+    
+        try {
+            
+            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
+                in_page: page, 
+                in_rows_per_page: rows_per_page, 
+                in_filter_field: filter_field,
+                in_filter_data: filter_data,
+                in_sort_field: sort_field,
+                in_sort_order: sort_order
+            });
+    
+            if (error) {
+                console.error('Error calling RPC (getPurchaseOrdersDetails):', error);
+            } else {
+                console.log('Purchase Orders page data:', data);
+                result = data ?? result;
+            }
+        } catch (err) {
+            console.error('Error in getPurchaseOrdersPage:', err);
+        }
+        return result;
+    },
+
+     /**
+     * @description Gets a page of purchase orders based on the inputted parameters. Uses server-side pagination to only pull the necessary records for each page, as opposed to getPurchaseOrders() which pulls all records at once.
+     * @param page The page number to retrieve (1-based index)
+     * @param rowsPerPage The number of rows to display per page
+     * @param filter_data The value to filter by (e.g. 'Widget' to filter the name column for purchase orders with 'Widget' in the name)
+     * @returns An array of purchase orders for the specified page and filters
+     * @author Gabe de la Torre-Garcia
+     */
+    async getPurchaseOrdersPageV2(
+        page: number,
+        rowsPerPage: number,
+        filter_data: string
+    ){
+        let purchaseOrders: any[] = [];
+    
+        // page is 1-based here; convert to 0-based indices
+        const from = (page - 1) * rowsPerPage;
+        const to   = from + rowsPerPage - 1;
+    
+        try {
+            
+            const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {in_page: page, in_rows_per_page: rowsPerPage, in_filter_data: filter_data});
+    
+            if (error) {
+                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
+            } else {
+                console.log('Purchase Orders page:', data);
+                purchaseOrders = data ?? [];
+            }
+        } catch (err) {
+            console.error('Error in getPurchaseOrdersPage:', err);
+        }
+    
+        return purchaseOrders;
+    },
+
+    async getPurchaseOrdersCount(
+        filter_data: string
+    ){
+        try {
+            const query = supabase
+                .from('purchase_orders')
+                .select('*', { count: 'exact', head: true });
+
+            if (filter_data !== '') {
+                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
+            }
+
+            const { count, error } = await query;
+                
+            if (error) {
+                throw error;
+            }
+            return count ?? 0;
+        } catch (err) {
+            console.error('Error fetching purchase orders count:', err);
+            return 0;
+        }
+    },
+
+    async getNewestPurchaseOrdersByVendor(vendor_id: number){
+        const {data, error} = await supabase
+            .from('purchase_orders')
+            .select('*')
+            .eq('vendor_id', vendor_id)
+            .order('purchase_order_id', { ascending: false })
+            .limit(5); // Adjust the limit as needed
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Newest Purchase Orders for Vendor: ', data);
+            return data;
+        }
     },
 
     //Create a purchase order
@@ -1544,6 +1518,185 @@ var action = {
             throw error;
         } else {
             console.log(data);
+            return data;
+        }
+    },
+
+    async getPurchaseOrderRawLines(po_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .select('*');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines: ', data);
+            return data;
+        }
+    },
+
+    // Get raw lines for a purchase order page (only gets raw lines for the purchase orders on the current page, rather than all raw lines for all purchase orders)
+    async getCurrentPurchaseOrderRawLines(po_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')            
+            .select('*')
+            .eq('purchase_order_id', po_id);
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Current Purchase Order Raw Lines: ', data);
+            return data;
+        }
+    },
+
+    /**
+     * Creates a single raw line item for a purchase order.
+     */
+    async addPurchaseOrderRawLine(rawLine: {
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }){
+        const payload = {
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        };
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .insert(payload)
+            .select()
+            .single();
+
+        if(error){
+            console.error('Error creating purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Created:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Creates multiple raw line items for a purchase order in one insert call.
+     */
+    async bulkAddPurchaseOrderRawLines(rawLines: {
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }[]){
+        if (!Array.isArray(rawLines) || rawLines.length === 0) {
+            return [];
+        }
+
+        const payload = rawLines.map((rawLine) => ({
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        }));
+
+        const {data, error} = await supabase.rpc('bulk_create_po_raw_lines', {
+            record_array: payload,
+        });
+
+        if(error){
+            console.error('Error creating purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Created:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Edits a single raw line item for a purchase order.
+     */
+    async editPurchaseOrderRawLine(po_raw_line: {
+        po_raw_line_id: number;
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }){
+        const payload = {
+            product_id: po_raw_line.product_id,
+            purchase_order_id: po_raw_line.purchase_order_id,
+            invoice_id: po_raw_line.invoice_id ?? null,
+            total_units: po_raw_line.total_units,
+            notes: po_raw_line.notes ?? null,
+            status: po_raw_line.status,
+        };
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .update(payload)
+            .eq('po_raw_line_id', po_raw_line.po_raw_line_id)
+            .select()
+            .single();
+
+        if(error){
+            console.error('Error editing purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Updated:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Deletes a single raw line item by primary key.
+     */
+    async deletePurchaseOrderRawLine(po_raw_line_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .delete()
+            .eq('po_raw_line_id', po_raw_line_id)
+            .select();
+
+        if(error){
+            console.error('Error deleting purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Deleted:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Deletes multiple raw line items by primary key list.
+     */
+    async bulkDeletePurchaseOrderRawLines(po_raw_line_ids: number[]){
+        if (!Array.isArray(po_raw_line_ids) || po_raw_line_ids.length === 0) {
+            return [];
+        }
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .delete()
+            .in('po_raw_line_id', po_raw_line_ids)
+            .select();
+
+        if(error){
+            console.error('Error deleting purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Deleted:', data);
             return data;
         }
     },

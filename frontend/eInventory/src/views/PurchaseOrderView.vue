@@ -1816,6 +1816,7 @@ export default {
                 this.displayRecipeElements = data.all_recipe_elements;
                 this.poRecipes = data.all_po_recipes;
                 this.uBoxes = data.all_boxes;
+                this.po_raw_products = data.all_po_raw_lines || [];
                 // this.pCases = await action.getProcrocCasesForPOPage(poIds); // Taking out for now because po_recipes fills the gap for this
                 // await action.getRecipesAndElementsForPOs(poIds);
 
@@ -2604,12 +2605,12 @@ export default {
                     }
 
                     /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    await this.getAllProductsForVendor();
+                    /* await this.getAllProductsForVendor();
 
                     await this.getRawProductsForVendor();
                     await this.getProcProductsForVendor();
                     await this.getRecipes();
-                    await this.startNewPurchaseOrderDraftFlow();
+                    await this.startNewPurchaseOrderDraftFlow(); */
                 } else if (dialogType === 2) {
                     console.log("Purchase Order Dialog opened from Edit PO flow");
                     console.log("Purchase Order to edit:", purchaseOrder);
@@ -3451,6 +3452,7 @@ export default {
                     })
                 console.log("FINAL ARRAY", finalCaseArray);
 
+                /**@TODO CONVERT THIS TO USING PO RAW LINES */
                 if(finalCaseArray.length > 0)
                     await action.bulkCreateCases(finalCaseArray);
 
