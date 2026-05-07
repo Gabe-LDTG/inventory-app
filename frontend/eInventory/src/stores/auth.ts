@@ -62,9 +62,14 @@ export const useAuthStore = defineStore('auth', {
                 this.initialized = true;
             }
 
-            supabase.auth.onAuthStateChange(async (_event, session) => {
+            supabase.auth.onAuthStateChange((_event, session) => {
                 this.user = session?.user ?? null;
-                await this.fetchProfile(this.user?.id ?? null);
+                const nextUserId = this.user?.id ?? null;
+
+                // Keep auth callback synchronous; defer async profile fetch.
+                setTimeout(() => {
+                    void this.fetchProfile(nextUserId);
+                }, 0);
             });
         },
 

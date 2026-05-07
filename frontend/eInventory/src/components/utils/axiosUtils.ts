@@ -1551,6 +1551,7 @@ var action = {
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
+        console.log("IN GET VENDORS");
         const {data, error} = await supabase.rpc('get_vendors');
         if(error){
             console.error('Error calling RPC:', error);

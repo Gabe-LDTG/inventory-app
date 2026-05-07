@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import action from '@/components/utils/axiosUtils';
 import { pinia } from '@/stores';
 import { useAuthStore } from '@/stores/auth';
 
@@ -107,15 +106,16 @@ router.beforeEach(async (to) => {
 
   const authStore = useAuthStore(pinia);
 
-  // initialize() is a no-op after the first call but must run once to
-  // register the onAuthStateChange listener and set up the store.
+  // initialize() hydrates cached auth state and registers listeners.
   await authStore.initialize();
 
-  // Always validate the session with the Supabase server on every navigation.
-  // getSession() only reads from localStorage and returns stale/expired tokens.
-  // ensureFreshSession() calls getUser() which validates server-side and
-  // auto-refreshes the access token when it has expired after an idle period.
-  localUser = await authStore.ensureFreshSession();
+  // Use cached auth state here so route changes never block on a live network call.
+  // App-level visibility/focus handlers perform background session repair.
+  localUser = authStore.user;
+
+  if (!localUser) {
+    localUser = await authStore.refreshUser();
+  }
 
   if (!localUser) {
     return { name: 'Login' };

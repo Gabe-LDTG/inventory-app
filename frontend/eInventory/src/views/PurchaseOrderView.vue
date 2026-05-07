@@ -1406,6 +1406,7 @@ export default {
             delivered: [] as any[],
             boxesToDelete: [] as any[],
             inboundBoxes: [] as any[],
+            po_raw_products: [] as any[],
 
             //VENDOR VARIABLES
             vendors: [] as any[],
