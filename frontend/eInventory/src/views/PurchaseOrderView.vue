@@ -741,11 +741,22 @@
         </Dialog>
 
         <!-- @TODO Make the width reactive to the size of the user's monitor -->
-        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1800px'}" header="Edit Purchase Order" :modal="true" class="p-fluid po-edit-dialog">
+        <Dialog
+            v-model:visible="editPurchaseOrderDialog"
+            :style="{width: '1800px'}"
+            header="Edit Purchase Order"
+            :modal="true"
+            :class="['p-fluid po-edit-dialog', { 'po-edit-dialog--readonly': isPoReadOnly }]"
+            @hide="onEditPurchaseOrderDialogHide"
+        >
             <div class="flex align-items-left align-self-flex-start">
                 <!-- <Button label="Header" text @click=""/> -->
                 <!-- <Button label="Product Info" text @click="" /> -->
             </div>
+
+            <Message v-if="isPoReadOnly" severity="warn" :closable="false" class="po-lock-message">
+                {{ poReadOnlyMessage }}
+            </Message>
 
             <div class="po-edit-layout">
             <div class="field">
@@ -953,7 +964,7 @@
                             <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                         </div>
                         <div class="po-edit-footer-actions">
-                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
+                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="closeEditPurchaseOrderDialog"/>
                             <div class="po-autosave-banner" :class="{ 'is-visible': autoSaveState !== 'idle' }">
                                 <div v-if="autoSaveState !== 'idle'" class="po-autosave-indicator">
                                     <template v-if="autoSaveState === 'saving'">
@@ -1309,6 +1320,9 @@ import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
+import { supabase } from '@/clients/supabase';
+import { useAuthStore } from '@/stores/auth';
+import { pinia } from '@/stores';
 import { table } from 'console';
 
 //REFERENCE FOR PAGES
@@ -1450,6 +1464,12 @@ export default {
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
 
+            activePoLock: null as any,
+            currentEditingPoId: null as number | null,
+            poLockHeartbeatTimer: null as any,
+            poLockChannel: null as any,
+            lockNoticeShown: false,
+
         }
     },
     created() {
@@ -1465,7 +1485,7 @@ export default {
         purchaseOrder: {
         deep: true,
         handler() {
-            if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog) return;
+            if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog || this.isPoReadOnly) return;
             this.lazySave();
         }
         },
@@ -1479,13 +1499,247 @@ export default {
         await this.initVariables();      // loads vendors/products/recipes you already use
         
         await this.loadPage(1);          // load first page for the table
+
+        this.setupPoLockRealtime();
+    },
+    beforeUnmount() {
+        this.stopPoLockHeartbeat();
+        void this.releaseActivePoLock();
+
+        if (this.poLockChannel) {
+            void supabase.removeChannel(this.poLockChannel);
+            this.poLockChannel = null;
+        }
+    },
+    computed: {
+        authStore() {
+            return useAuthStore(pinia);
+        },
+        currentEditorUserId(): string | null {
+            return this.authStore?.user?.id ?? null;
+        },
+        currentEditorName(): string {
+            return this.authStore?.profile?.full_name || this.authStore?.user?.email || 'Another user';
+        },
+        isPoReadOnly(): boolean {
+            if (!this.activePoLock || !this.currentEditorUserId) return false;
+            return this.activePoLock.editor_user_id !== this.currentEditorUserId;
+        },
+        poReadOnlyMessage(): string {
+            if (!this.isPoReadOnly) return '';
+            const editorName = this.activePoLock?.editor_name || 'another user';
+            return `Read-only mode: ${editorName} is currently editing this purchase order.`;
+        },
     },
     methods: {
         lazySave: () => Promise.resolve(),
         onSearchDebounced: async () => Promise.resolve(),
+
+        /**
+         * Returns the lock namespace used by this page.
+         *
+         * @returns The lock table namespace string for purchase orders.
+         */
+        getPoLockTableName() {
+            return 'purchase_orders';
+        },
+
+        /**
+         * Starts realtime subscription for lock changes on purchase orders.
+         *
+         * @returns void
+         */
+        setupPoLockRealtime() {
+            if (this.poLockChannel) {
+                void supabase.removeChannel(this.poLockChannel);
+            }
+
+            this.poLockChannel = action.subscribeToRecordLocks(this.getPoLockTableName(), () => {
+                if (!this.currentEditingPoId) return;
+                void this.syncActivePoLock();
+            });
+        },
+
+        /**
+         * Pulls the latest lock state for the currently edited PO.
+         * If lock is released while dialog is open, this attempts reacquire.
+         *
+         * @returns Promise<void>
+         */
+        async syncActivePoLock() {
+            if (!this.currentEditingPoId) return;
+
+            const latestLock = await action.getRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId);
+            this.activePoLock = latestLock || null;
+
+            if (!latestLock && this.editPurchaseOrderDialog) {
+                await this.acquirePoLock(this.currentEditingPoId);
+                return;
+            }
+
+            if (this.isPoReadOnly && !this.lockNoticeShown) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Read-only Purchase Order',
+                    detail: this.poReadOnlyMessage,
+                    life: 6000,
+                });
+                this.lockNoticeShown = true;
+            }
+        },
+
+        /**
+         * Attempts to acquire edit lock for a PO and starts heartbeat when acquired.
+         *
+         * @param purchaseOrderId The purchase order id to lock for editing.
+         * @returns True when lock is acquired by current user, otherwise false.
+         */
+        async acquirePoLock(purchaseOrderId: number) {
+            this.lockNoticeShown = false;
+            const result = await action.acquireRecordEditLock(this.getPoLockTableName(), purchaseOrderId, this.currentEditorName, 120);
+            this.activePoLock = result?.lock || null;
+            this.currentEditingPoId = purchaseOrderId;
+
+            if (result?.acquired) {
+                this.startPoLockHeartbeat();
+                return true;
+            }
+
+            this.stopPoLockHeartbeat();
+
+            if (this.isPoReadOnly && !this.lockNoticeShown) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Read-only Purchase Order',
+                    detail: this.poReadOnlyMessage,
+                    life: 6000,
+                });
+                this.lockNoticeShown = true;
+            }
+
+            return false;
+        },
+
+        /**
+         * Sends periodic lock heartbeat while the current user owns the lock.
+         *
+         * @returns void
+         */
+        startPoLockHeartbeat() {
+            this.stopPoLockHeartbeat();
+
+            this.poLockHeartbeatTimer = setInterval(async () => {
+                if (!this.currentEditingPoId || this.isPoReadOnly) return;
+
+                try {
+                    const refreshed = await action.refreshRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId, 120);
+                    if (!refreshed?.refreshed) {
+                        await this.syncActivePoLock();
+                    }
+                } catch (error) {
+                    console.error('Error refreshing purchase order lock:', error);
+                }
+            }, 30000);
+        },
+
+        /**
+         * Stops lock heartbeat timer if active.
+         *
+         * @returns void
+         */
+        stopPoLockHeartbeat() {
+            if (this.poLockHeartbeatTimer) {
+                clearInterval(this.poLockHeartbeatTimer);
+                this.poLockHeartbeatTimer = null;
+            }
+        },
+
+        /**
+         * Releases the active PO lock when current user is the lock owner.
+         *
+         * @returns Promise<void>
+         */
+        async releaseActivePoLock() {
+            if (!this.currentEditingPoId || this.isPoReadOnly) {
+                this.stopPoLockHeartbeat();
+                this.activePoLock = null;
+                this.currentEditingPoId = null;
+                return;
+            }
+
+            try {
+                await action.releaseRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId);
+            } catch (error) {
+                console.error('Error releasing purchase order lock:', error);
+            } finally {
+                this.stopPoLockHeartbeat();
+                this.activePoLock = null;
+                this.currentEditingPoId = null;
+            }
+        },
+
+        /**
+         * Closes dialog and releases lock in one call path.
+         *
+         * @returns Promise<void>
+         */
+        async closeEditPurchaseOrderDialog() {
+            await this.releaseActivePoLock();
+            this.editPurchaseOrderDialog = false;
+            this.autoSaveState = 'idle';
+        },
+
+        /**
+         * Safety release path for non-button close events.
+         *
+         * @returns void
+         */
+        onEditPurchaseOrderDialogHide() {
+            void this.releaseActivePoLock();
+            this.autoSaveState = 'idle';
+        },
+
+        /**
+         * Creates a draft PO immediately after vendor selection, then opens normal edit flow.
+         *
+         * @returns Promise<void>
+         */
+        async startNewPurchaseOrderDraftFlow() {
+            this.vendorDialog = false;
+            this.vendorSubmitted = false;
+            this.poBoxes = [];
+            this.poCases = [];
+            this.recipeArray = [];
+            this.selectedOrderType = '';
+            this.amount = 1;
+
+            const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
+            if (!nickname) {
+                this.pendingVendorNickname = '';
+                this.missingVendorNicknameDialog = true;
+                return;
+            }
+
+            await this.continueOpenNewWithNickname(nickname, false);
+
+            this.purchaseOrder.notes = this.purchaseOrder.notes ?? '';
+            this.purchaseOrder.discount = this.purchaseOrder.discount ?? 0;
+            this.purchaseOrder.date_ordered = this.purchaseOrder.date_ordered ?? null;
+            this.purchaseOrder.date_received = this.purchaseOrder.date_received ?? null;
+
+            const purchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
+            this.purchaseOrder.purchase_order_id = purchaseOrderId;
+
+            await this.loadPage(1);
+            await this.onPurchaseOrderDialogOpen(2, { ...this.purchaseOrder });
+        },
         
         async save(): Promise<void> { 
             try {
+                if (this.isPoReadOnly) {
+                    return;
+                }
+
                 this.autoSaveState = 'saving';
                 if(this.purchaseOrder.purchase_order_id){
                     const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
@@ -1992,7 +2246,7 @@ export default {
 
         /**
          * Description: Validates that a vendor has been selected before allowing the user to create a new purchase order. 
-         * If validation fails, an error toast will appear. If validation passes, the openNew() function will be called to open the dialog for creating a new purchase order.
+         * If validation passes, a draft purchase order is created immediately and opened in the edit dialog.
          * 
          * @author Gabe de la Torre-Garcia
          * 
@@ -2000,12 +2254,12 @@ export default {
          * 
          * Date Last Edited: 3-16-2026
          */
-        validateVendor(){
+        async validateVendor(){
             if (!this.purchaseOrder.vendor_id && this.vendorSubmitted == true) {
                 this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
             }
             else {
-                this.openNew();
+                await this.startNewPurchaseOrderDraftFlow();
             }
         },
 
@@ -2251,7 +2505,7 @@ export default {
             return vendorRecipes;
         },
 
-        async continueOpenNewWithNickname(nickname: string){
+        async continueOpenNewWithNickname(nickname: string, openCreateDialog = true){
             const today = new Date();
             const year = today.getFullYear().toString();
             let maxSeqForYear = 0;
@@ -2277,10 +2531,12 @@ export default {
             this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
             this.purchaseOrder.status = 'Draft';
 
-            this.newBulkArray();
-            this.submitted = false;
-            this.purchaseOrderDialog = true;
-            console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+            if (openCreateDialog) {
+                this.newBulkArray();
+                this.submitted = false;
+                this.purchaseOrderDialog = true;
+                console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+            }
         },
 
         //Description: 
@@ -2352,7 +2608,7 @@ export default {
                     await this.getRawProductsForVendor();
                     await this.getProcProductsForVendor();
                     await this.getRecipes();
-                    await this.openNew();
+                    await this.startNewPurchaseOrderDraftFlow();
                 } else if (dialogType === 2) {
                     console.log("Purchase Order Dialog opened from Edit PO flow");
                     console.log("Purchase Order to edit:", purchaseOrder);
@@ -2362,8 +2618,14 @@ export default {
                         return;
                     }
 
+                    if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
+                        await this.releaseActivePoLock();
+                    }
+
                     // Set the active PO first so vendor-scoped initialization uses the correct vendor.
                     this.purchaseOrder = { ...purchaseOrder };
+
+                    await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
 
                     /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
                     await this.getAllProductsForVendor();
@@ -2514,7 +2776,7 @@ export default {
 
                 this.pendingVendorNickname = '';
                 this.missingVendorNicknameDialog = false;
-                await this.continueOpenNewWithNickname(nickname);
+                await this.startNewPurchaseOrderDraftFlow();
             } catch (error: any) {
                 console.error(error);
                 this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save company code.' });
@@ -5972,6 +6234,15 @@ export default {
 .po-edit-layout {
     display: grid;
     gap: 0.9rem;
+}
+
+.po-lock-message {
+    margin-bottom: 0.85rem;
+}
+
+:deep(.po-edit-dialog--readonly .p-dialog-content .po-edit-layout) {
+    pointer-events: none;
+    opacity: 0.72;
 }
 
 .po-edit-layout > .field {

@@ -106,15 +106,16 @@ router.beforeEach(async (to) => {
   }
 
   const authStore = useAuthStore(pinia);
+
+  // initialize() is a no-op after the first call but must run once to
+  // register the onAuthStateChange listener and set up the store.
   await authStore.initialize();
 
-  localUser = authStore.user;
-
-  if (!localUser) {
-    localUser = await action.getSessionUser();
-    authStore.user = localUser;
-    await authStore.fetchProfile(localUser?.id ?? null);
-  }
+  // Always validate the session with the Supabase server on every navigation.
+  // getSession() only reads from localStorage and returns stale/expired tokens.
+  // ensureFreshSession() calls getUser() which validates server-side and
+  // auto-refreshes the access token when it has expired after an idle period.
+  localUser = await authStore.ensureFreshSession();
 
   if (!localUser) {
     return { name: 'Login' };

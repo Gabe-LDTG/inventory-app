@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, watch, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '@/stores/auth';
@@ -37,6 +37,30 @@ watch(
     });
   }
 );
+
+// ── Idle-session recovery ─────────────────────────────────────────────────────
+// When a browser tab is hidden, timers are throttled and the Supabase client
+// may miss its scheduled token refresh. If the user returns after ≥10 minutes
+// the access token could be expired, causing all Supabase calls to fail
+// silently. Reloading ensures a clean slate with a fresh session.
+const IDLE_RELOAD_MS = 10 * 60 * 1000; // 10 minutes
+let hiddenAt: number | null = null;
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+  } else if (document.visibilityState === 'visible' && hiddenAt !== null) {
+    const idleMs = Date.now() - hiddenAt;
+    hiddenAt = null;
+    if (idleMs >= IDLE_RELOAD_MS) {
+      window.location.reload();
+    }
+  }
+}
+
+onMounted(() => document.addEventListener('visibilitychange', handleVisibilityChange));
+onUnmounted(() => document.removeEventListener('visibilitychange', handleVisibilityChange));
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 <!-- <script lang="ts">
@@ -87,6 +111,9 @@ export default {
 header {
   line-height: 1.5;
   max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .logo {
@@ -98,7 +125,10 @@ nav {
   width: 100%;
   font-size: 12px;
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 nav a.router-link-exact-active {
@@ -121,13 +151,11 @@ nav a:first-of-type {
 
 @media (min-width: 1024px) {
   header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+    padding-right: 0;
   }
 
   .logo {
-    margin: 0 2rem 0 0;
+    margin: 0 auto 1.5rem;
   }
 
   header .wrapper {
@@ -137,8 +165,8 @@ nav a:first-of-type {
   }
 
   nav {
-    text-align: left;
-    margin-left: -1rem;
+    text-align: center;
+    margin-left: 0;
     font-size: 1rem;
 
     padding: 1rem 0;

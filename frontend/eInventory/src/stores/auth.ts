@@ -85,5 +85,35 @@ export const useAuthStore = defineStore('auth', {
                 return this.user;
             }
         },
+
+        /**
+         * Validates the session against the Supabase server and refreshes the
+         * access token if it has expired. Unlike getSession(), this makes a
+         * network request so it always returns an up-to-date result.
+         *
+         * Use this in route guards and on tab-visibility restore to prevent
+         * stale tokens from silently failing on subsequent Supabase calls.
+         *
+         * @returns The current User if authenticated, or null if signed out.
+         */
+        async ensureFreshSession() {
+            try {
+                const { data, error } = await supabase.auth.getUser();
+                if (error || !data.user) {
+                    this.user = null;
+                    this.profile = null;
+                    return null;
+                }
+                this.user = data.user;
+                if (!this.profile || this.profile.id !== data.user.id) {
+                    await this.fetchProfile(data.user.id);
+                }
+                return data.user;
+            } catch (err) {
+                console.error('Error ensuring fresh session:', err);
+                this.user = null;
+                return null;
+            }
+        },
     },
 });

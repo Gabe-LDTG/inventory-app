@@ -1295,6 +1295,121 @@ var action = {
         }
     },
 
+    /**
+     * Fetches the current active lock for a single record.
+     *
+     * @param table_name The table namespace used in the lock row (e.g. 'purchase_orders').
+     * @param record_id The primary key value of the locked record.
+     * @returns The active lock payload when present and not expired; otherwise null.
+     */
+    async getRecordEditLock(table_name: string, record_id: string | number){
+        const { data, error } = await supabase.rpc('get_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+        });
+
+        if (error) {
+            console.error('Error getting record lock:', error);
+            throw error;
+        }
+
+        if (!data?.editor_user_id) {
+            return null;
+        }
+
+        const lockExpiresAt = data.heartbeat_at ? new Date(data.heartbeat_at).getTime() : 0;
+        if (!lockExpiresAt || lockExpiresAt < Date.now()) {
+            return null;
+        }
+
+        return data;
+    },
+
+    /**
+     * Attempts to acquire or renew a pessimistic lock for the current user.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the record to lock.
+     * @param editor_name Display name saved with the lock for read-only notices.
+     * @param ttl_seconds Lease length in seconds before lock expiration.
+     * @returns RPC payload containing acquired flag and lock details.
+     */
+    async acquireRecordEditLock(table_name: string, record_id: string | number, editor_name: string, ttl_seconds = 120){
+        const { data, error } = await supabase.rpc('acquire_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+            p_editor_name: editor_name,
+            p_ttl_seconds: ttl_seconds,
+        });
+
+        if (error) {
+            console.error('Error acquiring record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Refreshes (heartbeats) the caller lock lease for a record.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the locked record.
+     * @param ttl_seconds New lease duration in seconds from now.
+     * @returns RPC payload containing refreshed flag and lock details when successful.
+     */
+    async refreshRecordEditLock(table_name: string, record_id: string | number, ttl_seconds = 120){
+        const { data, error } = await supabase.rpc('refresh_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+            p_ttl_seconds: ttl_seconds,
+        });
+
+        if (error) {
+            console.error('Error refreshing record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Releases the caller owned lock for a record.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the locked record.
+     * @returns RPC payload with released flag.
+     */
+    async releaseRecordEditLock(table_name: string, record_id: string | number){
+        const { data, error } = await supabase.rpc('release_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+        });
+
+        if (error) {
+            console.error('Error releasing record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Subscribes to realtime changes for lock rows scoped to a table namespace.
+     *
+     * @param table_name The table namespace to filter lock events by.
+     * @param onChange Callback invoked for any insert/update/delete lock event.
+     * @returns Supabase realtime channel subscription object.
+     */
+    subscribeToRecordLocks(table_name: string, onChange: () => void){
+        return supabase
+            .channel(`record-locks-${table_name}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'record_locks', filter: `table_name=eq.${table_name}` }, () => {
+                onChange();
+            })
+            .subscribe();
+    },
+
     //Create a purchase order
     async addPurchaseOrder(purchaseOrder: any){
         const {data, error} = await supabase.rpc('create_purchase_order', {record_array: [
