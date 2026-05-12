@@ -695,6 +695,44 @@ var action = {
     }, */
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
+    /**
+     * Subscribes to changes for the specified case IDs. When a change occurs, the provided onChange callback will be invoked with the change payload.
+     * @param case_ids An array of case IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified case IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToCaseChanges(
+        case_ids: number[],
+        onChange: (payload: any) => void
+    ) {
+        const scopedIds = Array.from(
+            new Set((case_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((case_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'cases',
+                    filter: `case_id=eq.${case_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+    
     //Get all cases
     async getCases(){
         console.log("IN GET CASES");
@@ -1224,6 +1262,154 @@ var action = {
 
 
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
+    /**
+     * Subscribes to realtime changes for only the provided purchase order ids.
+     * This is intended for conservative realtime usage on paginated table views.
+     *
+     * @param purchase_order_ids The PO ids to watch (typically current visible page ids).
+     * @param onChange Callback invoked for insert/update/delete events on matched rows.
+     * @returns Supabase realtime channel subscription object, or null when no ids are provided.
+     */
+    subscribeToPurchaseOrderChanges(
+        purchase_order_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_orders',
+                    filter: `purchase_order_id=eq.${purchase_order_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for only the provided purchase order recipe ids.
+     * This is intended for conservative realtime usage on paginated table views that show recipe details.
+     * @param purchase_order_recipe_ids An array of purchase order recipe IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified purchase order recipe IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToPurchaseOrderRecipeChanges(
+        purchase_order_recipe_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_recipe_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_recipe_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_order_recipes',
+                    filter: `purchase_order_recipe_id=eq.${purchase_order_recipe_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for only the provided purchase order raw line ids.
+     * This is intended for conservative realtime usage on paginated table views that show raw line details.
+     * @param purchase_order_raw_line_ids An array of purchase order raw line IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified purchase order raw line IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToPurchaseOrderRawLineChanges(
+        purchase_order_raw_line_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_raw_line_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_raw_line_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_order_raw_lines',
+                    filter: `purchase_order_raw_line_id=eq.${purchase_order_raw_line_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for one specific purchase order row.
+     * Use this when you want conservative realtime usage while a single PO is open.
+     *
+     * @param purchase_order_id The specific purchase order id to watch.
+     * @param onChange Callback invoked for insert/update/delete events on that row.
+     * @returns Supabase realtime channel subscription object.
+     */
+    subscribeToSinglePurchaseOrderChange(
+        purchase_order_id: number,
+        onChange: (payload: any) => void
+    ){
+        return supabase
+            .channel(`purchase-order-${purchase_order_id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_orders',
+                    filter: `purchase_order_id=eq.${purchase_order_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            )
+            .subscribe();
+    },
+
+
     //Gets purchase orders
     async getPurchaseOrders(){
         // const {data, error} = await supabase.rpc('get_purchase_orders');
@@ -1262,6 +1448,7 @@ var action = {
         total_count: number;
         page: number;
         rows_per_page: number;
+        purchase_order_ids: number[];
         purchase_orders: any[];
         all_products: any[];
         all_boxes: any[];
@@ -1270,11 +1457,17 @@ var action = {
         all_recipe_elements: any[];
         all_po_raw_lines: any[];
         all_invoices: any[];
+        all_boxes_ids: number[];
+        all_po_recipes_ids: number[];
+        all_products_ids: number[];
+        all_po_raw_lines_ids: number[];
+        all_invoices_ids: number[];
     }>{
         let result = {
             total_count: 0,
             page,
             rows_per_page: rows_per_page,
+            purchase_order_ids: [] as number[],
             purchase_orders: [] as any[],
             all_products: [] as any[],
             all_boxes: [] as any[],
@@ -1283,6 +1476,11 @@ var action = {
             all_recipe_elements: [] as any[],
             all_po_raw_lines: [] as any[],
             all_invoices: [] as any[],
+            all_boxes_ids: [] as number[],
+            all_po_recipes_ids: [] as number[],
+            all_products_ids: [] as number[],
+            all_po_raw_lines_ids: [] as number[],
+            all_invoices_ids: [] as number[],
         };
     
         try {
@@ -1704,12 +1902,11 @@ var action = {
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
-        console.log("IN GET VENDORS");
         const {data, error} = await supabase.rpc('get_vendors');
         if(error){
             console.error('Error calling RPC:', error);
         } else {
-            console.log('Vendors:', data);
+            // console.log('Vendors:', data);
             return data;
         }
     },
@@ -1770,7 +1967,7 @@ var action = {
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            console.log('Vendors for POs: ', data);
+            // console.log('Vendors for POs: ', data);
             return data;
         }
     },
@@ -1843,7 +2040,7 @@ var action = {
         if(error){
             console.error('Error calling RPC:', error);
         } else {
-            console.log('LOCATIONS:', data);
+            // console.log('LOCATIONS:', data);
             return data;
         }
     },

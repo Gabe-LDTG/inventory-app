@@ -1469,6 +1469,10 @@ export default {
             currentEditingPoId: null as number | null,
             poLockHeartbeatTimer: null as any,
             poLockChannel: null as any,
+            poChannel: null as any,
+            poRecChannel: null as any,
+            poBoxChannel: null as any,
+            poBoxLineChannel: null as any,
             lockNoticeShown: false,
 
         }
@@ -1511,6 +1515,26 @@ export default {
             void supabase.removeChannel(this.poLockChannel);
             this.poLockChannel = null;
         }
+
+        if (this.poChannel) {
+            void supabase.removeChannel(this.poChannel);
+            this.poChannel = null;
+        }
+
+        if (this.poRecChannel) {
+            void supabase.removeChannel(this.poRecChannel);
+            this.poRecChannel = null;
+        }
+
+        if (this.poBoxChannel) {
+            void supabase.removeChannel(this.poBoxChannel);
+            this.poBoxChannel = null;
+        }
+
+        if (this.poBoxLineChannel) {
+            void supabase.removeChannel(this.poBoxLineChannel);
+            this.poBoxLineChannel = null;
+        }
     },
     computed: {
         authStore() {
@@ -1543,6 +1567,52 @@ export default {
          */
         getPoLockTableName() {
             return 'purchase_orders';
+        },
+
+        
+        /**
+         * Tears down any existing PO page subscription and starts a fresh one
+         * scoped to the provided purchase order ids (typically the current page).
+         *
+         * @param po_ids The purchase order ids to subscribe to.
+         */
+        setupPoPageRealtime(ids: {
+            po_ids: number[];
+            box_ids?: number[];
+            po_recipe_ids?: number[];
+            po_raw_line_ids?: number[];
+        }) {
+            // Tear down all existing page-scoped channels before rebuilding
+            const channelsToRemove = [
+                { key: 'poChannel' },
+                { key: 'poBoxChannel' },
+                { key: 'poRecChannel' },
+                { key: 'poBoxLineChannel' },
+            ];
+            channelsToRemove.forEach(({ key }) => {
+                if ((this as any)[key]) {
+                    void supabase.removeChannel((this as any)[key]);
+                    (this as any)[key] = null;
+                }
+            });
+
+            const { po_ids, box_ids = [], po_recipe_ids = [], po_raw_line_ids = [] } = ids;
+            // Realtime callbacks reload data only — they do NOT rebuild subscriptions,
+            // which would cause infinite recursion (loadPage → setupPoPageRealtime → loadPage…).
+            const refresh = () => { void this.loadPage(this.currentPage, { rebuildSubscriptions: false }); };
+
+            if (po_ids.length) {
+                this.poChannel = action.subscribeToPurchaseOrderChanges(po_ids, refresh);
+            }
+            if (box_ids.length) {
+                this.poBoxChannel = action.subscribeToCaseChanges(box_ids, refresh);
+            }
+            if (po_recipe_ids.length) {
+                this.poRecChannel = action.subscribeToPurchaseOrderRecipeChanges(po_recipe_ids, refresh);
+            }
+            if (po_raw_line_ids.length) {
+                this.poBoxLineChannel = action.subscribeToPurchaseOrderRawLineChanges(po_raw_line_ids, refresh);
+            }
         },
 
         /**
@@ -1769,7 +1839,7 @@ export default {
             await this.loadPage(1);
          },
 
-         async loadPage(page: number) {
+         async loadPage(page: number, { rebuildSubscriptions = true }: { rebuildSubscriptions?: boolean } = {}) {
             try {
                 this.tableLoading = true;
                 // this.loading = true;
@@ -1823,6 +1893,17 @@ export default {
                 // console.log("BOXES: ", this.uBoxes);
                 // console.log("CASES: ", this.pCases);
                 
+                // Subscribe to realtime changes for the POs now visible on this page.
+                // Only rebuild subscriptions on intentional navigations, not on realtime-triggered reloads.
+                if (rebuildSubscriptions) {
+                    this.setupPoPageRealtime({
+                        po_ids: data.purchase_order_ids ?? [],
+                        box_ids: data.all_boxes_ids ?? [],
+                        po_recipe_ids: data.all_po_recipes_ids ?? [],
+                        po_raw_line_ids: data.all_po_raw_lines_ids ?? [],
+                    });
+                }
+
                 // Reset scroll position to top after new page data loads
                 this.$nextTick(() => {
                     const dtElement = (this.$refs.dt as any)?.$el;
