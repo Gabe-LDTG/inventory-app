@@ -280,14 +280,14 @@
                                 <Column field="amount" header="Total # of Boxes" sortable />
                                 <Column header="Total # of Units" :sortable="true">
                                     <template #body = {data}>
-                                        {{ data.units_per_case * data.amount }}
+                                        {{ data.total_units || (data.units_per_case * data.amount) }}
                                     </template>
                                 </Column >
-                                <Column header="Location">
-                                            <template #body="{data}">
-                                                {{ formatSingleLocation(data.location_id) }}
-                                            </template>
-                                        </Column>
+                                <<!-- Column header="Location">
+                                    <template #body="{data}">
+                                        {{ formatSingleLocation(data.location_id) }}
+                                    </template>
+                                </Column> -->
                                 <Column header="Unit Price" > <!-- Fix sort -->
                                     <template #body="{data}">
                                         {{ formatCurrency(getUnitCost(data.product_id)) }} 
@@ -295,7 +295,7 @@
                                 </Column>
                                 <Column header="Total Price" class="font-bold" > <!-- Fix sort -->
                                     <template #body="{data}">
-                                        {{ formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)*(1-(getPurchaseOrderDiscount(data.purchase_order_id)))) }}
+                                        {{ formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(data.purchase_order_id)))) || formatCurrency(getUnitCost(data.product_id)*(data.units_per_case * data.amount)*(1-(getPurchaseOrderDiscount(data.purchase_order_id)))) }}
                                     </template>
                                 </Column >
                                 <Column field="notes" header="Notes" class="font-bold"></Column>
@@ -340,27 +340,33 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '600px'}" header="Missing Default Units" :modal="true">
+        <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '700px'}" header="Missing Product Fields" :modal="true">
             <div class="field">
-                <p>The following raw product(s) required for the processed case lack a default box amount. Please fill in below.</p>
+                <p>The following product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
             </div>
 
             <div v-for="(item, idx) in missingDefaults" :key="item.product_id" class="field">
                 <div class="grid">
-                    <div class="col-6">
+                    <div class="col-4">
                         <div class="font-bold">{{ item.name }}</div>
                         <div class="text-sm">Item#: {{ item.item_num }}</div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                         <label class="block">Default Units per Case</label>
                         <InputNumber v-model="item.default_units_per_case" :min="1" showButtons />
+                        <small v-if="item.requires_default_units_per_case" class="p-error">Required</small>
+                    </div>
+                    <div class="col-4">
+                        <label class="block">Unit Price</label>
+                        <InputNumber v-model="item.price_2023" mode="currency" currency="USD" locale="en-US" :min="0.01" />
+                        <small v-if="item.requires_price_2023" class="p-error">Required</small>
                     </div>
                 </div>
             </div>
 
             <template #footer>
                 <Button label="Cancel" text @click="missingDefaultUnitsDialog = false" />
-                <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" autoFocus />
+                <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" :loading="loading" :disabled="loading" autoFocus />
             </template>
         </Dialog>
 
@@ -378,7 +384,7 @@
             </div>
             <template #footer>
                 <Button label="Cancel" text @click="missingVendorNicknameDialog = false" />
-                <Button label="Save" icon="pi pi-check" @click="saveMissingVendorNickname" :disabled="!pendingVendorNickname.trim()" autoFocus />
+                <Button label="Save" icon="pi pi-check" @click="saveMissingVendorNickname" :loading="loading" :disabled="!pendingVendorNickname.trim() || loading" autoFocus />
             </template>
         </Dialog>
 
@@ -741,11 +747,31 @@
         </Dialog>
 
         <!-- @TODO Make the width reactive to the size of the user's monitor -->
-        <Dialog v-model:visible="editPurchaseOrderDialog" :style="{width: '1800px'}" header="Edit Purchase Order" :modal="true" class="p-fluid po-edit-dialog">
+        <Dialog
+            v-model:visible="editPurchaseOrderDialog"
+            :style="{width: '1800px', height: '90vh'}"
+            header="Edit Purchase Order"
+            :modal="true"
+            :class="['p-fluid po-edit-dialog', { 'po-edit-dialog--readonly': isPoReadOnly }]"
+            @hide="onEditPurchaseOrderDialogHide"
+        >
+            <Transition name="fade">
+                <div v-if="isSavingEditDialog" class="po-edit-saving-overlay">
+                    <div class="po-edit-saving-content">
+                        <ProgressSpinner style="width: 48px; height: 48px" strokeWidth="3" fill="transparent" animationDuration=".9s" />
+                        <span class="po-edit-saving-label">Saving and reloading...</span>
+                    </div>
+                </div>
+            </Transition>
+
             <div class="flex align-items-left align-self-flex-start">
                 <!-- <Button label="Header" text @click=""/> -->
                 <!-- <Button label="Product Info" text @click="" /> -->
             </div>
+
+            <Message v-if="isPoReadOnly" severity="warn" :closable="false" class="po-lock-message">
+                {{ poReadOnlyMessage }}
+            </Message>
 
             <div class="po-edit-layout">
             <div class="field">
@@ -792,9 +818,105 @@
 
             <section class="po-edit-section-card">
             <div class="field">
+                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Planned Processed Case(s)</h3>
+            </div>
+            <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
+            <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" :loading="editRecipeRowsLoading" @row-edit-save="onPORecipeRowEditSave">
+                <Column header="Name" field="product_name">
+                    <template #editor="{data}">
+                        <AutoComplete
+                            v-model="data.recipeObj"
+                            :suggestions="filteredRecipesEdit || []"
+                            @complete="(event: any) => searchRecipesEdit(event)"
+                            @item-select="onRecipeSelectionEditRow($event.value, data)"
+                            :dropdown="true"
+                            :optionLabel="'label'"
+                            placeholder="Select a recipe"
+                            class="w-full"
+                            :forceSelection="false"
+                        />
+                        <div v-if="data.recipeObj" class="mt-2">
+                            <DataTable :value="getRecipeInputsForEditRow(data)">
+                                <Column header="Name">
+                                    <template #body="{data: inputRow}">
+                                        {{ inputRow.key?.name || getProductInfo(inputRow.rec?.product_id, 'name') }}
+                                    </template>
+                                </Column>
+                                <Column header="Units per Box">
+                                    <template #body="{data: inputRow}">
+                                        {{ inputRow.key?.default_units_per_case || 0 }}
+                                    </template>
+                                </Column>
+                                <!-- <Column header="Units per Recipe Unit">
+                                    <template #body="{data: inputRow}">
+                                        {{ inputRow.rec?.qty || 0 }}
+                                    </template>
+                                </Column> -->
+                                <Column header="Unit Price">
+                                    <template #body="{data: inputRow}">
+                                        {{ formatCurrency(inputRow.key?.price_2023) }}
+                                    </template>
+                                </Column>
+                                <Column header="Required Units">
+                                    <template #body="{data: inputRow}">
+                                        {{ inputRow.required_units }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Price" class="font-bold">
+                                    <template #body="{data: inputRow}">
+                                        {{ formatCurrency((inputRow.required_units || 0) * (inputRow.key?.price_2023 || 0)) }}
+                                    </template>
+                                </Column>
+                            </DataTable>
+                        </div>
+                    </template>
+                </Column>
+                <Column header="ASIN" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "asin") }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="FNSKU" field="">
+                    <template #body={data}>
+                        <div v-if="data.product_id">
+                            {{ getProductInfo(data.product_id, "fnsku") }}
+                        </div>
+                    </template>
+                </Column>
+                <Column header="# of Cases" field="amount">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @update:model-value="data.qty = Number(data.amount || 0) * Number(data.units_per_case || 0)" showButtons/>
+                    </template>
+                </Column>
+                <Column header="Units per Case" field="units_per_case">
+                    <template #body="{data}">
+                        {{ data.units_per_case || 0 }}
+                    </template>
+                </Column>
+                <Column header="Total Units" field="qty">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @update:model-value="data.amount = Number(data.units_per_case || 0) > 0 ? Number(data.qty || 0) / Number(data.units_per_case || 0) : data.amount" disabled/>
+                        <!-- Math.ceil(data.total/data.units_per_case) -->
+                    </template>
+                </Column>
+                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                <!-- <Column >
+                    <template #body>
+                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onProcProductCancel"/>
+                    </template>
+                </Column> -->
+            </DataTable>
+            <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="editRecipeRowsLoading" :loading="editRecipeRowsLoading"/>
+            <br>
+            </section>
+
+            <section class="po-edit-section-card">
+            <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
-            <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="product_id" editMode="row" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+            <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="line_key" editMode="row" :loading="editRawRowsLoading" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field, index}">
                         <AutoComplete 
@@ -842,10 +964,20 @@
                         <span>{{ data.units_per_case ?? '—' }}</span>
                     </template>
                 </Column>
+                <Column header="Unit Price" field="price_2023">
+                    <template #body="{data}">
+                        {{ formatCurrency(getUnitCost(data.product_id)) }}
+                    </template>
+                </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
                         <InputNumber v-model="data[field]" @update:model-value="data.amount = data.total/data.units_per_case"/>
                         <!-- Math.ceil(data.total/data.units_per_case) -->
+                    </template>
+                </Column>
+                <Column header="Total Price" field="total_price" class="font-bold">
+                    <template #body="{data}">
+                        {{ formatCurrency(getUnitCost(data.product_id)*data.total) }}
                     </template>
                 </Column>
                 <Column header="Status" field="status"></Column>
@@ -872,77 +1004,11 @@
                     </template>
                 </Column>
             </DataTable> 
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addBulkLine(poBoxes)"/>
+            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="editRawRowsLoading" :loading="editRawRowsLoading"/>
             <br>
             </section>
 
-            <section class="po-edit-section-card">
-            <div class="field">
-                <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Planned Processed Case(s)</h3>
-            </div>
-            <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
-            <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" @row-edit-save="onPORecipeRowEditSave">
-                <Column header="Name" field="product_name">
-                    <template #editor="{data, field}">
-                        <ProductAutoComplete 
-                            v-model="data.productObj" 
-                            :displayValue="1" 
-                            :vendor_id="purchaseOrder.vendor_id"
-                            @update:modelValue="onProcessedProductAutoCompleteSelect"
-                        />
-                        <div v-if="data.productObj">
-                            <DataTable :value="getRawProducts(data.productObj.product_id)">
-                                <Column header="Name" field="name">
-                                    <template #body={data}>
-                                        {{ data.key.name }}
-                                    </template>
-                                </Column>
-                                <Column header="Units per Box" field="units_per_case">
-                                    <template #body={data}>
-                                        {{ data.key.default_units_per_case }}
-                                    </template>
-                                </Column>
-                            </DataTable>
-                        </div>
-                    </template>
-                </Column>
-                <Column header="ASIN" field="">
-                    <template #body={data}>
-                        <div v-if="data.product_id">
-                            {{ getProductInfo(data.product_id, "asin") }}
-                        </div>
-                    </template>
-                </Column>
-                <Column header="FNSKU" field="">
-                    <template #body={data}>
-                        <div v-if="data.product_id">
-                            {{ getProductInfo(data.product_id, "fnsku") }}
-                        </div>
-                    </template>
-                </Column>
-                <Column header="# of Cases" field="amount">
-                    <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.qty = data.amount*data.units_per_case"/>
-                    </template>
-                </Column>
-                <Column header="Units per Case" field="units_per_case"></Column>
-                <Column header="Total Units" field="qty">
-                    <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.amount = data.qty/data.units_per_case"/>
-                        <!-- Math.ceil(data.total/data.units_per_case) -->
-                    </template>
-                </Column>
-                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
-                <!-- <Column >
-                    <template #body>
-                        <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onProcProductCancel"/>
-                    </template>
-                </Column> -->
-            </DataTable>
-            <!-- <Button label="Add another product" text @click="openNewPurchaseOrderProductDialog"/> -->
-             I will add a button for planned cases soon :3
-            <br>
-            </section>
+            
             </div>
 
             <template #footer>
@@ -950,10 +1016,10 @@
                     <div class="flex flex-nowrap gap-2 align-items-center justify-content-between">
                         <div>
                             <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
-                            <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
+                            <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) || '$0' }}</div>
                         </div>
                         <div class="po-edit-footer-actions">
-                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="editPurchaseOrderDialog = false"/>
+                            <Button label="Close" class="po-action-btn po-action-btn--secondary" @click="closeEditPurchaseOrderDialog"/>
                             <div class="po-autosave-banner" :class="{ 'is-visible': autoSaveState !== 'idle' }">
                                 <div v-if="autoSaveState !== 'idle'" class="po-autosave-indicator">
                                     <template v-if="autoSaveState === 'saving'">
@@ -970,6 +1036,17 @@
                     </div>
                 </div>
                 <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="unsavedChangesDialog" :style="{width: '500px'}" header="Unsaved Changes" :modal="true">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                <span>You have unsaved records in the tables. If you close now, these changes will be lost. Are you sure you want to close without saving?</span>
+            </div>
+            <template #footer>
+                <Button label="Continue Editing" icon="pi pi-pencil" text severity="secondary" @click="unsavedChangesDialog = false"/>
+                <Button label="Close Without Saving" icon="pi pi-times" text severity="danger" @click="forceCloseEditDialog" />
             </template>
         </Dialog>
 
@@ -1309,6 +1386,9 @@ import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
+import { supabase } from '@/clients/supabase';
+import { useAuthStore } from '@/stores/auth';
+import { pinia } from '@/stores';
 import { table } from 'console';
 
 //REFERENCE FOR PAGES
@@ -1346,6 +1426,9 @@ export default {
             editingRows: [] as any[],
             rawEditingRows: [] as any[],
             recipeEditingRows: [] as any[],
+            editRawRowsLoading: false,
+            editRecipeRowsLoading: false,
+            unsavedChangesDialog: false,
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
             statusChangeDialog: false,
@@ -1365,9 +1448,17 @@ export default {
             // filteredProducts: [] as any[],
             filteredRawProducts: [] as any[],
 
-            // MISSING DEFAULT UNITS DIALOG
+            // IMPORTANT PRODUCT FIELDS DIALOG
             missingDefaultUnitsDialog: false,
-            missingDefaults: [] as Array<{ product_id: number; name: string; item_num: string; default_units_per_case: number | null }>,
+            missingDefaults: [] as Array<{
+                product_id: number;
+                name: string;
+                item_num: string;
+                default_units_per_case: number | null;
+                price_2023: number | null;
+                requires_default_units_per_case: boolean;
+                requires_price_2023: boolean;
+            }>,
             missingDefaultsRecipeIndex: null as number | null,
 
             // MISSING VENDOR NICKNAME DIALOG
@@ -1392,6 +1483,8 @@ export default {
             delivered: [] as any[],
             boxesToDelete: [] as any[],
             inboundBoxes: [] as any[],
+            po_raw_products: [] as any[],
+            singlePoRawProducts: [] as any[],
 
             //VENDOR VARIABLES
             vendors: [] as any[],
@@ -1426,6 +1519,7 @@ export default {
             today: "",
             loading: false,
             isInitializingPurchaseOrder: false,
+            isSavingEditDialog: false,
             statuses: [
                 'Draft',
                 'Submitted',
@@ -1450,6 +1544,16 @@ export default {
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
 
+            activePoLock: null as any,
+            currentEditingPoId: null as number | null,
+            poLockHeartbeatTimer: null as any,
+            poLockChannel: null as any,
+            poChannel: null as any,
+            poRecChannel: null as any,
+            poBoxChannel: null as any,
+            poBoxLineChannel: null as any,
+            lockNoticeShown: false,
+
         }
     },
     created() {
@@ -1465,7 +1569,7 @@ export default {
         purchaseOrder: {
         deep: true,
         handler() {
-            if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog) return;
+            if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog || this.isPoReadOnly) return;
             this.lazySave();
         }
         },
@@ -1479,13 +1583,349 @@ export default {
         await this.initVariables();      // loads vendors/products/recipes you already use
         
         await this.loadPage(1);          // load first page for the table
+
+        this.setupPoLockRealtime();
+    },
+    beforeUnmount() {
+        this.stopPoLockHeartbeat();
+        void this.releaseActivePoLock();
+
+        if (this.poLockChannel) {
+            void supabase.removeChannel(this.poLockChannel);
+            this.poLockChannel = null;
+        }
+
+        if (this.poChannel) {
+            void supabase.removeChannel(this.poChannel);
+            this.poChannel = null;
+        }
+
+        if (this.poRecChannel) {
+            void supabase.removeChannel(this.poRecChannel);
+            this.poRecChannel = null;
+        }
+
+        if (this.poBoxChannel) {
+            void supabase.removeChannel(this.poBoxChannel);
+            this.poBoxChannel = null;
+        }
+
+        if (this.poBoxLineChannel) {
+            void supabase.removeChannel(this.poBoxLineChannel);
+            this.poBoxLineChannel = null;
+        }
+    },
+    computed: {
+        authStore() {
+            return useAuthStore(pinia);
+        },
+        currentEditorUserId(): string | null {
+            return this.authStore?.user?.id ?? null;
+        },
+        currentEditorName(): string {
+            return this.authStore?.profile?.full_name || this.authStore?.user?.email || 'Another user';
+        },
+        isPoReadOnly(): boolean {
+            if (!this.activePoLock || !this.currentEditorUserId) return false;
+            return this.activePoLock.editor_user_id !== this.currentEditorUserId;
+        },
+        poReadOnlyMessage(): string {
+            if (!this.isPoReadOnly) return '';
+            const editorName = this.activePoLock?.editor_name || 'another user';
+            return `Read-only mode: ${editorName} is currently editing this purchase order.`;
+        },
     },
     methods: {
         lazySave: () => Promise.resolve(),
         onSearchDebounced: async () => Promise.resolve(),
+
+        /**
+         * Returns the lock namespace used by this page.
+         *
+         * @returns The lock table namespace string for purchase orders.
+         */
+        getPoLockTableName() {
+            return 'purchase_orders';
+        },
+
+        
+        /**
+         * Tears down any existing PO page subscription and starts a fresh one
+         * scoped to the provided purchase order ids (typically the current page).
+         *
+         * @param po_ids The purchase order ids to subscribe to.
+         */
+        setupPoPageRealtime(ids: {
+            po_ids: number[];
+            box_ids?: number[];
+            po_recipe_ids?: number[];
+            po_raw_line_ids?: number[];
+        }) {
+            // Tear down all existing page-scoped channels before rebuilding
+            const channelsToRemove = [
+                { key: 'poChannel' },
+                { key: 'poBoxChannel' },
+                { key: 'poRecChannel' },
+                { key: 'poBoxLineChannel' },
+            ];
+            channelsToRemove.forEach(({ key }) => {
+                if ((this as any)[key]) {
+                    void supabase.removeChannel((this as any)[key]);
+                    (this as any)[key] = null;
+                }
+            });
+
+            const { po_ids, box_ids = [], po_recipe_ids = [], po_raw_line_ids = [] } = ids;
+            // Realtime callbacks reload data only — they do NOT rebuild subscriptions,
+            // which would cause infinite recursion (loadPage → setupPoPageRealtime → loadPage…).
+            const refresh = () => { void this.loadPage(this.currentPage, { rebuildSubscriptions: false }); };
+
+            if (po_ids.length) {
+                this.poChannel = action.subscribeToPurchaseOrderChanges(po_ids, refresh);
+            }
+            if (box_ids.length) {
+                this.poBoxChannel = action.subscribeToCaseChanges(box_ids, refresh);
+            }
+            if (po_recipe_ids.length) {
+                this.poRecChannel = action.subscribeToPurchaseOrderRecipeChanges(po_recipe_ids, refresh);
+            }
+            if (po_raw_line_ids.length) {
+                this.poBoxLineChannel = action.subscribeToPurchaseOrderRawLineChanges(po_raw_line_ids, refresh);
+            }
+        },
+
+        /**
+         * Starts realtime subscription for lock changes on purchase orders.
+         *
+         * @returns void
+         */
+        setupPoLockRealtime() {
+            if (this.poLockChannel) {
+                void supabase.removeChannel(this.poLockChannel);
+            }
+
+            this.poLockChannel = action.subscribeToRecordLocks(this.getPoLockTableName(), () => {
+                if (!this.currentEditingPoId) return;
+                void this.syncActivePoLock();
+            });
+        },
+
+        /**
+         * Pulls the latest lock state for the currently edited PO.
+         * If lock is released while dialog is open, this attempts reacquire.
+         *
+         * @returns Promise<void>
+         */
+        async syncActivePoLock() {
+            if (!this.currentEditingPoId) return;
+
+            const latestLock = await action.getRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId);
+            this.activePoLock = latestLock || null;
+
+            if (!latestLock && this.editPurchaseOrderDialog) {
+                await this.acquirePoLock(this.currentEditingPoId);
+                return;
+            }
+
+            if (this.isPoReadOnly && !this.lockNoticeShown) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Read-only Purchase Order',
+                    detail: this.poReadOnlyMessage,
+                    life: 6000,
+                });
+                this.lockNoticeShown = true;
+            }
+        },
+
+        /**
+         * Attempts to acquire edit lock for a PO and starts heartbeat when acquired.
+         *
+         * @param purchaseOrderId The purchase order id to lock for editing.
+         * @returns True when lock is acquired by current user, otherwise false.
+         */
+        async acquirePoLock(purchaseOrderId: number) {
+            this.lockNoticeShown = false;
+            const result = await action.acquireRecordEditLock(this.getPoLockTableName(), purchaseOrderId, this.currentEditorName, 120);
+            this.activePoLock = result?.lock || null;
+            this.currentEditingPoId = purchaseOrderId;
+
+            if (result?.acquired) {
+                this.startPoLockHeartbeat();
+                return true;
+            }
+
+            this.stopPoLockHeartbeat();
+
+            if (this.isPoReadOnly && !this.lockNoticeShown) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Read-only Purchase Order',
+                    detail: this.poReadOnlyMessage,
+                    life: 6000,
+                });
+                this.lockNoticeShown = true;
+            }
+
+            return false;
+        },
+
+        /**
+         * Sends periodic lock heartbeat while the current user owns the lock.
+         *
+         * @returns void
+         */
+        startPoLockHeartbeat() {
+            this.stopPoLockHeartbeat();
+
+            this.poLockHeartbeatTimer = setInterval(async () => {
+                if (!this.currentEditingPoId || this.isPoReadOnly) return;
+
+                try {
+                    const refreshed = await action.refreshRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId, 120);
+                    if (!refreshed?.refreshed) {
+                        await this.syncActivePoLock();
+                    }
+                } catch (error) {
+                    console.error('Error refreshing purchase order lock:', error);
+                }
+            }, 30000);
+        },
+
+        /**
+         * Stops lock heartbeat timer if active.
+         *
+         * @returns void
+         */
+        stopPoLockHeartbeat() {
+            if (this.poLockHeartbeatTimer) {
+                clearInterval(this.poLockHeartbeatTimer);
+                this.poLockHeartbeatTimer = null;
+            }
+        },
+
+        /**
+         * Releases the active PO lock when current user is the lock owner.
+         *
+         * @returns Promise<void>
+         */
+        async releaseActivePoLock() {
+            if (!this.currentEditingPoId || this.isPoReadOnly) {
+                this.stopPoLockHeartbeat();
+                this.activePoLock = null;
+                this.currentEditingPoId = null;
+                return;
+            }
+
+            try {
+                await action.releaseRecordEditLock(this.getPoLockTableName(), this.currentEditingPoId);
+            } catch (error) {
+                console.error('Error releasing purchase order lock:', error);
+            } finally {
+                this.stopPoLockHeartbeat();
+                this.activePoLock = null;
+                this.currentEditingPoId = null;
+            }
+        },
+
+        /**
+         * Check if there are unsaved records in the recipe or raw boxes tables.
+         * Unsaved records are those without a persisted ID.
+         *
+         * @returns boolean
+         */
+        hasUnsavedRecords(): boolean {
+            if(this.purchaseOrder.status !== 'Delivered'){
+            const unsavedRecipes = (this.singlePoRecipes || []).some(
+                (recipe: any) => !recipe.po_recipe_id
+            );
+            const unsavedRawBoxes = (this.poBoxes || []).some(
+                (box: any) => !box.po_raw_line_id
+            );
+            return unsavedRecipes || unsavedRawBoxes;
+            }
+            return false;
+        },
+
+        /**
+         * Closes dialog and releases lock in one call path.
+         * Shows a confirmation dialog if there are unsaved changes.
+         *
+         * @returns Promise<void>
+         */
+        async closeEditPurchaseOrderDialog() {
+            if (this.hasUnsavedRecords()) {
+                this.unsavedChangesDialog = true;
+                return;
+            }
+            await this.releaseActivePoLock();
+            this.editPurchaseOrderDialog = false;
+            this.autoSaveState = 'idle';
+        },
+
+        /**
+         * Force close the dialog without saving, after user confirmation.
+         *
+         * @returns Promise<void>
+         */
+        async forceCloseEditDialog() {
+            this.unsavedChangesDialog = false;
+            await this.releaseActivePoLock();
+            this.editPurchaseOrderDialog = false;
+            this.autoSaveState = 'idle';
+        },
+
+        /**
+         * Safety release path for non-button close events.
+         *
+         * @returns void
+         */
+        onEditPurchaseOrderDialogHide() {
+            void this.releaseActivePoLock();
+            this.autoSaveState = 'idle';
+        },
+
+        /**
+         * Creates a draft PO immediately after vendor selection, then opens normal edit flow.
+         *
+         * @returns Promise<void>
+         */
+        async startNewPurchaseOrderDraftFlow() {
+            this.vendorDialog = false;
+            this.vendorSubmitted = false;
+            this.poBoxes = [];
+            this.poCases = [];
+            this.recipeArray = [];
+            this.selectedOrderType = '';
+            this.amount = 1;
+
+            const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
+            if (!nickname) {
+                this.pendingVendorNickname = '';
+                this.missingVendorNicknameDialog = true;
+                return;
+            }
+
+            await this.continueOpenNewWithNickname(nickname, false);
+
+            this.purchaseOrder.notes = this.purchaseOrder.notes ?? '';
+            this.purchaseOrder.discount = this.purchaseOrder.discount ?? 0;
+            this.purchaseOrder.date_ordered = this.purchaseOrder.date_ordered ?? null;
+            this.purchaseOrder.date_received = this.purchaseOrder.date_received ?? null;
+
+            const purchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
+            this.purchaseOrder.purchase_order_id = purchaseOrderId;
+
+            await this.loadPage(1);
+            await this.onPurchaseOrderDialogOpen(2, { ...this.purchaseOrder });
+        },
         
         async save(): Promise<void> { 
             try {
+                if (this.isPoReadOnly) {
+                    return;
+                }
+
                 this.autoSaveState = 'saving';
                 if(this.purchaseOrder.purchase_order_id){
                     const editedPO = await action.editPurchaseOrder(this.purchaseOrder);
@@ -1514,7 +1954,7 @@ export default {
             await this.loadPage(1);
          },
 
-         async loadPage(page: number) {
+         async loadPage(page: number, { rebuildSubscriptions = true }: { rebuildSubscriptions?: boolean } = {}) {
             try {
                 this.tableLoading = true;
                 // this.loading = true;
@@ -1561,12 +2001,24 @@ export default {
                 this.displayRecipeElements = data.all_recipe_elements;
                 this.poRecipes = data.all_po_recipes;
                 this.uBoxes = data.all_boxes;
+                this.po_raw_products = data.all_po_raw_lines || [];
                 // this.pCases = await action.getProcrocCasesForPOPage(poIds); // Taking out for now because po_recipes fills the gap for this
                 // await action.getRecipesAndElementsForPOs(poIds);
 
                 // console.log("BOXES: ", this.uBoxes);
                 // console.log("CASES: ", this.pCases);
                 
+                // Subscribe to realtime changes for the POs now visible on this page.
+                // Only rebuild subscriptions on intentional navigations, not on realtime-triggered reloads.
+                if (rebuildSubscriptions) {
+                    this.setupPoPageRealtime({
+                        po_ids: data.purchase_order_ids ?? [],
+                        box_ids: data.all_boxes_ids ?? [],
+                        po_recipe_ids: data.all_po_recipes_ids ?? [],
+                        po_raw_line_ids: data.all_po_raw_lines_ids ?? [],
+                    });
+                }
+
                 // Reset scroll position to top after new page data loads
                 this.$nextTick(() => {
                     const dtElement = (this.$refs.dt as any)?.$el;
@@ -1833,7 +2285,7 @@ export default {
         getProductInfo(productId: number, field: string){
             let prodKey = this.products.find(p => p.product_id === productId);
             if (!prodKey) return null;
-            console.log("Product Key for ID ", productId, ": ", prodKey);
+            // console.log("Product Key for ID ", productId, ": ", prodKey);
             // console.log("Value for field " + field + " for product " + prodKey.name + ":", prodKey[field]);
             return prodKey[field];
         },
@@ -1899,10 +2351,16 @@ export default {
         },
         getCreatedUnitTotal(poID: number){
             let total = 0;
+            let neededPO = this.purchaseOrders.find(po => po.purchase_order_id === poID);
+            const poLines: Array<{ status?: string; total_units?: number }> = neededPO?.po_raw_lines || [];
+            let usedLines = poLines.filter((line: { status?: string; total_units?: number }) => line.status !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Unit Total", usedBoxes);
-            if (usedBoxes.length !== 0)
-                usedBoxes.forEach(b => total+=b.units_per_case);
+            // Prioritize the lines, but if only legacy count exist, use that
+            if (usedLines.length !== 0)
+                usedLines.forEach((line: any) => total+=line.total_units);
+            else if (usedBoxes.length !== 0)
+                usedBoxes.forEach((b: any) => total+=b.units_per_case);
 
             // console.log("Total:", total);
             return total;
@@ -1922,15 +2380,30 @@ export default {
          */
         getCreatedCostTotal(poID: number, poDiscount: number){
             let total = 0;
+            let neededPO = this.purchaseOrders.find(po => po.purchase_order_id === poID);
+            const poLines: Array<{ status?: string; product_id?: number; total_units?: number }> = neededPO?.po_raw_lines || [];
+            let usedLines = poLines.filter((line: { status?: string; product_id?: number; total_units?: number }) => line.status !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Cost Total", usedBoxes);
             // console.log("Products List", this.products);
-            usedBoxes.forEach(b => {
-                let prod = this.products.find(p => p.product_id === b.product_id);
-                // console.log("Product key for box: ", prod);
-                total+=(b.units_per_case*prod.price_2023);
+            usedLines.forEach((line: { status?: string; product_id?: number; total_units?: number }) => {
+                let prod = this.products.find(p => p.product_id === line.product_id);
+                if (!prod) return;
+                // console.log("Product key for line: ", prod);
+                total+=((line.total_units || 0)*prod.price_2023);
                 // console.log("Total in for each: ", total);
             });
+
+            if(usedLines.length === 0){
+                usedBoxes.forEach((b: any) => {
+                    let prod = this.products.find(p => p.product_id === b.product_id);
+                    if (!prod) return;
+                    // console.log("Product key for box: ", prod);
+                    total+=(b.units_per_case*prod.price_2023);
+                    // console.log("Total in for each: ", total);
+                });
+            }
+            
 
             if (poDiscount){
                 const discountDecimal = 1 - (poDiscount/100);
@@ -1950,11 +2423,10 @@ export default {
             let total = 0;
             // If editing an existing PO, sum from uBoxes
             if (this.purchaseOrder && this.purchaseOrder.purchase_order_id) {
-                (this.uBoxes || []).filter(box => box && box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status !== 'Cancelled').forEach(b => {
-                    if (!b || b.product_id == null || b.units_per_case == null) return;
-                    const unitCost = this.getUnitCost && typeof this.getUnitCost === 'function' ? this.getUnitCost(b.product_id) : 0;
-                    if (unitCost == null) return;
-                    total += unitCost * b.units_per_case;
+                this.purchaseOrder.po_raw_lines.forEach((line: any) => {
+                    if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
+                        total += Number(line.total_units || 0) * line.unit_price;
+                    }
                 });
             } else {
                 // If creating a new PO, sum from recipeArray and poBoxes
@@ -1992,7 +2464,7 @@ export default {
 
         /**
          * Description: Validates that a vendor has been selected before allowing the user to create a new purchase order. 
-         * If validation fails, an error toast will appear. If validation passes, the openNew() function will be called to open the dialog for creating a new purchase order.
+         * If validation passes, a draft purchase order is created immediately and opened in the edit dialog.
          * 
          * @author Gabe de la Torre-Garcia
          * 
@@ -2000,83 +2472,127 @@ export default {
          * 
          * Date Last Edited: 3-16-2026
          */
-        validateVendor(){
+        async validateVendor(){
             if (!this.purchaseOrder.vendor_id && this.vendorSubmitted == true) {
                 this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
             }
             else {
-                this.openNew();
+                await this.startNewPurchaseOrderDraftFlow();
             }
         },
 
         /** @TODO Split the recipes into two different arrays: one for when users are editing/creating po's and one for the recipes in pagination */
         getPoolNew(purchase_order_id: number){
+            const linkedPoRecipes = (this.poRecipes || []).filter((rec: any) => rec.purchase_order_id === purchase_order_id);
+            const linkedRawLines = (this.po_raw_products || []).filter((line: any) =>
+                line.purchase_order_id === purchase_order_id && this.normalizeRawLineStatus(line.status) !== 'Cancelled'
+            );
+
+            // New source of truth: if raw lines exist for this PO, calculate "no plan" as
+            // ordered units minus recipe-required units for each raw product.
+            if (linkedRawLines.length > 0) {
+                const neededUnitsByProduct = new Map<number, number>();
+
+                linkedPoRecipes.forEach((poRec: any) => {
+                    const recipeQty = Number(poRec?.qty || 0);
+                    if (recipeQty <= 0) return;
+
+                    const rawInputs = (this.displayRecipeElements || []).filter((r: any) =>
+                        r.recipe_id === poRec.recipe_id && r.type === 'input'
+                    );
+
+                    rawInputs.forEach((input: any) => {
+                        const productId = Number(input?.product_id || 0);
+                        const inputQty = Number(input?.qty || 0);
+                        if (!productId || inputQty <= 0) return;
+
+                        const current = neededUnitsByProduct.get(productId) || 0;
+                        neededUnitsByProduct.set(productId, current + (inputQty * recipeQty));
+                    });
+                });
+
+                const lineTotalsByProduct = new Map<number, number>();
+                linkedRawLines.forEach((line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const totalUnits = Number(line?.total_units || 0);
+                    if (!productId || totalUnits <= 0) return;
+
+                    const current = lineTotalsByProduct.get(productId) || 0;
+                    lineTotalsByProduct.set(productId, current + totalUnits);
+                });
+
+                const noPlanRows: any[] = [];
+                lineTotalsByProduct.forEach((orderedUnits: number, productId: number) => {
+                    const neededUnits = neededUnitsByProduct.get(productId) || 0;
+                    const leftoverUnits = orderedUnits - neededUnits;
+                    if (leftoverUnits <= 0) return;
+
+                    const productKey = (this.products || []).find((p: any) => p.product_id === productId)
+                        || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+                    const unitsPerCase = Number(productKey?.default_units_per_case || 1);
+
+                    noPlanRows.push({
+                        product_id: productId,
+                        purchase_order_id,
+                        product_name: productKey?.name || this.getProductInfo(productId, 'name'),
+                        item_num: productKey?.item_num || this.getProductInfo(productId, 'item_num'),
+                        units_per_case: unitsPerCase,
+                        amount: unitsPerCase > 0 ? Number((leftoverUnits / unitsPerCase).toFixed(2)) : leftoverUnits,
+                        totalUnits: Number(leftoverUnits.toFixed(2)),
+                    });
+                });
+
+                return noPlanRows;
+            }
+
+            // Legacy fallback: if raw lines do not exist yet, keep previous box-based behavior.
             let poolArray = [] as any[];
-            let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === purchase_order_id);
             let boxesBeingUsed = [] as any[];
 
-            let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
+            let boxArray = this.uBoxes.filter((box: any) => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
             console.log("boxArray", boxArray);
-            
-            linkedPoRecipes.forEach(poRec => {
-                let recipeOutput = this.displayRecipeElements.find(r => r.recipe_id === poRec.recipe_id && r.type === 'output');
-                console.log("recipeOutput", recipeOutput);
-                let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
-                console.log("outputKey", outputKey);
 
-                // console.log(this.poRecipes)
-                let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+            linkedPoRecipes.forEach((poRec: any) => {
+                let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
+                if (!recipeOutput) return;
+
+                console.log("recipeOutput", recipeOutput);
+
+                let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+                if (!poRecipe) return;
+
                 console.log("poRecipe",poRecipe);
 
-                // the input products given the recipe id
-                //2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. Kept the recipeObj calls for other instances,
-                // just in case that affects any of the others. Will monitor and clean up later. 
-                let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
-                rawRecInputs.forEach(r => {
+                rawRecInputs.forEach((r: any) => {
                     let map = {} as any;
                     map.product_id = r.product_id;
-                    r.totalUnits = poRecipe.qty; 
+                    r.totalUnits = poRecipe.qty;
                     map.currentUnits = 0;
                     totals.push(map);
                 });
                 console.log("rawRecInputs", rawRecInputs);
 
-
-                // get the input boxes that are being used as inputs. Use a filter-map for-loop
-                const inputBoxesAndRecEl = [] as any[];
-
-                // console.log(this.uBoxes);
-
-                let filteredBoxArray = this.groupProducts(boxArray);
-                console.log("filteredBoxArray", filteredBoxArray);
-
-                let boxIdx = 0;
-
                 for(const b of boxArray) {
                     if(b.purchase_order_id !== purchase_order_id)
                     continue;
 
-
-                    let inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
+                    let inputEl = rawRecInputs.find((r: any) => r.product_id  === b.product_id);
                     if(inputEl){
-                        let total = totals.find(t => t.product_id === inputEl.product_id)
+                        let total = totals.find((t: any) => t.product_id === inputEl.product_id);
+                        if (!total) continue;
 
-                        let boxInArray = boxesBeingUsed.find(boxLine => boxLine.case_id === b.case_id);
-                        // console.log("Box in array: ",boxInArray);
-                        // Box already being used
+                        let boxInArray = boxesBeingUsed.find((boxLine: any) => boxLine.case_id === b.case_id);
                         if(boxInArray)
                             continue;
 
                         if(inputEl.totalUnits > total.currentUnits && (inputEl.totalUnits - b.units_per_case) >= total.currentUnits){
                             b.taken = true;
-                            inputBoxesAndRecEl.push({ box: b, rec: inputEl });
                             boxesBeingUsed.push(b);
-                            // console.log("INPUT BOXES", inputBoxesAndRecEl);
                             total.currentUnits += b.units_per_case;
-                            // console.log("TOTAL UNITS", inputEl.totalUnits);
                         } else if (inputEl.totalUnits === total.currentUnits){
                             continue;
                         }
@@ -2089,13 +2605,6 @@ export default {
             for(const b of boxArray) {
                 if(b.purchase_order_id !== purchase_order_id || b.taken === true)
                 continue;
-
-                /* let boxInArray = boxesBeingUsed.find(boxLine => boxLine === b.case_id);
-                        console.log(boxInArray);
-                        // Box already being used
-                        if(boxInArray)
-                        continue; */
-
 
                 poolArray.push(b);
             }
@@ -2209,6 +2718,144 @@ export default {
             return pool;
         },
 
+        normalizeRawLineStatus(boxStatus: string) {
+            if (boxStatus === 'Ready' || boxStatus === 'On RTP') {
+                return 'Delivered';
+            }
+            if (boxStatus === 'Cancelled') {
+                return 'Cancelled';
+            }
+            if (boxStatus === 'BO') {
+                return 'BO';
+            }
+            return boxStatus || this.purchaseOrder.status || 'Draft';
+        },
+
+        /**
+         * Converts edited poBoxes to po_raw_lines format for database storage.
+         * Each row becomes one line with aggregated total_units.
+         * @returns Array of po_raw_line objects ready for bulk insert
+         */
+        convertPoBoxesToRawLines(): any[] {
+            // Step 1: Normalize each editable UI row into a consistent intermediate row.
+            // This does not aggregate anything yet; it only shapes data and computes per-row total_units.
+            const normalizedBoxes = this.poBoxes
+                .filter((b: any) => b.product_id)
+                .map((rawProduct: any) => {
+                    const rawKey = this.products.find((p: any) => p.product_id === rawProduct.product_id);
+                    const units_per_case = rawKey?.default_units_per_case || rawProduct.units_per_case || 1;
+                    const total_units = (rawProduct.amount || 1) * units_per_case;
+                    return {
+                        ...rawProduct,
+                        product_id: rawProduct.product_id,
+                        purchase_order_id: this.purchaseOrder.purchase_order_id,
+                        total_units,
+                        raw_line_status: this.normalizeRawLineStatus(rawProduct.status || this.purchaseOrder.status),
+                        notes: rawProduct.notes ?? null,
+                        invoice_id: rawProduct.invoice_id ?? null,
+                    };
+                });
+
+            // Step 2: Aggregate rows by product + normalized status.
+            // helper.groupItemsByKey sums each row's total_units into groupedRawLines[].total.
+            const groupedRawLines = helper.groupItemsByKey(normalizedBoxes, ['product_id', 'raw_line_status']);
+
+            // Step 3: Convert grouped rows into po_raw_lines payload shape for persistence.
+            return groupedRawLines.map((rawLine: any) => ({
+                product_id: rawLine.product_id,
+                purchase_order_id: this.purchaseOrder.purchase_order_id,
+                total_units: Number(rawLine.total || 0),
+                status: rawLine.raw_line_status || this.purchaseOrder.status || 'Draft',
+                notes: rawLine.notes ?? null,
+                invoice_id: rawLine.invoice_id ?? null,
+            }));
+        },
+
+        /**
+         * Calculates raw lines needed from a selected recipe.
+         * Used when user selects a recipe to determine what raw inputs are needed.
+         * @param recipeId The recipe id to calculate inputs for
+         * @param amount The number of times to make this recipe
+         * @returns Object with po_raw_lines to add to the order
+         */
+        calculateRawLinesFromRecipe(recipeId: number, amount: number): any[] {
+            const rawLines: any[] = [];
+            
+            // Find all input recipe elements for this recipe
+            const rawRecElements = this.recipeElements.filter(re => 
+                re.recipe_id === recipeId && re.type === 'input'
+            );
+
+            rawRecElements.forEach(rawRecEl => {
+                const rawProduct = this.products.find(p => p.product_id === rawRecEl.product_id);
+                if (!rawProduct) return;
+
+                const units_per_case = rawProduct.default_units_per_case || 1;
+                const totalUnitsNeeded = rawRecEl.qty * amount;
+                
+                rawLines.push({
+                    product_id: rawProduct.product_id,
+                    purchase_order_id: this.purchaseOrder.purchase_order_id,
+                    total_units: totalUnitsNeeded,
+                    status: this.purchaseOrder.status || 'Draft',
+                    notes: null,
+                    invoice_id: null,
+                });
+            });
+
+            return rawLines;
+        },
+
+        /**
+         * For legacy POs with raw boxes but no po_raw_lines, creates raw lines from grouped boxes.
+         * Ensures backward compatibility when editing old purchase orders.
+         * @returns Array of po_raw_lines created from existing raw boxes
+         */
+        async ensureRawLinesExist(): Promise<any[]> {
+            if (!this.purchaseOrder.purchase_order_id) return [];
+
+            // Check if po_raw_lines already exist for this PO
+            const existingLines = await action.getCurrentPurchaseOrderRawLines(this.purchaseOrder.purchase_order_id);
+            if (existingLines && existingLines.length > 0) {
+                console.log('PO already has raw lines:', existingLines);
+                return existingLines;
+            }
+
+            // If no lines exist but boxes do, create lines from grouped boxes.
+            // Include all statuses (including Cancelled) so old orders are fully represented.
+            const boxes = this.uBoxes.filter(b =>
+                b.purchase_order_id === this.purchaseOrder.purchase_order_id
+            );
+
+            if (boxes.length === 0) return [];
+
+            // Normalize status on each source row first (row-level transform).
+            const normalizedBoxes = boxes.map((box: any) => ({
+                ...box,
+                raw_line_status: this.normalizeRawLineStatus(box.status),
+            }));
+
+            // Then aggregate rows by product + status to produce one legacy line per grouping key.
+            const groupedRawLines = helper.groupItemsByKey(normalizedBoxes, ['product_id', 'raw_line_status']);
+
+            const rawLinesToCreate = groupedRawLines.map((box: any) => ({
+                product_id: box.product_id,
+                purchase_order_id: this.purchaseOrder.purchase_order_id,
+                total_units: Number(box.total || 0),
+                status: box.raw_line_status || this.purchaseOrder.status || 'Draft',
+                notes: null,
+                invoice_id: null,
+            }));
+
+            // Create the raw lines
+            if (rawLinesToCreate.length > 0) {
+                await action.bulkAddPurchaseOrderRawLines(rawLinesToCreate);
+                console.log('Created raw lines from legacy boxes:', rawLinesToCreate);
+            }
+
+            return rawLinesToCreate;
+        },
+
         formatCurrency(value: any) {
             if(value)
                 return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
@@ -2251,7 +2898,7 @@ export default {
             return vendorRecipes;
         },
 
-        async continueOpenNewWithNickname(nickname: string){
+        async continueOpenNewWithNickname(nickname: string, openCreateDialog = true){
             const today = new Date();
             const year = today.getFullYear().toString();
             let maxSeqForYear = 0;
@@ -2277,10 +2924,12 @@ export default {
             this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
             this.purchaseOrder.status = 'Draft';
 
-            this.newBulkArray();
-            this.submitted = false;
-            this.purchaseOrderDialog = true;
-            console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+            if (openCreateDialog) {
+                this.newBulkArray();
+                this.submitted = false;
+                this.purchaseOrderDialog = true;
+                console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
+            }
         },
 
         //Description: 
@@ -2347,12 +2996,13 @@ export default {
                     }
 
                     /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    await this.getAllProductsForVendor();
+                    /* await this.getAllProductsForVendor();
 
                     await this.getRawProductsForVendor();
                     await this.getProcProductsForVendor();
                     await this.getRecipes();
-                    await this.openNew();
+                     */
+                    await this.startNewPurchaseOrderDraftFlow();
                 } else if (dialogType === 2) {
                     console.log("Purchase Order Dialog opened from Edit PO flow");
                     console.log("Purchase Order to edit:", purchaseOrder);
@@ -2362,8 +3012,14 @@ export default {
                         return;
                     }
 
+                    if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
+                        await this.releaseActivePoLock();
+                    }
+
                     // Set the active PO first so vendor-scoped initialization uses the correct vendor.
                     this.purchaseOrder = { ...purchaseOrder };
+
+                    await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
 
                     /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
                     await this.getAllProductsForVendor();
@@ -2448,6 +3104,25 @@ export default {
                     }
                 )
         },
+        async withTransientRowAddLoading(flagKey: 'editRawRowsLoading' | 'editRecipeRowsLoading', addRow: () => void){
+            if (this[flagKey]) return;
+
+            this[flagKey] = true;
+
+            try {
+                await new Promise(resolve => setTimeout(resolve, 120));
+                addRow();
+                await new Promise(resolve => setTimeout(resolve, 120));
+            } finally {
+                this[flagKey] = false;
+            }
+        },
+        async addEditRawLine(){
+            await this.withTransientRowAddLoading('editRawRowsLoading', () => this.addBulkLine(this.poBoxes));
+        },
+        async addEditRecipeLine(){
+            await this.withTransientRowAddLoading('editRecipeRowsLoading', () => this.addBulkLine(this.singlePoRecipes));
+        },
         deleteBulkLine(array: any, counter: any){
             array.splice(counter,1);
         },
@@ -2514,7 +3189,7 @@ export default {
 
                 this.pendingVendorNickname = '';
                 this.missingVendorNicknameDialog = false;
-                await this.continueOpenNewWithNickname(nickname);
+                await this.startNewPurchaseOrderDraftFlow();
             } catch (error: any) {
                 console.error(error);
                 this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save company code.' });
@@ -2544,6 +3219,7 @@ export default {
             rowData.product_name   = productObj.name;
             rowData.units_per_case = productObj.default_units_per_case || 1;
             rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
+            this.promptForMissingImportantProductFields([productObj]);
             console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
         },
 
@@ -2599,7 +3275,56 @@ export default {
         },
 
         /**
-         * If the selected processed recipe has raw ingredients missing default_units_per_case, open a dialog so the user can enter values.
+         * Opens a dialog for any product that is missing important fields used during ordering calculations.
+         */
+        promptForMissingImportantProductFields(products: any[], recipeIndex: number | null = null){
+            type MissingImportantFieldItem = {
+                product_id: number;
+                name: string;
+                item_num: string;
+                default_units_per_case: number | null;
+                price_2023: number | null;
+                requires_default_units_per_case: boolean;
+                requires_price_2023: boolean;
+            };
+
+            const uniqueProductsById = new Map<number, any>();
+
+            (products || []).forEach((product: any) => {
+                if (!product?.product_id) return;
+                uniqueProductsById.set(product.product_id, product);
+            });
+
+            const missingImportantFields: MissingImportantFieldItem[] = [];
+
+            Array.from(uniqueProductsById.values()).forEach((product: any) => {
+                const defaultUnits = Number(product.default_units_per_case);
+                const unitPrice = Number(product.price_2023);
+                const requiresDefaultUnits = !Number.isFinite(defaultUnits) || defaultUnits <= 0;
+                const requiresPrice = !Number.isFinite(unitPrice) || unitPrice <= 0;
+
+                if (!requiresDefaultUnits && !requiresPrice) return;
+
+                missingImportantFields.push({
+                    product_id: product.product_id,
+                    name: String(product.name || ''),
+                    item_num: String(product.item_num || ''),
+                    default_units_per_case: Number.isFinite(defaultUnits) && defaultUnits > 0 ? defaultUnits : null,
+                    price_2023: Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null,
+                    requires_default_units_per_case: requiresDefaultUnits,
+                    requires_price_2023: requiresPrice,
+                });
+            });
+
+            if (!missingImportantFields.length) return;
+
+            this.missingDefaults = missingImportantFields;
+            this.missingDefaultsRecipeIndex = recipeIndex;
+            this.missingDefaultUnitsDialog = true;
+        },
+
+        /**
+         * If the selected processed recipe has raw ingredients missing important fields, open a dialog so the user can enter values.
          */
         checkMissingDefaultUnitsForRecipe(recipeObj: any, counter: number){
             if (!recipeObj) return;
@@ -2608,56 +3333,96 @@ export default {
             if (!recipeId) return;
 
             const rawElements = this.recipeElements.filter(re => re.recipe_id === recipeId && re.type === 'input');
-            const missing = rawElements
+            const rawProducts = rawElements
                 .map(re => this.products.find(p => p.product_id === re.product_id))
-                .filter(p => p && (!p.default_units_per_case || p.default_units_per_case <= 0));
+                .filter(p => !!p);
 
-            if (!missing.length) return;
-
-            this.missingDefaultsRecipeIndex = counter;
-            this.missingDefaults = missing.map(p => ({
-                product_id: p.product_id,
-                name: p.name,
-                item_num: p.item_num,
-                default_units_per_case: p.default_units_per_case || null,
-            }));
-            this.missingDefaultUnitsDialog = true;
+            this.promptForMissingImportantProductFields(rawProducts, counter);
         },
 
         async saveMissingDefaultUnits(){
             const invalid = this.missingDefaults.some(d => {
-                const numeric = Number(d.default_units_per_case);
-                return !Number.isFinite(numeric) || numeric <= 0;
+                const defaultUnits = Number(d.default_units_per_case);
+                const unitPrice = Number(d.price_2023);
+                const invalidDefaultUnits = d.requires_default_units_per_case && (!Number.isFinite(defaultUnits) || defaultUnits <= 0);
+                const invalidPrice = d.requires_price_2023 && (!Number.isFinite(unitPrice) || unitPrice <= 0);
+                return invalidDefaultUnits || invalidPrice;
             });
             if (invalid) {
-                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter a valid numeric default units per case for all products.' });
+                this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter valid values for all required product fields.' });
                 return;
             }
 
             try {
                 this.loading = true;
+                const updatedByProductId = new Map<number, { default_units_per_case: number | null; price_2023: number | null; requires_default_units_per_case: boolean; requires_price_2023: boolean }>();
+
                 for (const item of this.missingDefaults) {
                     const product = this.products.find(p => p.product_id === item.product_id);
                     if (!product) continue;
-                    const numeric = Number(item.default_units_per_case);
-                    product.default_units_per_case = numeric;
+                    if (item.requires_default_units_per_case) {
+                        product.default_units_per_case = Number(item.default_units_per_case);
+                    }
+                    if (item.requires_price_2023) {
+                        product.price_2023 = Number(item.price_2023);
+                    }
                     // Update the product record on the server
                     await action.editProduct(product, []);
+
+                    updatedByProductId.set(item.product_id, {
+                        default_units_per_case: Number.isFinite(Number(product.default_units_per_case)) ? Number(product.default_units_per_case) : null,
+                        price_2023: Number.isFinite(Number(product.price_2023)) ? Number(product.price_2023) : null,
+                        requires_default_units_per_case: !!item.requires_default_units_per_case,
+                        requires_price_2023: !!item.requires_price_2023,
+                    });
                 }
 
-                // Refresh derived tables that use default_units_per_case
+                // Refresh derived tables that use product defaults/pricing.
                 this.products = [...this.products];
+                this.unprocProducts = this.unprocProducts.map((raw: any) => this.products.find((p: any) => p.product_id === raw.product_id) || raw);
+
+                // Reflect updated defaults/pricing immediately on any open row the user was editing.
+                this.poBoxes = (this.poBoxes || []).map((row: any) => {
+                    const updated = updatedByProductId.get(row.product_id);
+                    if (!updated) return row;
+
+                    const nextRow = { ...row };
+                    if (updated.requires_default_units_per_case && updated.default_units_per_case && updated.default_units_per_case > 0) {
+                        nextRow.units_per_case = updated.default_units_per_case;
+
+                        const amount = Number(nextRow.amount || 0);
+                        const total = Number(nextRow.total || 0);
+                        if (amount > 0) {
+                            nextRow.total = Number((amount * nextRow.units_per_case).toFixed(2));
+                        } else if (total > 0) {
+                            nextRow.amount = Number((total / nextRow.units_per_case).toFixed(2));
+                        }
+                    }
+
+                    if (updated.requires_price_2023 && updated.price_2023 && updated.price_2023 > 0) {
+                        nextRow.price_2023 = updated.price_2023;
+                        nextRow.unit_price = updated.price_2023;
+                    }
+
+                    const refreshedProduct = this.products.find((p: any) => p.product_id === nextRow.product_id);
+                    if (refreshedProduct) {
+                        nextRow.productObj = refreshedProduct;
+                    }
+
+                    return nextRow;
+                });
+
                 this.missingDefaultUnitsDialog = false;
-                this.$toast.add({ severity: 'success', summary: 'Saved', detail: 'Default units were updated.', life: 3000 });
+                this.$toast.add({ severity: 'success', summary: 'Saved', detail: 'Important product fields were updated.', life: 3000 });
 
                 // If we were highlighting a recipe row for missing defaults, clear it now
                 this.missingDefaultsRecipeIndex = null;
 
-                this.loading = false;
-
             } catch (error) {
                 console.error(error);
-                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save default units.' });
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to save product field updates.' });
+            } finally {
+                this.loading = false;
             }
         },
 
@@ -2704,6 +3469,57 @@ export default {
             console.log("RECIPE ELEMENT, ", recipeElement);
             this.poCasesEdit = this.procProducts.find(p => p.product_id === recipeElement.product_id);
             console.log("PO CASE", this.poCasesEdit);
+        },
+
+        onRecipeSelectionEditRow(recipeObj: any, rowData: any){
+            this.applyRecipeToPoRecipeRow(recipeObj, rowData);
+        },
+
+        applyRecipeToPoRecipeRow(recipeObj: any, rowData: any){
+            if (!recipeObj?.recipe_id || !rowData) return;
+
+            const recipeId = recipeObj.recipe_id;
+            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === recipeId && re.type === 'output');
+            if (!recipeOutput) return;
+
+            const processedProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
+            if (!processedProduct) return;
+
+            rowData.recipeObj = recipeObj;
+            rowData.recipe_id = recipeId;
+            rowData.productObj = processedProduct;
+            rowData.product_id = processedProduct.product_id;
+            rowData.product_name = processedProduct.name;
+            const nextUnitsPerCase = Number(processedProduct.default_units_per_case || rowData.units_per_case || 1);
+            rowData.units_per_case = nextUnitsPerCase;
+            rowData.amount = Number(rowData.amount || 1);
+            rowData.qty = Number((rowData.amount * rowData.units_per_case).toFixed(2));
+
+            // Force table-level reactivity so non-editor cells reflect the newly selected recipe output immediately.
+            this.singlePoRecipes = [...(this.singlePoRecipes || [])];
+
+            this.checkMissingDefaultUnitsForRecipe(recipeObj, 0);
+        },
+
+        getRecipeInputsForEditRow(rowData: any){
+            const recipeId = Number(rowData?.recipeObj?.recipe_id || rowData?.recipe_id || 0);
+            if (!recipeId) return [];
+
+            const desiredUnits = Number(rowData?.qty || (Number(rowData?.amount || 0) * Number(rowData?.units_per_case || 0)) || 0);
+            const rawInputs = (this.recipeElements || []).filter((re: any) => re.recipe_id === recipeId && re.type === 'input');
+
+            return rawInputs.map((rawInput: any) => {
+                const productKey = (this.products || []).find((p: any) => p.product_id === rawInput.product_id)
+                    || (this.unprocProducts || []).find((p: any) => p.product_id === rawInput.product_id);
+                const requiredUnits = Number((Number(rawInput.qty || 0) * desiredUnits).toFixed(2));
+
+                return {
+                    rec: rawInput,
+                    key: productKey,
+                    required_units: requiredUnits,
+                };
+            });
         },
 
         //Description: Validates a purchase order before creation/editing.
@@ -2814,6 +3630,15 @@ export default {
                         console.log("Box not ready: ",box)
                     }
                 })
+
+                // Convert edited poBoxes to po_raw_lines and save
+                const rawLinesToCreate = this.convertPoBoxesToRawLines();
+                console.log("Raw lines to create/update: ", rawLinesToCreate);
+                if (rawLinesToCreate.length > 0) {
+                    // TODO: Depending on backend capability, this may need to be upsert or separate logic
+                    // For now, creating new lines (existing raw lines remain from ensureRawLinesExist)
+                    await action.bulkAddPurchaseOrderRawLines(rawLinesToCreate);
+                }
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
@@ -3157,37 +3982,36 @@ export default {
 
                 //this.poBoxes = this.poBoxes.filter(b => b.product_id);
 
-                this.poBoxes.filter(b => b.product_id).forEach((rawProduct: any) => {
-                    let rawKey = this.products.find(p => p.product_id === rawProduct.product_id);
-
-                    if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                        rawProduct.status = this.purchaseOrder.status;
-
-                    rawProduct.units_per_case = rawKey.default_units_per_case;
-                    rawProduct.purchase_order_id = addedPurchaseOrderId;
-
-                    for(let prodIdx = 0; prodIdx < rawProduct.amount; prodIdx++){
-                        console.log("RAWPRODUCT: ", rawProduct);
-                        //await action.addCase(rawProduct);
-                        boxesToInsert.push(rawProduct);
-                    }
+                // Convert manual poBoxes entries to po_raw_lines (one row per product line)
+                const rawLinesToInsert = this.poBoxes.filter((b: any) => b.product_id).map((rawProduct: any) => {
+                    const rawKey = this.products.find((p: any) => p.product_id === rawProduct.product_id);
+                    const units_per_case = rawKey?.default_units_per_case || rawProduct.units_per_case || 1;
+                    const total_units = (rawProduct.amount || 1) * units_per_case;
+                    return {
+                        product_id: rawProduct.product_id,
+                        purchase_order_id: addedPurchaseOrderId,
+                        total_units,
+                        status: this.purchaseOrder.status || 'Draft',
+                        notes: rawProduct.notes ?? null,
+                        invoice_id: rawProduct.invoice_id ?? null,
+                    };
                 });
 
-                console.log("BOXES TO INSERT: ", boxesToInsert);
+                console.log("RAW LINES TO INSERT: ", rawLinesToInsert);
+                if (rawLinesToInsert.length > 0)
+                    await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);
 
+                // Recipe-derived boxes still go through cases until that flow is migrated
+                console.log("RECIPE BOXES TO INSERT: ", boxesToInsert);
                 let finalCaseArray = [] as any[];
-                    boxesToInsert.forEach(c =>{
-                        if(!c.location_id)
-                            c.location_id = null;
-                        if(!c.notes)
-                            c.notes = null;
-                        if(!c.date_received)
-                            c.date_received = null;
-                        let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id,  c.location_id, c.status, c.purchase_order_id, c.request_id];
-                        finalCaseArray.push(tempArray);
-                    })
-                console.log("FINAL ARRAY", finalCaseArray);
-
+                boxesToInsert.forEach(c => {
+                    if(!c.location_id) c.location_id = null;
+                    if(!c.notes) c.notes = null;
+                    if(!c.date_received) c.date_received = null;
+                    let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id, c.location_id, c.status, c.purchase_order_id, c.request_id];
+                    finalCaseArray.push(tempArray);
+                });
+                console.log("FINAL CASE ARRAY (recipes only): ", finalCaseArray);
                 if(finalCaseArray.length > 0)
                     await action.bulkCreateCases(finalCaseArray);
 
@@ -3286,24 +4110,50 @@ export default {
 
                 console.log("PO Recs: ",poRecs);
 
+                // Ensure legacy orders have po_raw_lines created (migration support)
+                await this.ensureRawLinesExist();
+
+                // Raw lines are preloaded by the page RPC; keep a current-PO slice for edit operations.
+                this.singlePoRawProducts = (this.po_raw_products || []).filter((line: any) =>
+                    line.purchase_order_id === this.purchaseOrder.purchase_order_id
+                );
+
                 this.delivered = this.getDeliveredDataTable(boxes);
 
-                // console.log("Boxes ",boxes);
-                // console.log("Cases ",cases);
-                // this.poBoxes = this.groupProducts(boxes);
-                this.poBoxes = helper.groupItemsByKey(boxes, ['product_id', 'units_per_case', 'status']);
-                this.poBoxes.forEach((box: any) => {
-                    const rawProduct = this.unprocProducts.find(p => p.product_id === box.product_id)
-                        || this.products.find(p => p.product_id === box.product_id);
+                // Prefer po_raw_lines for edit display; fallback to legacy grouped boxes for older orders.
+                if (this.singlePoRawProducts.length > 0) {
+                    this.poBoxes = this.singlePoRawProducts.map((line: any) => {
+                        const rawProduct = this.unprocProducts.find((p: any) => p.product_id === line.product_id)
+                            || this.products.find((p: any) => p.product_id === line.product_id);
+                        const unitsPerCase = rawProduct?.default_units_per_case || line.units_per_case || 1;
+                        const totalUnits = Number(line.total_units || 0);
+                        return {
+                            ...line,
+                            line_key: line.po_raw_line_id ? `raw-${line.po_raw_line_id}` : `raw-${line.product_id}-${line.status}`,
+                            productObj: rawProduct,
+                            product_name: rawProduct?.name || this.getProductInfo(line.product_id, 'name'),
+                            units_per_case: unitsPerCase,
+                            total: totalUnits,
+                            amount: unitsPerCase > 0 ? Number((totalUnits / unitsPerCase).toFixed(2)) : 0,
+                            status: this.normalizeRawLineStatus(line.status),
+                        };
+                    });
+                } else {
+                    this.poBoxes = helper.groupItemsByKey(boxes, ['product_id', 'units_per_case', 'status']);
+                    this.poBoxes.forEach((box: any) => {
+                        const rawProduct = this.unprocProducts.find((p: any) => p.product_id === box.product_id)
+                            || this.products.find((p: any) => p.product_id === box.product_id);
 
-                    if (!rawProduct) return;
+                        if (!rawProduct) return;
 
-                    box.productObj = rawProduct;
-                    box.product_name = rawProduct.name;
-                    if (!box.units_per_case) {
-                        box.units_per_case = rawProduct.default_units_per_case;
-                    }
-                });
+                        box.line_key = `legacy-${box.product_id}-${box.status}-${box.units_per_case}`;
+                        box.productObj = rawProduct;
+                        box.product_name = rawProduct.name;
+                        if (!box.units_per_case) {
+                            box.units_per_case = rawProduct.default_units_per_case;
+                        }
+                    });
+                }
                 // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
                 this.singlePoRecipes = poRecs;
 
@@ -3354,6 +4204,7 @@ export default {
             let displayArray = [] as any[];
             // let linkedCases = [] as any[]; 
             let linkedBoxes = [] as any[];
+            let linkedRawLines = [] as any[];
             let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
             let poRecElements = [] as any[];
 
@@ -3371,6 +4222,10 @@ export default {
             linkedBoxes = this.uBoxes.filter((b: any) =>
                 b.purchase_order_id === po.purchase_order_id &&
                 (includeCancelled || b.status !== 'Cancelled')
+            );
+            linkedRawLines = (this.po_raw_products || []).filter((line: any) =>
+                line.purchase_order_id === po.purchase_order_id &&
+                (includeCancelled || this.normalizeRawLineStatus(line.status) !== 'Cancelled')
             );
 
             //DISPLAYING PROCESSED CASES--------------------------------------------------------------------
@@ -3391,9 +4246,33 @@ export default {
             } 
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (po.displayStatus === "Unprocessed"){
-                if (linkedBoxes.length > 0)
-                    // displayArray = this.groupProducts(linkedBoxes);
+                if (linkedRawLines.length > 0) {
+                    // Prefer po_raw_lines for expansion display; keep a box-shaped UI model for users.
+                    displayArray = linkedRawLines.map((line: any) => {
+                        const rawProduct = (this.unprocProducts || []).find((p: any) => p.product_id === line.product_id)
+                            || (this.products || []).find((p: any) => p.product_id === line.product_id);
+                        const unitsPerCase = rawProduct?.default_units_per_case || line.units_per_case || 1;
+                        const totalUnits = Number(line.total_units || 0);
+                        const wholeAmount = Number(Math.floor(totalUnits / unitsPerCase));
+                        const partialUnits = Number((totalUnits - (wholeAmount * unitsPerCase)).toFixed(2));
+                        const displayAmount = partialUnits > 0
+                            ? `${wholeAmount} (With ${partialUnits} units in a partial)`
+                            : wholeAmount;
+
+                        return {
+                            ...line,
+                            product_name: rawProduct?.name || this.getProductInfo(line.product_id, 'name'),
+                            units_per_case: unitsPerCase,
+                            amount: displayAmount,
+                            status: this.normalizeRawLineStatus(line.status),
+                            location_id: line.location_id ?? null,
+                            notes: line.notes ?? null,
+                        };
+                    });
+                } else if (linkedBoxes.length > 0) {
+                    // Fallback for legacy POs that still only have individual box records.
                     displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes', 'location_id']);
+                }
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -3878,8 +4757,10 @@ export default {
             //If the PO is being edited
             if(this.purchaseOrder.purchase_order_id){
                 //console.log(this.uBoxes);
-                this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.status !== 'Cancelled').forEach(b => {
-                    total += (b.units_per_case)
+                this.purchaseOrder.po_raw_lines.forEach((line: any) => {
+                    if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
+                        total += Number(line.total_units || 0);
+                    }
                 });
             } //If the PO is being created
             else {
@@ -4295,11 +5176,16 @@ export default {
 
         editRowStyleRaw(data: any) {
             // console.log(data);
-            if (data.case_id) {
+            const rowIndex = this.poBoxes.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+            
+            if (data.po_raw_line_id || data.case_id) {
                 if (data.status == 'Cancelled'){
                     return { font: 'bold', backgroundColor: '#f19595' };
                 } else {
-                    return { font: 'bold', backgroundColor: '#C0EEFF' };
+                    // Blue striping for persisted raw rows
+                    const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
+                    return { font: 'bold', backgroundColor: bgColor };
                 }
             }  else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
@@ -4307,11 +5193,16 @@ export default {
         },
 
         editRowStyleProc(data: any) {
+            const rowIndex = this.singlePoRecipes.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+            
             if (data.product_id) {
                 if(data.warning === true){
                     return { font: 'bold', backgroundColor: '#ffb439' };
                 } else {
-                    return { font: 'bold', backgroundColor: '#bbffb5' };
+                    // Green striping for recipes
+                    const bgColor = isEvenRow ? '#bbffb5' : '#D4F5DD';
+                    return { font: 'bold', backgroundColor: bgColor };
                 }
             } else {
                 return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
@@ -4442,206 +5333,100 @@ export default {
         },
 
         /**
-         * When the user saves a row while editing a purchase order, this function places the updated data into the 
-         * poBox array. Then, checks to make sure that the updated unit amount is enough for the planned cases.
-         * @param event {event} The data grabbed in the event of a user saving a row while editing a purchase order
-         * 
-         * Create By: Gabe de la Torre-Garcia
-         * 
-         * Date Created: 2-19-2025
-         * 
-         * Date Last Edited: 3-5-2025
+         * Saves a raw-row edit by persisting a single po_raw_lines record.
+         * The row total is treated as source-of-truth total_units, so we no longer split/cancel individual boxes here.
          */
         async onPOBoxRowEditSave(event: any){
-            /* 
-            For a day when I can learn typescript
-            event: SubmitEvent
-            const { newData, index } = event.target as HTMLFormElement;
-
-            */
-
-            console.log(event);
             const { newData, index } = event;
-            console.log("Old data: ", this.poBoxes[index]);
-            console.log("New data: ", newData);
+            const poId = this.purchaseOrder?.purchase_order_id;
 
-            // Grab the new values: total units, the units per raw box, and the amount of raw boxes.
-            let total = newData.total;
-            let units_per_case = newData.units_per_case;
-            let amount = newData.amount;
-            let cancelledTotal = 0;
-            let maxTotal = 0;
+            if (!poId || !newData?.product_id) {
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Missing purchase order or product id.' });
+                return;
+            }
 
-            type boxRow = {
-                    [key: string]: string | number | null;
-                };
+            this.isSavingEditDialog = true;
 
-            // For the event that the vendor ships more units than were expected. NOTE: Extra units sent do not affect
-            // the PO price
-            let createdBoxes: Array<boxRow> = [];   
+            const normalizedStatus = this.normalizeRawLineStatus(newData.status || this.purchaseOrder.status);
+            const fallbackTotal = Number(newData.amount || 0) * Number(newData.units_per_case || 0);
+            const parsedTotal = Number(newData.total ?? fallbackTotal);
+            const totalUnits = Number.isFinite(parsedTotal) ? Math.max(0, Math.round(parsedTotal)) : 0;
 
-            console.log(total, '/', units_per_case, '=', amount);
-
-            // Grab the raw boxes that belong to this PO, and are the product type for the edited row.
-            let editedBoxes: Array<boxRow> = this.uBoxes.filter(box => 
-                box.purchase_order_id === this.purchaseOrder.purchase_order_id &&
-                box.product_id === this.poBoxes[index].product_id &&
-                box.status !== 'On RTP' &&
-                box.status !== 'Ready'
+            const existingLines = (this.singlePoRawProducts?.length
+                ? this.singlePoRawProducts
+                : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId)
+            );
+            const matchingLine = (existingLines || []).find((line: any) =>
+                line.product_id === newData.product_id &&
+                this.normalizeRawLineStatus(line.status) === normalizedStatus
             );
 
-            // If the boxes exist (the product was already in the PO and just being edited)
-            if(editedBoxes.length > 0){
-                console.log("Boxes to edit: ", editedBoxes);
+            let nextSinglePoRawProducts = [...(existingLines || [])];
 
-                const productKey = this.products.find(product => product.product_id === this.poBoxes[index].product_id)
-                console.log('product key', productKey);
-
-                // Grab the partial box, if it exists
-                const partialIdx = editedBoxes.findIndex(box => Number.isInteger(Number(box.units_per_case)/productKey.default_units_per_case) === false);
-                
-                // If it does, set the units in the box to the default amount.
-                // This is because the function will set the new partial amount, if needed.
-                if (partialIdx !== -1){
-                    editedBoxes[partialIdx].units_per_case = productKey.default_units_per_case;
-                }
-                    
-
-                editedBoxes.forEach(box => maxTotal += Number(box.units_per_case));
-
-                // If the new amount is not a whole number AND the new total is less than the old,
-                // Calculate the number of units cancelled, and set the new partial box amount.
-                if(Number.isInteger(amount) === false && maxTotal > newData.total){ //&& this.poBoxes[index].total > newData.total (might need to add back)
-                    console.log("Create partial Box");
-                    cancelledTotal = Math.ceil((Math.ceil(amount) - amount)*this.poBoxes[index].units_per_case);
-                    // console.log("Amount: ", amount, " - floor(amount): ", Math.floor(amount));
-                    let decimalAmount = amount - Math.floor(amount);
-                    let partialBoxUnits = Math.round(decimalAmount * this.poBoxes[index].units_per_case);
-                    // console.log(decimalAmount * this.poBoxes[index].units_per_case);
-                    // console.log("Partial box amount", partialBoxUnits);
-                    editedBoxes[0].units_per_case = partialBoxUnits;
-                } 
-
-                let currentTotal = 0;
-
-                // Loop through each edited box, totalling the amount of units in each box until currentTotal and total
-                // match. Then, cancel the rest of the boxes.
-                editedBoxes.forEach(box => {
-                    if(currentTotal < total && total >= (currentTotal + Number(box.units_per_case))){
-                        currentTotal += Number(box.units_per_case);
-                        box.status = this.poBoxes[index].status;
-                    } else {
-                        cancelledTotal += Number(box.units_per_case);
-                        box.status = 'Cancelled';
-                    }
-                });
-                 
-                // If the forEach ends and current total is still less than total, add new boxes to be created 
-                if(currentTotal < total){
-                    while (currentTotal < total){
-                        currentTotal += newData.units_per_case;
-                        console.log("+1 Box needed");
-                        /* createdBoxes.push({
-                            product_id: newData.product_id,
-                            purchase_order_id: this.purchaseOrder.purchase_order_id,
-                            units_per_case: newData.units_per_case,
-                            status: this.purchaseOrder.status
-                        }); */
-                    }
-                }
-
-                // console.log("Boxes after edit but before update: ", editedBoxes);
-            // Else if the boxes do not exist (the product is being newly added to the PO)
-            } else {         
-                // Add new boxes to be created
-                for(let boxIdx = 0; boxIdx < newData.amount; boxIdx++){
-                    createdBoxes.push({
+            if (matchingLine) {
+                if (totalUnits === 0) {
+                    await action.deletePurchaseOrderRawLine(matchingLine.po_raw_line_id);
+                    nextSinglePoRawProducts = nextSinglePoRawProducts.filter((line: any) =>
+                        line.po_raw_line_id !== matchingLine.po_raw_line_id
+                    );
+                } else {
+                    const editedLine = await action.editPurchaseOrderRawLine({
+                        po_raw_line_id: matchingLine.po_raw_line_id,
                         product_id: newData.product_id,
-                        purchase_order_id: this.purchaseOrder.purchase_order_id,
-                        units_per_case: newData.units_per_case,
-                        status: 'Draft'
+                        purchase_order_id: poId,
+                        invoice_id: newData.invoice_id ?? matchingLine.invoice_id ?? null,
+                        total_units: totalUnits,
+                        notes: newData.notes ?? matchingLine.notes ?? null,
+                        status: normalizedStatus,
                     });
+                    nextSinglePoRawProducts = nextSinglePoRawProducts.map((line: any) =>
+                        line.po_raw_line_id === matchingLine.po_raw_line_id ? editedLine : line
+                    );
                 }
-
-                // Check to see if the amount is a decimal, if it is
-                let decimalCheck = newData.amount - Math.floor(newData.amount);
-                if(decimalCheck !== 0){
-                    // Set the first box in the createdBoxes array to a partial amound
-                    let partialUnits = Math.round(newData.units_per_case * decimalCheck);
-                    createdBoxes[0].units_per_case = partialUnits;
-                }
-
-                // console.log("Boxes to create: ", createdBoxes);
-            }
-
-            console.log("Boxes after edit but before update: ", editedBoxes);
-            console.log("Boxes after create but before update:: ", createdBoxes);
-
-            // Map out the boxes in the array order necessary for DB insertion
-            if(editedBoxes.length > 0){
-                // editBoxes(editedBoxes)
-                let boxMap = [] as any[];
-                let boxesToUpdate = [] as any[];
-                editedBoxes.forEach(box => {
-                    boxMap = [
-                        box.units_per_case,
-                        box.date_received,
-                        box.notes,
-                        box.product_id,
-                        box.location_id,
-                        box.status,
-                        box.purchase_order_id,
-                        box.request_id,
-                        box.case_id
-                    ];
-
-                    boxesToUpdate.push(boxMap);
+            } else if (totalUnits > 0) {
+                const createdLine = await action.addPurchaseOrderRawLine({
+                    product_id: newData.product_id,
+                    purchase_order_id: poId,
+                    invoice_id: newData.invoice_id ?? null,
+                    total_units: totalUnits,
+                    notes: newData.notes ?? null,
+                    status: normalizedStatus,
                 });
-                
-                // Update the boxes
-                await action.bulkEditCases(boxesToUpdate);
-                this.$toast.add({severity:'success', summary: 'BOXES EDITED', detail: editedBoxes.length+' boxes edited', life: 10000});
-                /* if(cancelledTotal > 0){
-                    this.$toast.add({severity:'error', summary: 'UNITS CANCELLED', detail: cancelledTotal+' units cancelled'});
-                } */
-
-            }        
-
-            if(createdBoxes.length > 0){
-                // addBoxes(createdBoxes)
-                let finalBoxArray = [] as any[];
-                createdBoxes.forEach(b =>{
-                        if(!b.location_id)
-                            b.location_id = null;
-                        if(!b.notes)
-                            b.notes = null;
-                        if(!b.date_received)
-                            b.date_received = null;
-                        let tempArray = [
-                            b.units_per_case, 
-                            b.date_received, 
-                            b.notes, 
-                            b.product_id,  
-                            b.location_id, 
-                            b.status, 
-                            b.purchase_order_id, 
-                            b.request_id
-                        ]
-                        finalBoxArray.push(tempArray);
-                    })
-                await action.bulkCreateCases(finalBoxArray);
-                await this.loadPage(this.currentPage);
-                // await this.getBoxes();
-                this.$toast.add({severity:'success', summary: 'BOXES CREATED', detail: createdBoxes.length+' boxes added to order', life: 10000});
+                nextSinglePoRawProducts.push(createdLine);
             }
 
-            // this.checkPoTotals(newData.product_id, newData.total)
+            const nextUnitsPerCase = Number(newData.units_per_case || 0);
+            const nextAmount = nextUnitsPerCase > 0 ? Number((totalUnits / nextUnitsPerCase).toFixed(2)) : (newData.amount || 0);
+            const persistedLine = nextSinglePoRawProducts.find((line: any) =>
+                line.product_id === newData.product_id &&
+                this.normalizeRawLineStatus(line.status) === normalizedStatus
+            );
+            this.poBoxes[index] = {
+                ...this.poBoxes[index],
+                ...newData,
+                line_key: persistedLine?.po_raw_line_id
+                    ? `raw-${persistedLine.po_raw_line_id}`
+                    : (this.poBoxes[index]?.line_key || `raw-${newData.product_id}-${normalizedStatus}`),
+                po_raw_line_id: persistedLine?.po_raw_line_id || matchingLine?.po_raw_line_id || this.poBoxes[index]?.po_raw_line_id,
+                status: normalizedStatus,
+                total: totalUnits,
+                amount: nextAmount,
+                product_name: this.getProductInfo(newData.product_id, 'name'),
+            };
 
-            this.poBoxes[index] = newData;
-            this.poBoxes[index].product_name = this.getProductInfo(this.poBoxes[index].product_id, 'name');
-
-            this.syncCurrentPurchaseOrderBoxViews();
+            this.singlePoRawProducts = nextSinglePoRawProducts;
+            const otherPoRawLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id !== poId);
+            this.po_raw_products = [...otherPoRawLines, ...nextSinglePoRawProducts];
             this.checkPoTotals();
+
+            this.$toast.add({
+                severity: 'success',
+                summary: 'Raw Line Saved',
+                detail: totalUnits > 0 ? 'Raw line updated.' : 'Raw line removed.',
+                life: 4000,
+            });
+
+            this.isSavingEditDialog = false;
         },
 
         /**
@@ -4777,37 +5562,90 @@ export default {
          * Date Last Edited: 3-3-2025
          */
         async onPORecipeRowEditSave(event: any){
+            this.isSavingEditDialog = true;
+
             const { newData, index } = event;
             console.log("Old data: ", this.singlePoRecipes[index]);
             console.log("New data: ", newData);
 
-            let total = newData.total;
-            let units_per_case = newData.units_per_case;
-            let amount = newData.amount;
+            const poId = this.purchaseOrder?.purchase_order_id;
+            const selectedRecipeId = Number(newData?.recipeObj?.recipe_id || newData?.recipe_id || 0);
+            if (!poId || !selectedRecipeId) {
+                this.$toast.add({severity:'error', summary: 'Missing Recipe', detail: 'Please select a recipe before saving.', life: 4000});
+                return;
+            }
 
-            console.log(total, '/', units_per_case, '=', amount);
+            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === selectedRecipeId && re.type === 'output');
+            if (!recipeOutput) {
+                this.$toast.add({severity:'error', summary: 'Recipe Error', detail: 'Selected recipe output could not be found.', life: 4000});
+                return;
+            }
 
-            let editedRecipe = this.poRecipes.find(recipe => 
-                recipe.purchase_order_id === this.purchaseOrder.purchase_order_id &&
-                recipe.recipe_id === this.singlePoRecipes[index].recipe_id 
+            const outputProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
+            if (!outputProduct) {
+                this.$toast.add({severity:'error', summary: 'Product Error', detail: 'Recipe output product is missing.', life: 4000});
+                return;
+            }
+
+            const unitsPerCase = Number(outputProduct.default_units_per_case || newData.units_per_case || 1);
+            const normalizedAmount = Number(newData.amount || 0);
+            let desiredQty = Number(newData.qty || 0);
+
+            if (desiredQty <= 0 && normalizedAmount > 0) {
+                desiredQty = normalizedAmount * unitsPerCase;
+            }
+
+            if (!Number.isFinite(desiredQty) || desiredQty <= 0) {
+                this.$toast.add({severity:'error', summary: 'Invalid Amount', detail: 'Please enter a valid case count or total units.', life: 4000});
+                return;
+            }
+
+            const existingRecipe = this.poRecipes.find((recipe: any) =>
+                recipe.purchase_order_id === poId &&
+                (recipe.po_recipe_id === this.singlePoRecipes[index]?.po_recipe_id || recipe.recipe_id === this.singlePoRecipes[index]?.recipe_id)
             );
 
-            console.log("Recipe to edit: ", editedRecipe);
+            if (existingRecipe) {
+                const editedRecipe = {
+                    ...existingRecipe,
+                    recipe_id: selectedRecipeId,
+                    qty: desiredQty,
+                };
+                await action.editPurchaseOrderRecipe(editedRecipe);
+            } else {
+                await action.addPurchaseOrderRecipe({
+                    purchase_order_id: poId,
+                    recipe_id: selectedRecipeId,
+                    qty: desiredQty,
+                });
 
-            editedRecipe.qty = newData.qty;
+                const rawInputs = (this.recipeElements || []).filter((re: any) => re.recipe_id === selectedRecipeId && re.type === 'input');
+                const rawLinesToInsert = rawInputs
+                    .map((rawInput: any) => ({
+                        product_id: rawInput.product_id,
+                        purchase_order_id: poId,
+                        total_units: Number((Number(rawInput.qty || 0) * desiredQty).toFixed(2)),
+                        status: this.normalizeRawLineStatus(this.purchaseOrder.status || 'Draft'),
+                        notes: null,
+                        invoice_id: null,
+                    }))
+                    .filter((line: any) => line.product_id && line.total_units > 0);
 
-            console.log("Recipe after edit: ")
+                if (rawLinesToInsert.length > 0) {
+                    await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);
+                }
+            }
 
-            await action.editPurchaseOrderRecipe(editedRecipe);
-            this.$toast.add({severity:'success', summary: 'CASES UPDATED', detail: newData.amount + ' cases edited', life: 10000});
+            this.$toast.add({severity:'success', summary: 'Recipe Saved', detail: `${newData.amount || Number((desiredQty / unitsPerCase).toFixed(2))} case(s) saved and raw lines updated.`, life: 5000});
 
-
-
-            this.singlePoRecipes[index] = newData;
-            this.singlePoRecipes[index].product_name = this.getProductInfo(this.singlePoRecipes[index].product_id, 'name');
-
-            // this.singlePoRecipes
-            this.checkPoTotals();
+            
+            try {
+                await this.loadPage(this.currentPage, { rebuildSubscriptions: false });
+                await this.editPurchaseOrder(this.purchaseOrder);
+            } finally {
+                this.isSavingEditDialog = false;
+            }
         },
 
 
@@ -5675,6 +6513,10 @@ export default {
         },
     }
 }
+
+function floor(arg0: number): any {
+    throw new Error('Function not implemented.');
+}
 </script>
 
 <style>
@@ -5910,6 +6752,17 @@ export default {
     background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
 }
 
+.po-action-btn--recipe {
+    border: 1px solid #6dbf8f;
+    background: linear-gradient(180deg, #eefaf2 0%, #dff2e7 100%);
+    color: #155738;
+}
+
+.po-action-btn--recipe:hover {
+    border-color: #52a878;
+    background: linear-gradient(180deg, #e0f4e8 0%, #cfead9 100%);
+}
+
 :deep(.po-create-dialog .p-dialog-content) {
     background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
 }
@@ -5972,6 +6825,15 @@ export default {
 .po-edit-layout {
     display: grid;
     gap: 0.9rem;
+}
+
+.po-lock-message {
+    margin-bottom: 0.85rem;
+}
+
+:deep(.po-edit-dialog--readonly .p-dialog-content .po-edit-layout) {
+    pointer-events: none;
+    opacity: 0.72;
 }
 
 .po-edit-layout > .field {
@@ -6050,6 +6912,49 @@ export default {
 .po-autosave-check {
     color: #1f8c56;
     font-size: 1rem;
+}
+
+/* ── Edit Dialog Save/Loading Overlay ────────────────────────────── */
+
+.po-edit-saving-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: 12px;
+}
+
+.po-edit-saving-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    text-align: center;
+}
+
+.po-edit-saving-label {
+    font-weight: 600;
+    color: #1d3f5e;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 200ms ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
 
 :deep(.card .p-datatable) {

@@ -9,6 +9,27 @@ import type ProcessedCases from "@/views/ProcessedCases.vue";
 const BASE_URL = "http://localhost:5000";
 
 var action = {
+    // AUTH COMMANDS--------------------------------------------------------------------------------------------
+    async getSessionUser(){
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                console.error('Error getting auth session:', error);
+                return null;
+            }
+
+            return data?.session?.user ?? null;
+        } catch (error) {
+            console.error('Error getting auth session:', error);
+            return null;
+        }
+    },
+
+    async getSessionUserId(){
+        const sessionUser = await this.getSessionUser();
+        return sessionUser?.id ?? null;
+    },
+
     //PRODUCT COMMANDS-----------------------------------------------------------------------------------------
     //Pulls all the products from the database using API
     async getProducts(){
@@ -674,6 +695,44 @@ var action = {
     }, */
 
     //CASE COMMANDS-----------------------------------------------------------------------------------------
+    /**
+     * Subscribes to changes for the specified case IDs. When a change occurs, the provided onChange callback will be invoked with the change payload.
+     * @param case_ids An array of case IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified case IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToCaseChanges(
+        case_ids: number[],
+        onChange: (payload: any) => void
+    ) {
+        const scopedIds = Array.from(
+            new Set((case_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((case_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'cases',
+                    filter: `case_id=eq.${case_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+    
     //Get all cases
     async getCases(){
         console.log("IN GET CASES");
@@ -1085,7 +1144,272 @@ var action = {
     },
 
 
+    //RECORD LOCKS------------------------------------------------------------------------------------------
+    /**
+     * Fetches the current active lock for a single record.
+     *
+     * @param table_name The table namespace used in the lock row (e.g. 'purchase_orders').
+     * @param record_id The primary key value of the locked record.
+     * @returns The active lock payload when present and not expired; otherwise null.
+     */
+    async getRecordEditLock(table_name: string, record_id: string | number){
+        const { data, error } = await supabase.rpc('get_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+        });
+
+        if (error) {
+            console.error('Error getting record lock:', error);
+            throw error;
+        }
+
+        if (!data?.editor_user_id) {
+            return null;
+        }
+
+        const lockExpiresAt = data.heartbeat_at ? new Date(data.heartbeat_at).getTime() : 0;
+        if (!lockExpiresAt || lockExpiresAt < Date.now()) {
+            return null;
+        }
+
+        return data;
+    },
+
+    /**
+     * Attempts to acquire or renew a pessimistic lock for the current user.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the record to lock.
+     * @param editor_name Display name saved with the lock for read-only notices.
+     * @param ttl_seconds Lease length in seconds before lock expiration.
+     * @returns RPC payload containing acquired flag and lock details.
+     */
+    async acquireRecordEditLock(table_name: string, record_id: string | number, editor_name: string, ttl_seconds = 120){
+        const { data, error } = await supabase.rpc('acquire_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+            p_editor_name: editor_name,
+            p_ttl_seconds: ttl_seconds,
+        });
+
+        if (error) {
+            console.error('Error acquiring record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Refreshes (heartbeats) the caller lock lease for a record.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the locked record.
+     * @param ttl_seconds New lease duration in seconds from now.
+     * @returns RPC payload containing refreshed flag and lock details when successful.
+     */
+    async refreshRecordEditLock(table_name: string, record_id: string | number, ttl_seconds = 120){
+        const { data, error } = await supabase.rpc('refresh_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+            p_ttl_seconds: ttl_seconds,
+        });
+
+        if (error) {
+            console.error('Error refreshing record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Releases the caller owned lock for a record.
+     *
+     * @param table_name The table namespace used in the lock row.
+     * @param record_id The primary key value of the locked record.
+     * @returns RPC payload with released flag.
+     */
+    async releaseRecordEditLock(table_name: string, record_id: string | number){
+        const { data, error } = await supabase.rpc('release_record_lock', {
+            p_table_name: table_name,
+            p_record_id: String(record_id),
+        });
+
+        if (error) {
+            console.error('Error releasing record lock:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    /**
+     * Subscribes to realtime changes for lock rows scoped to a table namespace.
+     *
+     * @param table_name The table namespace to filter lock events by.
+     * @param onChange Callback invoked for any insert/update/delete lock event.
+     * @returns Supabase realtime channel subscription object.
+     */
+    subscribeToRecordLocks(table_name: string, onChange: () => void){
+        return supabase
+            .channel(`record-locks-${table_name}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'record_locks', filter: `table_name=eq.${table_name}` }, () => {
+                onChange();
+            })
+            .subscribe();
+    },
+
+
     //PURCHASE ORDERS----------------------------------------------------------------------------------------
+    /**
+     * Subscribes to realtime changes for only the provided purchase order ids.
+     * This is intended for conservative realtime usage on paginated table views.
+     *
+     * @param purchase_order_ids The PO ids to watch (typically current visible page ids).
+     * @param onChange Callback invoked for insert/update/delete events on matched rows.
+     * @returns Supabase realtime channel subscription object, or null when no ids are provided.
+     */
+    subscribeToPurchaseOrderChanges(
+        purchase_order_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_orders',
+                    filter: `purchase_order_id=eq.${purchase_order_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for only the provided purchase order recipe ids.
+     * This is intended for conservative realtime usage on paginated table views that show recipe details.
+     * @param purchase_order_recipe_ids An array of purchase order recipe IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified purchase order recipe IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToPurchaseOrderRecipeChanges(
+        purchase_order_recipe_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_recipe_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_recipe_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_order_recipes',
+                    filter: `purchase_order_recipe_id=eq.${purchase_order_recipe_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for only the provided purchase order raw line ids.
+     * This is intended for conservative realtime usage on paginated table views that show raw line details.
+     * @param purchase_order_raw_line_ids An array of purchase order raw line IDs to subscribe to for changes
+     * @param onChange A callback function that will be invoked when a change occurs for any of the specified purchase order raw line IDs
+     * @returns A subscription object that can be used to unsubscribe from the changes
+     */
+    subscribeToPurchaseOrderRawLineChanges(
+        purchase_order_raw_line_ids: number[],
+        onChange: (payload: any) => void
+    ){
+        const scopedIds = Array.from(
+            new Set((purchase_order_raw_line_ids || []).filter((id) => Number.isFinite(id)))
+        ) as number[];
+
+        if (scopedIds.length === 0) {
+            return null;
+        }
+
+        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}`);
+
+        scopedIds.forEach((purchase_order_raw_line_id) => {
+            channel = channel.on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_order_raw_lines',
+                    filter: `purchase_order_raw_line_id=eq.${purchase_order_raw_line_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            );
+        });
+
+        return channel.subscribe();
+    },
+
+    /**
+     * Subscribes to realtime changes for one specific purchase order row.
+     * Use this when you want conservative realtime usage while a single PO is open.
+     *
+     * @param purchase_order_id The specific purchase order id to watch.
+     * @param onChange Callback invoked for insert/update/delete events on that row.
+     * @returns Supabase realtime channel subscription object.
+     */
+    subscribeToSinglePurchaseOrderChange(
+        purchase_order_id: number,
+        onChange: (payload: any) => void
+    ){
+        return supabase
+            .channel(`purchase-order-${purchase_order_id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'purchase_orders',
+                    filter: `purchase_order_id=eq.${purchase_order_id}`,
+                },
+                (payload: any) => {
+                    onChange(payload);
+                }
+            )
+            .subscribe();
+    },
+
+
     //Gets purchase orders
     async getPurchaseOrders(){
         // const {data, error} = await supabase.rpc('get_purchase_orders');
@@ -1124,29 +1448,41 @@ var action = {
         total_count: number;
         page: number;
         rows_per_page: number;
+        purchase_order_ids: number[];
         purchase_orders: any[];
         all_products: any[];
         all_boxes: any[];
         all_recipes: any[];
         all_po_recipes: any[];
         all_recipe_elements: any[];
+        all_po_raw_lines: any[];
+        all_invoices: any[];
+        all_boxes_ids: number[];
+        all_po_recipes_ids: number[];
+        all_products_ids: number[];
+        all_po_raw_lines_ids: number[];
+        all_invoices_ids: number[];
     }>{
         let result = {
             total_count: 0,
             page,
             rows_per_page: rows_per_page,
+            purchase_order_ids: [] as number[],
             purchase_orders: [] as any[],
             all_products: [] as any[],
             all_boxes: [] as any[],
             all_recipes: [] as any[],
             all_po_recipes: [] as any[],
             all_recipe_elements: [] as any[],
+            all_po_raw_lines: [] as any[],
+            all_invoices: [] as any[],
+            all_boxes_ids: [] as number[],
+            all_po_recipes_ids: [] as number[],
+            all_products_ids: [] as number[],
+            all_po_raw_lines_ids: [] as number[],
+            all_invoices_ids: [] as number[],
         };
     
-        // page is 1-based here; convert to 0-based indices
-        const from = (page - 1) * rows_per_page;
-        const to   = from + rows_per_page - 1;
-
         try {
             
             const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
@@ -1167,34 +1503,6 @@ var action = {
         } catch (err) {
             console.error('Error in getPurchaseOrdersPage:', err);
         }
-    
-        /* try {
-            const query = supabase
-                .from('purchase_orders')
-                .select('*');
-                
-
-            if(sort_field !== '')
-                query.order(sort_field, { ascending: sort_order === 1 });
-            else
-                query.order('purchase_order_id', { ascending: false });
-    
-            if (filter_data !== '') {
-                query.or(`purchase_order_name.ilike.%${filter_data}%,notes.ilike.%${filter_data}%`);
-            }
-    
-            const { data, error } = await query.range(from, to);
-    
-            if (error) {
-                console.error('Error calling RPC (getPurchaseOrdersPage):', error);
-            } else {
-                console.log('Purchase Orders page:', data);
-                purchaseOrders = data ?? [];
-            }
-        } catch (err) {
-            console.error('Error in getPurchaseOrdersPage:', err);
-        } */
-    
         return result;
     },
 
@@ -1412,6 +1720,185 @@ var action = {
         }
     },
 
+    async getPurchaseOrderRawLines(po_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .select('*');
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines: ', data);
+            return data;
+        }
+    },
+
+    // Get raw lines for a single purchase order (only gets raw lines for the specified purchase order, rather than all raw lines for all purchase orders)
+    async getCurrentPurchaseOrderRawLines(po_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')            
+            .select('*')
+            .eq('purchase_order_id', po_id);
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Current Purchase Order Raw Lines: ', data);
+            return data;
+        }
+    },
+
+    /**
+     * Creates a single raw line item for a purchase order.
+     */
+    async addPurchaseOrderRawLine(rawLine: {
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }){
+        const payload = {
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        };
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .insert(payload)
+            .select()
+            .single();
+
+        if(error){
+            console.error('Error creating purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Created:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Creates multiple raw line items for a purchase order in one insert call.
+     */
+    async bulkAddPurchaseOrderRawLines(rawLines: {
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }[]){
+        if (!Array.isArray(rawLines) || rawLines.length === 0) {
+            return [];
+        }
+
+        const payload = rawLines.map((rawLine) => ({
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        }));
+
+        const {data, error} = await supabase.rpc('bulk_create_po_raw_lines', {
+            record_array: payload,
+        });
+
+        if(error){
+            console.error('Error creating purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Created:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Edits a single raw line item for a purchase order.
+     */
+    async editPurchaseOrderRawLine(po_raw_line: {
+        po_raw_line_id: number;
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }){
+        const payload = {
+            product_id: po_raw_line.product_id,
+            purchase_order_id: po_raw_line.purchase_order_id,
+            invoice_id: po_raw_line.invoice_id ?? null,
+            total_units: po_raw_line.total_units,
+            notes: po_raw_line.notes ?? null,
+            status: po_raw_line.status,
+        };
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .update(payload)
+            .eq('po_raw_line_id', po_raw_line.po_raw_line_id)
+            .select()
+            .single();
+
+        if(error){
+            console.error('Error editing purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Updated:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Deletes a single raw line item by primary key.
+     */
+    async deletePurchaseOrderRawLine(po_raw_line_id: number){
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .delete()
+            .eq('po_raw_line_id', po_raw_line_id)
+            .select();
+
+        if(error){
+            console.error('Error deleting purchase order raw line:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Line Deleted:', data);
+            return data;
+        }
+    },
+
+    /**
+     * Deletes multiple raw line items by primary key list.
+     */
+    async bulkDeletePurchaseOrderRawLines(po_raw_line_ids: number[]){
+        if (!Array.isArray(po_raw_line_ids) || po_raw_line_ids.length === 0) {
+            return [];
+        }
+
+        const {data, error} = await supabase
+            .from('po_raw_lines')
+            .delete()
+            .in('po_raw_line_id', po_raw_line_ids)
+            .select();
+
+        if(error){
+            console.error('Error deleting purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Deleted:', data);
+            return data;
+        }
+    },
+
     //VENDORS--------------------------------------------------------------------------------------------
     //Get vendors
     async getVendors(){
@@ -1419,7 +1906,7 @@ var action = {
         if(error){
             console.error('Error calling RPC:', error);
         } else {
-            console.log('Vendors:', data);
+            // console.log('Vendors:', data);
             return data;
         }
     },
@@ -1480,7 +1967,7 @@ var action = {
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            console.log('Vendors for POs: ', data);
+            // console.log('Vendors for POs: ', data);
             return data;
         }
     },
@@ -1553,7 +2040,7 @@ var action = {
         if(error){
             console.error('Error calling RPC:', error);
         } else {
-            console.log('LOCATIONS:', data);
+            // console.log('LOCATIONS:', data);
             return data;
         }
     },
@@ -1584,6 +2071,70 @@ var action = {
     },
 
     //REQUESTS--------------------------------------------------------------------------------------------
+    /**
+     * @description Gets a page of requests-to-process records based on paging, search, and sort options.
+     * Mirrors the purchase order page loader pattern so RTP can be driven by backend RPC pagination.
+     *
+     * NOTE: This expects a Supabase RPC named `get_requests_to_process_with_details`.
+     * If your SQL function name or arg names differ, update this call accordingly.
+     */
+    async getRequestsToProcessPage(
+        page: number,
+        rows_per_page: number,
+        filter_field: string,
+        filter_data: string,
+        sort_field: string,
+        sort_order: number,
+        status_exclude: string
+    ): Promise<{
+        total_count: number;
+        page: number;
+        rows_per_page: number;
+        requests_to_process: any[];
+        all_purchase_orders: any[];
+        all_po_recipes: any[];
+        all_recipes: any[];
+        all_recipe_elements: any[];
+        all_products: any[];
+    }> {
+        let result = {
+            total_count: 0,
+            page,
+            rows_per_page,
+            requests_to_process: [] as any[],
+            all_purchase_orders: [] as any[],
+            all_po_recipes: [] as any[],
+            all_recipes: [] as any[],
+            all_recipe_elements: [] as any[],
+            all_products: [] as any[],
+        };
+
+        try {
+            const { data, error } = await supabase.rpc('get_requests_to_process_with_details', {
+                in_page: page,
+                in_rows_per_page: rows_per_page,
+                in_filter_field: filter_field,
+                in_filter_data: filter_data,
+                in_sort_field: sort_field,
+                in_sort_order: sort_order,
+                in_status_exclude: status_exclude,
+            });
+
+            if (error) {
+                console.error('Error calling RPC (getRequestsToProcessPage):', error);
+                throw error;
+            }
+
+            console.log('Requests to Process page data:', data);
+            result = data ?? result;
+        } catch (err) {
+            console.error('Error in getRequestsToProcessPage:', err);
+            throw err;
+        }
+
+        return result;
+    },
+
     // Get requests
     async getRequests(status: string){
         /**@TODO move filtering and data collection to a backend function 4-15-26 */

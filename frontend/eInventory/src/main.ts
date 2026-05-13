@@ -3,6 +3,8 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { pinia } from './stores';
+import { useAuthStore } from './stores/auth';
 import PrimeVue from 'primevue/config';
 import axios from 'axios';
 
@@ -49,9 +51,12 @@ import Tooltip from 'primevue/tooltip';
 
 const app = createApp(App);
 
+app.use(pinia);
 app.use(router);
 app.use(PrimeVue);
 app.use(ToastService);
+
+const authStore = useAuthStore(pinia);
 
 axios.defaults.withCredentials = true;
 
@@ -90,5 +95,9 @@ app.component('Toolbar', Toolbar);
 app.directive('Tooltip', Tooltip);
 
 
+const startApp = async () => {
+	await authStore.initialize();
+	app.mount('#app');
+};
 
-app.mount('#app');
+startApp();

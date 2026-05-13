@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory, useRoute } from 'vue-router'
-// @ts-ignore
-import { supabase } from '../clients/supabase';
+import { createRouter, createWebHistory } from 'vue-router'
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 // VIEWS
 import HomeView from '../views/HomeView.vue'
@@ -17,10 +17,13 @@ import RequestToProcessView from '@/views/RequestToProcessView.vue'
 import PickList from '../views/Picklist.vue'
 import PasswordReset from '../views/PasswordReset.vue'
 
-import axios from "axios";
-
 let localUser;
-const route = useRoute();
+const ADMIN_ONLY_ROUTE_NAMES = new Set([
+  'ProductList',
+  'PurchaseOrders',
+  'RequestToProcess',
+  'Import',
+]);
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -96,26 +99,42 @@ const router = createRouter({
   ]
 })
 
-async function getUser(next:any) {
-  // console.log("in GetUser");
-  localUser = await supabase.auth.getSession();
-  if(localUser.data.session == null){
-    next('/login')
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAuth) {
+    return true;
   }
-  else{
-    next();
-  }
-}
 
-router.beforeEach((to, from, next) => {
-  // console.log("in beforeEach");
-  // console.log(route);
-  if (to.meta.requiresAuth){
-    getUser(next);
+  const authStore = useAuthStore(pinia);
+
+  // initialize() hydrates cached auth state and registers listeners.
+  await authStore.initialize();
+
+  // Use cached auth state here so route changes never block on a live network call.
+  // App-level visibility/focus handlers perform background session repair.
+  localUser = authStore.user;
+
+  if (!localUser) {
+    localUser = await authStore.refreshUser();
   }
-  else {
-    next();
+
+  if (!localUser) {
+    return { name: 'Login' };
   }
+
+  const companyRole = authStore.companyRole;
+  const routeName = String(to.name ?? '');
+  const canAccessAdminRoutes = companyRole === 'Admin' || companyRole === 'Management';
+
+  if (!canAccessAdminRoutes && ADMIN_ONLY_ROUTE_NAMES.has(routeName)) {
+    return {
+      name: 'Home',
+      query: {
+        denied: routeName,
+      },
+    };
+  }
+
+  return true;
 });
 
 export default router
