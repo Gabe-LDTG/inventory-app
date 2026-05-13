@@ -1733,7 +1733,7 @@ var action = {
         }
     },
 
-    // Get raw lines for a purchase order page (only gets raw lines for the purchase orders on the current page, rather than all raw lines for all purchase orders)
+    // Get raw lines for a single purchase order (only gets raw lines for the specified purchase order, rather than all raw lines for all purchase orders)
     async getCurrentPurchaseOrderRawLines(po_id: number){
         const {data, error} = await supabase
             .from('po_raw_lines')            
