@@ -1899,15 +1899,166 @@ var action = {
         }
     },
 
-    //VENDORS--------------------------------------------------------------------------------------------
-    //Get vendors
-    async getVendors(){
-        const {data, error} = await supabase.rpc('get_vendors');
+    // INVOICES--------------------------------------------------------------------------------------------
+    // Get invoices
+    async getInvoices(){
+        const {data, error} = await supabase
+            .from('invoices')
+            .select();
         if(error){
             console.error('Error calling RPC:', error);
         } else {
-            // console.log('Vendors:', data);
+            console.log('Invoices:', data);
             return data;
+        }
+    },
+
+    // Get invoices for a specific purchase order
+    async getInvoicesForPurchaseOrder(po_id: number){
+        const {data, error} = await supabase
+            .from('invoices')
+            .select()
+            .eq('purchase_order_id', po_id);
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Invoices for Purchase Order:', data);
+            return data;
+        }
+    },
+
+    // Add an invoice
+    async addInvoice(invoice: {
+        invoice_name: string;
+        total_cost: number;
+        purchase_order_id: number;
+        date_shipped: string | null;
+        date_due: string | null;
+        date_paid: string | null;
+        card: number;
+        filed: boolean;
+        notes: string | null;
+    }){
+        const {data, error} = await supabase.rpc('create_invoice', {
+            invoice_data: {
+                invoice_name: invoice.invoice_name,
+                purchase_order_id: invoice.purchase_order_id,
+                total_cost: invoice.total_cost,
+                date_shipped: invoice.date_shipped,
+                date_due: invoice.date_due,
+                date_paid: invoice.date_paid,
+                card: invoice.card,
+                filed: invoice.filed,
+                notes: invoice.notes
+            }
+        });
+        if(error){
+            console.error('Error calling RPC:', error);
+        } else {
+            console.log('Invoice Created:', data);
+            return data;
+        }
+    },
+
+    // Add an invoice, and links raw line items to that invoice at the same time
+    async addInvoiceWithRawLines(invoice: {
+        invoice_name: string;
+        total_cost: number;
+        purchase_order_id: number;
+        date_shipped: string | null;
+        date_due: string | null;
+        date_paid: string | null;
+        card: number;
+        filed: boolean;
+        notes: string | null;
+    }, rawLineIds: number[]){
+        const {data, error} = await supabase.rpc('create_invoice_with_raw_lines', {
+            invoice_data: {
+                invoice_name: invoice.invoice_name,
+                purchase_order_id: invoice.purchase_order_id,
+                total_cost: invoice.total_cost,
+                date_shipped: invoice.date_shipped,
+                date_due: invoice.date_due,
+                date_paid: invoice.date_paid,
+                card: invoice.card,
+                filed: invoice.filed,
+                notes: invoice.notes
+            },
+            raw_line_ids: rawLineIds
+        });
+        if(error){
+            console.error('Error calling RPC:', error);
+            throw error;
+        } else {
+            console.log('Invoice with Raw Lines Created:', data);
+            return data;
+        }
+    },
+
+    // Edit an invoice
+    async editInvoice(invoice: {
+        invoice_id: number;
+        invoice_name: string;
+        total_cost: number;
+        purchase_order_id: number;
+        date_shipped: string | null;
+        date_due: string | null;
+        date_paid: string | null;
+        card: number;
+        filed: boolean;
+        notes: string | null;
+    }){
+        const {data, error} = await supabase.rpc('update_invoice', {
+            invoice_data: {
+                invoice_id: invoice.invoice_id,
+                invoice_name: invoice.invoice_name,
+                purchase_order_id: invoice.purchase_order_id,
+                total_cost: invoice.total_cost,
+                date_shipped: invoice.date_shipped,
+                date_due: invoice.date_due,
+                date_paid: invoice.date_paid,
+                card: invoice.card,
+                filed: invoice.filed,
+                notes: invoice.notes
+            }
+        });
+        if(error){
+            console.error('Error editing invoice:', error);
+            throw error;
+        } else {
+            console.log('Invoice Updated:', data);
+            return data;
+        }
+    },
+
+    // Delete an invoice
+    async deleteInvoice(invoice_id: number){
+        const {data, error} = await supabase
+            .from('invoices')
+            .delete()
+            .eq('invoice_id', invoice_id);
+        if(error){
+            console.error('Error deleting invoice:', error);
+            throw error;
+        } else {
+            console.log('Invoice Deleted:', data);
+            return data;
+        }
+    },
+
+    //VENDORS--------------------------------------------------------------------------------------------
+    //Get vendors
+    async getVendors(): Promise<any[]> {
+        const {data, error} = await supabase
+            .from('vendors')
+            .select('*')
+            .order('vendor_name');
+        if(error){
+            console.error('Error calling RPC:', error);
+            return [];
+        } else {
+            // console.log('Vendors:', data);
+            return data ?? [];
         }
     },
 
