@@ -24,6 +24,7 @@
                 </div>
             </Transition>
             <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
+                class="po-main-table"
                 dataKey="purchase_order_id"
                 :paginator="true" 
                 :rows="rowsPerPage" 
@@ -39,6 +40,7 @@
                 @sort="onSort"
                 scrollable 
                 scrollHeight="800px"
+                tableStyle="min-width: 1600px"
                 :style="{ fontSize: (15 * tableZoom) + 'px', zoom: tableZoom, width: '100%'}"
                 :loading="tableLoading"
                 :expandedRows="expandedRows" @rowExpand="onRowExpand"
@@ -148,6 +150,7 @@
                     <div class="flex justify-content-center">
                         <Button label="Processed" @click="slotProps.data.displayStatus = 'Processed'"/>
                         <Button label="Unprocessed" severity="info" @click="slotProps.data.displayStatus = 'Unprocessed'"/>
+                        <Button label="Invoices" severity="help" @click="slotProps.data.displayStatus = 'Invoices'"/>
                     </div>
                     <!--</ButtonGroup>-->
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Processed'">
@@ -306,6 +309,28 @@
                                         </div>
                                     </template>
                                 </Column>
+                            </DataTable>
+                        </div>
+
+                        <div class="p-3" v-if="slotProps.data.displayStatus === 'Invoices'">
+                            <h4 class="m-0">Invoice(s) for Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
+                            <DataTable :value="displayInfo(slotProps.data)">
+                                <template #empty> No invoices linked to this purchase order. </template>
+                                <Column field="invoice_name" header="Invoice" sortable />
+                                <Column field="total_cost" header="Total Cost" sortable>
+                                    <template #body="{data}">
+                                        {{ formatCurrency(data.total_cost) }}
+                                    </template>
+                                </Column>
+                                <Column field="date_shipped" header="Date Shipped" sortable />
+                                <Column field="date_due" header="Date Due" sortable />
+                                <Column field="date_paid" header="Date Paid" sortable />
+                                <Column field="filed" header="Filed" sortable>
+                                    <template #body="{data}">
+                                        <Tag :value="data.filed ? 'Yes' : 'No'" :severity="data.filed ? 'success' : 'warning'" />
+                                    </template>
+                                </Column>
+                                <Column field="notes" header="Notes" />
                             </DataTable>
                         </div>
                 </template>
@@ -777,6 +802,7 @@
             <div class="field">
                 <label for="purchase_order_name">Name</label>
                 <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
+                    :disabled="isPoReadOnly"
                 />
             </div>
 
@@ -793,27 +819,27 @@
 
             <div class="field">
                 <label for="status">Status</label>
-                <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
+                <Dropdown v-model="purchaseOrder.status" :options="statuses" :disabled="isPoReadOnly" @change="onStatusChange()"/>
             </div>
 
             <div class="field">
                 <label for="notes">Notes</label>
-                <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" />
+                <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" :disabled="isPoReadOnly" />
             </div>
 
             <div class="field">
                 <label for="discount">Discount</label>
-                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
+                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid :disabled="isPoReadOnly" />
             </div>
 
             <div class="field">
                 <label for="date_ordered">Date Ordered</label>
-                <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
+                <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered" :disabled="isPoReadOnly"/>
             </div>
 
             <div class="field">
                 <label for="date_received">Date received</label>
-                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
+                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received" :disabled="isPoReadOnly"/>
             </div>
 
             <section class="po-edit-section-card">
@@ -901,14 +927,14 @@
                         <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
-                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                <Column :rowEditor="!isPoReadOnly" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <!-- <Column >
                     <template #body>
                         <Button v-tooltip.top="'Cancel Product'" text icon="pi pi-ban" @click="onProcProductCancel"/>
                     </template>
                 </Column> -->
             </DataTable>
-            <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="editRecipeRowsLoading" :loading="editRecipeRowsLoading"/>
+            <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="isPoReadOnly || editRecipeRowsLoading" :loading="editRecipeRowsLoading"/>
             <br>
             </section>
 
@@ -981,7 +1007,7 @@
                     </template>
                 </Column>
                 <Column header="Status" field="status"></Column>
-                <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+                <Column :rowEditor="!isPoReadOnly" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
                     <template #body="{data}">
                         <Button
@@ -990,7 +1016,7 @@
                             text
                             icon="pi pi-ban"
                             severity="danger"
-                            :disabled="Boolean(data?.d_editing) || isRawRowEditing(data)"
+                            :disabled="isPoReadOnly || Boolean(data?.d_editing) || isRawRowEditing(data)"
                             @click="onRawProductCancel(data)"
                         />
                         <Button
@@ -999,12 +1025,13 @@
                             text
                             icon="pi pi-times"
                             severity="secondary"
+                            :disabled="isPoReadOnly"
                             @click="removeUnsavedRawRow(data)"
                         />
                     </template>
                 </Column>
             </DataTable> 
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="editRawRowsLoading" :loading="editRawRowsLoading"/>
+            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="isPoReadOnly || editRawRowsLoading" :loading="editRawRowsLoading"/>
             <br>
             </section>
 
@@ -1484,6 +1511,7 @@ export default {
             boxesToDelete: [] as any[],
             inboundBoxes: [] as any[],
             po_raw_products: [] as any[],
+            invoices: [] as any[],
             singlePoRawProducts: [] as any[],
 
             //VENDOR VARIABLES
@@ -1638,6 +1666,18 @@ export default {
     methods: {
         lazySave: () => Promise.resolve(),
         onSearchDebounced: async () => Promise.resolve(),
+
+        ensurePoEditable(actionLabel = 'edit this purchase order') {
+            if (!this.isPoReadOnly) return true;
+
+            this.$toast.add({
+                severity: 'warn',
+                summary: 'Read-only Purchase Order',
+                detail: `You cannot ${actionLabel} while another user holds the edit lock.`,
+                life: 4500,
+            });
+            return false;
+        },
 
         /**
          * Returns the lock namespace used by this page.
@@ -1840,7 +1880,23 @@ export default {
                 (recipe: any) => !recipe.po_recipe_id
             );
             const unsavedRawBoxes = (this.poBoxes || []).some(
-                (box: any) => !box.po_raw_line_id
+                (box: any) => {
+                    if (!box) return false;
+
+                    // Persisted rows can come from legacy grouped boxes that do not have po_raw_line_id.
+                    if (box.po_raw_line_id) return false;
+                    if (typeof box.line_key === 'string' && box.line_key.startsWith('legacy-')) return false;
+
+                    // Only treat rows with actual user input as unsaved/transient records.
+                    const hasUserInput = Boolean(
+                        box.product_id
+                        || box.productObj
+                        || Number(box.amount || 0) > 0
+                        || Number(box.total || 0) > 0
+                    );
+
+                    return hasUserInput;
+                }
             );
             return unsavedRecipes || unsavedRawBoxes;
             }
@@ -2002,6 +2058,7 @@ export default {
                 this.poRecipes = data.all_po_recipes;
                 this.uBoxes = data.all_boxes;
                 this.po_raw_products = data.all_po_raw_lines || [];
+                this.invoices = data.all_invoices || [];
                 // this.pCases = await action.getProcrocCasesForPOPage(poIds); // Taking out for now because po_recipes fills the gap for this
                 // await action.getRecipesAndElementsForPOs(poIds);
 
@@ -2422,7 +2479,7 @@ export default {
         calculatePoCostTotal() {
             let total = 0;
             // If editing an existing PO, sum from uBoxes
-            if (this.purchaseOrder && this.purchaseOrder.purchase_order_id) {
+            if (this.purchaseOrder && this.purchaseOrder.purchase_order_id && this.purchaseOrder.po_raw_lines) {
                 this.purchaseOrder.po_raw_lines.forEach((line: any) => {
                     if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
                         total += Number(line.total_units || 0) * line.unit_price;
@@ -2853,7 +2910,9 @@ export default {
                 console.log('Created raw lines from legacy boxes:', rawLinesToCreate);
             }
 
-            return rawLinesToCreate;
+            // Re-fetch so callers receive the persisted records with real po_raw_line_id values.
+            const persistedLines = await action.getCurrentPurchaseOrderRawLines(this.purchaseOrder.purchase_order_id);
+            return persistedLines || rawLinesToCreate;
         },
 
         formatCurrency(value: any) {
@@ -3118,9 +3177,11 @@ export default {
             }
         },
         async addEditRawLine(){
+            if (!this.ensurePoEditable('add raw products')) return;
             await this.withTransientRowAddLoading('editRawRowsLoading', () => this.addBulkLine(this.poBoxes));
         },
         async addEditRecipeLine(){
+            if (!this.ensurePoEditable('add processed products')) return;
             await this.withTransientRowAddLoading('editRecipeRowsLoading', () => this.addBulkLine(this.singlePoRecipes));
         },
         deleteBulkLine(array: any, counter: any){
@@ -3577,6 +3638,7 @@ export default {
         },
         async savePurchaseOrder() {
             if (this.saving) return;
+            if (this.editPurchaseOrderDialog && !this.ensurePoEditable('save changes')) return;
             this.saving = true;
             try {
                 //this.submitted = true;
@@ -3609,6 +3671,7 @@ export default {
 
         async confirmEdit(){
             try {
+                if (!this.ensurePoEditable('save changes')) return;
                 //this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
                 console.log(this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
@@ -4110,13 +4173,24 @@ export default {
 
                 console.log("PO Recs: ",poRecs);
 
-                // Ensure legacy orders have po_raw_lines created (migration support)
-                await this.ensureRawLinesExist();
+                // Ensure legacy orders have po_raw_lines created (migration support).
+                // Returns persisted records with IDs (re-fetched after insert for legacy orders).
+                const ensuredRawLines = await this.ensureRawLinesExist();
 
                 // Raw lines are preloaded by the page RPC; keep a current-PO slice for edit operations.
-                this.singlePoRawProducts = (this.po_raw_products || []).filter((line: any) =>
+                // Fall back to the freshly-ensured lines if the page cache doesn't contain them yet.
+                const cachedLines = (this.po_raw_products || []).filter((line: any) =>
                     line.purchase_order_id === this.purchaseOrder.purchase_order_id
                 );
+                this.singlePoRawProducts = cachedLines.length > 0 ? cachedLines : (ensuredRawLines || []);
+
+                // Keep the page cache consistent so subsequent saves/checks have the right data.
+                if (cachedLines.length === 0 && this.singlePoRawProducts.length > 0) {
+                    const otherLines = (this.po_raw_products || []).filter((line: any) =>
+                        line.purchase_order_id !== this.purchaseOrder.purchase_order_id
+                    );
+                    this.po_raw_products = [...otherLines, ...this.singlePoRawProducts];
+                }
 
                 this.delivered = this.getDeliveredDataTable(boxes);
 
@@ -4273,6 +4347,15 @@ export default {
                     // Fallback for legacy POs that still only have individual box records.
                     displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes', 'location_id']);
                 }
+            } else if (po.displayStatus === 'Invoices') {
+                displayArray = (this.invoices || [])
+                    .filter((invoice: any) => invoice.purchase_order_id === po.purchase_order_id)
+                    .map((invoice: any) => ({
+                        ...invoice,
+                        date_shipped: invoice.date_shipped ? String(invoice.date_shipped).split('T')[0] : null,
+                        date_due: invoice.date_due ? String(invoice.date_due).split('T')[0] : null,
+                        date_paid: invoice.date_paid ? String(invoice.date_paid).split('T')[0] : null,
+                    }));
             }
 
             console.log("DISPLAY ARRAY", displayArray);
@@ -4757,11 +4840,14 @@ export default {
             //If the PO is being edited
             if(this.purchaseOrder.purchase_order_id){
                 //console.log(this.uBoxes);
-                this.purchaseOrder.po_raw_lines.forEach((line: any) => {
-                    if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
-                        total += Number(line.total_units || 0);
-                    }
-                });
+                if(this.purchaseOrder.po_raw_lines){
+                    this.purchaseOrder.po_raw_lines.forEach((line: any) => {
+                        if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
+                            total += Number(line.total_units || 0);
+                        }
+                    });
+                }
+                
             } //If the PO is being created
             else {
                 // Calculate units from recipes, before boxes are actually linked to PO
@@ -5337,6 +5423,7 @@ export default {
          * The row total is treated as source-of-truth total_units, so we no longer split/cancel individual boxes here.
          */
         async onPOBoxRowEditSave(event: any){
+            if (!this.ensurePoEditable('save raw lines')) return;
             const { newData, index } = event;
             const poId = this.purchaseOrder?.purchase_order_id;
 
@@ -5562,6 +5649,7 @@ export default {
          * Date Last Edited: 3-3-2025
          */
         async onPORecipeRowEditSave(event: any){
+            if (!this.ensurePoEditable('save recipes')) return;
             this.isSavingEditDialog = true;
 
             const { newData, index } = event;
@@ -5650,6 +5738,7 @@ export default {
 
 
         onRawProductCancel(raw_product: any){
+            if (!this.ensurePoEditable('cancel raw products')) return;
             if (!raw_product) return;
 
             // If the row is currently being edited, there is no persisted record to cancel yet.
@@ -6831,7 +6920,7 @@ function floor(arg0: number): any {
     margin-bottom: 0.85rem;
 }
 
-:deep(.po-edit-dialog--readonly .p-dialog-content .po-edit-layout) {
+.po-edit-dialog--readonly .po-edit-layout {
     pointer-events: none;
     opacity: 0.72;
 }
@@ -7166,6 +7255,14 @@ function floor(arg0: number): any {
     border-color: var(--po-green-border);
     color: var(--po-green-text);
     box-shadow: inset 0 0 0 1px rgba(10, 63, 35, 0.22);
+}
+
+:deep(.po-main-table .p-datatable-wrapper) {
+    overflow-x: auto;
+}
+
+:deep(.po-main-table .p-datatable-table) {
+    min-width: 1600px;
 }
 
 @media (max-width: 768px) {

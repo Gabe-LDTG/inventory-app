@@ -49,6 +49,9 @@ import ToastService from 'primevue/toastservice';
 import Toolbar from 'primevue/toolbar';
 import Tooltip from 'primevue/tooltip';
 
+const appTitle = 'eChapps eInventory';
+document.title = import.meta.env.PROD ? appTitle : `${appTitle} [LOCAL]`;
+
 const app = createApp(App);
 
 app.use(pinia);

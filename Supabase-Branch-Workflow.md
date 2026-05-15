@@ -67,11 +67,13 @@ If your password has special characters, URL-encode them.
 Save all 4 URLs as persistent user env vars:
 
 ```powershell
-[System.Environment]::SetEnvironmentVariable("SUPABASE_DB_URL_BUGS_POOLER", "postgresql://postgres.kvjpxssezujwtaxzmjze:3vH9%26jDt1HgQc2@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require", "User")
-[System.Environment]::SetEnvironmentVariable("SUPABASE_DB_URL_MAIN_POOLER", "postgresql://postgres.tnryadvlppdcltotziia:nJgw8KIf%26WQs%241@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require", "User")
+[System.Environment]::SetEnvironmentVariable('SUPABASE_DB_URL_BUGS_POOLER', 'postgresql://postgres.kvjpxssezujwtaxzmjze:3vH9%26jDt1HgQc2@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require', 'User')
+[System.Environment]::SetEnvironmentVariable('SUPABASE_DB_URL_MAIN_POOLER', 'postgresql://postgres.tnryadvlppdcltotziia:nJgw8KIf%26WQs%241@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require', 'User')
 [System.Environment]::SetEnvironmentVariable("SUPABASE_DB_URL_BUGS_DIRECT", "postgresql://postgres:3vH9%26jDt1HgQc2@db.kvjpxssezujwtaxzmjze.supabase.co:5432/postgres?sslmode=require", "User")
 [System.Environment]::SetEnvironmentVariable("SUPABASE_DB_URL_MAIN_DIRECT", "postgresql://postgres:nJgw8KIf%26WQs%241@db.tnryadvlppdcltotziia.supabase.co:5432/postgres?sslmode=require", "User")
 ```
+
+`SetEnvironmentVariable(..., 'User')` saves values for future shells, but does not populate the current shell process. Either open a new terminal, or run section 0.2.1 in the current shell before using `$env:SUPABASE_DB_URL_*` values.
 
 ### 0.2.1 Load saved vars into each new terminal
 
