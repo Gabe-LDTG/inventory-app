@@ -6807,6 +6807,7 @@ export default {
 
                     } else {
                         // Extra units — update original total to the larger amount, link it
+                        /**@TODO Create unique lines for extra boxes, we are usually not charged for extra product shipped, and so it should not be incorporated into the final cost */
                         await action.editPurchaseOrderRawLine({
                             ...line,
                             total_units: invoiced,
