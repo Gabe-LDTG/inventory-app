@@ -848,6 +848,12 @@
             </div>
             <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
             <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" :loading="editRecipeRowsLoading" @row-edit-save="onPORecipeRowEditSave">
+                <template #empty>
+                    <div class="flex flex-column align-items-center gap-3 py-5">
+                        <i class="pi pi-box text-4xl"></i>
+                        <div class="text-lg">No planned processed cases.</div>
+                    </div>
+                </template>
                 <Column header="Name" field="product_name">
                     <template #editor="{data}">
                         <AutoComplete
@@ -943,6 +949,12 @@
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
             <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="line_key" editMode="row" :loading="editRawRowsLoading" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+                <template #empty>
+                    <div class="flex flex-column align-items-center gap-3 py-5">
+                        <i class="pi pi-box text-4xl"></i>
+                        <div class="text-lg">No raw boxes in order.</div>
+                    </div>
+                </template>
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field, index}">
                         <AutoComplete 
@@ -1346,56 +1358,112 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '900px' }">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '960px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
-                <p class="m-0">
-                    Eligible boxes are grouped by product and units per box. This list excludes canceled boxes and boxes already linked to an invoice for this purchase order.
+
+                <div class="inbound-invoice-name-field">
+                    <label class="inbound-field-label" for="inboundInvoiceName">Invoice Name <span class="inbound-required">*</span></label>
+                    <InputText
+                        id="inboundInvoiceName"
+                        v-model="inboundInvoiceName"
+                        placeholder="e.g. INV-2026-001"
+                        class="inbound-invoice-name-input"
+                        :class="{ 'p-invalid': inboundSubmitted && !inboundInvoiceName.trim() }"
+                    />
+                    <small class="p-error" v-if="inboundSubmitted && !inboundInvoiceName.trim()">Invoice name is required.</small>
+                </div>
+
+                <p class="inbound-instructions m-0">
+                    Enter how many units of each product are being shipped on this invoice.
+                    Product amounts already linked to an invoice or cancelled are excluded.
+                    Leaving a product at 0 means it will not be included.
                 </p>
 
-                <DataTable v-if="inboundBoxesLoading" :value="[{ id: 1 }, { id: 2 }, { id: 3 }]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
-                    <Column header="Product">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--product"></div>
-                        </template>
-                    </Column>
-                    <Column header="Item #">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--item"></div>
-                        </template>
-                    </Column>
-                    <Column header="Units per Box">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number"></div>
-                        </template>
-                    </Column>
-                    <Column header="Box Count">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number"></div>
-                        </template>
-                    </Column>
-                    <Column header="Total Units">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number skeleton-line--total"></div>
-                        </template>
-                    </Column>
+                <DataTable v-if="inboundBoxesLoading" :value="[1,2,3]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
+                    <Column header="Item #"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                    <Column header="Ordered Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units on Invoice"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Remaining"><template #body><div class="skeleton-line skeleton-line--number skeleton-line--total"></div></template></Column>
                 </DataTable>
 
-                <DataTable v-else :value="inboundBoxes" stripedRows showGridlines responsiveLayout="scroll">
+                <DataTable v-else :value="inboundLineAllocations" stripedRows showGridlines responsiveLayout="scroll" class="inbound-lines-table">
                     <template #empty>
-                        No eligible boxes are available to inbound for this purchase order.
+                        No eligible raw products are available to inbound for this purchase order.
                     </template>
 
-                    <Column field="product_name" header="Product" sortable />
-                    <Column field="item_num" header="Item #" sortable />
-                    <Column field="units_per_case" header="Units per Box" sortable />
-                    <Column field="amount" header="Box Count" sortable />
-                    <Column header="Total Units" sortable>
+                    <Column field="product_name" header="Product" sortable >
                         <template #body="{ data }">
-                            {{ data.amount * data.units_per_case }}
+                            {{ data.product_name || data.name }}
+                        </template>
+                    </Column>
+                    <Column field="item_num" header="Item #" sortable />
+                    <Column field="total_units" header="Ordered Units" sortable />
+                    <Column header="Units on Invoice">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.units_on_invoice"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': data.units_on_invoice > data.total_units }"
+                                @update:modelValue="onInboundUnitsInput(data)"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Remaining">
+                        <template #body="{ data }">
+                            <span :class="getInboundRemainingClass(data)">
+                                {{ getInboundRemaining(data) }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Unit Price">
+                        <template #body="{ data }">
+                            {{ data.unit_price || data.price_2023 ? formatCurrency(data.unit_price || data.price_2023) : '—' }}
+                        </template>
+                    </Column>
+                    <Column header="Disc%">
+                        <template #body="{ data }">
+                            {{ purchaseOrder.discount ? purchaseOrder.discount + '%' : '—' }}
+                        </template>
+                    </Column>
+                    <Column header="Subtotal">
+                        <template #body="{ data }">
+                            {{ (data.unit_price || data.price_2023) && data.units_on_invoice ? formatCurrency((data.unit_price || data.price_2023) * data.units_on_invoice * (1 - (purchaseOrder.discount || 0)/100)) : '—' }}
                         </template>
                     </Column>
                 </DataTable>
+
+                <small class="p-error" v-if="inboundSubmitted && !inboundLineAllocations.some((l: any) => Number(l.units_on_invoice) > 0)">
+                    At least one line must have units greater than 0.
+                </small>
+
             </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="inboundPurchaseOrderDialog = false" :disabled="inboundCreatingInvoice" />
+                <Button label="Create Invoice" icon="pi pi-check" class="p-button-success" @click="submitCreateInvoice" :loading="inboundCreatingInvoice" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="inboundExtraUnitsDialog" header="Extra Units Received" :modal="true" :style="{ width: '480px' }">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
+                <div>
+                    <p class="m-0">The following lines have more units entered than originally ordered. This may mean the vendor shipped extra units by mistake, or intentionally.</p>
+                    <ul class="inbound-extra-units-list">
+                        <li v-for="line in inboundExtraLines" :key="line.po_raw_line_id">
+                            <strong>{{ line.product_name }}</strong>: {{ line.units_on_invoice }} entered vs {{ line.total_units }} ordered
+                            <span class="inbound-extra-badge">(+{{ line.units_on_invoice - line.total_units }} extra)</span>
+                        </li>
+                    </ul>
+                    <p class="m-0">Do you want to proceed and record the extra units on this invoice?</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="No, go back" icon="pi pi-arrow-left" class="p-button-text" @click="inboundExtraUnitsDialog = false" />
+                <Button label="Yes, proceed" icon="pi pi-check" class="p-button-warning" @click="confirmCreateInvoice" :loading="inboundCreatingInvoice" />
+            </template>
         </Dialog>
         
     </div>
@@ -1464,6 +1532,13 @@ export default {
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
             inboundBoxesLoading: false,
+            inboundBoxes: [] as any[],
+            inboundInvoiceName: '' as string,
+            inboundLineAllocations: [] as any[],
+            inboundSubmitted: false,
+            inboundCreatingInvoice: false,
+            inboundExtraUnitsDialog: false,
+            inboundExtraLines: [] as any[],
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -6575,29 +6650,207 @@ export default {
         },
 
         async openInboundDialog(purchaseOrder: any){
+            if (!purchaseOrder?.purchase_order_id) {
+                return;
+            }
+
+            // Keep the currently selected PO in sync so header/toasts use the correct name.
+            this.purchaseOrder = { ...purchaseOrder };
+            this.inboundInvoiceName = '';
+            this.inboundSubmitted = false;
+            this.inboundExtraLines = [];
+            this.inboundPurchaseOrderDialog = true;
+            this.inboundBoxesLoading = true;
+            console.log("Opening inbound dialog for PO: ", purchaseOrder);
+
             try {
-                this.inboundBoxesLoading = true;
-                this.inboundBoxes = [];
-                this.inboundPurchaseOrderDialog = true;
-                console.log("Purchase order in inbound dialog: ", purchaseOrder);
-                console.log("PO Boxes: ", this.poBoxes);
-                let allInboundBoxes = await action.getInboundBoxes(purchaseOrder.purchase_order_id);
-                this.inboundBoxes = helper
-                    .groupProductsByKey(allInboundBoxes, [])
-                    .sort((a: any, b: any) => {
-                        const productCompare = (a.product_name || '').localeCompare(b.product_name || '');
-                        if (productCompare !== 0) {
-                            return productCompare;
+                const purchaseOrderId = purchaseOrder.purchase_order_id;
+
+                // Fetch the latest raw lines directly so we always have fresh data.
+                let rawLines = purchaseOrder.po_raw_lines || await action.getCurrentPurchaseOrderRawLines(purchaseOrderId);
+
+                // Legacy bootstrap: old orders may have only individual boxes and no po_raw_lines yet.
+                if (!Array.isArray(rawLines) || rawLines.length === 0) {
+                    const legacyBoxes = (purchaseOrder.individual_boxes || []).filter((box: any) =>
+                        Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                    );
+
+                    // ensureRawLinesExist builds lines from uBoxes; seed it from row payload if needed.
+                    if (legacyBoxes.length > 0) {
+                        const hasCurrentPoBoxesInCache = (this.uBoxes || []).some((box: any) =>
+                            Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                        );
+
+                        if (!hasCurrentPoBoxesInCache) {
+                            this.uBoxes = [...(this.uBoxes || []), ...legacyBoxes];
                         }
 
-                        return Number(a.units_per_case || 0) - Number(b.units_per_case || 0);
-                    });
-                console.log("Inbound boxes: ", this.inboundBoxes);
+                        rawLines = await this.ensureRawLinesExist();
+                    }
+                }
 
+                this.purchaseOrder.po_raw_lines = rawLines || [];
+
+                // Eligible: not cancelled, not already linked to an invoice
+                const eligible = (this.purchaseOrder.po_raw_lines || [])
+                    .filter((l: any) => !l.invoice_id && l.status?.toLowerCase() !== 'cancelled')
+                    .sort((a: any, b: any) => (a.product_name || '').localeCompare(b.product_name || ''));
+
+                this.inboundLineAllocations = eligible.map((l: any) => ({
+                    ...l,
+                    units_on_invoice: 0,
+                }));
             } catch (error) {
-                console.error("Error opening inbound dialog: ", error);
+                console.error('Error opening inbound dialog:', error);
             } finally {
                 this.inboundBoxesLoading = false;
+            }
+        },
+
+        onInboundDialogHide() {
+            this.inboundSubmitted = false;
+            this.inboundExtraLines = [];
+        },
+
+        getInboundRemaining(line: any): number {
+            return Number(line.total_units) - Number(line.units_on_invoice || 0);
+        },
+
+        getInboundRemainingClass(line: any): Record<string, boolean> {
+            const remaining = this.getInboundRemaining(line);
+            return {
+                'inbound-remaining--zero': remaining === 0,
+                'inbound-remaining--positive': remaining > 0,
+                'inbound-remaining--negative': remaining < 0,
+            };
+        },
+
+        onInboundUnitsInput(line: any) {
+            // Clamp to non-negative
+            if (line.units_on_invoice < 0 || line.units_on_invoice == null) {
+                line.units_on_invoice = 0;
+            }
+        },
+
+        /**
+         * Called when user clicks "Create Invoice".
+         * Validates, checks for extra units, then either creates the invoice
+         * immediately or shows an extra-units confirmation dialog first.
+         */
+        submitCreateInvoice() {
+            this.inboundSubmitted = true;
+
+            const hasName = !!this.inboundInvoiceName.trim();
+            const linesWithUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_on_invoice) > 0);
+
+            if (!hasName || linesWithUnits.length === 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Please enter an invoice name and allocate at least one unit to the invoice.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            const extraLines = linesWithUnits.filter((l: any) => Number(l.units_on_invoice) > Number(l.total_units));
+
+            if (extraLines.length > 0) {
+                this.inboundExtraLines = extraLines;
+                this.inboundExtraUnitsDialog = true;
+                return;
+            }
+
+            void this.confirmCreateInvoice();
+        },
+
+        /**
+         * Performs the actual split + invoice creation after all validations pass.
+         * For each line:
+         *   - units_on_invoice === total_units  → link original line directly
+         *   - units_on_invoice < total_units    → update original to remainder, create new line for invoice
+         *   - units_on_invoice > total_units    → update original total_units to the entered amount, link it
+         */
+        async confirmCreateInvoice() {
+            this.inboundExtraUnitsDialog = false;
+            this.inboundCreatingInvoice = true;
+
+            try {
+                const linesWithUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_on_invoice) > 0);
+                const invoiceLineIds: number[] = [];
+
+                for (const line of linesWithUnits) {
+                    const ordered = Number(line.total_units);
+                    const invoiced = Number(line.units_on_invoice);
+
+                    if (invoiced === ordered) {
+                        // Exact match — link as-is
+                        invoiceLineIds.push(line.po_raw_line_id);
+                        /**@TODO Edit the raw line to status inbound now that it has been shipped */
+
+                    } else if (invoiced < ordered) {
+                        // Partial — update original to remainder, create new line for invoice
+                        await action.editPurchaseOrderRawLine({
+                            ...line,
+                            total_units: ordered - invoiced,
+                        });
+                        const newLine = await action.addPurchaseOrderRawLine({
+                            product_id: line.product_id,
+                            purchase_order_id: line.purchase_order_id,
+                            total_units: invoiced,
+                            notes: line.notes ?? null,
+                            status: 'Inbound',
+                        });
+                        if (newLine?.po_raw_line_id) {
+                            invoiceLineIds.push(newLine.po_raw_line_id);
+                        }
+
+                    } else {
+                        // Extra units — update original total to the larger amount, link it
+                        await action.editPurchaseOrderRawLine({
+                            ...line,
+                            total_units: invoiced,
+                            status: 'Inbound',
+                        });
+                        invoiceLineIds.push(line.po_raw_line_id);
+                    }
+                }
+
+                await action.addInvoiceWithRawLines(
+                    {
+                        invoice_name: this.inboundInvoiceName.trim(),
+                        purchase_order_id: this.purchaseOrder.purchase_order_id,
+                        total_cost: 0,
+                        date_shipped: null,
+                        date_due: null,
+                        date_paid: null,
+                        card: 0,
+                        filed: false,
+                        notes: null,
+                    },
+                    invoiceLineIds,
+                );
+
+                (this as any).$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice Created',
+                    detail: `Invoice "${this.inboundInvoiceName.trim()}" created with ${invoiceLineIds.length} line(s).`,
+                    life: 5000,
+                });
+
+                this.inboundPurchaseOrderDialog = false;
+                await this.loadPage(this.currentPage ?? 1);
+
+            } catch (error) {
+                console.error('Error creating invoice:', error);
+                (this as any).$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to create invoice. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.inboundCreatingInvoice = false;
             }
         },
     }
@@ -6623,6 +6876,83 @@ function floor(arg0: number): any {
 .inbound-skeleton-table {
      pointer-events: none;
  }
+
+.inbound-invoice-name-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-width: 380px;
+}
+
+.inbound-field-label {
+    font-weight: 700;
+    color: #2a4761;
+    font-size: 0.92rem;
+}
+
+.inbound-required {
+    color: #e24c4c;
+}
+
+.inbound-invoice-name-input {
+    width: 100%;
+}
+
+.inbound-instructions {
+    color: var(--text-color-secondary, #6b7280);
+    font-size: 0.9rem;
+}
+
+.inbound-lines-table {
+    border: 1px solid #d4e1ee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+:deep(.inbound-units-input .p-inputnumber-input) {
+    width: 100px;
+    text-align: right;
+}
+
+:deep(.inbound-units-input--over .p-inputnumber-input) {
+    background-color: #fff4de;
+    border-color: #d9ad20;
+    color: #5e4702;
+}
+
+.inbound-remaining--positive {
+    color: #1f6b3a;
+    font-weight: 600;
+}
+
+.inbound-remaining--zero {
+    color: #1f8c56;
+    font-weight: 700;
+}
+
+.inbound-remaining--negative {
+    color: #a63c1a;
+    font-weight: 700;
+}
+
+.inbound-extra-units-list {
+    margin: 0.65rem 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.inbound-extra-badge {
+    margin-left: 0.4rem;
+    background: #fff4de;
+    border: 1px solid #d9ad20;
+    color: #5e4702;
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
 .skeleton-line {
      height: 0.95rem;
      border-radius: 999px;

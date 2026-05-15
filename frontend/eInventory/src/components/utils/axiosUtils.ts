@@ -1720,7 +1720,7 @@ var action = {
         }
     },
 
-    async getPurchaseOrderRawLines(po_id: number){
+    async getAllPurchaseOrderRawLines(){
         const {data, error} = await supabase
             .from('po_raw_lines')
             .select('*');
@@ -1737,7 +1737,7 @@ var action = {
     async getCurrentPurchaseOrderRawLines(po_id: number){
         const {data, error} = await supabase
             .from('po_raw_lines')            
-            .select('*')
+            .select(`*, products(product_id, item_num, upc, name, price_2023)`)
             .eq('purchase_order_id', po_id);
         if(error){
             console.error('Error calling RPC: ', error);
