@@ -150,7 +150,7 @@
                             v-tooltip.top="'Edit PO'"
                             :disabled="slotProps.data.status === ''"
                             class="po-action-btn po-action-btn--secondary"
-                            @click="onPurchaseOrderDialogOpen(2, slotProps.data)"
+                            @click="onPurchaseOrderDialogOpen(slotProps.data)"
                         />
                     </template>
                 </Column>
@@ -389,7 +389,7 @@
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideVendorDialog()"/>
-                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; onPurchaseOrderDialogOpen(1);" />
+                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
             </template>
         </Dialog>
 
@@ -525,268 +525,6 @@
                         </Column>
 
                     </DataTable> <br>           
-
-            </div>
-
-            <div v-else class="po-create-layout">
-                <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
-                <div class="field">
-                    <label for="purchase_order_name">Name</label>
-                    <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
-                    :disabled="purchaseOrder.purchase_order_id"/>
-                    <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
-                </div>
-
-                <div class="field">
-                    <label for="vendor">Vendor</label>
-                    <Dropdown disabled v-model="purchaseOrder.vendor_id"
-                    placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                    :options="vendors"
-                    filter
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="vendor_name"
-                    optionValue="vendor_id" />
-                </div>
-
-                <div class="field">
-                    <label for="status">Status</label>
-                    <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
-                </div>
-
-                <div class="field">
-                    <label for="notes">Notes</label>
-                    <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" />
-                </div>
-
-                <div class="field">
-                    <label for="discount">Discount</label>
-                    <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
-                </div>
-
-                <div class="field">
-                    <label for="date_ordered">Date Ordered</label>
-                    <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
-                </div>
-
-                <div class="field">
-                    <label for="date_received">Date received</label>
-                    <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
-                </div>
-
-                <!--------------------------------------- RECIPES ---------------------------------------------->
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Planning Processed Case(s):</h3>
-                </div>
-
-                <template class="caseCard" v-for="(poRecipe, counter) in recipeArray">
-
-                <div class ="caseCard">
-                    <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(recipeArray, counter)"/>
-
-                    <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
-                    <div class="block-div">
-                        <div class="field">
-                            <label for="name">Name:</label>
-                            <AutoComplete 
-                                v-model="poRecipe.recipeObj"
-                                :suggestions="filteredRecipes[counter] || []"
-                                @complete="(event: any) => searchRecipes(event, counter)"
-                                @item-select="onRecipeSelection(poRecipe.recipeObj, counter)"
-                                :dropdown="true"
-                                :optionLabel="'label'"
-                                
-                                placeholder="Select or enter a product"
-                                class="md:w-14rem"
-                                :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
-                                :forceSelection="false"
-                            /> <!-- :modelValue="'label'" -->
-                            <small class="p-error" v-if="submitted && !poRecipe.recipeObj">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="qty">Normal Case QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            :class="{'p-invalid': submitted && !poCases[counter].default_units_per_case}"
-                            v-model="poCases[counter].default_units_per_case" disabled
-                            />
-                            <small class="p-error" v-if="submitted && !poCases[counter].default_units_per_case">Amount is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="amount">Cases Desired to Be Made</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            v-model="poRecipe.amount" showButtons :min="1"
-                            @update=""/>
-                        </div>
-
-                        <div class="field">
-                            <label for="notes">Notes:</label>
-                            <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                        </div>
-
-                        <div v-if="poRecipe.amount && poRecipe.recipeObj" class="field">
-                            <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                            <div class="flex justify-content-end font-bold w-full">{{ poCases[counter].default_units_per_case * poRecipe.amount }}</div>
-                        </div>
-
-                    </div>
-
-                    <div v-if="poCases[counter].default_units_per_case">
-                        <DataTable :value="selectRecipeElements(poRecipe.recipeObj)" :rowStyle="rowStyleMissingDefault">
-                            <Column field="name" header="Product Name" />
-                            <Column header="Units per Box" >
-                                <template #body="{data}">
-                                    {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                                </template>
-                            </Column>
-                            <Column field="qty" header="Unit(s) per Bundle" ></Column>
-                            <Column header="Total Units Needed">
-                                <template #body="{data}">
-                                    {{  getTotalUnitsNeeded(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Units Ordered" >
-                                <template #body="{data}">
-                                    {{ getTotalUnitsOrdered(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Raw Box Total" >
-                                <template #body="{data}">
-                                    {{ getRawBoxTotal(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Unit Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getTotalCost(data, poCases[counter], poRecipe.amount)) }}
-                                </template>
-                            </Column>
-                        </DataTable>
-                        <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                    </div>
-                
-                </div>
-
-                </template>
-
-                <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(recipeArray); addBulkLine(poCases);"/> 
-
-                
-                <!-- RAW ----------------------------------------------------------------------------------- -->
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Raw Box(s):</h3>
-                </div>
-
-                <div class="field">
-                    <h4 for="purchaseOrder" class="flex justify-content-start font-bold w-full">How would you like to order the raw product?</h4>
-
-                    <div v-for="type in rawOrderType" class="flex align-items-center">
-                        <RadioButton v-model="selectedOrderType" name="dynamic" :value="type"/>
-                        <label :for="type">{{ type }}</label>
-                    </div>
-                </div>
-
-                <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
-
-                    <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
-                    <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
-
-                    <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poBoxes, counter)"/>
-
-                        <h4 class="flex justify-content-start font-bold w-full">Raw Product #{{ counter + 1 }}</h4><br>
-                        <div class="block-div">
-                            <div class="field">
-                                <label for="name">Name:</label>
-                                    <AutoComplete 
-                                        v-model="poBox.productObj"
-                                        :suggestions="filteredRawProducts || []"
-                                        @complete="(event: any) => searchRawProducts(event)"
-                                        @item-select="onRawProductAutoCompleteSelectCreate($event.value, counter)"
-                                        :dropdown="true"
-                                        :optionLabel="(data) => data.name"
-                                        :virtualScrollerOptions="{ itemSize: 38 }"
-                                        placeholder="Select or enter a product"
-                                        class="md:w-19rem"
-                                        :class="{'p-invalid': submitted && !poBox.product_id}"
-                                        :forceSelection="false"
-                                    > 
-                                    <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
-                                    </template>
-                                </AutoComplete>
-
-
-                                <small class="p-error" v-if="submitted && !poBox.product_id">Name is required.</small>
-                            </div>
-
-                            <div class="field">
-                                <label for="qty">QTY:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !poBox.units_per_case}"
-                                v-model="poBox.units_per_case" disabled
-                                @input="poBox.total = poBox.amount*poBox.units_per_case"/>
-                                <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                            </div>
-
-                            <div v-if="selectedOrderType === 'By Box'" v-show="!poBox.case_id" class="field">
-                                <label for="amount">How Many Boxes to Order?</label>
-                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="poBox.amount" showButtons/>
-                            </div>
-
-                            <div v-else-if="selectedOrderType === 'By Unit'" v-show="!poBox.case_id" class="field">
-                                <label for="amount">REQUESTED Units to Order:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="poBox.unitAmount" @input="poBox.amount = Math.ceil(poBox.unitAmount/poBox.units_per_case)" showButtons/>
-                            </div>
-
-                            <div class="field">
-                                <label for="notes">Notes:</label>
-                                <InputText id="notes" v-model="poBox.notes" rows="3" cols="20" />
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Box'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ poBox.units_per_case * poBox.amount }}</div>
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case }}</div>
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Unit Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id && selectedOrderType === 'By Box'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(poBox.units_per_case * poBox.amount)) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </template>
-
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(poBoxes)"/>
 
             </div>
 
@@ -2066,7 +1804,7 @@ export default {
                 return;
             }
 
-            await this.continueOpenNewWithNickname(nickname, false);
+            await this.continueOpenNewWithNickname(nickname);
 
             this.purchaseOrder.notes = this.purchaseOrder.notes ?? '';
             this.purchaseOrder.discount = this.purchaseOrder.discount ?? 0;
@@ -2077,7 +1815,7 @@ export default {
             this.purchaseOrder.purchase_order_id = purchaseOrderId;
 
             await this.loadPage(1);
-            await this.onPurchaseOrderDialogOpen(2, { ...this.purchaseOrder });
+            await this.onPurchaseOrderDialogOpen({ ...this.purchaseOrder });
         },
         
         async save(): Promise<void> { 
@@ -2959,11 +2697,13 @@ export default {
             }
 
             if (syncDialog && Number(this.purchaseOrder?.purchase_order_id || 0) === poId) {
+                this.isInitializingPurchaseOrder = true;
                 this.purchaseOrder = {
                     ...(this.purchaseOrder || {}),
                     ...patchDialogData,
                     po_raw_lines: [...normalizedLines],
                 };
+                this.$nextTick(() => { this.isInitializingPurchaseOrder = false; });
             }
         },
 
@@ -3136,7 +2876,7 @@ export default {
             return vendorRecipes;
         },
 
-        async continueOpenNewWithNickname(nickname: string, openCreateDialog = true){
+        async continueOpenNewWithNickname(nickname: string){
             const today = new Date();
             const year = today.getFullYear().toString();
             let maxSeqForYear = 0;
@@ -3161,114 +2901,47 @@ export default {
 
             this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
             this.purchaseOrder.status = 'Draft';
-
-            if (openCreateDialog) {
-                this.newBulkArray();
-                this.submitted = false;
-                this.purchaseOrderDialog = true;
-                console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
-            }
-        },
-
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-5-2024
-        async openNew() {
-            try {
-                // this.loading = true;
-                this.vendorDialog = false;
-                this.vendorSubmitted = false;
-                this.poBoxes = [];
-                this.poCases = [];
-                this.recipeArray = [];
-                this.selectedOrderType = "";
-                this.amount = 1;
-                console.log("Purchase Order: ", this.purchaseOrder);
-
-                const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
-                console.log("Nickname from vendor record: ", nickname);
-
-                if (!nickname) {
-                    // Vendor has no company code — prompt the user before building PO name
-                    this.pendingVendorNickname = '';
-                    this.missingVendorNicknameDialog = true;
-                    return;
-                }
-
-                await this.continueOpenNewWithNickname(nickname);
-            } catch (error) {
-                console.error("Error occurred while opening new purchase order:", error);
-            }
-            
         },
 
         /**
-         * @description Handles the opening of the purchase order dialog for both creating a new PO and editing an existing PO.
-         * Initializes necessary data such as raw products and recipes based on the vendor, and then opens the dialog with the appropriate state for either creating or editing.
-         * @param dialogType The type of dialog to open (1 for creating a new PO, 2 for editing an existing PO)
-         * @param purchaseOrder The purchase order object to edit (required if dialogType is 2)
+         * @description Opens an existing purchase order in edit mode.
+         * Initializes vendor-scoped data, acquires the edit lock, and opens the edit dialog.
+         * @param purchaseOrder The purchase order object to edit.
          * @author Gabe de la Torre-Garcia
          * @dateCreated 3-25-2026
-         * @dateLastEdited 3-25-2026
+         * @dateLastEdited 5-20-2026
          */
-        async onPurchaseOrderDialogOpen(dialogType: number, purchaseOrder?: any){
+        async onPurchaseOrderDialogOpen(purchaseOrder: any){
             let previousTableLoading = this.tableLoading;
             try {
                 this.autoSaveState = 'idle';
                 this.loading = true;
                 this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
-                console.log("Purchase Order Dialog opened with dialogType:", dialogType);
+                console.log("Purchase Order Dialog opened from Edit PO flow");
+                console.log("Purchase Order to edit:", purchaseOrder);
 
-                
-
-                if (dialogType === 1) {
-                    console.log("Purchase Order Dialog opened from Create New PO flow");
-                    this.vendorSubmitted = true;
-
-                    if (!this.purchaseOrder.vendor_id) {
-                        this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
-                        return;
-                    }
-
-                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    /* await this.getAllProductsForVendor();
-
-                    await this.getRawProductsForVendor();
-                    await this.getProcProductsForVendor();
-                    await this.getRecipes();
-                     */
-                    await this.startNewPurchaseOrderDraftFlow();
-                } else if (dialogType === 2) {
-                    console.log("Purchase Order Dialog opened from Edit PO flow");
-                    console.log("Purchase Order to edit:", purchaseOrder);
-
-                    if (!purchaseOrder?.purchase_order_id) {
-                        console.warn("Edit PO flow was called without a valid purchase order.");
-                        return;
-                    }
-
-                    if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
-                        await this.releaseActivePoLock();
-                    }
-
-                    // Set the active PO first so vendor-scoped initialization uses the correct vendor.
-                    this.purchaseOrder = { ...purchaseOrder };
-
-                    await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
-
-                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    await this.getAllProductsForVendor();
-
-                    await this.getRawProductsForVendor();
-                    await this.getProcProductsForVendor();
-                    await this.getRecipes();
-                    await this.editPurchaseOrder(purchaseOrder);
-                } else {
-                    console.log("Purchase Order Dialog opened with unknown dialogType:", dialogType);
+                if (!purchaseOrder?.purchase_order_id) {
+                    console.warn("Edit PO flow was called without a valid purchase order.");
+                    return;
                 }
+
+                if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
+                    await this.releaseActivePoLock();
+                }
+
+                // Set the active PO first so vendor-scoped initialization uses the correct vendor.
+                this.purchaseOrder = { ...purchaseOrder };
+
+                await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
+
+                /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                await this.getAllProductsForVendor();
+
+                await this.getRawProductsForVendor();
+                await this.getProcProductsForVendor();
+                await this.getRecipes();
+                await this.editPurchaseOrder(purchaseOrder);
             } catch (error) {
                 console.error("Error occurred during Purchase Order Dialog initialization:", error);
             } finally {
@@ -3318,19 +2991,6 @@ export default {
             return total;
         }, */
 
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-3-2024
-        newBulkArray(){
-
-            for(let idx = 0; idx < 3; idx++){
-                this.addBulkLine(this.poCases);
-                this.addBulkLine(this.poBoxes);
-                this.addBulkLine(this.recipeArray);
-            }
-        },
         addBulkLine(poArray: any){
             console.log("PO ARRAY", poArray);
             poArray.push(
@@ -3516,11 +3176,6 @@ export default {
             rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
             this.promptForMissingImportantProductFields([productKey]);
             console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
-        },
-
-        onRawProductAutoCompleteSelectCreate(productObj: any, index: number){
-            console.log("Product AutoComplete Selection (create):", productObj, "index:", index);
-            this.applyRawProductToRow(productObj, this.poBoxes[index]);
         },
 
         /**
@@ -3743,36 +3398,6 @@ export default {
             }
         },
 
-        /**
-         * On recipe selection, updates the recipe array with the selected recipe id
-         * @param recipeId - The recipe id to select
-         * @param counter - The counter to update
-         * 
-         * Created by: Gabe de la Torre
-         * 
-         * Date Created: 7-03-2024
-         * 
-         * Date Last Edited: 7-15-2024
-         */
-        onRecipeSelection(recipeId: any, counter: number){
-            // Ensure recipeId is always a primitive
-            console.log("RECIPE ID BEGIN: ", recipeId);
-            let id = recipeId;
-            if (typeof recipeId === 'object' && recipeId !== null && 'recipe_id' in recipeId) {
-                id = recipeId.recipe_id;
-            }
-            this.recipeArray[counter].recipe_id = id;
-            console.log("RECIPE ID: ", id);
-            console.log("PO RECIPE ID: ", this.poRecipes[counter].recipe_id);
-            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
-            console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCases[counter] = this.procProducts.find(p => p.product_id === recipeElement.product_id);
-            console.log("PO CASE", this.poCases[counter]);
-
-            // If the selected recipe contains raw products missing default_units_per_case, prompt the user to set them
-            this.checkMissingDefaultUnitsForRecipe(recipeId, counter);
-        },
-
         onRecipeSelectionEdit(recipeId: any){
             console.log("RECIPE ID BEGIN: ", recipeId);
             let id = recipeId;
@@ -3900,12 +3525,7 @@ export default {
                 //this.submitted = true;
                 if (this.purchaseOrder.purchase_order_name.trim()) {
                     this.loading = true;
-                    if (this.purchaseOrder.purchase_order_id) {
-                        await this.confirmEdit();
-                    }
-                    else {
-                        await this.confirmCreate();
-                    }
+                    await this.confirmEdit();
 
                     if(this.purchaseOrder.status !== 'Draft' && this.purchaseOrder.status !== 'Submitted'){
                         await this.checkForRequests();
@@ -3990,55 +3610,39 @@ export default {
                 if (!this.purchaseOrder.date_received)
                     this.purchaseOrder.date_received = this.today;
 
-
                 this.purchaseOrder.status = 'Delivered';
                 let boxesToInsert = [] as any[];
 
                 // Grab the boxes already received and the newly inputted boxes
                 let receivedBoxArray = this.checkBoxes("Received");
                 let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
-                let awaitedBoxes = this.checkBoxes("Awaited");
 
                 console.log("receivedBoxArray", receivedBoxArray);
                 console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
                 // Loop through all of the requested boxes
                 this.reqPoBoxes.forEach(reqBox => {
-                    // let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
-
-                    // Grab the received Box line and all of the newly arrived boxes.
-                    /** @TODO Loop through the newlyArrivedBox array, function should still work as intended.
-                     * Try to find a more effecient way to work after getting it to work at all.
-                     */
                     let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
                     let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
                     let newArrive = {} as any;
 
                     console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
 
-                    // Check if the newly arrived boxes are in one location or multiple
-                    if (newlyArrivedBoxes.length === 1){
+                    if (newlyArrivedBoxes.length === 1) {
                         newArrive = newlyArrivedBoxes[0];
-                        console.log("ONLY ONE LOCATION");
-                        // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
-                        // Calculations
                         boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, true));
                     } else if (newlyArrivedBoxes.length > 1) {
-                        console.log("MULTIPLE LOCATIONS");
                         let lineIdx = 0;
                         let lastLine = false;
                         newlyArrivedBoxes.forEach(newRow => {
                             newArrive = newRow;
-                            console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
-                            // Calculations
                             if(lineIdx > newlyArrivedBoxes.length)
                                 lastLine = true;
 
                             boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, lastLine));
                             lineIdx++;
-                        })
+                        });
                     } else {
-                        // No locations, all awaited boxes of this product type set to back ordered
                         let noArrivales = {} as any;
                         noArrivales.total = 0;
                         noArrivales.amount = 0;
@@ -4046,36 +3650,21 @@ export default {
                         noArrivales.purchase_order_id = reqBox.purchase_order_id;
                         noArrivales.product_id = reqBox.product_id;
                         boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, noArrivales, true));
-                        /* let awaitedProduct = awaitedBoxes.filter(box => box.product_id === reqBox.product_id);
-                        awaitedProduct.forEach(box => {
-                            box.status = 'BO';
-                            boxesToInsert.push(box);
-                        }) */
-                    }            
-                                       
-                })
-
-                console.log("BOXES TO INSERT ", boxesToInsert.flat());
+                    }
+                });
 
                 let insertArray = [] as any[];
 
                 boxesToInsert.flat().forEach(async box => {
                     if (box.case_id){
-                        //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
                         let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location_id, box.status, box.purchase_order_id, box.request_id, box.case_id];
                         insertArray.push(tempArray);
                     } else {
-                        console.log("BACK ORDERED PARTIAL BOX", box);
                         await action.addCase(box);
                     }
-                })
-                
-                console.log('Insert Array: ', insertArray);
+                });
+
                 await action.bulkEditCases(insertArray);
-
-                // console.log("BOXES TO INSERT ", boxesToInsert);
-
-                    
             } catch (error) {
                 console.log(error);
             }
@@ -4216,136 +3805,6 @@ export default {
             }) 
 
             return boxesToInsert;
-        },
-
-        /**
-         * Creates a new purchase order, the recipe's required for the purchase order, and the raw boxes to order.
-         * 
-         * Created by: Gabe de la Torre
-         * Date Created: ???
-         * Date Last Edited: 2-24-2025
-         */
-        async confirmCreate(){
-            try {
-                this.purchaseOrders.push(this.purchaseOrder);
-                let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
-                //let addedPurchaseOrderId = '';
-
-                console.log("PO ID BEFORE VALUES", addedPurchaseOrderId);
-
-                let boxesToInsert = [] as any[];
-
-                let recipesToInsert = [] as any[];
-
-                console.log("PO CASES", this.poCases);
-                console.log("RECIPES ", this.recipeArray);
-
-                this.recipeArray.filter(r => r.recipe_id).forEach(r => {
-
-                    let processedRecEl = this.recipeElements.find(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'output');
-
-                    let processedCaseKey = this.products.find(prod => prod.product_id === processedRecEl.product_id);
-
-                    let totalUnitQty = r.amount*processedCaseKey.default_units_per_case;
-
-                    console.log("Total Recipe QTY: ", totalUnitQty);
-                    let tempArray = [addedPurchaseOrderId, r.recipe_id, totalUnitQty];
-                    recipesToInsert.push(tempArray);
-
-                    /* let procCase = {} as any;
-
-                    procCase.product_id = processedCaseKey.product_id;
-                    procCase.units_per_case = processedCaseKey.default_units_per_case;
-                    procCase.purchase_order_id = addedPurchaseOrderId;
-                    if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                        procCase.status = this.purchaseOrder.status;
-
-                    if(this.purchaseOrder.status === 'Delivered')
-                        procCase.date_received = this.purchaseOrder.date_received;
-
-                    for (let recIdx = 0; recIdx < r.amount; recIdx++){
-                        casesToInsert.push(procCase);
-                    } */
-
-                    let rawRecElArray = this.recipeElements.filter(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'input');
-                    console.log("Raw Recipe Element Array: ", rawRecElArray);
-
-                    rawRecElArray.forEach(rawRecEl => {
-                        let rawKey = this.products.find(prod => prod.product_id === rawRecEl.product_id);
-                        console.log("Raw Product Key in Create: ", rawKey);
-
-                        let rawBox = {} as any;
-
-                        rawBox.product_id = rawKey.product_id;
-                        rawBox.units_per_case = rawKey.default_units_per_case;
-                        rawBox.purchase_order_id = addedPurchaseOrderId;
-                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                            rawBox.status = this.purchaseOrder.status;
-
-                        if(this.purchaseOrder.status === 'Delivered')
-                            rawBox.date_received = this.purchaseOrder.date_received;
-
-                        // let loopAmount = this.getRawBoxTotal(rawRecEl, procCase, r.amount);
-                        let loopAmount = Math.ceil(totalUnitQty / rawBox.units_per_case);
-                        console.log("Loop Amount in Linked Raw Box Create: ", loopAmount);
-
-                        for (let recIdx = 0; recIdx < loopAmount; recIdx++){
-                            boxesToInsert.push(rawBox);
-                        }
-                    })
-                })
-
-                console.log("RECIPES TO INSERT ",recipesToInsert)
-                if(recipesToInsert.length > 0)
-                    await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
-
-                //this.poBoxes = this.poBoxes.filter(b => b.product_id);
-
-                // Convert manual poBoxes entries to po_raw_lines (one row per product line)
-                const rawLinesToInsert = this.poBoxes.filter((b: any) => b.product_id).map((rawProduct: any) => {
-                    const rawKey = this.products.find((p: any) => p.product_id === rawProduct.product_id);
-                    const units_per_case = rawKey?.default_units_per_case || rawProduct.units_per_case || 1;
-                    const total_units = (rawProduct.amount || 1) * units_per_case;
-                    return {
-                        product_id: rawProduct.product_id,
-                        purchase_order_id: addedPurchaseOrderId,
-                        total_units,
-                        status: this.purchaseOrder.status || 'Draft',
-                        notes: rawProduct.notes ?? null,
-                        invoice_id: rawProduct.invoice_id ?? null,
-                    };
-                });
-
-                console.log("RAW LINES TO INSERT: ", rawLinesToInsert);
-                if (rawLinesToInsert.length > 0)
-                    await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);
-
-                // Recipe-derived boxes still go through cases until that flow is migrated
-                console.log("RECIPE BOXES TO INSERT: ", boxesToInsert);
-                let finalCaseArray = [] as any[];
-                boxesToInsert.forEach(c => {
-                    if(!c.location_id) c.location_id = null;
-                    if(!c.notes) c.notes = null;
-                    if(!c.date_received) c.date_received = null;
-                    let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id, c.location_id, c.status, c.purchase_order_id, c.request_id];
-                    finalCaseArray.push(tempArray);
-                });
-                console.log("FINAL CASE ARRAY (recipes only): ", finalCaseArray);
-                if(finalCaseArray.length > 0)
-                    await action.bulkCreateCases(finalCaseArray);
-
-                //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
-                console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
-                await this.loadPage(this.currentPage);
-                // await this.getBoxes();
-
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
-
-                return addedPurchaseOrderId;
-            } catch (err) {
-                console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err});
-            }
         },
 
         //Description: Sets up all the boxes and cases related to a purchase order and then opens the po dialog
