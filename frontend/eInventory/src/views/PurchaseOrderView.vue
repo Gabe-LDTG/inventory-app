@@ -124,21 +124,16 @@
                     </template>
                 </Column>
 
-                <Column header="PO Phase" :exportable="false">
+                <!-- @TODO Create a button in the toolbar for opening all incomplete invoices for display -->
+                <Column header="Inbound" :exportable="false">
                     <template #body="slotProps">
-                        <div class="po-phase-rail" v-tooltip.top="'Skip ahead is allowed. Previous phases are locked.'">
-                            <button
-                                v-for="step in poPhaseSteps"
-                                :key="step.status"
-                                type="button"
-                                class="po-phase-step"
-                                :class="getPoPhaseStepClass(slotProps.data.status, step.status)"
-                                :disabled="!canAdvanceToPhase(slotProps.data.status, step.status)"
-                                @click="onPoPhaseStepClick(slotProps.data, step.status)">
-                                <i :class="step.icon"></i>
-                                <span>{{ step.label }}</span>
-                            </button>
-                        </div>
+                        <Button
+                            label="Inbound"
+                            icon="pi pi-truck"
+                            v-tooltip.top="'Create an invoice for this purchase order'"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="openInboundDialog(slotProps.data)"
+                        />
                     </template>
                 </Column>
 
@@ -7002,6 +6997,18 @@ function floor(arg0: number): any {
 .po-action-btn--secondary:hover {
     border-color: #7193b5;
     background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+}
+
+.po-action-btn--inbound {
+    border: 1px solid var(--po-yellow-border);
+    background: linear-gradient(180deg, #fff7d1 0%, #ffe79a 100%);
+    color: var(--po-yellow-text);
+}
+
+.po-action-btn--inbound:hover {
+    border-color: #c89a10;
+    background: linear-gradient(180deg, #fff3b3 0%, #ffd95d 100%);
+    box-shadow: 0 3px 8px rgba(201, 154, 16, 0.18);
 }
 
 .po-action-btn--recipe {
