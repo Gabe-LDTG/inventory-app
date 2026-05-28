@@ -8,13 +8,32 @@
                         <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
                             <InputText v-model="searchText" placeholder="Search purchase orders..." />
                         </span>
+                        <div class="po-view-toggle" role="group" aria-label="Purchase order layout mode">
+                            <Button
+                                label="Cards"
+                                icon="pi pi-id-card"
+                                class="po-view-toggle-btn"
+                                :severity="poViewMode === 'cards' ? 'info' : 'secondary'"
+                                :outlined="poViewMode !== 'cards'"
+                                @click="setPoViewMode('cards')"
+                            />
+                            <Button
+                                label="Table"
+                                icon="pi pi-table"
+                                class="po-view-toggle-btn"
+                                :severity="poViewMode === 'table' ? 'info' : 'secondary'"
+                                :outlined="poViewMode !== 'table'"
+                                @click="setPoViewMode('table')"
+                            />
+                        </div>
                     </div>
                 </template>
 
             </Toolbar> 
 
             <!-- :rowStyle="rowStyle" -->
-            <div class="dt-loading-wrapper">
+            <div :class="['po-master-detail', { 'po-master-detail--table': poViewMode === 'table' }]">
+            <div :class="['dt-loading-wrapper', 'po-master-detail__table', { 'po-master-detail__table--cards': poViewMode === 'cards' }]">
             <Transition name="loader-fade">
                 <div v-if="tableLoading" class="dt-loading-overlay">
                     <div class="loading-card">
@@ -23,7 +42,87 @@
                     </div>
                 </div>
             </Transition>
-            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
+
+            <div v-if="poViewMode === 'cards'" class="po-card-grid-wrapper">
+                <div class="po-card-grid-header">
+                    <h4 class="m-0">Manage Purchase Orders</h4>
+                    <div class="po-header-actions">
+                        <ZoomDropdown v-model="tableZoom" />
+                        <Button
+                            label="New PO"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--primary"
+                            @click="vendorSelect()"
+                        />
+                    </div>
+                </div>
+
+                <div v-if="purchaseOrders.length" class="po-card-grid">
+                    <article
+                        v-for="po in purchaseOrders"
+                        :key="po.purchase_order_id"
+                        class="po-card"
+                        @click="openDetailDialog(po)"
+                    >
+                        <header class="po-card-header">
+                            <h5 class="po-card-title">{{ po.purchase_order_name }}</h5>
+                            <p class="po-card-subtitle">{{ getVendor(po.vendor_id) }} • {{ po.status || 'Draft' }}</p>
+                        </header>
+
+                        <div class="po-progress-pill">
+                            <div class="po-progress-track" :title="getPoProgressSummary(po)">
+                                <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(po, 'delivered')"></div>
+                                <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(po, 'inbound')"></div>
+                                <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(po, 'other')"></div>
+                            </div>
+                            <div class="po-progress-meta">{{ getPoProgressSummary(po) }}</div>
+                        </div>
+
+                        <div class="po-card-metrics">
+                            <div class="po-card-metric">
+                                <span class="po-card-metric-label">Total Units</span>
+                                <span class="po-card-metric-value">{{ getCreatedUnitTotal(po.purchase_order_id) }}</span>
+                            </div>
+                            <div class="po-card-metric">
+                                <span class="po-card-metric-label">Total Cost</span>
+                                <span class="po-card-metric-value">{{ formatCurrency(getCreatedCostTotal(po.purchase_order_id, po.discount)) }}</span>
+                            </div>
+                        </div>
+
+                        <footer class="po-card-actions">
+                            <Button
+                                label="Add Invoice"
+                                icon="pi pi-plus"
+                                class="po-action-btn po-action-btn--inbound"
+                                @click="openInboundWorkspace(selectedDetailPo)"
+                            />
+                            <Button
+                                label="Edit PO"
+                                icon="pi pi-pencil"
+                                class="po-action-btn po-action-btn--secondary"
+                                :disabled="po.status === ''"
+                                @click.stop="openEditWorkspace(po)"
+                            />
+                        </footer>
+                    </article>
+                </div>
+
+                <div v-else class="po-card-empty">No purchase orders found.</div>
+
+                <div class="po-card-pagination">
+                    <Paginator
+                        :first="(currentPage - 1) * rowsPerPage"
+                        :rows="rowsPerPage"
+                        :totalRecords="totalRecords"
+                        :rowsPerPageOptions="[5,10,25,100,500,1000]"
+                        template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders"
+                        @page="onPage"
+                    />
+                </div>
+            </div>
+
+            <DataTable v-else ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
                 class="po-main-table"
                 dataKey="purchase_order_id"
                 :paginator="true" 
@@ -132,7 +231,7 @@
                             icon="pi pi-truck"
                             v-tooltip.top="'Create an invoice for this purchase order'"
                             class="po-action-btn po-action-btn--inbound"
-                            @click="openInboundDialog(slotProps.data)"
+                            @click="openInboundWorkspace(slotProps.data)"
                         />
                     </template>
                 </Column>
@@ -145,7 +244,7 @@
                             v-tooltip.top="'Edit PO'"
                             :disabled="slotProps.data.status === ''"
                             class="po-action-btn po-action-btn--secondary"
-                            @click="onPurchaseOrderDialogOpen(slotProps.data)"
+                            @click="openEditWorkspace(slotProps.data)"
                         />
                     </template>
                 </Column>
@@ -360,7 +459,272 @@
 
             </DataTable>
             </div>
+
+            <aside v-if="poViewMode === 'table'" class="po-workspace-panel" aria-label="Purchase order workspace">
+                <template v-if="selectedWorkspacePo">
+                    <div class="po-workspace-header">
+                        <div class="po-workspace-kicker">Inbound Workspace</div>
+                        <h3 class="po-workspace-title">{{ selectedWorkspacePo.purchase_order_name }}</h3>
+                        <p class="po-workspace-subtitle">
+                            {{ getVendor(selectedWorkspacePo.vendor_id) }}
+                            <span class="po-workspace-dot">•</span>
+                            {{ selectedWorkspacePo.status || 'Draft' }}
+                        </p>
+                    </div>
+
+                    <div class="po-workspace-metrics">
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoiceList.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Uninvoiced Lines</span>
+                            <span class="po-workspace-metric-value">{{ workspaceUninvoicedLines.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Units On Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoicedUnits }}</span>
+                        </div>
+                    </div>
+
+                    <div class="po-workspace-actions">
+                        <Button
+                            label="Create Invoice"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="openInboundWorkspace(selectedWorkspacePo)"
+                        />
+                        <Button
+                            label="Edit PO"
+                            icon="pi pi-pencil"
+                            class="po-action-btn po-action-btn--secondary"
+                            @click="openEditWorkspace(selectedWorkspacePo)"
+                        />
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Invoices</h4>
+                        <DataTable :value="workspaceInvoiceList" dataKey="invoice_id" size="small" stripedRows>
+                            <template #empty>No invoices yet for this purchase order.</template>
+                            <Column field="invoice_name" header="Invoice" />
+                            <Column header="Units">
+                                <template #body="{ data }">
+                                    {{ getInvoiceLinkedLines(data).reduce((total: number, line: any) => total + Number(line?.total_units || 0), 0) }}
+                                </template>
+                            </Column>
+                            <Column field="date_shipped" header="Shipped" />
+                        </DataTable>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Uninvoiced Product Lines</h4>
+                        <DataTable :value="workspaceUninvoicedLines" dataKey="po_raw_line_id" size="small" stripedRows>
+                            <template #empty>No uninvoiced product lines found.</template>
+                            <Column field="product_name" header="Product" />
+                            <Column field="total_units" header="Units" />
+                            <Column field="status" header="Status" />
+                        </DataTable>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="po-workspace-empty">
+                        <i class="pi pi-arrow-left po-workspace-empty-icon"></i>
+                        <h4 class="po-workspace-empty-title">Select a Purchase Order</h4>
+                        <p class="po-workspace-empty-copy">Click any row in the table to open its inbound workspace.</p>
+                    </div>
+                </template>
+            </aside>
+            </div>
         </div>
+
+        <Dialog
+            v-model:visible="detailDialogVisible"
+            :style="{ width: '1200px', maxWidth: '96vw' }"
+            header="Purchase Order Details"
+            :modal="true"
+            class="po-detail-dialog"
+        >
+            <template v-if="selectedDetailPo">
+                <div class="po-detail-dialog-content">
+                    <div class="po-workspace-header">
+                        <div class="po-workspace-kicker">Purchase Order</div>
+                        <h3 class="po-workspace-title">{{ selectedDetailPo.purchase_order_name }}</h3>
+                        <p class="po-workspace-subtitle">
+                            {{ getVendor(selectedDetailPo.vendor_id) }}
+                            <span class="po-workspace-dot">•</span>
+                            {{ selectedDetailPo.status || 'Draft' }}
+                        </p>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Purchase Order Summary</h4>
+                        <div class="po-detail-grid" role="group" aria-label="Purchase order table fields">
+                            <div class="po-detail-item po-detail-item--progress">
+                                <span class="po-detail-item-label">Order Progress</span>
+                                <div class="po-progress-pill">
+                                    <div class="po-progress-track" :title="getPoProgressSummary(selectedDetailPo)">
+                                        <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'delivered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(selectedDetailPo, 'inbound')"></div>
+                                        <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(selectedDetailPo, 'other')"></div>
+                                    </div>
+                                    <div class="po-progress-meta">{{ getPoProgressSummary(selectedDetailPo) }}</div>
+                                </div>
+                            </div>
+                            <div class="po-detail-item po-detail-item--wide">
+                                <span class="po-detail-item-label">Notes</span>
+                                <span class="po-detail-item-value">{{ selectedDetailPo.notes || 'No notes' }}</span>
+                            </div>
+                            <div class="po-detail-item">
+                                <span class="po-detail-item-label">Date Ordered</span>
+                                <span class="po-detail-item-value">{{ selectedDetailPo.date_ordered || 'N/A' }}</span>
+                            </div>
+                            <div class="po-detail-item">
+                                <span class="po-detail-item-label">Date Received</span>
+                                <span class="po-detail-item-value">{{ selectedDetailPo.date_received || 'N/A' }}</span>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                    <div class="po-workspace-metrics">
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoiceList.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Uninvoiced Lines</span>
+                            <span class="po-workspace-metric-value">{{ workspaceUninvoicedLines.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Units On Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoicedUnits }}</span>
+                        </div>
+                    </div>
+
+                    <div class="po-workspace-actions">
+                        <Button
+                            label="Create Invoice"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="detailDialogVisible = false; openInboundWorkspace(selectedDetailPo)"
+                        />
+                        <Button
+                            label="Edit PO"
+                            icon="pi pi-pencil"
+                            class="po-action-btn po-action-btn--secondary"
+                            @click="detailDialogVisible = false; openEditWorkspace(selectedDetailPo)"
+                        />
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Planned Cases ({{ detailPlannedCases.length }})</summary>
+                            <DataTable :value="detailPlannedCases" dataKey="line_key" size="small" class="po-detail-table po-detail-table--green" :rowStyle="detailRowStyleProc">
+                                <template #empty>No planned cases found for this purchase order.</template>
+                                <Column field="product_name" header="Processed Product" />
+                                <Column field="recipe_name" header="Recipe" />
+                                <Column field="amount" header="Cases" />
+                                <Column field="units_per_case" header="Units per Case" />
+                                <Column field="qty" header="Total Units" />
+                            </DataTable>
+                        </details>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Raw Product Lines ({{ detailRawLines.length }})</summary>
+                            <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" :rowStyle="detailRowStyleRaw">
+                                <template #empty>No raw product lines found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column field="item_num" header="Item #" />
+                                <Column field="upc" header="UPC" />
+                                <Column field="amount" header="Boxes" />
+                                <Column field="total_units" header="Units" />
+                                <Column field="status" header="Status" />
+                                <Column field="invoice_name" header="Invoice" />
+                            </DataTable>
+                        </details>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Invoices and Linked Product Lines ({{ detailInvoiceList.length }})</summary>
+                            <DataTable
+                                :value="detailInvoiceRows"
+                                dataKey="line_key"
+                                rowGroupMode="subheader"
+                                groupRowsBy="invoice_group_key"
+                                sortField="invoice_group_key"
+                                :sortOrder="1"
+                                size="small"
+                                class="po-detail-table po-detail-table--invoice"
+                                :rowStyle="detailInvoiceRowStyle"
+                            >
+                                <template #empty>No invoices found for this purchase order.</template>
+                                <template #groupheader="{ data }">
+                                    <div class="po-invoice-group-head">
+                                        <div class="po-invoice-group-head__title">
+                                            {{ data.invoice_name || 'Unnamed Invoice' }}
+                                            <span class="po-invoice-group-head__meta">#{{ data.invoice_id || 'N/A' }} • {{ data.linked_line_count }} linked line(s)</span>
+                                        </div>
+                                        <div class="po-invoice-group-head__stats">
+                                            <span><strong>Total:</strong> {{ formatCurrency(data.total_cost) || '$0.00' }}</span>
+                                            <span><strong>Shipped:</strong> {{ data.date_shipped || 'N/A' }}</span>
+                                            <span><strong>Due:</strong> {{ data.date_due || 'N/A' }}</span>
+                                            <span><strong>Paid:</strong> {{ data.date_paid || 'N/A' }}</span>
+                                            <span><strong>Filed:</strong> {{ data.filed ? 'Yes' : 'No' }}</span>
+                                            <span><strong>Notes:</strong> {{ data.invoice_notes || 'No notes' }}</span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <Column field="product_name" header="Linked Product">
+                                    <template #body="{ data }">
+                                        {{ data.has_line ? (data.product_name || getProductInfo(data.product_id, 'name') || ('Product #' + data.product_id)) : 'No linked lines' }}
+                                    </template>
+                                </Column>
+                                <Column field="item_num" header="Item #">
+                                    <template #body="{ data }">{{ data.has_line ? (data.item_num || 'N/A') : '—' }}</template>
+                                </Column>
+                                <Column field="upc" header="UPC">
+                                    <template #body="{ data }">{{ data.has_line ? (data.upc || 'N/A') : '—' }}</template>
+                                </Column>
+                                <Column field="total_units" header="Units">
+                                    <template #body="{ data }">{{ data.has_line ? Number(data.total_units || 0) : 0 }}</template>
+                                </Column>
+                                <Column field="status" header="Status">
+                                    <template #body="{ data }">{{ data.has_line ? (data.status || 'N/A') : '—' }}</template>
+                                </Column>
+                                <Column field="line_notes" header="Line Notes">
+                                    <template #body="{ data }">{{ data.has_line ? (data.line_notes || 'No notes') : '—' }}</template>
+                                </Column>
+                            </DataTable>
+                        </details>
+                    </div>
+                </div>
+            </template>
+            <template #footer>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Total Units</span>
+                    <span class="po-detail-item-value">{{ getCreatedUnitTotal(selectedDetailPo.purchase_order_id) }}</span>
+                </div>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Discount</span>
+                    <span class="po-detail-item-value">{{ selectedDetailPo.discount ? selectedDetailPo.discount + '% Off' : 'No Discount' }}</span>
+                </div>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Total Cost</span>
+                    <span class="po-detail-item-value">{{ formatCurrency(getCreatedCostTotal(selectedDetailPo.purchase_order_id, selectedDetailPo.discount)) || '$0.00' }}</span>
+                </div>
+                <Button
+                    label="Close"
+                    icon="pi pi-times"
+                    class="po-action-btn po-action-btn--secondary"
+                    @click="detailDialogVisible = false"
+                />
+            </template>
+        </Dialog>
 
         <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true" class="vendor-select-dialog">
             <div class="field vendor-select-content">
@@ -1238,6 +1602,7 @@ import importAction from "../components/utils/importUtils";
 
 import InputNumber from 'primevue/inputnumber';
 import RadioButton from 'primevue/radiobutton';
+import Paginator from 'primevue/paginator';
 import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
@@ -1253,7 +1618,8 @@ import { table } from 'console';
 export default {
     components: {
         ZoomDropdown,
-        ProductAutoComplete
+        ProductAutoComplete,
+        Paginator
     },
     data() {
         return {
@@ -1302,6 +1668,9 @@ export default {
             inboundExtraUnitsDialog: false,
             inboundExtraLines: [] as any[],
 
+            selectedDetailPo: null as any,
+            detailDialogVisible: false,
+
             //PRODUCTS VARIABLES
             products: [] as any[],
             unprocProducts: [] as any[],
@@ -1346,7 +1715,6 @@ export default {
             displayStatus: "",
             delivered: [] as any[],
             boxesToDelete: [] as any[],
-            inboundBoxes: [] as any[],
             po_raw_products: [] as any[],
             invoices: [] as any[],
             singlePoRawProducts: [] as any[],
@@ -1405,6 +1773,7 @@ export default {
             sortField: '',
             sortOrder: -1,
             tableLoading: false,
+            poViewMode: 'table' as 'cards' | 'table',
 
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
@@ -1423,6 +1792,7 @@ export default {
     },
     created() {
         this.initFilters();
+        this.loadPoViewModePreference();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
         this.onSearchDebounced = debounce(async () => {
             this.currentPage = 1;
@@ -1441,6 +1811,9 @@ export default {
         searchText: {
             handler() { this.onSearchDebounced(); }
         },
+        poViewMode: {
+            handler() { this.persistPoViewModePreference(); }
+        }
     },
     async mounted() {
         console.log('Mounted');
@@ -1499,10 +1872,186 @@ export default {
             const editorName = this.activePoLock?.editor_name || 'another user';
             return `Read-only mode: ${editorName} is currently editing this purchase order.`;
         },
+        selectedWorkspacePo(): any {
+            if (Array.isArray(this.selectedPurchaseOrder)) {
+                return this.selectedPurchaseOrder[0] || null;
+            }
+            return this.selectedPurchaseOrder || null;
+        },
+        workspaceInvoiceList(): any[] {
+            const poId = Number(this.selectedWorkspacePo?.purchase_order_id || 0);
+            if (!poId) return [];
+
+            return (this.invoices || [])
+                .filter((invoice: any) => Number(invoice?.purchase_order_id || 0) === poId)
+                .sort((a: any, b: any) => Number(b?.invoice_id || 0) - Number(a?.invoice_id || 0));
+        },
+        workspaceUninvoicedLines(): any[] {
+            const poId = Number(this.selectedWorkspacePo?.purchase_order_id || 0);
+            if (!poId) return [];
+
+            const selectedPoLines = Array.isArray(this.selectedWorkspacePo?.po_raw_lines)
+                ? this.selectedWorkspacePo.po_raw_lines
+                : [];
+            const sourceLines = selectedPoLines.length > 0
+                ? selectedPoLines
+                : (this.po_raw_products || []).filter((line: any) => Number(line?.purchase_order_id || 0) === poId);
+
+            return (sourceLines || [])
+                .filter((line: any) => !line?.invoice_id && (line?.status || '').toLowerCase() !== 'cancelled')
+                .sort((a: any, b: any) => (a?.product_name || '').localeCompare(b?.product_name || ''));
+        },
+        workspaceInvoicedUnits(): number {
+            return (this.workspaceInvoiceList || []).reduce((invoiceTotal: number, invoice: any) => {
+                const invoiceUnits = this.getInvoiceLinkedLines(invoice)
+                    .reduce((lineTotal: number, line: any) => lineTotal + Number(line?.total_units || 0), 0);
+                return invoiceTotal + invoiceUnits;
+            }, 0);
+        },
+        detailSelectedPoId(): number {
+            return Number(this.selectedDetailPo?.purchase_order_id || this.selectedWorkspacePo?.purchase_order_id || 0);
+        },
+        detailInvoiceList(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            return (this.invoices || [])
+                .filter((invoice: any) => Number(invoice?.purchase_order_id || 0) === poId)
+                .sort((a: any, b: any) => Number(a?.invoice_id || 0) - Number(b?.invoice_id || 0));
+        },
+        detailPlannedCases(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            return (this.poRecipes || [])
+                .filter((recipe: any) => Number(recipe?.purchase_order_id || 0) === poId)
+                .map((recipe: any, idx: number) => {
+                    const recipeId = Number(recipe?.recipe_id || 0);
+                    const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
+                        Number(element?.recipe_id || 0) === recipeId && element?.type === 'output'
+                    );
+                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0))
+                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0));
+                    const unitsPerCase = Number(product?.default_units_per_case || recipe?.units_per_case || 0);
+                    const qty = Number(recipe?.qty || 0);
+                    const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
+
+                    return {
+                        ...recipe,
+                        line_key: `planned-${recipe?.po_recipe_id || recipeId || idx}`,
+                        recipe_name: recipe?.label || recipe?.recipe_name || `Recipe #${recipeId || 'N/A'}`,
+                        product_name: product?.name || recipe?.product_name || 'Unknown product',
+                        units_per_case: unitsPerCase,
+                        amount: cases,
+                        qty,
+                    };
+                });
+        },
+        detailRawLines(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            return (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
+                .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
+                .map((line: any, idx: number) => {
+                    const linkedInvoice = (this.detailInvoiceList || []).find((invoice: any) =>
+                        Number(invoice?.invoice_id || 0) === Number(line?.invoice_id || 0)
+                    );
+                    return {
+                        ...line,
+                        line_key: `raw-${line?.po_raw_line_id || idx}`,
+                        invoice_name: linkedInvoice?.invoice_name || (line?.invoice_id ? `Invoice #${line.invoice_id}` : 'Uninvoiced'),
+                    };
+                });
+        },
+        detailInvoiceRows(): any[] {
+            const invoiceRows: any[] = [];
+
+            (this.detailInvoiceList || []).forEach((invoice: any, invoiceIdx: number) => {
+                const linkedLines = this.getInvoiceLinkedLines(invoice);
+                const groupKey = `invoice-${invoice?.invoice_id || invoiceIdx}`;
+
+                if (!linkedLines.length) {
+                    invoiceRows.push({
+                        invoice_group_key: groupKey,
+                        line_key: `${groupKey}-none`,
+                        has_line: false,
+                        invoice_id: invoice?.invoice_id,
+                        invoice_name: invoice?.invoice_name,
+                        total_cost: invoice?.total_cost,
+                        date_shipped: invoice?.date_shipped,
+                        date_due: invoice?.date_due,
+                        date_paid: invoice?.date_paid,
+                        filed: invoice?.filed,
+                        invoice_notes: invoice?.notes,
+                        linked_line_count: 0,
+                    });
+                    return;
+                }
+
+                linkedLines.forEach((line: any, lineIdx: number) => {
+                    invoiceRows.push({
+                        ...line,
+                        invoice_group_key: groupKey,
+                        line_key: `${groupKey}-${line?.po_raw_line_id || lineIdx}`,
+                        has_line: true,
+                        invoice_id: invoice?.invoice_id,
+                        invoice_name: invoice?.invoice_name,
+                        total_cost: invoice?.total_cost,
+                        date_shipped: invoice?.date_shipped,
+                        date_due: invoice?.date_due,
+                        date_paid: invoice?.date_paid,
+                        filed: invoice?.filed,
+                        invoice_notes: invoice?.notes,
+                        linked_line_count: linkedLines.length,
+                        line_notes: line?.notes,
+                    });
+                });
+            });
+
+            return invoiceRows;
+        },
     },
     methods: {
         lazySave: () => Promise.resolve(),
         onSearchDebounced: async () => Promise.resolve(),
+
+        getPoViewModeStorageKey() {
+            return 'inventory-app.po-view-mode';
+        },
+
+        loadPoViewModePreference() {
+            if (typeof window === 'undefined') return;
+
+            const savedPreference = window.localStorage.getItem(this.getPoViewModeStorageKey());
+            if (savedPreference === 'cards' || savedPreference === 'table') {
+                this.poViewMode = savedPreference;
+            }
+        },
+
+        persistPoViewModePreference() {
+            if (typeof window === 'undefined') return;
+            window.localStorage.setItem(this.getPoViewModeStorageKey(), this.poViewMode);
+        },
+
+        setPoViewMode(mode: 'cards' | 'table') {
+            this.poViewMode = mode;
+        },
+
+        openInboundWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            void this.openInboundDialog(purchaseOrder);
+        },
+
+        openEditWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            void this.onPurchaseOrderDialogOpen(purchaseOrder);
+        },
+            openDetailDialog(purchaseOrder: any) {
+                this.selectedDetailPo = purchaseOrder;
+                this.selectedPurchaseOrder = purchaseOrder;
+                this.detailDialogVisible = true;
+            },
 
         ensurePoEditable(actionLabel = 'edit this purchase order') {
             if (!this.isPoReadOnly) return true;
@@ -5163,6 +5712,45 @@ export default {
             }
         },
 
+        detailRowStyleProc(data: any) {
+            const rowIndex = this.detailPlannedCases.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+
+            if (data?.product_name) {
+                const bgColor = isEvenRow ? '#bbffb5' : '#D4F5DD';
+                return { font: 'bold', backgroundColor: bgColor };
+            }
+
+            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+        },
+
+        detailRowStyleRaw(data: any) {
+            const rowIndex = this.detailRawLines.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+
+            if (this.normalizeRawLineStatus(data?.status) === 'Cancelled') {
+                return { font: 'bold', backgroundColor: '#f19595' };
+            }
+
+            if (data?.product_id) {
+                const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
+                return { font: 'bold', backgroundColor: bgColor };
+            }
+
+            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+        },
+
+        detailInvoiceRowStyle(data: any) {
+            if (!data?.has_line) {
+                return { font: 'bold', backgroundColor: '#E8F4FF' };
+            }
+
+            const rowIndex = this.detailInvoiceRows.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+            const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
+            return { font: 'bold', backgroundColor: bgColor };
+        },
+
         rowStyleRequested() {
             return { font: 'bold', backgroundColor: '#C0EEFF' };
         },
@@ -6824,6 +7412,146 @@ function floor(arg0: number): any {
   position: relative;
 }
 
+.po-master-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.po-master-detail--table {
+    grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.po-master-detail__table {
+    min-width: 0;
+}
+
+.po-master-detail__table--cards {
+    border: 1px solid #d4e1ee;
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: #fbfdff;
+}
+
+.po-workspace-panel {
+    border: 1px solid #d4e1ee;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 8px 20px rgba(15, 46, 79, 0.08);
+    padding: 0.85rem;
+    position: sticky;
+    top: 0.75rem;
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+}
+
+.po-workspace-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.65rem;
+}
+
+.po-workspace-kicker {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #2f597f;
+}
+
+.po-workspace-title {
+    margin: 0;
+    color: #1d3f5e;
+    line-height: 1.2;
+}
+
+.po-workspace-subtitle {
+    margin: 0;
+    color: #5f7487;
+    font-size: 0.88rem;
+}
+
+.po-workspace-dot {
+    margin: 0 0.35rem;
+}
+
+.po-workspace-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+}
+
+.po-workspace-metric {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.45rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.po-workspace-metric-label {
+    font-size: 0.72rem;
+    color: #5f7487;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.po-workspace-metric-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f3d5a;
+}
+
+.po-workspace-actions {
+    display: flex;
+    gap: 0.45rem;
+    margin-bottom: 0.8rem;
+}
+
+.po-workspace-actions .po-action-btn {
+    flex: 1;
+}
+
+.po-workspace-section {
+    margin-top: 0.8rem;
+}
+
+.po-workspace-section-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
+    color: #274d6f;
+}
+
+.po-workspace-empty {
+    border: 1px dashed #c7d8e8;
+    border-radius: 12px;
+    padding: 1.1rem;
+    text-align: center;
+    color: #4d6780;
+    background: #f8fbff;
+}
+
+.po-workspace-empty-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.po-workspace-empty-title {
+    margin: 0;
+    color: #264866;
+}
+
+.po-workspace-empty-copy {
+    margin: 0.3rem 0 0;
+    font-size: 0.9rem;
+}
+
 .dt-loading-overlay {
   position: absolute;
   inset: 0;
@@ -6958,6 +7686,270 @@ function floor(arg0: number): any {
 
 .po-toolbar-filter--search {
     min-width: 260px;
+}
+
+.po-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+}
+
+.po-view-toggle-btn {
+    min-height: 2.05rem;
+}
+
+.po-card-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.po-card-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #c5ced8;
+    border-radius: 10px;
+    color: #1f2d3a;
+}
+
+.po-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.8rem;
+}
+
+.po-card {
+    border: 1px solid #d4e1ee;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 10px rgba(15, 46, 79, 0.08);
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.po-card:hover {
+    transform: translateY(-1px);
+    border-color: #8fb0ce;
+    box-shadow: 0 8px 16px rgba(15, 46, 79, 0.12);
+}
+
+.po-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border-bottom: 1px solid #e1eaf2;
+    padding-bottom: 0.55rem;
+}
+
+.po-card-title {
+    margin: 0;
+    font-size: 1rem;
+    color: #1b3f60;
+}
+
+.po-card-subtitle {
+    margin: 0;
+    font-size: 0.84rem;
+    color: #5f7487;
+}
+
+.po-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.po-card-metric {
+    border: 1px solid #dce8f3;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.po-card-metric-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #5f7487;
+}
+
+.po-card-metric-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1f3d5a;
+}
+
+.po-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.po-card-empty {
+    border: 1px dashed #c7d8e8;
+    border-radius: 12px;
+    padding: 1.4rem;
+    text-align: center;
+    color: #4d6780;
+    background: #f8fbff;
+}
+
+.po-card-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.po-card-pagination :deep(.p-paginator) {
+    border: 0;
+    border-top: 1px solid var(--surface-border, #d4d8dd);
+    background: #fbfdff;
+    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+}
+
+.po-detail-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.po-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.po-detail-item {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.55rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.po-detail-item-label {
+    font-size: 0.72rem;
+    color: #5f7487;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.po-detail-item-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1f3d5a;
+    line-height: 1.25;
+}
+
+.po-detail-item--wide,
+.po-detail-item--progress {
+    grid-column: 1 / -1;
+}
+
+.po-detail-collapsible {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.4rem 0.55rem;
+}
+
+.po-detail-collapsible + .po-detail-collapsible {
+    margin-top: 0.55rem;
+}
+
+.po-detail-collapsible summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #264b6d;
+    list-style: none;
+    padding: 0.3rem 0.15rem;
+}
+
+.po-detail-collapsible summary::-webkit-details-marker {
+    display: none;
+}
+
+.po-detail-collapsible summary::before {
+    content: '+';
+    display: inline-block;
+    width: 1rem;
+    margin-right: 0.35rem;
+    color: #2f597f;
+}
+
+.po-detail-collapsible[open] summary::before {
+    content: '-';
+}
+
+.po-detail-table {
+    margin-top: 0.35rem;
+}
+
+.po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
+    background: #bbffb5;
+}
+
+.po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
+    background: #d4f5dd;
+}
+
+.po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
+    background: #c0eeff;
+}
+
+.po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
+    background: #e8f4ff;
+}
+
+.po-detail-table--invoice :deep(.p-rowgroup-header > td) {
+    background: #e8f0f8;
+    border-color: #c9d9e7;
+}
+
+.po-invoice-group-head {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.po-invoice-group-head__title {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    font-weight: 700;
+    color: #183a58;
+}
+
+.po-invoice-group-head__meta {
+    font-size: 0.82rem;
+    color: #46627b;
+    font-weight: 600;
+}
+
+.po-invoice-group-head__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    color: #334f68;
+    font-size: 0.82rem;
+}
+
+:deep(.po-detail-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
 }
 
 .po-table-header {
@@ -7483,6 +8475,15 @@ function floor(arg0: number): any {
 }
 
 @media (max-width: 768px) {
+    .po-master-detail {
+        grid-template-columns: 1fr;
+    }
+
+    .po-workspace-panel {
+        position: static;
+        max-height: none;
+    }
+
     .card {
         border-radius: 12px;
     }
@@ -7494,6 +8495,33 @@ function floor(arg0: number): any {
     .po-toolbar-filter,
     .po-toolbar-filter--search {
         min-width: 100%;
+    }
+
+    .po-view-toggle {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .po-view-toggle-btn {
+        flex: 1;
+    }
+
+    .po-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .po-card-grid-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .po-card-metrics,
+    .po-card-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .po-detail-grid {
+        grid-template-columns: 1fr;
     }
 
     .po-header-actions {
