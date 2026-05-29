@@ -110,7 +110,16 @@
                         {{ data.whereToPlace }}
                     </template>
                     <template #editor>
-                        <Dropdown v-model="picklist.whereToPlace" :options="laneLocations"/>
+                        <AutoComplete
+                            v-model="picklist.whereToPlace"
+                            :suggestions="filteredLaneLocations"
+                            @complete="searchLaneLocations"
+                            @focus="searchLaneLocations({ query: '' })"
+                            :dropdown="true"
+                            :showOnFocus="true"
+                            placeholder="Select Lane Location"
+                            :forceSelection="true"
+                        />
                     </template>
                 </Column>
                 <Column field="" header="Notes">
@@ -193,7 +202,16 @@
                             </span>
                             </template>
                             <template #editor="{ data: picklistElement }">
-                            <Dropdown v-model="picklistElement.lane_location" :options="laneLocations" placeholder="Select Lane Location"/>
+                                                        <AutoComplete
+                                                                v-model="picklistElement.lane_location"
+                                                                :suggestions="filteredLaneLocations"
+                                                                @complete="searchLaneLocations"
+                                                                @focus="searchLaneLocations({ query: '' })"
+                                                                :dropdown="true"
+                                                                :showOnFocus="true"
+                                                                placeholder="Select Lane Location"
+                                                                :forceSelection="true"
+                                                        />
                             </template>
                         </Column>
                         <template #expansion="{ data: picklistElement }">
@@ -273,6 +291,7 @@ const laneLocations = ref([
     'FBA Prep Lane 4 A', 'FBA Prep Lane 4 B', 'FBA Prep Lane 4 C', 
     'FBA Prep Lane 5 A', 'FBA Prep Lane 5 B', 'FBA Prep Lane 5 C'
 ]);
+const filteredLaneLocations = ref<string[]>([...laneLocations.value]);
 interface PicklistType {
     requests_to_process?: any[];
     // add other properties as needed
@@ -304,6 +323,20 @@ const toast = useToast();
 onMounted(() => {
     initVariables();
 });
+
+function searchLaneLocations(event: any){
+    const query = String(event?.query || '').toLowerCase().trim();
+    const allLaneLocations = laneLocations.value || [];
+
+    if (!query.length) {
+        filteredLaneLocations.value = [...allLaneLocations];
+        return;
+    }
+
+    filteredLaneLocations.value = allLaneLocations.filter((laneLocation: string) =>
+        laneLocation.toLowerCase().includes(query)
+    );
+}
 
 /**
  * Initializes all required variables for the page

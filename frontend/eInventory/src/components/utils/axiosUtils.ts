@@ -1009,7 +1009,74 @@ var action = {
             throw error;
         } else {
             console.log('Box/Case created: ', data);
+            return data;
         }
+    },
+
+    /**
+     * Inserts a case/box and links it to an invoice when provided.
+     * Falls back to direct insert if the RPC return payload does not include a case id.
+     */
+    async addCaseWithInvoice(c: {
+        units_per_case: number;
+        date_received: string | null;
+        notes: string | null;
+        product_id: number;
+        location_id: number | null;
+        status: string | null;
+        purchase_order_id: number | null;
+        request_id: number | null;
+        invoice_id: number | null;
+    }){
+        const baseCasePayload = {
+            units_per_case: c.units_per_case,
+            date_received: c.date_received,
+            notes: c.notes,
+            product_id: c.product_id,
+            location_id: c.location_id,
+            status: c.status,
+            purchase_order_id: c.purchase_order_id,
+            request_id: c.request_id,
+        };
+
+        const createdCase = await this.addCase(baseCasePayload);
+        const createdCaseId = Number(createdCase?.case_id || 0);
+
+        if (c.invoice_id == null) {
+            return createdCase;
+        }
+
+        if (createdCaseId > 0) {
+            const {data, error} = await supabase
+                .from('cases')
+                .update({ invoice_id: c.invoice_id })
+                .eq('case_id', createdCaseId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error linking case to invoice:', error);
+                throw error;
+            }
+
+            return data;
+        }
+
+        const {data, error} = await supabase
+            .from('cases')
+            .insert({
+                ...baseCasePayload,
+                invoice_id: c.invoice_id,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating case with invoice:', error);
+            throw error;
+        }
+
+        return data;
     },
 
     /* picklistData: {label: string, picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){

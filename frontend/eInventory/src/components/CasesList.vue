@@ -273,13 +273,20 @@
                     <div class="cl-fields-grid">
                         <div class="field">
                             <label for="location">Location</label>
-                            <Dropdown v-model="eCase.location_id"
-                            placeholder="Select a Location" class="cl-location-control" editable
-                            :options="locations"
-                            filter
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            optionLabel="name"
-                            optionValue="location_id" />
+                            <AutoComplete
+                                :modelValue="getLocationAutoCompleteValue(eCase.location_id)"
+                                :suggestions="filteredLocations"
+                                @complete="searchLocations"
+                                @focus="searchLocations({ query: '' })"
+                                @item-select="onLocationAutoCompleteChange($event.value)"
+                                @update:modelValue="onLocationAutoCompleteChange($event)"
+                                :dropdown="true"
+                                :showOnFocus="true"
+                                optionLabel="name"
+                                placeholder="Select a Location"
+                                class="cl-location-control"
+                                :forceSelection="true"
+                            />
                             <Button label="Add Location" icon="pi pi-plus" class="cl-action-btn cl-action-btn--utility cl-location-control cl-location-btn" @click="newLocation()"  />
                         </div>
 
@@ -488,6 +495,7 @@ export default {
 
             //LOCATION VARIABLES
             locations: [] as any[],
+            filteredLocations: [] as any[],
             locationToCreate: {} as any,
             locationDialog: false,
 
@@ -666,10 +674,52 @@ export default {
         async getLocations(){
             try {
                 this.locations = await action.getLocations();
+                this.filteredLocations = Array.isArray(this.locations) ? [...this.locations] : [];
             } catch (error) {
                 console.log(error);
             }
         }, 
+
+        searchLocations(event: any){
+            const query = String(event?.query || '').toLowerCase().trim();
+            const allLocations = Array.isArray(this.locations) ? this.locations : [];
+
+            if (!query.length) {
+                this.filteredLocations = [...allLocations];
+                return;
+            }
+
+            this.filteredLocations = allLocations.filter((location: any) =>
+                String(location?.name || '').toLowerCase().includes(query)
+            );
+        },
+
+        getLocationAutoCompleteValue(locationId: any){
+            const normalizedLocationId = Number(locationId || 0);
+            if (!normalizedLocationId) return null;
+
+            return (this.locations || []).find((location: any) =>
+                Number(location?.location_id || 0) === normalizedLocationId
+            ) || null;
+        },
+
+        onLocationAutoCompleteChange(nextValue: any){
+            if (nextValue && typeof nextValue === 'object' && 'location_id' in nextValue) {
+                this.eCase.location_id = Number(nextValue.location_id || 0) || null;
+                return;
+            }
+
+            if (typeof nextValue === 'string') {
+                const normalizedName = nextValue.toLowerCase().trim();
+                const matchedLocation = (this.locations || []).find((location: any) =>
+                    String(location?.name || '').toLowerCase() === normalizedName
+                );
+                this.eCase.location_id = matchedLocation ? Number(matchedLocation.location_id || 0) : null;
+                return;
+            }
+
+            this.eCase.location_id = null;
+        },
 
         async getPurchaseOrders(){
             try {

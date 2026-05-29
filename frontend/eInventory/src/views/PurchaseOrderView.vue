@@ -28,6 +28,15 @@
                         </div>
                     </div>
                 </template>
+                <template #end>
+                    <Button
+                        label="Receive Active Invoices"
+                        icon="pi pi-download"
+                        class="po-action-btn po-action-btn--receive"
+                        :disabled="!activeReceiveInvoices.length"
+                        @click="openReceiveAllActiveInvoices()"
+                    />
+                </template>
 
             </Toolbar> 
 
@@ -94,7 +103,13 @@
                                 label="Add Invoice"
                                 icon="pi pi-plus"
                                 class="po-action-btn po-action-btn--inbound"
-                                @click="openInboundWorkspace(selectedDetailPo)"
+                                @click.stop="openInboundWorkspace(po)"
+                            />
+                            <Button
+                                label="Receive"
+                                icon="pi pi-download"
+                                class="po-action-btn po-action-btn--receive"
+                                @click.stop="openReceiveInvoicesWorkspace(po)"
                             />
                             <Button
                                 label="Edit PO"
@@ -578,27 +593,7 @@
                             <div class="po-detail-item">
                                 <span class="po-detail-item-label">Date Ordered</span>
                                 <span class="po-detail-item-value">{{ selectedDetailPo.date_ordered || 'N/A' }}</span>
-                            </div>
-                            <div class="po-detail-item">
-                                <span class="po-detail-item-label">Date Received</span>
-                                <span class="po-detail-item-value">{{ selectedDetailPo.date_received || 'N/A' }}</span>
-                            </div>
-                            
-                        </div>
-                    </div>
-
-                    <div class="po-workspace-metrics">
-                        <div class="po-workspace-metric">
-                            <span class="po-workspace-metric-label">Invoices</span>
-                            <span class="po-workspace-metric-value">{{ workspaceInvoiceList.length }}</span>
-                        </div>
-                        <div class="po-workspace-metric">
-                            <span class="po-workspace-metric-label">Uninvoiced Lines</span>
-                            <span class="po-workspace-metric-value">{{ workspaceUninvoicedLines.length }}</span>
-                        </div>
-                        <div class="po-workspace-metric">
-                            <span class="po-workspace-metric-label">Units On Invoices</span>
-                            <span class="po-workspace-metric-value">{{ workspaceInvoicedUnits }}</span>
+                            </div>                            
                         </div>
                     </div>
 
@@ -608,6 +603,12 @@
                             icon="pi pi-plus"
                             class="po-action-btn po-action-btn--inbound"
                             @click="detailDialogVisible = false; openInboundWorkspace(selectedDetailPo)"
+                        />
+                        <Button
+                            label="Receive Invoices"
+                            icon="pi pi-download"
+                            class="po-action-btn po-action-btn--receive"
+                            @click="detailDialogVisible = false; openReceiveInvoicesWorkspace(selectedDetailPo)"
                         />
                         <Button
                             label="Edit PO"
@@ -623,26 +624,53 @@
                             <DataTable :value="detailPlannedCases" dataKey="line_key" size="small" class="po-detail-table po-detail-table--green" :rowStyle="detailRowStyleProc">
                                 <template #empty>No planned cases found for this purchase order.</template>
                                 <Column field="product_name" header="Processed Product" />
-                                <Column field="recipe_name" header="Recipe" />
                                 <Column field="amount" header="Cases" />
                                 <Column field="units_per_case" header="Units per Case" />
                                 <Column field="qty" header="Total Units" />
+                            </DataTable>
+
+                            <h4 class="po-detail-subsection-title">Raw Products With No Plan ({{ getPoolNew(detailSelectedPoId).length }})</h4>
+                            <DataTable :value="getPoolNew(detailSelectedPoId)" dataKey="product_id" size="small" class="po-detail-table po-detail-table--blue" :rowStyle="rowStylePool">
+                                <template #empty>No unplanned products found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column header="Item #">
+                                    <template #body="{ data }">
+                                        {{ getItemNum(data.product_id) || data.item_num || 'N/A' }}
+                                    </template>
+                                </Column>
+                                <Column field="totalUnits" header="Total Units" />
+                                <Column header="Unit Cost">
+                                    <template #body="{ data }">
+                                        {{ getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A' }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body="{ data }">
+                                        {{ getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id) * Number(data.totalUnits || 0) * (1 - (getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A' }}
+                                    </template>
+                                </Column>
                             </DataTable>
                         </details>
                     </div>
 
                     <div class="po-workspace-section">
                         <details class="po-detail-collapsible">
-                            <summary>Raw Product Lines ({{ detailRawLines.length }})</summary>
-                            <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" :rowStyle="detailRowStyleRaw">
-                                <template #empty>No raw product lines found for this purchase order.</template>
+                            <summary>Raw Products ({{ detailRawLines.length }})</summary>
+                            <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
+                                <template #empty>No raw products found for this purchase order.</template>
                                 <Column field="product_name" header="Product" />
                                 <Column field="item_num" header="Item #" />
-                                <Column field="upc" header="UPC" />
-                                <Column field="amount" header="Boxes" />
-                                <Column field="total_units" header="Units" />
-                                <Column field="status" header="Status" />
-                                <Column field="invoice_name" header="Invoice" />
+                                <Column field="total_units" header="Total Units" />
+                                <Column header="Unit Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
+                                    </template>
+                                </Column>
                             </DataTable>
                         </details>
                     </div>
@@ -665,8 +693,20 @@
                                 <template #groupheader="{ data }">
                                     <div class="po-invoice-group-head">
                                         <div class="po-invoice-group-head__title">
-                                            {{ data.invoice_name || 'Unnamed Invoice' }}
-                                            <span class="po-invoice-group-head__meta">#{{ data.invoice_id || 'N/A' }} • {{ data.linked_line_count }} linked line(s)</span>
+                                            <button
+                                                type="button"
+                                                class="po-invoice-group-head__name-btn"
+                                                @click.stop="openInvoiceEditDialog(data)"
+                                            >
+                                                {{ data.invoice_name || 'Unnamed Invoice' }}
+                                            </button>
+                                            <Button
+                                                label="Receive"
+                                                icon="pi pi-download"
+                                                class="po-action-btn po-action-btn--receive p-button-sm"
+                                                :disabled="!canReceiveInvoice(data)"
+                                                @click.stop="openReceiveInvoiceFromDetail(data)"
+                                            />
                                         </div>
                                         <div class="po-invoice-group-head__stats">
                                             <span><strong>Total:</strong> {{ formatCurrency(data.total_cost) || '$0.00' }}</span>
@@ -687,11 +727,18 @@
                                 <Column field="item_num" header="Item #">
                                     <template #body="{ data }">{{ data.has_line ? (data.item_num || 'N/A') : '—' }}</template>
                                 </Column>
-                                <Column field="upc" header="UPC">
-                                    <template #body="{ data }">{{ data.has_line ? (data.upc || 'N/A') : '—' }}</template>
-                                </Column>
                                 <Column field="total_units" header="Units">
                                     <template #body="{ data }">{{ data.has_line ? Number(data.total_units || 0) : 0 }}</template>
+                                </Column>
+                                <Column header="Unit Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
+                                    </template>
                                 </Column>
                                 <Column field="status" header="Status">
                                     <template #body="{ data }">{{ data.has_line ? (data.status || 'N/A') : '—' }}</template>
@@ -861,13 +908,20 @@
                                 <label for="location">Location:</label>
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                                    <Dropdown v-model="data.location_id"
-                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                                    :options="locations"
-                                    filter
-                                    :virtualScrollerOptions="{ itemSize: 38 }"
-                                    optionLabel="name"
-                                    optionValue="location_id" />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(data.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(data, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(data, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="w-full md:w-14rem"
+                                        :forceSelection="true"
+                                    />
                                     <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
                                 </div>
                             </template>
@@ -1306,13 +1360,20 @@
                 <div class="field">
                     <label for="location">Location:</label>
                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                    <Dropdown v-model="poBox.location_id"
-                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                    :options="locations"
-                    filter
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="name"
-                    optionValue="location_id" />
+                    <AutoComplete
+                        :modelValue="getLocationAutoCompleteValue(poBox.location_id)"
+                        :suggestions="filteredLocations"
+                        @complete="searchLocations"
+                        @focus="searchLocations({ query: '' })"
+                        @item-select="onLocationAutoCompleteChange(poBox, $event.value)"
+                        @update:modelValue="onLocationAutoCompleteChange(poBox, $event)"
+                        :dropdown="true"
+                        :showOnFocus="true"
+                        optionLabel="name"
+                        placeholder="Select a Location"
+                        class="w-full md:w-14rem"
+                        :forceSelection="true"
+                    />
                 </div>
             </template>
             
@@ -1361,13 +1422,20 @@
                             <template #editor="{data}">
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                                    <Dropdown v-model="data.location_id"
-                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                                    :options="locations"
-                                    filter
-                                    :virtualScrollerOptions="{ itemSize: 38 }"
-                                    optionLabel="name"
-                                    optionValue="location_id" />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(data.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(data, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(data, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="w-full md:w-14rem"
+                                        :forceSelection="true"
+                                    />
                                     <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
                                 </div>
                             </template>
@@ -1499,16 +1567,17 @@
                 </div>
 
                 <p class="inbound-instructions m-0">
-                    Enter how many units of each product are being shipped on this invoice.
+                    Account for each product by splitting units into shipped and back ordered.
                     Product amounts already linked to an invoice or cancelled are excluded.
-                    Leaving a product at 0 means it will not be included.
+                    Remaining units are unaccounted and must be reviewed before saving.
                 </p>
 
                 <DataTable v-if="inboundBoxesLoading" :value="[1,2,3]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
                     <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
                     <Column header="Item #"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
                     <Column header="Ordered Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
-                    <Column header="Units on Invoice"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units Shipped"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units Back Ordered"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
                     <Column header="Remaining"><template #body><div class="skeleton-line skeleton-line--number skeleton-line--total"></div></template></Column>
                 </DataTable>
 
@@ -1524,15 +1593,27 @@
                     </Column>
                     <Column field="item_num" header="Item #" sortable />
                     <Column field="total_units" header="Ordered Units" sortable />
-                    <Column header="Units on Invoice">
+                    <Column header="Units Shipped">
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.units_on_invoice"
+                                v-model="data.units_shipped"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': data.units_on_invoice > data.total_units }"
-                                @update:modelValue="onInboundUnitsInput(data)"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsInput(data, 'units_shipped')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Units Back Ordered">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.units_backordered"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsInput(data, 'units_backordered')"
                             />
                         </template>
                     </Column>
@@ -1555,13 +1636,13 @@
                     </Column>
                     <Column header="Subtotal">
                         <template #body="{ data }">
-                            {{ (data.unit_price || data.price_2023) && data.units_on_invoice ? formatCurrency((data.unit_price || data.price_2023) * data.units_on_invoice * (1 - (purchaseOrder.discount || 0)/100)) : '—' }}
+                            {{ (data.unit_price || data.price_2023) && data.units_shipped ? formatCurrency((data.unit_price || data.price_2023) * data.units_shipped * (1 - (purchaseOrder.discount || 0)/100)) : '—' }}
                         </template>
                     </Column>
                 </DataTable>
 
-                <small class="p-error" v-if="inboundSubmitted && !inboundLineAllocations.some((l: any) => Number(l.units_on_invoice) > 0)">
-                    At least one line must have units greater than 0.
+                <small class="p-error" v-if="inboundSubmitted && !inboundLineAllocations.some((l: any) => Number(l.units_shipped) > 0)">
+                    At least one line must have shipped units greater than 0.
                 </small>
 
             </div>
@@ -1571,23 +1652,210 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="inboundExtraUnitsDialog" header="Extra Units Received" :modal="true" :style="{ width: '480px' }">
+        <Dialog v-model:visible="inboundUnaccountedDialog" header="Unaccounted Product Units" :modal="true" :style="{ width: '560px' }">
             <div class="confirmation-content">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
                 <div>
-                    <p class="m-0">The following lines have more units entered than originally ordered. This may mean the vendor shipped extra units by mistake, or intentionally.</p>
-                    <ul class="inbound-extra-units-list">
-                        <li v-for="line in inboundExtraLines" :key="line.po_raw_line_id">
-                            <strong>{{ line.product_name }}</strong>: {{ line.units_on_invoice }} entered vs {{ line.total_units }} ordered
-                            <span class="inbound-extra-badge">(+{{ line.units_on_invoice - line.total_units }} extra)</span>
+                    <p class="m-0">Some products still have unaccounted units. You can go back to adjust, flag the unaccounted units, or ignore them for now.</p>
+                    <ul class="inbound-unaccounted-list">
+                        <li v-for="line in inboundUnaccountedLines" :key="line.po_raw_line_id">
+                            <strong>{{ line.product_name }}</strong>: {{ line.remaining_units }} unaccounted unit<span v-if="line.remaining_units !== 1">s</span>
                         </li>
                     </ul>
-                    <p class="m-0">Do you want to proceed and record the extra units on this invoice?</p>
+                    <p class="m-0">Choose how to handle the unaccounted units before creating this invoice.</p>
                 </div>
             </div>
             <template #footer>
-                <Button label="No, go back" icon="pi pi-arrow-left" class="p-button-text" @click="inboundExtraUnitsDialog = false" />
-                <Button label="Yes, proceed" icon="pi pi-check" class="p-button-warning" @click="confirmCreateInvoice" :loading="inboundCreatingInvoice" />
+                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="inboundUnaccountedDialog = false" />
+                <Button label="Flag Unaccounted" icon="pi pi-flag" class="p-button-warning" @click="submitCreateInvoiceWithUnaccounted('flag')" :loading="inboundCreatingInvoice" />
+                <Button label="Ignore Unaccounted" icon="pi pi-check" class="p-button-secondary" @click="submitCreateInvoiceWithUnaccounted('ignore')" :loading="inboundCreatingInvoice" />
+            </template>
+        </Dialog>
+
+        <Dialog
+            v-model:visible="receiveInvoiceDialogVisible"
+            :header="receiveInvoiceDialogTitle"
+            :modal="true"
+            :style="{ width: '1080px', maxWidth: '97vw' }"
+            @hide="onReceiveInvoiceDialogHide"
+        >
+            <div class="receive-invoice-layout">
+                <p class="receive-invoice-instructions m-0">
+                    Enter how many boxes were received for each invoice product line and where they were stored.
+                    Received boxes will be created and linked to this purchase order and invoice.
+                </p>
+
+                <DataTable v-if="receiveInvoiceLoading" :value="[1,2,3]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Invoice"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                    <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
+                    <Column header="Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units / Box"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Expected Boxes"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Boxes Received"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Location"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                </DataTable>
+
+                <DataTable
+                    v-else
+                    :value="receiveInvoiceLineAllocations"
+                    dataKey="row_key"
+                    rowGroupMode="subheader"
+                    groupRowsBy="invoice_id"
+                    sortField="invoice_id"
+                    :sortOrder="1"
+                    stripedRows
+                    showGridlines
+                    responsiveLayout="scroll"
+                    class="receive-invoice-table"
+                >
+                    <template #empty>
+                        No invoice-linked raw lines are currently available to receive for this purchase order.
+                    </template>
+
+                    <template #groupheader="{ data }">
+                        <div class="receive-invoice-group-header">
+                            <strong>{{ data.invoice_name || `Invoice #${data.invoice_id}` }}</strong>
+                            <span class="receive-invoice-group-sub">Invoice ID: {{ data.invoice_id }}</span>
+                            <span class="receive-invoice-group-sub">PO: {{ data.purchase_order_name || `#${data.purchase_order_id}` }}</span>
+                        </div>
+                    </template>
+
+                    <Column field="product_name" header="Product" sortable />
+                    <Column field="item_num" header="Item #" sortable />
+                    <Column field="total_units" header="Total Units" sortable />
+                    <Column field="default_units_per_case" header="Units / Box" sortable />
+                    <Column header="Expected Boxes" sortable>
+                        <template #body="{ data }">
+                            {{ getReceiveExpectedBoxes(data) }}
+                        </template>
+                    </Column>
+                    <Column header="Boxes Received" sortable>
+                        <template #body="{ data }">
+                            <span
+                                class="receive-boxes-total"
+                                :class="{ 'receive-boxes-total--over': Number(getReceiveAllocatedBoxes(data) || 0) > Number(getReceiveExpectedBoxes(data) || 0) }"
+                            >
+                                {{ getReceiveAllocatedBoxes(data) }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Location Split (Pallets)">
+                        <template #body="{ data }">
+                            <div class="receive-split-grid">
+                                <div
+                                    v-for="(split, splitIdx) in (data.receive_splits || [])"
+                                    :key="split.split_key || `${data.row_key}-${splitIdx}`"
+                                    class="receive-split-row"
+                                >
+                                    <InputNumber
+                                        v-model="split.boxes_received"
+                                        :min="0"
+                                        :maxFractionDigits="2"
+                                        :useGrouping="false"
+                                        class="inbound-units-input receive-split-row__boxes"
+                                        @update:modelValue="onReceiveSplitBoxesInput(data, split)"
+                                    />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(split.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(split, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(split, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="receive-split-row__location"
+                                        :forceSelection="true"
+                                    />
+                                    <Button
+                                        icon="pi pi-times"
+                                        class="p-button-text p-button-sm"
+                                        @click="removeReceiveSplit(data, Number(splitIdx))"
+                                        :disabled="(data.receive_splits || []).length <= 1"
+                                    />
+                                </div>
+
+                                <div class="receive-split-actions">
+                                    <Button
+                                        icon="pi pi-plus"
+                                        label="Add Location"
+                                        class="p-button-text p-button-sm"
+                                        @click="addReceiveSplit(data)"
+                                    />
+                                </div>
+                            </div>
+                            <small class="p-error" v-if="receiveInvoicesSubmitted && hasReceiveSplitLocationErrors(data)">
+                                Every split with received boxes must include a location.
+                            </small>
+                        </template>
+                    </Column>
+                </DataTable>
+
+                <small class="p-error" v-if="receiveInvoicesSubmitted && !(receiveInvoiceLineAllocations || []).some((row: any) => Number(getReceiveAllocatedBoxes(row) || 0) > 0)">
+                    Enter at least one received box amount before saving.
+                </small>
+            </div>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="receiveInvoiceDialogVisible = false" :disabled="receiveInvoiceSaving" />
+                <Button label="Save Received Boxes" icon="pi pi-check" class="po-action-btn po-action-btn--receive" @click="saveReceivedInvoiceBoxes" :loading="receiveInvoiceSaving" />
+            </template>
+        </Dialog>
+
+        <Dialog
+            v-model:visible="invoiceEditDialogVisible"
+            header="Edit Invoice"
+            :modal="true"
+            :style="{ width: '560px', maxWidth: '94vw' }"
+            class="p-fluid po-invoice-edit-dialog"
+        >
+            <div class="po-invoice-edit-layout">
+                <div class="po-invoice-edit-section">
+                    <div class="field">
+                        <label for="invoiceEditName">Invoice Name</label>
+                        <InputText
+                            id="invoiceEditName"
+                            v-model="invoiceEditDraft.invoice_name"
+                            :class="{ 'p-invalid': invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim() }"
+                            placeholder="Invoice name"
+                        />
+                        <small class="p-error" v-if="invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim()">
+                            Invoice name is required.
+                        </small>
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDateShipped">Date Shipped</label>
+                        <input id="invoiceEditDateShipped" v-model="invoiceEditDraft.date_shipped" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDateDue">Date Due</label>
+                        <input id="invoiceEditDateDue" v-model="invoiceEditDraft.date_due" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDatePaid">Date Paid</label>
+                        <input id="invoiceEditDatePaid" v-model="invoiceEditDraft.date_paid" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditNotes">Notes</label>
+                        <textarea id="invoiceEditNotes" v-model="invoiceEditDraft.notes" rows="3" class="p-inputtext p-component w-full"></textarea>
+                    </div>
+
+                    <div class="po-invoice-edit-checkbox">
+                        <input id="invoiceEditFiled" v-model="invoiceEditDraft.filed" type="checkbox" />
+                        <label for="invoiceEditFiled">Filed</label>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="invoiceEditDialogVisible = false" :disabled="invoiceEditSaving" />
+                <Button label="Save Invoice" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="saveInvoiceEdits" :loading="invoiceEditSaving" />
             </template>
         </Dialog>
         
@@ -1665,8 +1933,29 @@ export default {
             inboundLineAllocations: [] as any[],
             inboundSubmitted: false,
             inboundCreatingInvoice: false,
-            inboundExtraUnitsDialog: false,
-            inboundExtraLines: [] as any[],
+            inboundUnaccountedDialog: false,
+            inboundUnaccountedLines: [] as any[],
+            receiveInvoiceDialogVisible: false,
+            receiveInvoiceDialogTitle: 'Receive Invoices' as string,
+            receiveInvoiceLoading: false,
+            receiveInvoiceSaving: false,
+            receiveInvoicesSubmitted: false,
+            receiveInvoiceLineAllocations: [] as any[],
+            invoiceEditDialogVisible: false,
+            invoiceEditSaving: false,
+            invoiceEditSubmitted: false,
+            invoiceEditDraft: {
+                invoice_id: null as number | null,
+                invoice_name: '',
+                total_cost: 0,
+                purchase_order_id: 0,
+                date_shipped: '',
+                date_due: '',
+                date_paid: '',
+                card: 0,
+                filed: false,
+                notes: '',
+            } as any,
 
             selectedDetailPo: null as any,
             detailDialogVisible: false,
@@ -1741,6 +2030,7 @@ export default {
 
             //LOCATION VARIABLES
             locations: [] as any[],
+            filteredLocations: [] as any[],
             locationToCreate: {} as any,
             locationDialog: false,
             additionalLocationDialog: false,
@@ -1951,40 +2241,66 @@ export default {
             const poId = this.detailSelectedPoId;
             if (!poId) return [];
 
-            return (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
+            const groupedByProduct = new Map<string, any>();
+
+            (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
-                .map((line: any, idx: number) => {
-                    const linkedInvoice = (this.detailInvoiceList || []).find((invoice: any) =>
-                        Number(invoice?.invoice_id || 0) === Number(line?.invoice_id || 0)
-                    );
-                    return {
+                .forEach((line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const key = productId > 0
+                        ? `product-${productId}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    const existing = groupedByProduct.get(key) || {
                         ...line,
-                        line_key: `raw-${line?.po_raw_line_id || idx}`,
-                        invoice_name: linkedInvoice?.invoice_name || (line?.invoice_id ? `Invoice #${line.invoice_id}` : 'Uninvoiced'),
+                        line_key: key,
+                        product_id: productId || null,
+                        product_name: productName,
+                        total_units: 0,
                     };
+
+                    existing.total_units += Number(line?.total_units || 0);
+                    groupedByProduct.set(key, existing);
                 });
+
+            return Array.from(groupedByProduct.values())
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
         },
         detailInvoiceRows(): any[] {
             const invoiceRows: any[] = [];
+            const discountPct = Number(this.selectedDetailPo?.discount || 0);
+            const discountMultiplier = 1 - (Number.isFinite(discountPct) ? discountPct : 0) / 100;
 
             (this.detailInvoiceList || []).forEach((invoice: any, invoiceIdx: number) => {
                 const linkedLines = this.getInvoiceLinkedLines(invoice);
+                const receivableLines = this.getInvoiceReceiveableLines(invoice);
                 const groupKey = `invoice-${invoice?.invoice_id || invoiceIdx}`;
+                const computedInvoiceTotal = linkedLines.reduce((invoiceTotal: number, line: any) => {
+                    const units = Number((line?.units_on_invoice ?? line?.total_units) || 0);
+                    const fallbackUnitCost = Number(this.getUnitCost(line?.product_id) || 0);
+                    const unitCost = Number(line?.unit_price ?? fallbackUnitCost);
+                    if (!Number.isFinite(units) || !Number.isFinite(unitCost)) return invoiceTotal;
+
+                    return invoiceTotal + (units * unitCost * discountMultiplier);
+                }, 0);
 
                 if (!linkedLines.length) {
                     invoiceRows.push({
+                        ...invoice,
                         invoice_group_key: groupKey,
                         line_key: `${groupKey}-none`,
                         has_line: false,
                         invoice_id: invoice?.invoice_id,
                         invoice_name: invoice?.invoice_name,
-                        total_cost: invoice?.total_cost,
+                        total_cost: 0,
                         date_shipped: invoice?.date_shipped,
                         date_due: invoice?.date_due,
                         date_paid: invoice?.date_paid,
                         filed: invoice?.filed,
                         invoice_notes: invoice?.notes,
                         linked_line_count: 0,
+                        can_receive: receivableLines.length > 0,
                     });
                     return;
                 }
@@ -1997,7 +2313,7 @@ export default {
                         has_line: true,
                         invoice_id: invoice?.invoice_id,
                         invoice_name: invoice?.invoice_name,
-                        total_cost: invoice?.total_cost,
+                        total_cost: Number(computedInvoiceTotal.toFixed(2)),
                         date_shipped: invoice?.date_shipped,
                         date_due: invoice?.date_due,
                         date_paid: invoice?.date_paid,
@@ -2005,11 +2321,15 @@ export default {
                         invoice_notes: invoice?.notes,
                         linked_line_count: linkedLines.length,
                         line_notes: line?.notes,
+                        can_receive: receivableLines.length > 0,
                     });
                 });
             });
 
             return invoiceRows;
+        },
+        activeReceiveInvoices(): any[] {
+            return this.getActiveReceiveInvoices(this.invoices || []);
         },
     },
     methods: {
@@ -2041,6 +2361,61 @@ export default {
         openInboundWorkspace(purchaseOrder: any) {
             this.selectedPurchaseOrder = purchaseOrder;
             void this.openInboundDialog(purchaseOrder);
+        },
+
+        openReceiveInvoicesWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+            const purchaseOrderInvoices = (this.invoices || []).filter((invoice: any) =>
+                Number(invoice?.purchase_order_id || 0) === purchaseOrderId,
+            );
+
+            void this.openReceiveInvoiceDialog({
+                purchaseOrder,
+                invoices: purchaseOrderInvoices,
+                title: `Receive Invoices for ${purchaseOrder?.purchase_order_name || 'Purchase Order'}`,
+            });
+        },
+
+        openReceiveAllActiveInvoices() {
+            const activeInvoices = this.getActiveReceiveInvoices(this.invoices || []);
+            if (!activeInvoices.length) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'No Active Invoices',
+                    detail: 'There are no active invoice lines available to receive on this page.',
+                    life: 4000,
+                });
+                return;
+            }
+
+            void this.openReceiveInvoiceDialog({
+                invoices: activeInvoices,
+                title: `Receive ${activeInvoices.length} Active Invoice${activeInvoices.length === 1 ? '' : 's'}`,
+            });
+        },
+
+        openReceiveInvoiceFromDetail(invoiceRow: any) {
+            const sourceInvoice = (this.invoices || []).find((invoice: any) =>
+                Number(invoice?.invoice_id || 0) === Number(invoiceRow?.invoice_id || 0),
+            ) || invoiceRow;
+
+            if (!this.canReceiveInvoice(sourceInvoice)) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Nothing To Receive',
+                    detail: 'That invoice does not have any active linked raw lines to receive.',
+                    life: 4000,
+                });
+                return;
+            }
+
+            this.detailDialogVisible = false;
+            void this.openReceiveInvoiceDialog({
+                purchaseOrder: this.selectedDetailPo,
+                invoices: [sourceInvoice],
+                title: `Receive ${sourceInvoice?.invoice_name || `Invoice #${sourceInvoice?.invoice_id || ''}`}`,
+            });
         },
 
         openEditWorkspace(purchaseOrder: any) {
@@ -2633,10 +3008,54 @@ export default {
         async getLocations(){
             try {
                 this.locations = await action.getLocations();
+                this.filteredLocations = Array.isArray(this.locations) ? [...this.locations] : [];
             } catch (error) {
                 console.log(error);
             }
         }, 
+
+        searchLocations(event: any){
+            const query = String(event?.query || '').toLowerCase().trim();
+            const allLocations = Array.isArray(this.locations) ? this.locations : [];
+
+            if (!query.length) {
+                this.filteredLocations = [...allLocations];
+                return;
+            }
+
+            this.filteredLocations = allLocations.filter((location: any) =>
+                String(location?.name || '').toLowerCase().includes(query)
+            );
+        },
+
+        getLocationAutoCompleteValue(locationId: any){
+            const normalizedLocationId = Number(locationId || 0);
+            if (!normalizedLocationId) return null;
+
+            return (this.locations || []).find((location: any) =>
+                Number(location?.location_id || 0) === normalizedLocationId
+            ) || null;
+        },
+
+        onLocationAutoCompleteChange(targetRow: any, nextValue: any){
+            if (!targetRow) return;
+
+            if (nextValue && typeof nextValue === 'object' && 'location_id' in nextValue) {
+                targetRow.location_id = Number(nextValue.location_id || 0) || null;
+                return;
+            }
+
+            if (typeof nextValue === 'string') {
+                const normalizedName = nextValue.toLowerCase().trim();
+                const matchedLocation = (this.locations || []).find((location: any) =>
+                    String(location?.name || '').toLowerCase() === normalizedName
+                );
+                targetRow.location_id = matchedLocation ? Number(matchedLocation.location_id || 0) : null;
+                return;
+            }
+
+            targetRow.location_id = null;
+        },
 
         /**
          * Description: Clears the locationToCreate object and opens the Dialog for adding a new location to the database
@@ -4323,12 +4742,13 @@ export default {
                     console.log(box);
                     boxesToInsert.push(box);
 
-                    let boBox = [] as any[];
-                    boBox[<any>'name'] = box.name;
-                    boBox[<any>'product_id'] = box.product_id
-                    boBox[<any>'purchase_order_id'] = box.purchase_order_id
-                    boBox[<any>'units_per_case'] = partialBackOrderBoxAmount;
-                    boBox[<any>'status'] = 'BO'
+                    const boBox: any = {
+                        name: box.name,
+                        product_id: box.product_id,
+                        purchase_order_id: box.purchase_order_id,
+                        units_per_case: partialBackOrderBoxAmount,
+                        status: 'BO',
+                    };
 
                     console.log(boBox);
                     //EVENTUALLY, JUST ADD THE BO BOX DIRECTLY HERE
@@ -4662,9 +5082,15 @@ export default {
         },
 
         getInvoiceLinkedLines(invoice: any){
-            const rawLines = Array.isArray(invoice?.po_raw_lines) ? invoice.po_raw_lines : [];
+            const poId = Number(invoice?.purchase_order_id || this.purchaseOrder?.purchase_order_id || this.detailSelectedPoId || 0);
+            const invoiceId = Number(invoice?.invoice_id || 0);
+            const rawLines = Array.isArray(invoice?.po_raw_lines) && invoice.po_raw_lines.length > 0
+                ? invoice.po_raw_lines
+                : (this.po_raw_products || []).filter((line: any) =>
+                    Number(line?.purchase_order_id || 0) === poId && Number(line?.invoice_id || 0) === invoiceId,
+                );
 
-            return rawLines
+            return (rawLines || [])
                 .filter((line: any) => line && line.product_id != null)
                 .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0));
         },
@@ -4675,6 +5101,171 @@ export default {
             const units = Number(line?.total_units || 0);
 
             return `${productName} (${units} unit${units === 1 ? '' : 's'})`;
+        },
+
+        onReceiveInvoiceDialogHide() {
+            this.receiveInvoicesSubmitted = false;
+            this.receiveInvoiceLineAllocations = [];
+            this.receiveInvoiceLoading = false;
+            this.receiveInvoiceSaving = false;
+            this.receiveInvoiceDialogTitle = 'Receive Invoices';
+        },
+
+        getInvoiceReceiveableLines(invoice: any): any[] {
+            return (this.getInvoiceLinkedLines(invoice) || []).filter((line: any) => {
+                const totalUnits = Number(line?.total_units || 0);
+                const normalizedStatus = String(this.normalizeRawLineStatus(line?.status) || '').toLowerCase();
+                return totalUnits > 0 && normalizedStatus !== 'delivered' && normalizedStatus !== 'cancelled';
+            });
+        },
+
+        canReceiveInvoice(invoice: any): boolean {
+            return this.getInvoiceReceiveableLines(invoice).length > 0;
+        },
+
+        getActiveReceiveInvoices(invoiceRows: any[]): any[] {
+            return (invoiceRows || []).filter((invoice: any) => this.canReceiveInvoice(invoice));
+        },
+
+        getReceiveExpectedBoxes(line: any): number {
+            const units = Number(line?.total_units || 0);
+            const unitsPerBox = Number(line?.default_units_per_case || 0);
+            if (!Number.isFinite(units) || !Number.isFinite(unitsPerBox) || unitsPerBox <= 0) return 0;
+            return Number((units / unitsPerBox).toFixed(2));
+        },
+
+        getReceiveAllocatedBoxes(line: any): number {
+            const splits = Array.isArray(line?.receive_splits) ? line.receive_splits : [];
+            const total = splits.reduce((sum: number, split: any) => sum + Number(split?.boxes_received || 0), 0);
+            return Number(Number.isFinite(total) ? total.toFixed(2) : 0);
+        },
+
+        onReceiveSplitBoxesInput(line: any, split: any) {
+            if (!line) return;
+            const nextValue = Number(split?.boxes_received ?? 0);
+            split.boxes_received = Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 0;
+        },
+
+        addReceiveSplit(line: any) {
+            if (!line) return;
+            if (!Array.isArray(line.receive_splits)) {
+                line.receive_splits = [];
+            }
+
+            const nextIdx = line.receive_splits.length;
+            line.receive_splits.push({
+                split_key: `${line.row_key}-split-${nextIdx}`,
+                boxes_received: 0,
+                location_id: null,
+            });
+        },
+
+        removeReceiveSplit(line: any, splitIdx: number) {
+            if (!line || !Array.isArray(line.receive_splits)) return;
+            if (line.receive_splits.length <= 1) {
+                line.receive_splits[0].boxes_received = 0;
+                line.receive_splits[0].location_id = null;
+                return;
+            }
+            line.receive_splits.splice(splitIdx, 1);
+        },
+
+        hasReceiveSplitLocationErrors(line: any): boolean {
+            const splits = Array.isArray(line?.receive_splits) ? line.receive_splits : [];
+            return splits.some((split: any) => Number(split?.boxes_received || 0) > 0 && !split?.location_id);
+        },
+
+        async openReceiveInvoiceDialog(options: { purchaseOrder?: any; invoices?: any[]; title?: string } = {}) {
+            const purchaseOrder = options.purchaseOrder || null;
+            const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+
+            if (purchaseOrderId) {
+                this.purchaseOrder = { ...purchaseOrder };
+            }
+
+            this.receiveInvoiceDialogVisible = true;
+            this.receiveInvoiceDialogTitle = options.title || (purchaseOrder?.purchase_order_name
+                ? `Receive Invoices for ${purchaseOrder.purchase_order_name}`
+                : 'Receive Invoices');
+            this.receiveInvoiceLoading = true;
+            this.receiveInvoiceSaving = false;
+            this.receiveInvoicesSubmitted = false;
+            this.receiveInvoiceLineAllocations = [];
+
+            try {
+                let invoiceRows = Array.isArray(options.invoices) ? [...options.invoices] : [];
+
+                if (!invoiceRows.length && purchaseOrderId) {
+                    invoiceRows = (this.invoices || []).filter((invoice: any) =>
+                        Number(invoice?.purchase_order_id || 0) === purchaseOrderId,
+                    );
+                }
+
+                if (!invoiceRows.length && purchaseOrderId) {
+                    invoiceRows = (await action.getInvoicesForPurchaseOrder(purchaseOrderId)) || [];
+                }
+
+                invoiceRows = this.getActiveReceiveInvoices(invoiceRows);
+
+                const receiveRows: any[] = [];
+
+                (invoiceRows || []).forEach((invoice: any) => {
+                    const linkedLines = this.getInvoiceReceiveableLines(invoice);
+                    const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
+                    const invoicePurchaseOrderName = String(
+                        invoice?.purchase_order_name
+                        || (this.purchaseOrders || []).find((po: any) => Number(po?.purchase_order_id || 0) === invoicePurchaseOrderId)?.purchase_order_name
+                        || purchaseOrder?.purchase_order_name
+                        || ''
+                    );
+
+                    linkedLines.forEach((line: any) => {
+                        const productId = Number(line?.product_id || 0);
+                        const product = (this.products || []).find((p: any) => p.product_id === productId)
+                            || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+                        const unitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
+
+                        receiveRows.push({
+                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                            invoice_id: Number(invoice?.invoice_id || 0),
+                            invoice_name: String(invoice?.invoice_name || ''),
+                            purchase_order_id: invoicePurchaseOrderId,
+                            purchase_order_name: invoicePurchaseOrderName,
+                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                            product_id: productId,
+                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                            item_num: String(line?.item_num || product?.item_num || ''),
+                            total_units: Number(line?.total_units || 0),
+                            default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                            receive_splits: [
+                                {
+                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                    boxes_received: 0,
+                                    location_id: null,
+                                },
+                            ],
+                            line_status: String(line?.status || 'Inbound'),
+                            line_notes: line?.notes ?? null,
+                        });
+                    });
+                });
+
+                this.receiveInvoiceLineAllocations = receiveRows.sort((a: any, b: any) => {
+                    if (a.purchase_order_id !== b.purchase_order_id) return a.purchase_order_id - b.purchase_order_id;
+                    if (a.invoice_id !== b.invoice_id) return a.invoice_id - b.invoice_id;
+                    return String(a.product_name || '').localeCompare(String(b.product_name || ''));
+                });
+            } catch (error) {
+                console.error('Error preparing receive invoice dialog:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to load invoice lines for receiving. Please try again.',
+                    life: 5000,
+                });
+            } finally {
+                this.receiveInvoiceLoading = false;
+            }
         },
         
         /** 
@@ -7047,7 +7638,8 @@ export default {
             this.purchaseOrder = { ...purchaseOrder };
             this.inboundInvoiceName = '';
             this.inboundSubmitted = false;
-            this.inboundExtraLines = [];
+            this.inboundUnaccountedLines = [];
+            this.inboundUnaccountedDialog = false;
             this.inboundPurchaseOrderDialog = true;
             this.inboundBoxesLoading = true;
             console.log("Opening inbound dialog for PO: ", purchaseOrder);
@@ -7087,7 +7679,8 @@ export default {
 
                 this.inboundLineAllocations = eligible.map((l: any) => ({
                     ...l,
-                    units_on_invoice: 0,
+                    units_shipped: 0,
+                    units_backordered: 0,
                 }));
             } catch (error) {
                 console.error('Error opening inbound dialog:', error);
@@ -7098,26 +7691,189 @@ export default {
 
         onInboundDialogHide() {
             this.inboundSubmitted = false;
-            this.inboundExtraLines = [];
+            this.inboundUnaccountedLines = [];
+            this.inboundUnaccountedDialog = false;
         },
 
         getInboundRemaining(line: any): number {
-            return Number(line.total_units) - Number(line.units_on_invoice || 0);
+            const ordered = Number(line?.total_units || 0);
+            const shipped = Number(line?.units_shipped || 0);
+            const backordered = Number(line?.units_backordered || 0);
+            return ordered - shipped - backordered;
         },
 
         getInboundRemainingClass(line: any): Record<string, boolean> {
-            const remaining = this.getInboundRemaining(line);
             return {
-                'inbound-remaining--zero': remaining === 0,
-                'inbound-remaining--positive': remaining > 0,
-                'inbound-remaining--negative': remaining < 0,
+                'inbound-remaining--alert': true,
             };
         },
 
-        onInboundUnitsInput(line: any) {
+        onInboundUnitsInput(line: any, field: 'units_shipped' | 'units_backordered') {
             // Clamp to non-negative
-            if (line.units_on_invoice < 0 || line.units_on_invoice == null) {
-                line.units_on_invoice = 0;
+            if (line[field] < 0 || line[field] == null) {
+                line[field] = 0;
+            }
+        },
+
+        getInboundUnaccountedLines(): any[] {
+            return (this.inboundLineAllocations || [])
+                .map((line: any) => ({
+                    ...line,
+                    remaining_units: this.getInboundRemaining(line),
+                }))
+                .filter((line: any) => Number(line.remaining_units || 0) > 0);
+        },
+
+        async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
+            const ordered = Math.max(0, Number(line?.total_units || 0));
+            const shipped = Math.max(0, Number(line?.units_shipped || 0));
+            const backordered = Math.max(0, Number(line?.units_backordered || 0));
+            const remaining = Math.max(0, ordered - shipped - backordered);
+
+            const segments = [
+                { kind: 'shipped', qty: shipped },
+                { kind: 'backordered', qty: backordered },
+                { kind: 'remaining', qty: remaining },
+            ].filter((segment: any) => segment.qty > 0);
+
+            if (!segments.length) return;
+
+            const keepKind = shipped > 0
+                ? 'shipped'
+                : backordered > 0
+                    ? 'backordered'
+                    : 'remaining';
+            const keepSegment = segments.find((segment: any) => segment.kind === keepKind) || segments[0];
+
+            const baseStatus = String(line?.status || this.purchaseOrder?.status || 'Draft');
+            const statusByKind: Record<string, string> = {
+                shipped: 'Inbound',
+                backordered: 'Back Ordered',
+                remaining: unaccountedMode === 'flag' ? 'Flagged' : baseStatus,
+            };
+
+            await action.editPurchaseOrderRawLine({
+                ...line,
+                total_units: keepSegment.qty,
+                status: statusByKind[keepSegment.kind],
+            });
+
+            if (keepSegment.kind === 'shipped') {
+                invoiceLineIds.push(Number(line.po_raw_line_id));
+            }
+
+            const createSegmentLine = async (segment: any) => {
+                const created = await action.addPurchaseOrderRawLine({
+                    product_id: line.product_id,
+                    purchase_order_id: line.purchase_order_id,
+                    total_units: segment.qty,
+                    notes: line.notes ?? null,
+                    status: statusByKind[segment.kind],
+                });
+
+                if (segment.kind === 'shipped' && created?.po_raw_line_id) {
+                    invoiceLineIds.push(Number(created.po_raw_line_id));
+                }
+            };
+
+            for (const segment of segments) {
+                if (segment.kind === keepSegment.kind) continue;
+                await createSegmentLine(segment);
+            }
+        },
+
+        getTodayDateString(): string {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+
+        toInvoiceDateInput(value: any): string {
+            if (!value) return '';
+            return String(value).slice(0, 10);
+        },
+
+        toNullableInvoiceDate(value: any): string | null {
+            const normalized = String(value || '').trim();
+            return normalized.length ? normalized : null;
+        },
+
+        openInvoiceEditDialog(invoiceRow: any) {
+            const invoiceId = Number(invoiceRow?.invoice_id || 0);
+            if (!invoiceId) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Invoice unavailable',
+                    detail: 'Could not open invoice editor for this row.',
+                    life: 3500,
+                });
+                return;
+            }
+
+            const sourceInvoice = (this.invoices || []).find((inv: any) => Number(inv?.invoice_id || 0) === invoiceId) || invoiceRow;
+
+            this.invoiceEditDraft = {
+                invoice_id: Number(sourceInvoice?.invoice_id || 0),
+                invoice_name: String(sourceInvoice?.invoice_name || ''),
+                total_cost: Number(sourceInvoice?.total_cost || 0),
+                purchase_order_id: Number(sourceInvoice?.purchase_order_id || this.detailSelectedPoId || 0),
+                date_shipped: this.toInvoiceDateInput(sourceInvoice?.date_shipped),
+                date_due: this.toInvoiceDateInput(sourceInvoice?.date_due),
+                date_paid: this.toInvoiceDateInput(sourceInvoice?.date_paid),
+                card: Number(sourceInvoice?.card || 0),
+                filed: !!sourceInvoice?.filed,
+                notes: String(sourceInvoice?.notes ?? sourceInvoice?.invoice_notes ?? ''),
+            };
+
+            this.invoiceEditSubmitted = false;
+            this.invoiceEditDialogVisible = true;
+        },
+
+        async saveInvoiceEdits() {
+            this.invoiceEditSubmitted = true;
+
+            if (!String(this.invoiceEditDraft?.invoice_name || '').trim()) {
+                return;
+            }
+
+            this.invoiceEditSaving = true;
+
+            try {
+                await action.editInvoice({
+                    invoice_id: Number(this.invoiceEditDraft.invoice_id || 0),
+                    invoice_name: String(this.invoiceEditDraft.invoice_name || '').trim(),
+                    total_cost: Number(this.invoiceEditDraft.total_cost || 0),
+                    purchase_order_id: Number(this.invoiceEditDraft.purchase_order_id || this.detailSelectedPoId || 0),
+                    date_shipped: this.toNullableInvoiceDate(this.invoiceEditDraft.date_shipped),
+                    date_due: this.toNullableInvoiceDate(this.invoiceEditDraft.date_due),
+                    date_paid: this.toNullableInvoiceDate(this.invoiceEditDraft.date_paid),
+                    card: Number(this.invoiceEditDraft.card || 0),
+                    filed: !!this.invoiceEditDraft.filed,
+                    notes: String(this.invoiceEditDraft.notes || '').trim() || null,
+                });
+
+                this.invoiceEditDialogVisible = false;
+
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice updated',
+                    detail: 'Invoice details were saved successfully.',
+                    life: 3500,
+                });
+
+                await this.loadPage(this.currentPage ?? 1);
+            } catch (error) {
+                console.error('Error updating invoice:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to update invoice. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.invoiceEditSaving = false;
             }
         },
 
@@ -7130,95 +7886,80 @@ export default {
             this.inboundSubmitted = true;
 
             const hasName = !!this.inboundInvoiceName.trim();
-            const linesWithUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_on_invoice) > 0);
+            const linesWithShippedUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_shipped) > 0);
 
-            if (!hasName || linesWithUnits.length === 0) {
+            if (!hasName || linesWithShippedUnits.length === 0) {
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Validation Error',
-                    detail: 'Please enter an invoice name and allocate at least one unit to the invoice.',
+                    detail: 'Please enter an invoice name and allocate at least one shipped unit to the invoice.',
                     life: 5000,
                 });
                 return;
             }
 
-            const extraLines = linesWithUnits.filter((l: any) => Number(l.units_on_invoice) > Number(l.total_units));
+            const overAllocated = (this.inboundLineAllocations || []).filter((line: any) =>
+                Number(line.units_shipped || 0) + Number(line.units_backordered || 0) > Number(line.total_units || 0),
+            );
 
-            if (extraLines.length > 0) {
-                this.inboundExtraLines = extraLines;
-                this.inboundExtraUnitsDialog = true;
+            if (overAllocated.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Shipped + Back Ordered cannot exceed Ordered Units on any line.',
+                    life: 5000,
+                });
                 return;
             }
 
-            void this.confirmCreateInvoice();
+            const unaccountedLines = this.getInboundUnaccountedLines();
+
+            if (unaccountedLines.length > 0) {
+                this.inboundUnaccountedLines = unaccountedLines;
+                this.inboundUnaccountedDialog = true;
+                return;
+            }
+
+            void this.confirmCreateInvoice('ignore');
+        },
+
+        submitCreateInvoiceWithUnaccounted(mode: 'flag' | 'ignore') {
+            this.inboundUnaccountedDialog = false;
+            void this.confirmCreateInvoice(mode);
         },
 
         /**
-         * @TODO Need to add a fourth column to inbounding for this setup: Total Ordered, Total Inbound, Total BackOrdered, Total Accounted. 
-         * This way, users can be flagged if they don't see a product being accounted for (5/18/26)
-         * 
-         * Performs the actual split + invoice creation after all validations pass.
-         * For each line:
-         *   - units_on_invoice === total_units  → link original line directly
-         *   - units_on_invoice < total_units    → update original to remainder, create new line for invoice
-         *   - units_on_invoice > total_units    → update original total_units to the entered amount, link it
+         * Performs split + invoice creation after all validations pass.
+         * Shipped units are linked to the new invoice.
+         * Back ordered units remain unlinked with status "Back Ordered".
+         * Unaccounted units are handled by the chosen mode:
+         *   - flag   → set/create lines as "Flagged"
+         *   - ignore → keep status unchanged on unaccounted split lines
          */
-        async confirmCreateInvoice() {
-            this.inboundExtraUnitsDialog = false;
+        async confirmCreateInvoice(unaccountedMode: 'flag' | 'ignore' = 'ignore') {
+            this.inboundUnaccountedDialog = false;
             this.inboundCreatingInvoice = true;
 
             try {
-                const linesWithUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_on_invoice) > 0);
+                const linesWithAnyAllocation = (this.inboundLineAllocations || []).filter((line: any) =>
+                    Number(line.units_shipped || 0) > 0
+                    || Number(line.units_backordered || 0) > 0
+                    || this.getInboundRemaining(line) > 0,
+                );
                 const invoiceLineIds: number[] = [];
 
-                for (const line of linesWithUnits) {
-                    const ordered = Number(line.total_units);
-                    const invoiced = Number(line.units_on_invoice);
+                for (const line of linesWithAnyAllocation) {
+                    await this.applyInboundLineAllocation(line, unaccountedMode, invoiceLineIds);
+                }
 
-                    if (invoiced === ordered) {
-                        // Exact match — change status to "Inbound" and link to invoice
-                        await action.editPurchaseOrderRawLine({
-                            ...line,
-                            status: 'Inbound',
-                        });
-                        invoiceLineIds.push(line.po_raw_line_id);
-
-                    } else if (invoiced < ordered) {
-                        // Partial — update original to remainder, create new line for invoice
-                        await action.editPurchaseOrderRawLine({
-                            ...line,
-                            total_units: ordered - invoiced,
-                        });
-                        const newLine = await action.addPurchaseOrderRawLine({
-                            product_id: line.product_id,
-                            purchase_order_id: line.purchase_order_id,
-                            total_units: invoiced,
-                            notes: line.notes ?? null,
-                            status: 'Inbound',
-                        });
-                        if (newLine?.po_raw_line_id) {
-                            invoiceLineIds.push(newLine.po_raw_line_id);
-                        }
-
-                    } else {
-                        // Extra units — Link original ordered total to invoice, create new line for extra units with status "Extra"
-                        await action.editPurchaseOrderRawLine({
-                            ...line,
-                            total_units: ordered,
-                            status: 'Inbound',
-                        });
-                        invoiceLineIds.push(line.po_raw_line_id);
-                        const extraRawLine = await action.addPurchaseOrderRawLine({
-                            product_id: line.product_id,
-                            purchase_order_id: line.purchase_order_id,
-                            total_units: invoiced - ordered,
-                            notes: (line.notes ?? '') + ' (Extra units)',
-                            status: 'Extra',
-                        });
-                        if (extraRawLine?.po_raw_line_id) {
-                            invoiceLineIds.push(extraRawLine.po_raw_line_id);
-                        }
-                    }
+                if (!invoiceLineIds.length) {
+                    this.$toast.add({
+                        severity: 'error',
+                        summary: 'Validation Error',
+                        detail: 'At least one shipped line is required to create an invoice.',
+                        life: 5000,
+                    });
+                    return;
                 }
 
                 await action.addInvoiceWithRawLines(
@@ -7226,7 +7967,7 @@ export default {
                         invoice_name: this.inboundInvoiceName.trim(),
                         purchase_order_id: this.purchaseOrder.purchase_order_id,
                         total_cost: 0,
-                        date_shipped: null,
+                        date_shipped: this.getTodayDateString(),
                         date_due: null,
                         date_paid: null,
                         card: 0,
@@ -7258,11 +7999,132 @@ export default {
                 this.inboundCreatingInvoice = false;
             }
         },
-    }
-}
 
-function floor(arg0: number): any {
-    throw new Error('Function not implemented.');
+        async saveReceivedInvoiceBoxes() {
+            this.receiveInvoicesSubmitted = true;
+
+            const rowsWithBoxes = (this.receiveInvoiceLineAllocations || []).filter((row: any) =>
+                Number(this.getReceiveAllocatedBoxes(row) || 0) > 0,
+            );
+
+            if (!rowsWithBoxes.length) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Enter at least one received box amount before saving.',
+                    life: 4500,
+                });
+                return;
+            }
+
+            const missingLocationRows = rowsWithBoxes.filter((row: any) => this.hasReceiveSplitLocationErrors(row));
+            if (missingLocationRows.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Choose a location for every split that has received boxes.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            const invalidUnitsPerCase = rowsWithBoxes.filter((row: any) => Number(row?.default_units_per_case || 0) <= 0);
+            if (invalidUnitsPerCase.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Missing Units Per Box',
+                    detail: 'One or more lines have no valid default units per box.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            this.receiveInvoiceSaving = true;
+
+            try {
+                let createdCaseCount = 0;
+                const today = this.getTodayDateString();
+
+                for (const row of rowsWithBoxes) {
+                    const unitsPerCase = Number(row.default_units_per_case || 0);
+                    const activeSplits = (row.receive_splits || []).filter((split: any) => Number(split?.boxes_received || 0) > 0);
+                    let totalBoxesReceived = 0;
+
+                    const createCaseRecord = async (unitsInCase: number, locationId: number, notesSuffix = '') => {
+                        await action.addCaseWithInvoice({
+                            units_per_case: unitsInCase,
+                            date_received: today,
+                            notes: notesSuffix
+                                ? `${row.line_notes || ''}${row.line_notes ? ' | ' : ''}${notesSuffix}`
+                                : (row.line_notes || null),
+                            product_id: Number(row.product_id),
+                            location_id: Number(locationId),
+                            status: 'On RTP',
+                            purchase_order_id: Number(row.purchase_order_id),
+                            request_id: null,
+                            invoice_id: Number(row.invoice_id),
+                        });
+                        createdCaseCount += 1;
+                    };
+
+                    for (const split of activeSplits) {
+                        const splitBoxes = Number(split.boxes_received || 0);
+                        totalBoxesReceived += splitBoxes;
+
+                        const fullBoxes = Math.floor(splitBoxes);
+                        const partialBoxFactor = Number((splitBoxes - fullBoxes).toFixed(4));
+                        const partialUnits = Number((partialBoxFactor * unitsPerCase).toFixed(2));
+
+                        for (let idx = 0; idx < fullBoxes; idx++) {
+                            await createCaseRecord(unitsPerCase, Number(split.location_id));
+                        }
+
+                        if (partialUnits > 0) {
+                            await createCaseRecord(
+                                partialUnits,
+                                Number(split.location_id),
+                                `Partial box received from invoice ${row.invoice_name || row.invoice_id}`,
+                            );
+                        }
+                    }
+
+                    const receivedUnits = Number((totalBoxesReceived * unitsPerCase).toFixed(2));
+                    const orderedUnits = Number(row.total_units || 0);
+                    const isFullyReceived = orderedUnits > 0 && receivedUnits >= orderedUnits;
+
+                    if (isFullyReceived && Number(row.po_raw_line_id || 0) > 0) {
+                        const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === Number(row.po_raw_line_id));
+                        if (sourceLine) {
+                            await action.editPurchaseOrderRawLine({
+                                ...sourceLine,
+                                status: 'Delivered',
+                            });
+                        }
+                    }
+                }
+
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice Receipt Saved',
+                    detail: `Created ${createdCaseCount} received box record${createdCaseCount === 1 ? '' : 's'}.`,
+                    life: 5000,
+                });
+
+                this.receiveInvoiceDialogVisible = false;
+                await this.loadPage(this.currentPage ?? 1);
+            } catch (error) {
+                console.error('Error saving received invoice boxes:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to save received boxes. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.receiveInvoiceSaving = false;
+            }
+        },
+    }
 }
 </script>
 
@@ -7308,6 +8170,74 @@ function floor(arg0: number): any {
     font-size: 0.9rem;
 }
 
+.receive-invoice-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.receive-invoice-instructions {
+    color: var(--text-color-secondary, #6b7280);
+    font-size: 0.9rem;
+}
+
+.receive-invoice-table {
+    border: 1px solid #d4e1ee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.receive-invoice-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #1f3f5f;
+}
+
+.receive-invoice-group-sub {
+    color: #55738f;
+    font-size: 0.82rem;
+}
+
+.receive-boxes-total {
+    display: inline-flex;
+    min-width: 72px;
+    justify-content: flex-end;
+    font-weight: 700;
+    color: #1d4f73;
+}
+
+.receive-boxes-total--over {
+    color: #b42318;
+}
+
+.receive-split-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 350px;
+}
+
+.receive-split-row {
+    display: grid;
+    grid-template-columns: 110px minmax(180px, 1fr) 32px;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.receive-split-row__boxes {
+    width: 100%;
+}
+
+.receive-split-row__location {
+    width: 100%;
+}
+
+.receive-split-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
 .inbound-lines-table {
     border: 1px solid #d4e1ee;
     border-radius: 10px;
@@ -7325,38 +8255,17 @@ function floor(arg0: number): any {
     color: #5e4702;
 }
 
-.inbound-remaining--positive {
-    color: #1f6b3a;
-    font-weight: 600;
-}
-
-.inbound-remaining--zero {
-    color: #1f8c56;
+.inbound-remaining--alert {
+    color: #b42318;
     font-weight: 700;
 }
 
-.inbound-remaining--negative {
-    color: #a63c1a;
-    font-weight: 700;
-}
-
-.inbound-extra-units-list {
+.inbound-unaccounted-list {
     margin: 0.65rem 0;
     padding-left: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-}
-
-.inbound-extra-badge {
-    margin-left: 0.4rem;
-    background: #fff4de;
-    border: 1px solid #d9ad20;
-    color: #5e4702;
-    border-radius: 999px;
-    padding: 0.1rem 0.45rem;
-    font-size: 0.78rem;
-    font-weight: 700;
 }
 
 .invoice-products-list {
@@ -7900,6 +8809,12 @@ function floor(arg0: number): any {
     margin-top: 0.35rem;
 }
 
+.po-detail-subsection-title {
+    margin: 0.75rem 0 0.35rem;
+    color: #274d6f;
+    font-size: 0.92rem;
+}
+
 .po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
     background: #bbffb5;
 }
@@ -7932,6 +8847,22 @@ function floor(arg0: number): any {
     align-items: baseline;
     font-weight: 700;
     color: #183a58;
+}
+
+.po-invoice-group-head__name-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.po-invoice-group-head__name-btn:hover {
+    color: #0f4f88;
 }
 
 .po-invoice-group-head__meta {
@@ -8003,6 +8934,18 @@ function floor(arg0: number): any {
     box-shadow: 0 3px 8px rgba(201, 154, 16, 0.18);
 }
 
+.po-action-btn--receive {
+    border: 1px solid #3f91c6;
+    background: linear-gradient(180deg, #dff5ff 0%, #c2e9ff 100%);
+    color: #0b4f79;
+}
+
+.po-action-btn--receive:hover {
+    border-color: #2d7dae;
+    background: linear-gradient(180deg, #d0efff 0%, #aee0ff 100%);
+    box-shadow: 0 3px 8px rgba(37, 126, 178, 0.2);
+}
+
 .po-action-btn--recipe {
     border: 1px solid #6dbf8f;
     background: linear-gradient(180deg, #eefaf2 0%, #dff2e7 100%);
@@ -8071,6 +9014,55 @@ function floor(arg0: number): any {
 
 :deep(.po-edit-dialog .p-dialog-content) {
     background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+:deep(.po-invoice-edit-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+.po-invoice-edit-layout {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.po-invoice-edit-section {
+    border: 1px solid #c7d8e8;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 14px rgba(15, 46, 79, 0.08);
+}
+
+.po-invoice-edit-dialog .field {
+    margin-bottom: 0.75rem;
+}
+
+.po-invoice-edit-dialog .field:last-child {
+    margin-bottom: 0;
+}
+
+.po-invoice-edit-dialog .field label {
+    font-weight: 700;
+    color: #2a4761;
+    margin-bottom: 0.3rem;
+}
+
+.po-invoice-edit-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-top: 0.25rem;
+}
+
+.po-invoice-edit-checkbox label {
+    margin: 0;
+    font-weight: 700;
+    color: #2a4761;
+}
+
+.po-invoice-edit-dialog .p-dialog-footer {
+    border-top: 1px solid #d4e1ee;
+    background: #f4f8fc;
 }
 
 .po-edit-layout {
