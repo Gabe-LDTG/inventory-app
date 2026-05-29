@@ -1016,6 +1016,7 @@ var action = {
     /**
      * Inserts a case/box and links it to an invoice when provided.
      * Falls back to direct insert if the RPC return payload does not include a case id.
+     * @TODO Need to create an RPC function to handle the complexity of this process. 
      */
     async addCaseWithInvoice(c: {
         units_per_case: number;
