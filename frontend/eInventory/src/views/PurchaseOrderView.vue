@@ -1676,7 +1676,7 @@
             v-model:visible="receiveInvoiceDialogVisible"
             :header="receiveInvoiceDialogTitle"
             :modal="true"
-            :style="{ width: '1080px', maxWidth: '97vw' }"
+            :style="{ width: '1300px', maxWidth: '97vw' }"
             @hide="onReceiveInvoiceDialogHide"
         >
             <div class="receive-invoice-layout">
@@ -1724,6 +1724,17 @@
                     <Column field="item_num" header="Item #" sortable />
                     <Column field="total_units" header="Total Units" sortable />
                     <Column field="default_units_per_case" header="Units / Box" sortable />
+                    <Column header="Actual Units / Box" sortable>
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.actual_units_per_box"
+                                :min="0"
+                                :maxFractionDigits="2"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                            />
+                        </template>
+                    </Column>
                     <Column header="Expected Boxes" sortable>
                         <template #body="{ data }">
                             {{ getReceiveExpectedBoxes(data) }}
@@ -5129,7 +5140,7 @@ export default {
 
         getReceiveExpectedBoxes(line: any): number {
             const units = Number(line?.total_units || 0);
-            const unitsPerBox = Number(line?.default_units_per_case || 0);
+            const unitsPerBox = Number(line?.actual_units_per_box || line?.default_units_per_case || 0);
             if (!Number.isFinite(units) || !Number.isFinite(unitsPerBox) || unitsPerBox <= 0) return 0;
             return Number((units / unitsPerBox).toFixed(2));
         },
@@ -5225,6 +5236,14 @@ export default {
                             || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
                         const unitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
 
+                        const expectedBoxes = this.getReceiveExpectedBoxes(line);
+                        let partialQty = 0;
+
+                        if(!Number.isInteger(expectedBoxes)) {
+                            const wholeBoxes = Math.trunc(expectedBoxes);
+                            partialQty = Number(line.total_units - (wholeBoxes * unitsPerCase));
+                        }
+
                         receiveRows.push({
                             row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
                             invoice_id: Number(invoice?.invoice_id || 0),
@@ -5235,8 +5254,9 @@ export default {
                             product_id: productId,
                             product_name: String(line?.product_name || product?.name || `Product #${productId}`),
                             item_num: String(line?.item_num || product?.item_num || ''),
-                            total_units: Number(line?.total_units || 0),
+                            total_units: Number(line?.total_units - partialQty || 0),
                             default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                            actual_units_per_box: unitsPerCase > 0 ? unitsPerCase : 0,
                             receive_splits: [
                                 {
                                     split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
@@ -5247,6 +5267,32 @@ export default {
                             line_status: String(line?.status || 'Inbound'),
                             line_notes: line?.notes ?? null,
                         });
+
+                        if(partialQty > 0){
+                            receiveRows.push({
+                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                            invoice_id: Number(invoice?.invoice_id || 0),
+                            invoice_name: String(invoice?.invoice_name || ''),
+                            purchase_order_id: invoicePurchaseOrderId,
+                            purchase_order_name: invoicePurchaseOrderName,
+                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                            product_id: productId,
+                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                            item_num: String(line?.item_num || product?.item_num || ''),
+                            total_units: Number(partialQty),
+                            default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                            actual_units_per_box: partialQty > 0 ? partialQty : 0,
+                            receive_splits: [
+                                {
+                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                    boxes_received: 0,
+                                    location_id: null,
+                                },
+                            ],
+                            line_status: String(line?.status || 'Inbound'),
+                            line_notes: line?.notes ?? null,
+                        });
+                        }
                     });
                 });
 
@@ -7602,13 +7648,6 @@ export default {
             console.log("Filtered Recipes after search: ", this.filteredRecipesEdit);
         },
 
-        /**
-         * If requests haven't been made for the purchase order, add them
-         */
-        async addRequestsToProcess(){
-
-        },
-
         openNewPurchaseOrderProductDialog(){
             this.newPurchaseOrderProductDialog = true;
             this.newPORecipe = {} as any;
@@ -7973,6 +8012,7 @@ export default {
                         card: 0,
                         filed: false,
                         notes: null,
+                        status: "Inbound",
                     },
                     invoiceLineIds,
                 );
@@ -8000,6 +8040,11 @@ export default {
             }
         },
 
+        /**
+         * Called when user clicks "Save Received Boxes" in the Receive Invoice dialog. 
+         * Validates that at least one box is received, that all splits with received boxes have a location, and that all lines have valid units per case. 
+         * Then creates cases for each split with received boxes and updates PO line statuses as needed.
+         */
         async saveReceivedInvoiceBoxes() {
             this.receiveInvoicesSubmitted = true;
 
@@ -8028,12 +8073,12 @@ export default {
                 return;
             }
 
-            const invalidUnitsPerCase = rowsWithBoxes.filter((row: any) => Number(row?.default_units_per_case || 0) <= 0);
+            const invalidUnitsPerCase = rowsWithBoxes.filter((row: any) => Number(row?.actual_units_per_box || 0) <= 0);
             if (invalidUnitsPerCase.length > 0) {
                 this.$toast.add({
                     severity: 'error',
-                    summary: 'Missing Units Per Box',
-                    detail: 'One or more lines have no valid default units per box.',
+                    summary: 'Missing Actual Units Per Box',
+                    detail: 'One or more lines have no valid actual units per box.',
                     life: 5000,
                 });
                 return;
@@ -8042,30 +8087,27 @@ export default {
             this.receiveInvoiceSaving = true;
 
             try {
-                let createdCaseCount = 0;
                 const today = this.getTodayDateString();
 
+                const boxArray: {
+                    product_id: number;
+                    units_per_case: number;
+                    amount: number;
+                    date_received: string | null;
+                    notes: string | null;
+                    location_id: number | null;
+                    status: string | null;
+                    purchase_order_id: number | null;
+                    request_id: number | null;
+                    invoice_id: number | null;
+                }[] = [];
+
+                const fullyReceivedLineIds: number[] = [];
+
                 for (const row of rowsWithBoxes) {
-                    const unitsPerCase = Number(row.default_units_per_case || 0);
+                    const unitsPerCase = Number(row.actual_units_per_box || 0);
                     const activeSplits = (row.receive_splits || []).filter((split: any) => Number(split?.boxes_received || 0) > 0);
                     let totalBoxesReceived = 0;
-
-                    const createCaseRecord = async (unitsInCase: number, locationId: number, notesSuffix = '') => {
-                        await action.addCaseWithInvoice({
-                            units_per_case: unitsInCase,
-                            date_received: today,
-                            notes: notesSuffix
-                                ? `${row.line_notes || ''}${row.line_notes ? ' | ' : ''}${notesSuffix}`
-                                : (row.line_notes || null),
-                            product_id: Number(row.product_id),
-                            location_id: Number(locationId),
-                            status: 'On RTP',
-                            purchase_order_id: Number(row.purchase_order_id),
-                            request_id: null,
-                            invoice_id: Number(row.invoice_id),
-                        });
-                        createdCaseCount += 1;
-                    };
 
                     for (const split of activeSplits) {
                         const splitBoxes = Number(split.boxes_received || 0);
@@ -8075,31 +8117,55 @@ export default {
                         const partialBoxFactor = Number((splitBoxes - fullBoxes).toFixed(4));
                         const partialUnits = Number((partialBoxFactor * unitsPerCase).toFixed(2));
 
-                        for (let idx = 0; idx < fullBoxes; idx++) {
-                            await createCaseRecord(unitsPerCase, Number(split.location_id));
+                        if (fullBoxes > 0) {
+                            boxArray.push({
+                                product_id: Number(row.product_id),
+                                units_per_case: unitsPerCase,
+                                amount: fullBoxes,
+                                date_received: today,
+                                notes: row.line_notes || null,
+                                location_id: Number(split.location_id),
+                                status: 'On RTP',
+                                purchase_order_id: Number(row.purchase_order_id),
+                                request_id: null,
+                                invoice_id: Number(row.invoice_id),
+                            });
                         }
 
                         if (partialUnits > 0) {
-                            await createCaseRecord(
-                                partialUnits,
-                                Number(split.location_id),
-                                `Partial box received from invoice ${row.invoice_name || row.invoice_id}`,
-                            );
+                            const partialNote = `Partial box received from invoice ${row.invoice_name || row.invoice_id}`;
+                            boxArray.push({
+                                product_id: Number(row.product_id),
+                                units_per_case: partialUnits,
+                                amount: 1,
+                                date_received: today,
+                                notes: row.line_notes ? `${row.line_notes} | ${partialNote}` : partialNote,
+                                location_id: Number(split.location_id),
+                                status: 'On RTP',
+                                purchase_order_id: Number(row.purchase_order_id),
+                                request_id: null,
+                                invoice_id: Number(row.invoice_id),
+                            });
                         }
                     }
 
                     const receivedUnits = Number((totalBoxesReceived * unitsPerCase).toFixed(2));
                     const orderedUnits = Number(row.total_units || 0);
-                    const isFullyReceived = orderedUnits > 0 && receivedUnits >= orderedUnits;
+                    if (orderedUnits > 0 && receivedUnits >= orderedUnits && Number(row.po_raw_line_id || 0) > 0) {
+                        fullyReceivedLineIds.push(Number(row.po_raw_line_id));
+                    }
+                }
 
-                    if (isFullyReceived && Number(row.po_raw_line_id || 0) > 0) {
-                        const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === Number(row.po_raw_line_id));
-                        if (sourceLine) {
-                            await action.editPurchaseOrderRawLine({
-                                ...sourceLine,
-                                status: 'Delivered',
-                            });
-                        }
+                const createdCaseCount = boxArray.reduce((sum, record) => sum + record.amount, 0);
+
+                if (boxArray.length > 0) {
+                    await action.createMultipleCasesByType(boxArray);
+                }
+
+                for (const lineId of fullyReceivedLineIds) {
+                    const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === lineId);
+                    if (sourceLine) {
+                        await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Delivered' });
                     }
                 }
 

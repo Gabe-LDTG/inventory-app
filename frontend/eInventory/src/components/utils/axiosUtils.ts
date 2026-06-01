@@ -1135,6 +1135,31 @@ var action = {
         }
     },
 
+    /**
+     * Inserts multiple cases or boxes into the database based on an array of case/box objects. This is more efficient than batchCreateCases() when the cases/boxes being inserted have different values, as it allows for bulk insertion without needing to loop through each case/box individually on the client side.
+     * @param case_array An array of case or box objects with the same structure as the input for addCase() and batchCreateCases(). The RPC will loop through the array and insert each case or box into the database.
+     */
+    async createMultipleCasesByType(case_array: {
+        product_id: number,
+        units_per_case: number,
+        amount: number,
+        date_received: string | null,
+        notes: string | null,
+        location_id: number | null,
+        status: string | null,
+        purchase_order_id: number | null,
+        request_id: number | null,
+        invoice_id: number | null
+    }[]){
+        const {data, error} = await supabase.rpc('create_multiple_cases_by_type',{received_box_data: case_array})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes/Cases created: ', data);
+        }
+    },
+
     //
     async bulkDeleteCase(id_array: number[]){
         const {data, error} = await supabase.rpc('bulk_delete_cases', {id_array: id_array})
@@ -2039,6 +2064,7 @@ var action = {
         card: number;
         filed: boolean;
         notes: string | null;
+        status: string;
     }, rawLineIds: number[]){
         const {data, error} = await supabase.rpc('create_invoice_with_raw_lines', {
             invoice_data: {
@@ -2050,7 +2076,8 @@ var action = {
                 date_paid: invoice.date_paid,
                 card: invoice.card,
                 filed: invoice.filed,
-                notes: invoice.notes
+                notes: invoice.notes,
+                status: invoice.status
             },
             raw_line_ids: rawLineIds
         });
