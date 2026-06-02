@@ -987,7 +987,7 @@
 
             <div class="field">
                 <label for="vendor">Vendor</label>
-                <Dropdown disabled v-model="purchaseOrder.vendor_id"
+                <Select disabled v-model="purchaseOrder.vendor_id"
                 placeholder="Select a Vendor" class="w-full md:w-14rem" editable
                 :options="vendors"
                 filter
@@ -998,7 +998,7 @@
 
             <div class="field">
                 <label for="status">Status</label>
-                <Dropdown v-model="purchaseOrder.status" :options="statuses" :disabled="isPoReadOnly" @change="onStatusChange()"/>
+                <Select v-model="purchaseOrder.status" :options="statuses" :disabled="isPoReadOnly" @change="onStatusChange()"/>
             </div>
 
             <div class="field">
@@ -1013,12 +1013,12 @@
 
             <div class="field">
                 <label for="date_ordered">Date Ordered</label>
-                <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered" :disabled="isPoReadOnly"/>
+                <DatePicker id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered" :disabled="isPoReadOnly"/>
             </div>
 
             <div class="field">
                 <label for="date_received">Date received</label>
-                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received" :disabled="isPoReadOnly"/>
+                <DatePicker id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received" :disabled="isPoReadOnly"/>
             </div>
 
             <section class="po-edit-section-card">
@@ -1874,14 +1874,12 @@
 </template>
 
 <script lang="ts">
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
-import InputNumber from 'primevue/inputnumber';
-import RadioButton from 'primevue/radiobutton';
-import Paginator from 'primevue/paginator';
+
 import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
@@ -1889,7 +1887,6 @@ import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
 import { supabase } from '@/clients/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { pinia } from '@/stores';
-import { table } from 'console';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -1897,8 +1894,7 @@ import { table } from 'console';
 export default {
     components: {
         ZoomDropdown,
-        ProductAutoComplete,
-        Paginator
+        ProductAutoComplete
     },
     data() {
         return {

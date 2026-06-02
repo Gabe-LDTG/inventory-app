@@ -163,7 +163,7 @@
                     <div class="pl-fields-grid">
                         <div class="field">
                             <label for="vendor">Vendor</label>
-                            <Dropdown v-model="product.vendor_id"
+                            <Select v-model="product.vendor_id"
                             placeholder="Select a Vendor" class="w-full md:w-14rem" editable
                             :options="vendors"
                             filter
@@ -186,7 +186,7 @@
 
                         <div class="field">
                             <label for="date_added">Date Added</label>
-                            <Calendar id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
+                            <DatePicker id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
                         </div>
                         
                     </div>
@@ -233,7 +233,7 @@
 
                         <div class="field">
                             <label for="bag_size">Bag Size</label>
-                            <Dropdown v-model="product.bag_size"
+                            <Select v-model="product.bag_size"
                             placeholder="Select a Bag Size" class="w-full md:w-14rem"
                             :options="bags"
                             @change="updateBagCost"
@@ -249,7 +249,7 @@
 
                         <div class="field">
                             <label for="box_type">Box Type</label>
-                            <Dropdown v-model="product.box_type"
+                            <Select v-model="product.box_type"
                             placeholder="Select a Bag Size" class="w-full md:w-14rem"
                             :options="boxes"
                             @change="updateBoxCost"
@@ -371,14 +371,14 @@
                     <div class="pl-fields-grid">
                         <div class="field">
                             <label for="do_we_carry">Do We Carry?</label>
-                            <Dropdown v-model="product.do_we_carry"
+                            <Select v-model="product.do_we_carry"
                             placeholder="Do We Carry?" class="w-full md:w-14rem" editable
                             :options="binary"/>
                         </div>
 
                         <div class="field">
                             <label for="meltable">Meltable</label>
-                            <Dropdown v-model="product.meltable"
+                            <Select v-model="product.meltable"
                             placeholder="Meltable?" class="w-full md:w-14rem" editable
                             :options="binary"/>
                         </div>
@@ -398,7 +398,7 @@
                                 <div class="pl-fields-grid">
                                     <div class="field">
                                         <label for="name">Product Needed:</label>
-                                        <Dropdown v-model="ing.product_id" required="true"
+                                        <Select v-model="ing.product_id" required="true"
                                         placeholder="Select a Product" class="md:w-14rem" editable
                                         :options="unprocessedProducts"
                                         optionLabel="name"
@@ -419,7 +419,7 @@
                                             <template #option="slotProps">
                                                 <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                                             </template>
-                                        </Dropdown>
+                                        </Select>
                                         <small class="p-error" v-if="submitted && !ing.product_id">Product is required.</small>
                                     </div>
 
@@ -491,7 +491,7 @@
         <!-- <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor" :modal="true">
             <div class="field">
                 <!- <InputText id="vendor" v-model="product.vendor" rows="3" cols="20" /> ->
-                <Dropdown v-model="product.vendor"
+                <Select v-model="product.vendor"
                 placeholder="Select a Vendor" class="w-full md:w-14rem" editable
                 :options="vendors"
                 filter
@@ -509,7 +509,7 @@
 </template>
 
 <script lang="ts">
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import importAction from "../components/utils/importUtils";
 import ZoomDropdown from '../components/ZoomDropdown.vue';
@@ -841,10 +841,10 @@ export default {
 
             const even = typeCount % 2 === 0;
             if (processed) {
-                return { backgroundColor: even ? '#e6ffea' : '#ccffd1' }; // green shades
+                return { backgroundColor: even ? '#e6ffea' : '#ccffd1', color: '#000000' }; // green shades
             }
 
-            return { backgroundColor: even ? '#e8f0ff' : '#d3e3ff' }; // blue shades
+            return { backgroundColor: even ? '#e8f0ff' : '#d3e3ff', color: '#000000' }; // blue shades
         },
 
         async initVariables(){

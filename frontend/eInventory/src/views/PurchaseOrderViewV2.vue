@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
@@ -101,7 +101,6 @@ import { debounce, keys } from 'lodash';
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
-import { table } from 'console';
 
 // VARIABLES
 // PURCHASE ORDER

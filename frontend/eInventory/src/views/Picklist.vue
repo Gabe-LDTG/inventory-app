@@ -36,7 +36,7 @@
                 scrollable scrollHeight="800px" >
                     <template #header class="flex flex-wrap gap-2 align-items-center justify-content-between">
                         <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                            <Dropdown v-model="picklistType" :options="requestQtyType" placeholder="Select a picklist type"/>
+                            <Select v-model="picklistType" :options="requestQtyType" placeholder="Select a picklist type"/>
                         </div>
                     </template>
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
@@ -263,7 +263,7 @@
 import { ref, onMounted, computed, watch } from "vue";
 import action from "@/components/utils/axiosUtils";
 import helper from "@/components/utils/helperUtils";
-import { FilterMatchMode } from "primevue/api";
+import { FilterMatchMode } from "@primevue/core/api";
 import { useToast } from "primevue/usetoast";
 import { debounce, pick } from 'lodash';
 
