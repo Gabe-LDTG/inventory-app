@@ -1157,7 +1157,7 @@ var action = {
             console.error('Error calling RPC: ', error);
             throw error;
         } else {
-            console.log('Boxes/Cases created: ', data);
+            console.log('Boxes/Cases created: ', case_array);
         }
     },
 
@@ -1951,6 +1951,42 @@ var action = {
             throw error;
         } else {
             console.log('Purchase Order Raw Line Updated:', data);
+            return data;
+        }
+    },
+
+    async bulkEditPurchaseOrderRawLines(po_raw_lines: {
+        po_raw_line_id: number;
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }[]){
+        if (!Array.isArray(po_raw_lines) || po_raw_lines.length === 0) {
+            return [];
+        }
+
+        const payload = po_raw_lines.map((rawLine) => ({
+            po_raw_line_id: rawLine.po_raw_line_id,
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        }));
+
+        const {data, error} = await supabase.rpc('bulk_edit_raw_lines', {
+            received_raw_line_data: payload,
+        });
+
+        if(error){
+            console.error('Error editing purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Updated:', po_raw_lines);
             return data;
         }
     },

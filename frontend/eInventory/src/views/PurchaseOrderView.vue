@@ -613,19 +613,19 @@
                             label="Create Invoice"
                             icon="pi pi-plus"
                             class="po-action-btn po-action-btn--inbound"
-                            @click="detailDialogVisible = false; openInboundWorkspace(selectedDetailPo)"
+                            @click="openInboundWorkspace(selectedDetailPo)"
                         />
                         <Button
                             label="Receive Invoices"
                             icon="pi pi-download"
                             class="po-action-btn po-action-btn--receive"
-                            @click="detailDialogVisible = false; openReceiveInvoicesWorkspace(selectedDetailPo)"
+                            @click="openReceiveInvoicesWorkspace(selectedDetailPo)"
                         />
                         <Button
                             label="Edit PO"
                             icon="pi pi-pencil"
                             class="po-action-btn po-action-btn--secondary"
-                            @click="detailDialogVisible = false; openEditWorkspace(selectedDetailPo)"
+                            @click="openEditWorkspace(selectedDetailPo)"
                         />
                     </div>
 
@@ -760,6 +760,21 @@
                             </DataTable>
                         </details>
                     </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Raw Products That Have Arrived ({{ detailArrivedBoxes.length }})</summary>
+                            <DataTable :value="detailArrivedBoxes" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
+                                <template #empty>No raw products found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column field="item_num" header="Item #" />
+                                <Column field="units_per_case" header="Units / Box" />
+                                <Column field="total_units" header="Total Units" />
+                                <Column field="location_name" header="Location" />
+                            </DataTable>
+                        </details>
+                    </div>
+
                 </div>
             </template>
             <template #footer>
@@ -1773,6 +1788,7 @@
                                     <InputNumber
                                         v-model="split.boxes_received"
                                         :min="0"
+                                        showButtons
                                         :maxFractionDigits="2"
                                         :useGrouping="false"
                                         class="inbound-units-input receive-split-row__boxes"
@@ -2286,6 +2302,23 @@ export default {
                 });
 
             return Array.from(groupedByProduct.values())
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+        },
+        detailArrivedBoxes(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            console.log("Detail Arrived Boxes: ", this.selectedDetailPo.grouped_boxes);
+            console.log("Arrived Boxes Length: ", this.selectedDetailPo.grouped_boxes.length);
+
+            return (this.selectedDetailPo.grouped_boxes || [])
+                .filter((box: any) => Number(box?.purchase_order_id || 0) === poId && this.normalizeRawLineStatus(box?.status) !== 'Cancelled')
+                .map((box: any, idx: number) => {
+                    return {
+                        ...box,
+                        line_key: `arrived-${box?.po_case_id || idx}`,
+                    };
+                })
                 .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
         },
         detailInvoiceRows(): any[] {
@@ -8135,6 +8168,9 @@ export default {
                 }[] = [];
 
                 const fullyReceivedLineIds: number[] = [];
+                const partiallyReceivedLineIds: number[] = [];
+                const linesToUpdate: any[] = [];
+                const lineTotals: {line_id: number, orderedUnits: number, receivedUnits: number, remainingUnits: number}[] = [];
 
                 for (const row of rowsWithBoxes) {
                     const unitsPerCase = Number(row.actual_units_per_box || 0);
@@ -8183,8 +8219,18 @@ export default {
 
                     const receivedUnits = Number((totalBoxesReceived * unitsPerCase).toFixed(2));
                     const orderedUnits = Number(row.total_units || 0);
+
+                    lineTotals.push({
+                        line_id: Number(row.po_raw_line_id),
+                        orderedUnits,
+                        receivedUnits,
+                        remainingUnits: Number((orderedUnits - receivedUnits).toFixed(2)),
+                    });
+
                     if (orderedUnits > 0 && receivedUnits >= orderedUnits && Number(row.po_raw_line_id || 0) > 0) {
                         fullyReceivedLineIds.push(Number(row.po_raw_line_id));
+                    } else if (orderedUnits > 0 && receivedUnits < orderedUnits && receivedUnits > 0 && Number(row.po_raw_line_id || 0) > 0) {
+                        partiallyReceivedLineIds.push(Number(row.po_raw_line_id));
                     }
                 }
 
@@ -8194,12 +8240,45 @@ export default {
                     await action.createMultipleCasesByType(boxArray);
                 }
 
+                // If all boxes of this product type were grabbed for this invoice, set the raw line to Delivered
                 for (const lineId of fullyReceivedLineIds) {
                     const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === lineId);
                     if (sourceLine) {
-                        await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Delivered' });
+                        // await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Delivered' });
+                        linesToUpdate.push({ ...sourceLine, status: 'Delivered' });
                     }
                 }
+
+                // If any lines were partially received, check to see if there is already a split line for remaining product, if there is, update the total count, if not, create one, and set the status to Inbound
+                for (const lineId of partiallyReceivedLineIds) {
+                    const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === lineId);
+                    if (sourceLine) {
+                        // await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Partially Delivered' });
+
+                        const totalCounts = lineTotals.find((line: any) => line.line_id === lineId);
+                        // Check to see if there is another line linked to the invoice for this product type (means a remainder line was previously created)
+                        const remainderLine = (this.po_raw_products || []).find((line: any) => Number( line?.po_raw_line_id || 0) !== lineId && Number(line?.invoice_id || 0) === sourceLine.invoice_id && line.status === 'Inbound');
+
+                        console.log("RemainderLine: ", remainderLine);
+                        // If a remainder line exists, update the original source line total to only the received units, with a status of delivered, and
+                        // set the total units of the remainderLine to the ordered unit amount - received unit amount
+                        if(remainderLine){
+                            linesToUpdate.push({...sourceLine, total_units: totalCounts?.receivedUnits || sourceLine.total_units, status: 'Delivered'});
+                            linesToUpdate.push({...remainderLine, total_units: totalCounts?.remainingUnits || remainderLine.total_units, status: 'Inbound'});
+                        } else{ // If a remainderLine does not exist, create it, setting the status to inbound and the unit total to order amount - received amount
+                                // Update the received line like with the first half of the if statement
+                            linesToUpdate.push({...sourceLine, total_units: totalCounts?.receivedUnits || sourceLine.total_units, status: 'Delivered'});
+                            await action.addPurchaseOrderRawLine({
+                                ...sourceLine,
+                                total_units: totalCounts?.remainingUnits || 0,
+                                status: 'Inbound',
+                            });
+                        }
+                    }
+                }
+
+                if (linesToUpdate.length > 0)
+                    await action.bulkEditPurchaseOrderRawLines(linesToUpdate);
 
                 this.$toast.add({
                     severity: 'success',
@@ -8997,7 +9076,7 @@ export default {
     gap: 0.5rem;
     align-items: baseline;
     font-weight: 700;
-    color: #183a58;
+    color: #82b6ff;
 }
 
 .po-invoice-group-head__name-btn {
