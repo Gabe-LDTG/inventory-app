@@ -74,8 +74,40 @@
                         @click="openDetailDialog(po)"
                     >
                         <header class="po-card-header">
-                            <h5 class="po-card-title">{{ po.purchase_order_name }}</h5>
-                            <p class="po-card-subtitle">{{ getVendor(po.vendor_id) }} • {{ po.status || 'Draft' }}</p>
+                            <div class="po-card-header-row">
+                                <div class="po-card-text">
+                                    <h5 class="po-card-title">{{ po.purchase_order_name }}</h5>
+                                    <p class="po-card-subtitle">{{ getVendor(po.vendor_id) }} • {{ po.status || 'Draft' }}</p>
+                                </div>
+
+                                <div class="po-card-dots">
+                                    <Button class="po-card-dot-appearance" text icon="pi pi-ellipsis-v"  v-tooltip.top="'Additional Actions'" @click.stop="togglePoPopup($event, po.purchase_order_id)" />
+                                </div>
+                            </div>
+
+                            <Popover :ref="(el) => setPoPopupRef(el, po.purchase_order_id)">
+                                <div class="popover-button-stack">
+                                    <Button
+                                        label="Add Invoice"
+                                        icon="pi pi-plus"
+                                        class="po-action-btn po-action-btn--inbound"
+                                        @click.stop="openInboundWorkspace(po)"
+                                    />
+                                    <Button
+                                        label="Receive"
+                                        icon="pi pi-download"
+                                        class="po-action-btn po-action-btn--receive"
+                                        @click.stop="openReceiveInvoicesWorkspace(po)"
+                                    />
+                                    <Button
+                                        label="Edit PO"
+                                        icon="pi pi-pencil"
+                                        class="po-action-btn po-action-btn--secondary"
+                                        :disabled="po.status === ''"
+                                        @click.stop="openEditWorkspace(po)"
+                                    />
+                                </div>
+                            </Popover>
                         </header>
 
                         <div class="po-progress-pill">
@@ -98,27 +130,6 @@
                             </div>
                         </div>
 
-                        <footer class="po-card-actions">
-                            <Button
-                                label="Add Invoice"
-                                icon="pi pi-plus"
-                                class="po-action-btn po-action-btn--inbound"
-                                @click.stop="openInboundWorkspace(po)"
-                            />
-                            <Button
-                                label="Receive"
-                                icon="pi pi-download"
-                                class="po-action-btn po-action-btn--receive"
-                                @click.stop="openReceiveInvoicesWorkspace(po)"
-                            />
-                            <Button
-                                label="Edit PO"
-                                icon="pi pi-pencil"
-                                class="po-action-btn po-action-btn--secondary"
-                                :disabled="po.status === ''"
-                                @click.stop="openEditWorkspace(po)"
-                            />
-                        </footer>
                     </article>
                 </div>
 
@@ -621,7 +632,7 @@
                     <div class="po-workspace-section">
                         <details class="po-detail-collapsible">
                             <summary>Planned Cases ({{ detailPlannedCases.length }})</summary>
-                            <DataTable :value="detailPlannedCases" dataKey="line_key" size="small" class="po-detail-table po-detail-table--green" :rowStyle="detailRowStyleProc">
+                            <DataTable :value="detailPlannedCases" dataKey="line_key" size="small" class="po-detail-table po-detail-table--green" :rowStyle="detailRowStyleProc" >
                                 <template #empty>No planned cases found for this purchase order.</template>
                                 <Column field="product_name" header="Processed Product" />
                                 <Column field="amount" header="Cases" />
@@ -1676,7 +1687,7 @@
             v-model:visible="receiveInvoiceDialogVisible"
             :header="receiveInvoiceDialogTitle"
             :modal="true"
-            :style="{ width: '1300px', maxWidth: '97vw' }"
+            :style="{ width: '1500px', maxWidth: '97vw' }"
             @hide="onReceiveInvoiceDialogHide"
         >
             <div class="receive-invoice-layout">
@@ -1689,7 +1700,7 @@
                     <Column header="Invoice"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
                     <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
                     <Column header="Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
-                    <Column header="Units / Box"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Default Units / Box"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
                     <Column header="Expected Boxes"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
                     <Column header="Boxes Received"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
                     <Column header="Location"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
@@ -1704,6 +1715,7 @@
                     sortField="invoice_id"
                     :sortOrder="1"
                     stripedRows
+                    removableSort
                     showGridlines
                     responsiveLayout="scroll"
                     class="receive-invoice-table"
@@ -1723,7 +1735,7 @@
                     <Column field="product_name" header="Product" sortable />
                     <Column field="item_num" header="Item #" sortable />
                     <Column field="total_units" header="Total Units" sortable />
-                    <Column field="default_units_per_case" header="Units / Box" sortable />
+                    <Column field="default_units_per_case" header="Default Units / Box" sortable />
                     <Column header="Actual Units / Box" sortable>
                         <template #body="{ data }">
                             <InputNumber
@@ -1881,6 +1893,7 @@ import importAction from "../components/utils/importUtils";
 
 
 import { debounce, keys } from 'lodash';
+import { ref } from 'vue'; 
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
@@ -2070,7 +2083,8 @@ export default {
             sortField: '',
             sortOrder: -1,
             tableLoading: false,
-            poViewMode: 'table' as 'cards' | 'table',
+            poViewMode: 'cards' as 'cards' | 'table',
+            poPopupRefs: {} as Record<number, any>,
 
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
@@ -2359,6 +2373,28 @@ export default {
         persistPoViewModePreference() {
             if (typeof window === 'undefined') return;
             window.localStorage.setItem(this.getPoViewModeStorageKey(), this.poViewMode);
+        },
+
+        setPoPopupRef(el: any, purchaseOrderId: number) {
+            const poId = Number(purchaseOrderId || 0);
+            if (!poId) return;
+
+            if (el) {
+                this.poPopupRefs[poId] = el;
+                return;
+            }
+
+            delete this.poPopupRefs[poId];
+        },
+
+        togglePoPopup(event: any, purchaseOrderId: number) {
+            const poId = Number(purchaseOrderId || 0);
+            if (!poId) return;
+
+            const popover = this.poPopupRefs[poId] as any;
+            if (popover?.toggle) {
+                popover.toggle(event);
+            }
         },
 
         setPoViewMode(mode: 'cards' | 'table') {
@@ -6351,7 +6387,7 @@ export default {
 
             if (data?.product_name) {
                 const bgColor = isEvenRow ? '#bbffb5' : '#D4F5DD';
-                return { font: 'bold', backgroundColor: bgColor };
+                return { font: 'bold', color: '#000000', backgroundColor: bgColor };
             }
 
             return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
@@ -6362,12 +6398,12 @@ export default {
             const isEvenRow = rowIndex % 2 === 0;
 
             if (this.normalizeRawLineStatus(data?.status) === 'Cancelled') {
-                return { font: 'bold', backgroundColor: '#f19595' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#f19595' };
             }
 
             if (data?.product_id) {
                 const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
-                return { font: 'bold', backgroundColor: bgColor };
+                return { font: 'bold', color: '#000000', backgroundColor: bgColor };
             }
 
             return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
@@ -6375,42 +6411,42 @@ export default {
 
         detailInvoiceRowStyle(data: any) {
             if (!data?.has_line) {
-                return { font: 'bold', backgroundColor: '#E8F4FF' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#E8F4FF' };
             }
 
             const rowIndex = this.detailInvoiceRows.indexOf(data);
             const isEvenRow = rowIndex % 2 === 0;
             const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
-            return { font: 'bold', backgroundColor: bgColor };
+            return { font: 'bold', color: '#000000', backgroundColor: bgColor };
         },
 
         rowStyleRequested() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
         rowStyleReceived() {
-            return { font: 'bold', backgroundColor: '#bbffb5' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#bbffb5' };
         },
         rowStyleAwaiting() {
-            return { font: 'bold', backgroundColor: '#FFD580'};
+            return { font: 'bold', color: '#000000', backgroundColor: '#FFD580'};
         },
         rowStyleUnprocessed() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
         rowStylePool() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
 
         rowStyleCompared(data: any){
             if (data.moment === 'Requested') {
-                return { font: 'bold', backgroundColor: '#C0EEFF' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
             } else if (data.moment === 'Received') {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#bbffb5' };
             } else if (data.moment === 'Awaiting') {
-                return { font: 'bold', backgroundColor: '#FFD580' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#FFD580' };
             } else if (data.moment === 'Newly Arrived') {
-                return { font: 'bold', backgroundColor: '#a3e4d7' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#a3e4d7' };
             }else if (data.moment === 'Back Ordered') {
-                return { font: 'bold', backgroundColor: '#f1948a' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#f1948a' };
             }
         },
 
@@ -8374,8 +8410,8 @@ export default {
 }
 
 .p-datatable.p-datatable-gridlines .p-datatable-border-color .p-datatable-tbody > tr {
-  background: gray
-  
+  background: #000000;
+  color: #000000 !important;
 }
 
 /* ── Table-scoped loading overlay ────────────────────────────── */
@@ -8388,27 +8424,30 @@ export default {
     grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
     align-items: start;
+    background: #000000;
 }
 
 .po-master-detail--table {
     grid-template-columns: minmax(0, 1fr) 380px;
+    background: #000000;
 }
 
 .po-master-detail__table {
     min-width: 0;
+    background: #000000;
 }
 
 .po-master-detail__table--cards {
     border: 1px solid #d4e1ee;
     border-radius: 12px;
     padding: 0.8rem;
-    background: #fbfdff;
+    background: #000000;
 }
 
 .po-workspace-panel {
-    border: 1px solid #d4e1ee;
+    border: 1px solid #000000;
     border-radius: 14px;
-    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    background: #000000;
     box-shadow: 0 8px 20px rgba(15, 46, 79, 0.08);
     padding: 0.85rem;
     position: sticky;
@@ -8601,14 +8640,7 @@ export default {
     padding-top: 0.75rem;
 }
 
-.card {
-    --po-pill-radius: 999px;
-    --po-pill-height: 30px;
-    --po-pill-font-size: 0.73rem;
-    --po-pill-font-weight: 700;
-    --po-transition-fast: 160ms ease;
-    --po-transition-medium: 220ms ease;
-
+:root{
     --po-blue-border: #7faad6;
     --po-blue-soft: #dcedff;
     --po-blue-strong: #72a9e2;
@@ -8628,10 +8660,21 @@ export default {
     --po-green-soft: #84e8ae;
     --po-green-strong: #3fc87a;
     --po-green-text: #0a3f23;
+}
+
+.card {
+    --po-pill-radius: 999px;
+    --po-pill-height: 30px;
+    --po-pill-font-size: 0.73rem;
+    --po-pill-font-weight: 700;
+    --po-transition-fast: 160ms ease;
+    --po-transition-medium: 220ms ease;
+
+    
 
     border: 1px solid var(--surface-border, #d4d8dd);
     border-radius: 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+    background: #f6f8fa;
     box-shadow: 0 12px 28px rgba(8, 25, 45, 0.08);
     overflow: hidden;
 }
@@ -8684,13 +8727,17 @@ export default {
     padding: 0.65rem 0.8rem;
     border: 1px solid #c5ced8;
     border-radius: 10px;
-    color: #1f2d3a;
+    color: #ffffff;
 }
 
 .po-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 0.8rem;
+    overflow-y: auto;       /* Enables vertical scrolling */
+    max-height: 60vh;    /* Adjusts based on your layout needs */
+    background: #000000;
+    padding: 0.8rem;
 }
 
 .po-card {
@@ -8720,6 +8767,19 @@ export default {
     padding-bottom: 0.55rem;
 }
 
+.po-card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns dots to the top of the title text */
+}
+
+/* NEW: Optional container to keep title/subtitle stacked vertically */
+.po-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
 .po-card-title {
     margin: 0;
     font-size: 1rem;
@@ -8730,6 +8790,21 @@ export default {
     margin: 0;
     font-size: 0.84rem;
     color: #5f7487;
+}
+
+.po-card-dots :deep(.p-button-icon) {
+    display: flex;
+}
+
+.po-card-dot-appearance{
+    color: #000000 !important;
+}
+
+.popover-button-stack {
+  display: flex;
+  flex-direction: column; /* Stacks items vertically */
+  gap: 0.5rem;            /* Adds uniform spacing between buttons */
+  min-width: 180px;       /* Keeps the popover wide enough for text */
 }
 
 .po-card-metrics {
@@ -8869,6 +8944,16 @@ export default {
 
 .po-detail-table {
     margin-top: 0.35rem;
+    color: #000000 !important;
+}
+
+.po-detail-table :deep(.p-datatable-thead > tr > th),
+.po-detail-table :deep(.p-datatable-tbody > tr > td),
+.po-detail-table :deep(.p-datatable-emptymessage > td),
+.po-detail-table :deep(.p-rowgroup-header > td),
+.po-detail-table :deep(.p-sortable-column-icon),
+.po-detail-table :deep(.p-column-title) {
+    color: #000000 !important;
 }
 
 .po-detail-subsection-title {
@@ -8878,19 +8963,23 @@ export default {
 }
 
 .po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
-    background: #bbffb5;
+    /* background: #bbffb5; */
+    background: #16ae08;
 }
 
 .po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
-    background: #d4f5dd;
+    /* background: #d4f5dd; */
+    background: #057f26;
 }
 
 .po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
-    background: #c0eeff;
+    /* background: #c0eeff; */
+    background: #015674;
 }
 
 .po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
-    background: #e8f4ff;
+    /* background: #e8f4ff; */
+    background: #3078b8;
 }
 
 .po-detail-table--invoice :deep(.p-rowgroup-header > td) {
@@ -8963,64 +9052,64 @@ export default {
 }
 
 .po-action-btn--primary {
-    border: 1px solid #1f8c56;
-    background: linear-gradient(180deg, #44c783 0%, #2ca765 100%);
-    color: #ffffff;
+    border: 1px solid #1f8c56 !important;
+    background: #44c783 !important;
+    color: #ffffff !important;
 }
 
 .po-action-btn--primary:hover {
-    filter: brightness(0.96);
-    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+    filter: brightness(0.96) !important;
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22) !important;
 }
 
 .po-action-btn--secondary {
-    border: 1px solid #91a8bf;
-    background: linear-gradient(180deg, #f7fbff 0%, #ebf2f8 100%);
-    color: #1b3b59;
+    border: 1px solid #91a8bf !important;
+    background: #ebf2f8 !important;
+    color: #1b3b59 !important;
 }
 
 .po-action-btn--secondary:hover {
-    border-color: #7193b5;
-    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+    border-color: #7193b5 !important;
+    background: #dfeeff !important;
 }
 
 .po-action-btn--inbound {
-    border: 1px solid var(--po-yellow-border);
-    background: linear-gradient(180deg, #fff7d1 0%, #ffe79a 100%);
-    color: var(--po-yellow-text);
+    border: 1px solid var(--po-yellow-border) !important;
+    background: #ffe79a !important;
+    color: var(--po-yellow-text) !important;
 }
 
 .po-action-btn--inbound:hover {
-    border-color: #c89a10;
-    background: linear-gradient(180deg, #fff3b3 0%, #ffd95d 100%);
-    box-shadow: 0 3px 8px rgba(201, 154, 16, 0.18);
+    border-color: #c89a10 !important;
+    background: #ffd95d !important;
+    box-shadow: 0 3px 8px rgba(201, 154, 16, 0.18) !important;
 }
 
 .po-action-btn--receive {
-    border: 1px solid #3f91c6;
-    background: linear-gradient(180deg, #dff5ff 0%, #c2e9ff 100%);
-    color: #0b4f79;
+    border: 1px solid #3f91c6 !important;
+    background:#c2e9ff !important;
+    color: #0b4f79 !important;
 }
 
 .po-action-btn--receive:hover {
-    border-color: #2d7dae;
-    background: linear-gradient(180deg, #d0efff 0%, #aee0ff 100%);
-    box-shadow: 0 3px 8px rgba(37, 126, 178, 0.2);
+    border-color: #2d7dae !important;
+    background: #aee0ff !important;
+    box-shadow: 0 3px 8px rgba(37, 126, 178, 0.2) !important;
 }
 
 .po-action-btn--recipe {
-    border: 1px solid #6dbf8f;
-    background: linear-gradient(180deg, #eefaf2 0%, #dff2e7 100%);
-    color: #155738;
+    border: 1px solid #6dbf8f !important;
+    background: #dff2e7 !important;
+    color: #155738 !important;
 }
 
 .po-action-btn--recipe:hover {
-    border-color: #52a878;
-    background: linear-gradient(180deg, #e0f4e8 0%, #cfead9 100%);
+    border-color: #52a878 !important;
+    background: #cfead9 !important;
 }
 
 :deep(.po-create-dialog .p-dialog-content) {
-    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+    background: #eef5fd;
 }
 
 .po-create-layout {
@@ -9283,6 +9372,7 @@ export default {
 
 :deep(.card .p-datatable .p-datatable-tbody > tr > td) {
     border-color: #e7edf3;
+    color: #000000 !important;
     padding: 0.75rem 0.65rem;
 }
 

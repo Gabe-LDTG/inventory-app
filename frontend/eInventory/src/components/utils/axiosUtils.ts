@@ -713,7 +713,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((case_id) => {
             channel = channel.on(
@@ -1345,8 +1346,9 @@ var action = {
      * @returns Supabase realtime channel subscription object.
      */
     subscribeToRecordLocks(table_name: string, onChange: () => void){
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         return supabase
-            .channel(`record-locks-${table_name}`)
+            .channel(`record-locks-${table_name}-${channelNonce}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'record_locks', filter: `table_name=eq.${table_name}` }, () => {
                 onChange();
             })
@@ -1375,7 +1377,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_id) => {
             channel = channel.on(
@@ -1414,7 +1417,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_recipe_id) => {
             channel = channel.on(
@@ -1453,7 +1457,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_raw_line_id) => {
             channel = channel.on(
