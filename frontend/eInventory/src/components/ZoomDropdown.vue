@@ -1,5 +1,5 @@
 <template>
-  <Dropdown
+  <Select
     v-model="localZoom"
     :options="options"
     optionLabel="header"

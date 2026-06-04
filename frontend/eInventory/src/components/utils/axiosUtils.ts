@@ -713,7 +713,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`case-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((case_id) => {
             channel = channel.on(
@@ -1009,7 +1010,75 @@ var action = {
             throw error;
         } else {
             console.log('Box/Case created: ', data);
+            return data;
         }
+    },
+
+    /**
+     * Inserts a case/box and links it to an invoice when provided.
+     * Falls back to direct insert if the RPC return payload does not include a case id.
+     * @TODO Need to create an RPC function to handle the complexity of this process. 
+     */
+    async addCaseWithInvoice(c: {
+        units_per_case: number;
+        date_received: string | null;
+        notes: string | null;
+        product_id: number;
+        location_id: number | null;
+        status: string | null;
+        purchase_order_id: number | null;
+        request_id: number | null;
+        invoice_id: number | null;
+    }){
+        const baseCasePayload = {
+            units_per_case: c.units_per_case,
+            date_received: c.date_received,
+            notes: c.notes,
+            product_id: c.product_id,
+            location_id: c.location_id,
+            status: c.status,
+            purchase_order_id: c.purchase_order_id,
+            request_id: c.request_id,
+        };
+
+        const createdCase = await this.addCase(baseCasePayload);
+        const createdCaseId = Number(createdCase?.case_id || 0);
+
+        if (c.invoice_id == null) {
+            return createdCase;
+        }
+
+        if (createdCaseId > 0) {
+            const {data, error} = await supabase
+                .from('cases')
+                .update({ invoice_id: c.invoice_id })
+                .eq('case_id', createdCaseId)
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error linking case to invoice:', error);
+                throw error;
+            }
+
+            return data;
+        }
+
+        const {data, error} = await supabase
+            .from('cases')
+            .insert({
+                ...baseCasePayload,
+                invoice_id: c.invoice_id,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating case with invoice:', error);
+            throw error;
+        }
+
+        return data;
     },
 
     /* picklistData: {label: string, picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
@@ -1064,6 +1133,31 @@ var action = {
             throw error;
         } else {
             console.log('Boxes/Cases created: ', data);
+        }
+    },
+
+    /**
+     * Inserts multiple cases or boxes into the database based on an array of case/box objects. This is more efficient than batchCreateCases() when the cases/boxes being inserted have different values, as it allows for bulk insertion without needing to loop through each case/box individually on the client side.
+     * @param case_array An array of case or box objects with the same structure as the input for addCase() and batchCreateCases(). The RPC will loop through the array and insert each case or box into the database.
+     */
+    async createMultipleCasesByType(case_array: {
+        product_id: number,
+        units_per_case: number,
+        amount: number,
+        date_received: string | null,
+        notes: string | null,
+        location_id: number | null,
+        status: string | null,
+        purchase_order_id: number | null,
+        request_id: number | null,
+        invoice_id: number | null
+    }[]){
+        const {data, error} = await supabase.rpc('create_multiple_cases_by_type',{received_box_data: case_array})
+        if(error){
+            console.error('Error calling RPC: ', error);
+            throw error;
+        } else {
+            console.log('Boxes/Cases created: ', case_array);
         }
     },
 
@@ -1252,8 +1346,9 @@ var action = {
      * @returns Supabase realtime channel subscription object.
      */
     subscribeToRecordLocks(table_name: string, onChange: () => void){
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         return supabase
-            .channel(`record-locks-${table_name}`)
+            .channel(`record-locks-${table_name}-${channelNonce}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'record_locks', filter: `table_name=eq.${table_name}` }, () => {
                 onChange();
             })
@@ -1282,7 +1377,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_id) => {
             channel = channel.on(
@@ -1321,7 +1417,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-recipe-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_recipe_id) => {
             channel = channel.on(
@@ -1360,7 +1457,8 @@ var action = {
             return null;
         }
 
-        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}`);
+        const channelNonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let channel = supabase.channel(`purchase-order-raw-line-changes-${scopedIds.join('-')}-${channelNonce}`);
 
         scopedIds.forEach((purchase_order_raw_line_id) => {
             channel = channel.on(
@@ -1720,7 +1818,7 @@ var action = {
         }
     },
 
-    async getPurchaseOrderRawLines(po_id: number){
+    async getAllPurchaseOrderRawLines(){
         const {data, error} = await supabase
             .from('po_raw_lines')
             .select('*');
@@ -1737,7 +1835,7 @@ var action = {
     async getCurrentPurchaseOrderRawLines(po_id: number){
         const {data, error} = await supabase
             .from('po_raw_lines')            
-            .select('*')
+            .select(`*, products(product_id, item_num, upc, name, price_2023)`)
             .eq('purchase_order_id', po_id);
         if(error){
             console.error('Error calling RPC: ', error);
@@ -1857,6 +1955,42 @@ var action = {
         }
     },
 
+    async bulkEditPurchaseOrderRawLines(po_raw_lines: {
+        po_raw_line_id: number;
+        product_id: number;
+        purchase_order_id: number;
+        invoice_id?: number | null;
+        total_units: number;
+        notes?: string | null;
+        status: string;
+    }[]){
+        if (!Array.isArray(po_raw_lines) || po_raw_lines.length === 0) {
+            return [];
+        }
+
+        const payload = po_raw_lines.map((rawLine) => ({
+            po_raw_line_id: rawLine.po_raw_line_id,
+            product_id: rawLine.product_id,
+            purchase_order_id: rawLine.purchase_order_id,
+            invoice_id: rawLine.invoice_id ?? null,
+            total_units: rawLine.total_units,
+            notes: rawLine.notes ?? null,
+            status: rawLine.status,
+        }));
+
+        const {data, error} = await supabase.rpc('bulk_edit_raw_lines', {
+            received_raw_line_data: payload,
+        });
+
+        if(error){
+            console.error('Error editing purchase order raw lines:', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Raw Lines Updated:', po_raw_lines);
+            return data;
+        }
+    },
+
     /**
      * Deletes a single raw line item by primary key.
      */
@@ -1971,6 +2105,7 @@ var action = {
         card: number;
         filed: boolean;
         notes: string | null;
+        status: string;
     }, rawLineIds: number[]){
         const {data, error} = await supabase.rpc('create_invoice_with_raw_lines', {
             invoice_data: {
@@ -1982,7 +2117,8 @@ var action = {
                 date_paid: invoice.date_paid,
                 card: invoice.card,
                 filed: invoice.filed,
-                notes: invoice.notes
+                notes: invoice.notes,
+                status: invoice.status
             },
             raw_line_ids: rawLineIds
         });

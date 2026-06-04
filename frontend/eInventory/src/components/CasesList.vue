@@ -166,7 +166,7 @@
                     <div class="cl-fields-grid">
                         <div class="field">
                             <label for="name">Name</label>
-                <!-- <Dropdown v-model="eCase.product_id" required="true" 
+                <!-- <Select v-model="eCase.product_id" required="true" 
                 placeholder="Select a Product" class="md:w-14rem" editable
                 :options="products"
                 optionLabel="name"
@@ -192,7 +192,7 @@
                             <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
                         </div>
                     </template>
-                </Dropdown> -->
+                </Select> -->
                             <AutoComplete 
                                 v-model="eCase.productObj" 
                                 :suggestions="filteredProducts" 
@@ -273,13 +273,20 @@
                     <div class="cl-fields-grid">
                         <div class="field">
                             <label for="location">Location</label>
-                            <Dropdown v-model="eCase.location_id"
-                            placeholder="Select a Location" class="cl-location-control" editable
-                            :options="locations"
-                            filter
-                            :virtualScrollerOptions="{ itemSize: 38 }"
-                            optionLabel="name"
-                            optionValue="location_id" />
+                            <AutoComplete
+                                :modelValue="getLocationAutoCompleteValue(eCase.location_id)"
+                                :suggestions="filteredLocations"
+                                @complete="searchLocations"
+                                @focus="searchLocations({ query: '' })"
+                                @item-select="onLocationAutoCompleteChange($event.value)"
+                                @update:modelValue="onLocationAutoCompleteChange($event)"
+                                :dropdown="true"
+                                :showOnFocus="true"
+                                optionLabel="name"
+                                placeholder="Select a Location"
+                                class="cl-location-control"
+                                :forceSelection="true"
+                            />
                             <Button label="Add Location" icon="pi pi-plus" class="cl-action-btn cl-action-btn--utility cl-location-control cl-location-btn" @click="newLocation()"  />
                         </div>
 
@@ -290,12 +297,12 @@
                             <div v-else-if="displayValue === 'unprocessed'" class="flex align-items-center">
                                 <label for="date_received">Date Received</label>
                             </div>
-                            <Calendar id="date_received" dateFormat="mm/dd/yy" v-model="eCase.date_received"/>
+                            <DatePicker id="date_received" dateFormat="mm/dd/yy" v-model="eCase.date_received"/>
                         </div>
 
                         <div class="field">
                             <label>Status</label>
-                            <Dropdown v-model="eCase.status"
+                            <Select v-model="eCase.status"
                             placeholder="Select a Status" class="w-full md:w-14rem" editable
                             :options="statuses"/>
                         </div>
@@ -366,7 +373,7 @@
                 <h3 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h3><br>
                 <div class="field">
                     <label for="name">Name:</label>
-                    <Dropdown v-model="bCase.product_id" required="true" 
+                    <Select v-model="bCase.product_id" required="true" 
                     placeholder="Select a Product" class="md:w-14rem" editable
                     :options="products"
                     optionLabel="name"
@@ -392,7 +399,7 @@
                                 <div>{{ slotProps.option.name }} - {{ slotProps.option.upc }}</div>
                             </div>
                         </template>
-                    </Dropdown>
+                    </Select>
                     <small class="p-error" v-if="submitted && !bCase.product_id">Name is required.</small>
                 </div><br>
 
@@ -450,11 +457,10 @@ _____________________________________________________________
 
 <script lang="ts">
 //import { ProductService } from '@/components/service/ProductService';
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import ZoomDropdown from './ZoomDropdown.vue';
-import { on } from 'events';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -488,6 +494,7 @@ export default {
 
             //LOCATION VARIABLES
             locations: [] as any[],
+            filteredLocations: [] as any[],
             locationToCreate: {} as any,
             locationDialog: false,
 
@@ -666,10 +673,52 @@ export default {
         async getLocations(){
             try {
                 this.locations = await action.getLocations();
+                this.filteredLocations = Array.isArray(this.locations) ? [...this.locations] : [];
             } catch (error) {
                 console.log(error);
             }
         }, 
+
+        searchLocations(event: any){
+            const query = String(event?.query || '').toLowerCase().trim();
+            const allLocations = Array.isArray(this.locations) ? this.locations : [];
+
+            if (!query.length) {
+                this.filteredLocations = [...allLocations];
+                return;
+            }
+
+            this.filteredLocations = allLocations.filter((location: any) =>
+                String(location?.name || '').toLowerCase().includes(query)
+            );
+        },
+
+        getLocationAutoCompleteValue(locationId: any){
+            const normalizedLocationId = Number(locationId || 0);
+            if (!normalizedLocationId) return null;
+
+            return (this.locations || []).find((location: any) =>
+                Number(location?.location_id || 0) === normalizedLocationId
+            ) || null;
+        },
+
+        onLocationAutoCompleteChange(nextValue: any){
+            if (nextValue && typeof nextValue === 'object' && 'location_id' in nextValue) {
+                this.eCase.location_id = Number(nextValue.location_id || 0) || null;
+                return;
+            }
+
+            if (typeof nextValue === 'string') {
+                const normalizedName = nextValue.toLowerCase().trim();
+                const matchedLocation = (this.locations || []).find((location: any) =>
+                    String(location?.name || '').toLowerCase() === normalizedName
+                );
+                this.eCase.location_id = matchedLocation ? Number(matchedLocation.location_id || 0) : null;
+                return;
+            }
+
+            this.eCase.location_id = null;
+        },
 
         async getPurchaseOrders(){
             try {

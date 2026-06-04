@@ -74,7 +74,7 @@
                 </template>
                 <template #editor="{data}">
                     <div class="container">
-                        <Dropdown v-model="data.status"
+                        <Select v-model="data.status"
                         placeholder="Select a status" class="w-full md:w-14rem" editable
                         :options="statuses"/>
                     </div>
@@ -87,7 +87,7 @@
                 </template>
                 <template #editor="{data}">
                     <div class="container">
-                        <Dropdown v-model="data.labels_printed"
+                        <Select v-model="data.labels_printed"
                         placeholder="Item labels printed?" class="w-full md:w-14rem" editable
                         :options="labelOptions"
                         optionLabel="header"
@@ -101,7 +101,7 @@
                 </template>
                 <template #editor="{data}">
                     <div class="container">
-                        <Dropdown v-model="data.ship_label"
+                        <Select v-model="data.ship_label"
                         placeholder="Shipping labels printed?" class="w-full md:w-14rem" editable
                         :options="labelOptions"
                         optionLabel="header"
@@ -132,7 +132,7 @@
                     <!-- {{ helper.formatDateTS(data.deadline) }} -->
                 </template>
                 <template #editor="{data}">
-                    <Calendar dateFormat="mm/dd/yy" v-model="data.deadline"/>
+                    <DatePicker dateFormat="mm/dd/yy" v-model="data.deadline"/>
                 </template>
             </Column>
             <Column field="warehouse_qty" header="Store in Warehouse">
@@ -154,7 +154,7 @@
                 </template>
                 <!-- <template #editor="{data}">
                     <div class="container">
-                        <Dropdown v-model="data.priority"
+                        <Select v-model="data.priority"
                         placeholder="Select a priority" class="w-full md:w-14rem" editable
                         :options="priorities"/>
                         </div>
@@ -166,7 +166,7 @@
                 </template>
 <!--                 <template #editor="{data}">
                     <div class="container">
-                        <Dropdown v-model="data.product_id"
+                        <Select v-model="data.product_id"
                         placeholder="Select a priority" class="w-full md:w-14rem" editable
                         :options="procProducts"
                         optionLabel="name"
@@ -271,7 +271,7 @@
 
         <div class="field">
             <label for="product_id">Product</label>
-            <Dropdown v-model="requestToProcess.product_id" required="true" 
+            <Select v-model="requestToProcess.product_id" required="true" 
                 placeholder="Select a Product" class="md:w-14rem" editable
                 :options="getUsableProducts()"
                 optionLabel="name"
@@ -298,7 +298,7 @@
             <InputNumber v-model="requestToProcess.container_qty" required="true" placeholder="Amount to Container" class="md:w-14rem" showButtons/>
         </div>
 
-        <!-- <Dropdown v-model="requestToProcess.purchase_order_id" required="true" 
+        <!-- <Select v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable
             :options="getUsablePO()"
             optionLabel="purchase_order_name"
@@ -316,7 +316,7 @@
     
 </template>
 <script lang="ts">
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import ZoomDropdown from "../components/ZoomDropdown.vue";

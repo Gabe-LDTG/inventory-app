@@ -8,13 +8,41 @@
                         <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
                             <InputText v-model="searchText" placeholder="Search purchase orders..." />
                         </span>
+                        <div class="po-view-toggle" role="group" aria-label="Purchase order layout mode">
+                            <Button
+                                label="Cards"
+                                icon="pi pi-id-card"
+                                class="po-view-toggle-btn"
+                                :severity="poViewMode === 'cards' ? 'info' : 'secondary'"
+                                :outlined="poViewMode !== 'cards'"
+                                @click="setPoViewMode('cards')"
+                            />
+                            <Button
+                                label="Table"
+                                icon="pi pi-table"
+                                class="po-view-toggle-btn"
+                                :severity="poViewMode === 'table' ? 'info' : 'secondary'"
+                                :outlined="poViewMode !== 'table'"
+                                @click="setPoViewMode('table')"
+                            />
+                        </div>
                     </div>
+                </template>
+                <template #end>
+                    <Button
+                        label="Receive Active Invoices"
+                        icon="pi pi-download"
+                        class="po-action-btn po-action-btn--receive"
+                        :disabled="!activeReceiveInvoices.length"
+                        @click="openReceiveAllActiveInvoices()"
+                    />
                 </template>
 
             </Toolbar> 
 
             <!-- :rowStyle="rowStyle" -->
-            <div class="dt-loading-wrapper">
+            <div :class="['po-master-detail', { 'po-master-detail--table': poViewMode === 'table' }]">
+            <div :class="['dt-loading-wrapper', 'po-master-detail__table', { 'po-master-detail__table--cards': poViewMode === 'cards' }]">
             <Transition name="loader-fade">
                 <div v-if="tableLoading" class="dt-loading-overlay">
                     <div class="loading-card">
@@ -23,7 +51,104 @@
                     </div>
                 </div>
             </Transition>
-            <DataTable ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
+
+            <div v-if="poViewMode === 'cards'" class="po-card-grid-wrapper">
+                <div class="po-card-grid-header">
+                    <h4 class="m-0">Manage Purchase Orders</h4>
+                    <div class="po-header-actions">
+                        <ZoomDropdown v-model="tableZoom" />
+                        <Button
+                            label="New PO"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--primary"
+                            @click="vendorSelect()"
+                        />
+                    </div>
+                </div>
+
+                <div v-if="purchaseOrders.length" class="po-card-grid">
+                    <article
+                        v-for="po in purchaseOrders"
+                        :key="po.purchase_order_id"
+                        class="po-card"
+                        @click="openDetailDialog(po)"
+                    >
+                        <header class="po-card-header">
+                            <div class="po-card-header-row">
+                                <div class="po-card-text">
+                                    <h5 class="po-card-title">{{ po.purchase_order_name }}</h5>
+                                    <p class="po-card-subtitle">{{ getVendor(po.vendor_id) }} • {{ po.status || 'Draft' }}</p>
+                                </div>
+
+                                <div class="po-card-dots">
+                                    <Button class="po-card-dot-appearance" text icon="pi pi-ellipsis-v"  v-tooltip.top="'Additional Actions'" @click.stop="togglePoPopup($event, po.purchase_order_id)" />
+                                </div>
+                            </div>
+
+                            <Popover :ref="(el) => setPoPopupRef(el, po.purchase_order_id)">
+                                <div class="popover-button-stack">
+                                    <Button
+                                        label="Add Invoice"
+                                        icon="pi pi-plus"
+                                        class="po-action-btn po-action-btn--inbound"
+                                        @click.stop="openInboundWorkspace(po)"
+                                    />
+                                    <Button
+                                        label="Receive"
+                                        icon="pi pi-download"
+                                        class="po-action-btn po-action-btn--receive"
+                                        @click.stop="openReceiveInvoicesWorkspace(po)"
+                                    />
+                                    <Button
+                                        label="Edit PO"
+                                        icon="pi pi-pencil"
+                                        class="po-action-btn po-action-btn--secondary"
+                                        :disabled="po.status === ''"
+                                        @click.stop="openEditWorkspace(po)"
+                                    />
+                                </div>
+                            </Popover>
+                        </header>
+
+                        <div class="po-progress-pill">
+                            <div class="po-progress-track" :title="getPoProgressSummary(po)">
+                                <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(po, 'delivered')"></div>
+                                <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(po, 'inbound')"></div>
+                                <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(po, 'other')"></div>
+                            </div>
+                            <div class="po-progress-meta">{{ getPoProgressSummary(po) }}</div>
+                        </div>
+
+                        <div class="po-card-metrics">
+                            <div class="po-card-metric">
+                                <span class="po-card-metric-label">Total Units</span>
+                                <span class="po-card-metric-value">{{ getCreatedUnitTotal(po.purchase_order_id) }}</span>
+                            </div>
+                            <div class="po-card-metric">
+                                <span class="po-card-metric-label">Total Cost</span>
+                                <span class="po-card-metric-value">{{ formatCurrency(getCreatedCostTotal(po.purchase_order_id, po.discount)) }}</span>
+                            </div>
+                        </div>
+
+                    </article>
+                </div>
+
+                <div v-else class="po-card-empty">No purchase orders found.</div>
+
+                <div class="po-card-pagination">
+                    <Paginator
+                        :first="(currentPage - 1) * rowsPerPage"
+                        :rows="rowsPerPage"
+                        :totalRecords="totalRecords"
+                        :rowsPerPageOptions="[5,10,25,100,500,1000]"
+                        template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} orders"
+                        @page="onPage"
+                    />
+                </div>
+            </div>
+
+            <DataTable v-else ref="dt" :value="purchaseOrders" v-model:selection="selectedPurchaseOrder" 
                 class="po-main-table"
                 dataKey="purchase_order_id"
                 :paginator="true" 
@@ -72,14 +197,24 @@
 
                 <Column field="purchase_order_name" header="Purchase Order" sortable></Column>
 
-                <Column field="status" header="Status" sortable>
+                <Column header="Order Progress" sortable>
                     <template #body="slotProps">
-                        <div class="po-status-pill" :class="`status-${(slotProps.data.status || '').toLowerCase().replace(/\s+/g, '-')}`">
-                            <div class="po-status-pill-fill" :style="{ width: getPOProgressPercent(slotProps.data.status) + '%' }"></div>
-                            <span class="po-status-pill-text">
-                                <i :class="getPOIcon(slotProps.data)"></i>
-                                {{ slotProps.data.status }}
-                            </span>
+                        <div class="po-progress-pill">
+                            <div class="po-progress-track" :title="getPoProgressSummary(slotProps.data)">
+                                <div
+                                    class="po-progress-segment po-progress-segment--delivered"
+                                    :style="getPoProgressSegmentStyle(slotProps.data, 'delivered')"
+                                ></div>
+                                <div
+                                    class="po-progress-segment po-progress-segment--inbound"
+                                    :style="getPoProgressSegmentStyle(slotProps.data, 'inbound')"
+                                ></div>
+                                <div
+                                    class="po-progress-segment po-progress-segment--other"
+                                    :style="getPoProgressSegmentStyle(slotProps.data, 'other')"
+                                ></div>
+                            </div>
+                            <div class="po-progress-meta">{{ getPoProgressSummary(slotProps.data) }}</div>
                         </div>
                     </template>
                 </Column>
@@ -114,21 +249,16 @@
                     </template>
                 </Column>
 
-                <Column header="PO Phase" :exportable="false">
+                <!-- @TODO Create a button in the toolbar for opening all incomplete invoices for display -->
+                <Column header="Inbound" :exportable="false">
                     <template #body="slotProps">
-                        <div class="po-phase-rail" v-tooltip.top="'Skip ahead is allowed. Previous phases are locked.'">
-                            <button
-                                v-for="step in poPhaseSteps"
-                                :key="step.status"
-                                type="button"
-                                class="po-phase-step"
-                                :class="getPoPhaseStepClass(slotProps.data.status, step.status)"
-                                :disabled="!canAdvanceToPhase(slotProps.data.status, step.status)"
-                                @click="onPoPhaseStepClick(slotProps.data, step.status)">
-                                <i :class="step.icon"></i>
-                                <span>{{ step.label }}</span>
-                            </button>
-                        </div>
+                        <Button
+                            label="Inbound"
+                            icon="pi pi-truck"
+                            v-tooltip.top="'Create an invoice for this purchase order'"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="openInboundWorkspace(slotProps.data)"
+                        />
                     </template>
                 </Column>
 
@@ -140,7 +270,7 @@
                             v-tooltip.top="'Edit PO'"
                             :disabled="slotProps.data.status === ''"
                             class="po-action-btn po-action-btn--secondary"
-                            @click="onPurchaseOrderDialogOpen(2, slotProps.data)"
+                            @click="openEditWorkspace(slotProps.data)"
                         />
                     </template>
                 </Column>
@@ -302,20 +432,19 @@
                                     </template>
                                 </Column >
                                 <Column field="notes" header="Notes" class="font-bold"></Column>
-                                <Column field="status" header="Status" :sortable="true">
-                                    <template #body="slotProps">
-                                        <div class="card flex flex-wrap  gap-2">
-                                            <Tag :value="slotProps.data.status" :severity="getBoxSeverity(slotProps.data)" iconPos="right"/>
-                                        </div>
-                                    </template>
-                                </Column>
                             </DataTable>
                         </div>
 
                         <div class="p-3" v-if="slotProps.data.displayStatus === 'Invoices'">
                             <h4 class="m-0">Invoice(s) for Purchase Order {{ slotProps.data.purchase_order_name }}</h4>
-                            <DataTable :value="displayInfo(slotProps.data)">
+                            <DataTable
+                                :value="displayInfo(slotProps.data)"
+                                dataKey="invoice_id"
+                                :expandedRows="getInvoiceExpandedRows(slotProps.data.purchase_order_id)"
+                                @update:expandedRows="setInvoiceExpandedRows(slotProps.data.purchase_order_id, $event)"
+                            >
                                 <template #empty> No invoices linked to this purchase order. </template>
+                                <Column expander style="width: 3rem" />
                                 <Column field="invoice_name" header="Invoice" sortable />
                                 <Column field="total_cost" header="Total Cost" sortable>
                                     <template #body="{data}">
@@ -331,13 +460,344 @@
                                     </template>
                                 </Column>
                                 <Column field="notes" header="Notes" />
+
+                                <template #expansion="invoiceSlotProps">
+                                    <div class="invoice-lines-expand-wrap">
+                                        <h5 class="m-0 mb-2">Inbound Product Lines</h5>
+                                        <DataTable :value="getInvoiceLinkedLines(invoiceSlotProps.data)" dataKey="po_raw_line_id" size="small">
+                                            <template #empty> No inbound product lines linked to this invoice. </template>
+                                            <Column field="product_name" header="Product">
+                                                <template #body="{data}">
+                                                    {{ data.product_name || getProductInfo(data.product_id, 'name') || `Product #${data.product_id}` }}
+                                                </template>
+                                            </Column>
+                                            <Column field="item_num" header="Item #" />
+                                            <Column field="upc" header="UPC" />
+                                            <Column field="total_units" header="Units" />
+                                            <Column field="status" header="Status" />
+                                            <Column field="notes" header="Notes" />
+                                        </DataTable>
+                                    </div>
+                                </template>
                             </DataTable>
                         </div>
                 </template>
 
             </DataTable>
             </div>
+
+            <aside v-if="poViewMode === 'table'" class="po-workspace-panel" aria-label="Purchase order workspace">
+                <template v-if="selectedWorkspacePo">
+                    <div class="po-workspace-header">
+                        <div class="po-workspace-kicker">Inbound Workspace</div>
+                        <h3 class="po-workspace-title">{{ selectedWorkspacePo.purchase_order_name }}</h3>
+                        <p class="po-workspace-subtitle">
+                            {{ getVendor(selectedWorkspacePo.vendor_id) }}
+                            <span class="po-workspace-dot">•</span>
+                            {{ selectedWorkspacePo.status || 'Draft' }}
+                        </p>
+                    </div>
+
+                    <div class="po-workspace-metrics">
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoiceList.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Uninvoiced Lines</span>
+                            <span class="po-workspace-metric-value">{{ workspaceUninvoicedLines.length }}</span>
+                        </div>
+                        <div class="po-workspace-metric">
+                            <span class="po-workspace-metric-label">Units On Invoices</span>
+                            <span class="po-workspace-metric-value">{{ workspaceInvoicedUnits }}</span>
+                        </div>
+                    </div>
+
+                    <div class="po-workspace-actions">
+                        <Button
+                            label="Create Invoice"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="openInboundWorkspace(selectedWorkspacePo)"
+                        />
+                        <Button
+                            label="Edit PO"
+                            icon="pi pi-pencil"
+                            class="po-action-btn po-action-btn--secondary"
+                            @click="openEditWorkspace(selectedWorkspacePo)"
+                        />
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Invoices</h4>
+                        <DataTable :value="workspaceInvoiceList" dataKey="invoice_id" size="small" stripedRows>
+                            <template #empty>No invoices yet for this purchase order.</template>
+                            <Column field="invoice_name" header="Invoice" />
+                            <Column header="Units">
+                                <template #body="{ data }">
+                                    {{ getInvoiceLinkedLines(data).reduce((total: number, line: any) => total + Number(line?.total_units || 0), 0) }}
+                                </template>
+                            </Column>
+                            <Column field="date_shipped" header="Shipped" />
+                        </DataTable>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Uninvoiced Product Lines</h4>
+                        <DataTable :value="workspaceUninvoicedLines" dataKey="po_raw_line_id" size="small" stripedRows>
+                            <template #empty>No uninvoiced product lines found.</template>
+                            <Column field="product_name" header="Product" />
+                            <Column field="total_units" header="Units" />
+                            <Column field="status" header="Status" />
+                        </DataTable>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="po-workspace-empty">
+                        <i class="pi pi-arrow-left po-workspace-empty-icon"></i>
+                        <h4 class="po-workspace-empty-title">Select a Purchase Order</h4>
+                        <p class="po-workspace-empty-copy">Click any row in the table to open its inbound workspace.</p>
+                    </div>
+                </template>
+            </aside>
+            </div>
         </div>
+
+        <Dialog
+            v-model:visible="detailDialogVisible"
+            :style="{ width: '1200px', maxWidth: '96vw' }"
+            header="Purchase Order Details"
+            :modal="true"
+            class="po-detail-dialog"
+        >
+            <template v-if="selectedDetailPo">
+                <div class="po-detail-dialog-content">
+                    <div class="po-workspace-header">
+                        <div class="po-workspace-kicker">Purchase Order</div>
+                        <h3 class="po-workspace-title">{{ selectedDetailPo.purchase_order_name }}</h3>
+                        <p class="po-workspace-subtitle">
+                            {{ getVendor(selectedDetailPo.vendor_id) }}
+                            <span class="po-workspace-dot">•</span>
+                            {{ selectedDetailPo.status || 'Draft' }}
+                        </p>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <h4 class="po-workspace-section-title">Purchase Order Summary</h4>
+                        <div class="po-detail-grid" role="group" aria-label="Purchase order table fields">
+                            <div class="po-detail-item po-detail-item--progress">
+                                <span class="po-detail-item-label">Order Progress</span>
+                                <div class="po-progress-pill">
+                                    <div class="po-progress-track" :title="getPoProgressSummary(selectedDetailPo)">
+                                        <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'delivered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(selectedDetailPo, 'inbound')"></div>
+                                        <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(selectedDetailPo, 'other')"></div>
+                                    </div>
+                                    <div class="po-progress-meta">{{ getPoProgressSummary(selectedDetailPo) }}</div>
+                                </div>
+                            </div>
+                            <div class="po-detail-item po-detail-item--wide">
+                                <span class="po-detail-item-label">Notes</span>
+                                <span class="po-detail-item-value">{{ selectedDetailPo.notes || 'No notes' }}</span>
+                            </div>
+                            <div class="po-detail-item">
+                                <span class="po-detail-item-label">Date Ordered</span>
+                                <span class="po-detail-item-value">{{ selectedDetailPo.date_ordered || 'N/A' }}</span>
+                            </div>                            
+                        </div>
+                    </div>
+
+                    <div class="po-workspace-actions">
+                        <Button
+                            label="Create Invoice"
+                            icon="pi pi-plus"
+                            class="po-action-btn po-action-btn--inbound"
+                            @click="openInboundWorkspace(selectedDetailPo)"
+                        />
+                        <Button
+                            label="Receive Invoices"
+                            icon="pi pi-download"
+                            class="po-action-btn po-action-btn--receive"
+                            @click="openReceiveInvoicesWorkspace(selectedDetailPo)"
+                        />
+                        <Button
+                            label="Edit PO"
+                            icon="pi pi-pencil"
+                            class="po-action-btn po-action-btn--secondary"
+                            @click="openEditWorkspace(selectedDetailPo)"
+                        />
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Planned Cases ({{ detailPlannedCases.length }})</summary>
+                            <DataTable :value="detailPlannedCases" dataKey="line_key" size="small" class="po-detail-table po-detail-table--green" :rowStyle="detailRowStyleProc" >
+                                <template #empty>No planned cases found for this purchase order.</template>
+                                <Column field="product_name" header="Processed Product" />
+                                <Column field="amount" header="Cases" />
+                                <Column field="units_per_case" header="Units per Case" />
+                                <Column field="qty" header="Total Units" />
+                            </DataTable>
+
+                            <h4 class="po-detail-subsection-title">Raw Products With No Plan ({{ getPoolNew(detailSelectedPoId).length }})</h4>
+                            <DataTable :value="getPoolNew(detailSelectedPoId)" dataKey="product_id" size="small" class="po-detail-table po-detail-table--blue" :rowStyle="rowStylePool">
+                                <template #empty>No unplanned products found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column header="Item #">
+                                    <template #body="{ data }">
+                                        {{ getItemNum(data.product_id) || data.item_num || 'N/A' }}
+                                    </template>
+                                </Column>
+                                <Column field="totalUnits" header="Total Units" />
+                                <Column header="Unit Cost">
+                                    <template #body="{ data }">
+                                        {{ getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A' }}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body="{ data }">
+                                        {{ getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id) * Number(data.totalUnits || 0) * (1 - (getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A' }}
+                                    </template>
+                                </Column>
+                            </DataTable>
+                        </details>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Raw Products ({{ detailRawLines.length }})</summary>
+                            <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
+                                <template #empty>No raw products found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column field="item_num" header="Item #" />
+                                <Column field="total_units" header="Total Units" />
+                                <Column header="Unit Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
+                                    </template>
+                                </Column>
+                            </DataTable>
+                        </details>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Invoices and Linked Product Lines ({{ detailInvoiceList.length }})</summary>
+                            <DataTable
+                                :value="detailInvoiceRows"
+                                dataKey="line_key"
+                                rowGroupMode="subheader"
+                                groupRowsBy="invoice_group_key"
+                                sortField="invoice_group_key"
+                                :sortOrder="1"
+                                size="small"
+                                class="po-detail-table po-detail-table--invoice"
+                                :rowStyle="detailInvoiceRowStyle"
+                            >
+                                <template #empty>No invoices found for this purchase order.</template>
+                                <template #groupheader="{ data }">
+                                    <div class="po-invoice-group-head">
+                                        <div class="po-invoice-group-head__title">
+                                            <button
+                                                type="button"
+                                                class="po-invoice-group-head__name-btn"
+                                                @click.stop="openInvoiceEditDialog(data)"
+                                            >
+                                                {{ data.invoice_name || 'Unnamed Invoice' }}
+                                            </button>
+                                            <Button
+                                                label="Receive"
+                                                icon="pi pi-download"
+                                                class="po-action-btn po-action-btn--receive p-button-sm"
+                                                :disabled="!canReceiveInvoice(data)"
+                                                @click.stop="openReceiveInvoiceFromDetail(data)"
+                                            />
+                                        </div>
+                                        <div class="po-invoice-group-head__stats">
+                                            <span><strong>Total:</strong> {{ formatCurrency(data.total_cost) || '$0.00' }}</span>
+                                            <span><strong>Shipped:</strong> {{ data.date_shipped || 'N/A' }}</span>
+                                            <span><strong>Due:</strong> {{ data.date_due || 'N/A' }}</span>
+                                            <span><strong>Paid:</strong> {{ data.date_paid || 'N/A' }}</span>
+                                            <span><strong>Filed:</strong> {{ data.filed ? 'Yes' : 'No' }}</span>
+                                            <span><strong>Notes:</strong> {{ data.invoice_notes || 'No notes' }}</span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <Column field="product_name" header="Linked Product">
+                                    <template #body="{ data }">
+                                        {{ data.has_line ? (data.product_name || getProductInfo(data.product_id, 'name') || ('Product #' + data.product_id)) : 'No linked lines' }}
+                                    </template>
+                                </Column>
+                                <Column field="item_num" header="Item #">
+                                    <template #body="{ data }">{{ data.has_line ? (data.item_num || 'N/A') : '—' }}</template>
+                                </Column>
+                                <Column field="total_units" header="Units">
+                                    <template #body="{ data }">{{ data.has_line ? Number(data.total_units || 0) : 0 }}</template>
+                                </Column>
+                                <Column header="Unit Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
+                                    </template>
+                                </Column>
+                                <Column header="Total Cost">
+                                    <template #body = {data}>
+                                        {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
+                                    </template>
+                                </Column>
+                                <Column field="status" header="Status">
+                                    <template #body="{ data }">{{ data.has_line ? (data.status || 'N/A') : '—' }}</template>
+                                </Column>
+                                <Column field="line_notes" header="Line Notes">
+                                    <template #body="{ data }">{{ data.has_line ? (data.line_notes || 'No notes') : '—' }}</template>
+                                </Column>
+                            </DataTable>
+                        </details>
+                    </div>
+
+                    <div class="po-workspace-section">
+                        <details class="po-detail-collapsible">
+                            <summary>Raw Products That Have Arrived ({{ detailArrivedBoxes.length }})</summary>
+                            <DataTable :value="detailArrivedBoxes" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
+                                <template #empty>No raw products found for this purchase order.</template>
+                                <Column field="product_name" header="Product" />
+                                <Column field="item_num" header="Item #" />
+                                <Column field="units_per_case" header="Units / Box" />
+                                <Column field="total_units" header="Total Units" />
+                                <Column field="location_name" header="Location" />
+                            </DataTable>
+                        </details>
+                    </div>
+
+                </div>
+            </template>
+            <template #footer>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Total Units</span>
+                    <span class="po-detail-item-value">{{ getCreatedUnitTotal(selectedDetailPo.purchase_order_id) }}</span>
+                </div>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Discount</span>
+                    <span class="po-detail-item-value">{{ selectedDetailPo.discount ? selectedDetailPo.discount + '% Off' : 'No Discount' }}</span>
+                </div>
+                <div class="po-detail-item">
+                    <span class="po-detail-item-label">Total Cost</span>
+                    <span class="po-detail-item-value">{{ formatCurrency(getCreatedCostTotal(selectedDetailPo.purchase_order_id, selectedDetailPo.discount)) || '$0.00' }}</span>
+                </div>
+                <Button
+                    label="Close"
+                    icon="pi pi-times"
+                    class="po-action-btn po-action-btn--secondary"
+                    @click="detailDialogVisible = false"
+                />
+            </template>
+        </Dialog>
 
         <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true" class="vendor-select-dialog">
             <div class="field vendor-select-content">
@@ -361,7 +821,7 @@
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideVendorDialog()"/>
-                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; onPurchaseOrderDialogOpen(1);" />
+                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
             </template>
         </Dialog>
 
@@ -474,13 +934,20 @@
                                 <label for="location">Location:</label>
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                                    <Dropdown v-model="data.location_id"
-                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                                    :options="locations"
-                                    filter
-                                    :virtualScrollerOptions="{ itemSize: 38 }"
-                                    optionLabel="name"
-                                    optionValue="location_id" />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(data.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(data, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(data, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="w-full md:w-14rem"
+                                        :forceSelection="true"
+                                    />
                                     <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
                                 </div>
                             </template>
@@ -497,268 +964,6 @@
                         </Column>
 
                     </DataTable> <br>           
-
-            </div>
-
-            <div v-else class="po-create-layout">
-                <!-- CREATING/////////////////////////////////////////////////////////////////////////////////// -->
-                <div class="field">
-                    <label for="purchase_order_name">Name</label>
-                    <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
-                    :disabled="purchaseOrder.purchase_order_id"/>
-                    <small class="p-error" v-if="submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')">Name is required.</small>
-                </div>
-
-                <div class="field">
-                    <label for="vendor">Vendor</label>
-                    <Dropdown disabled v-model="purchaseOrder.vendor_id"
-                    placeholder="Select a Vendor" class="w-full md:w-14rem" editable
-                    :options="vendors"
-                    filter
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="vendor_name"
-                    optionValue="vendor_id" />
-                </div>
-
-                <div class="field">
-                    <label for="status">Status</label>
-                    <Dropdown v-model="purchaseOrder.status" :options="statuses" @change="onStatusChange()"/>
-                </div>
-
-                <div class="field">
-                    <label for="notes">Notes</label>
-                    <InputText id="notes" v-model="purchaseOrder.notes" rows="3" cols="20" />
-                </div>
-
-                <div class="field">
-                    <label for="discount">Discount</label>
-                    <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid />
-                </div>
-
-                <div class="field">
-                    <label for="date_ordered">Date Ordered</label>
-                    <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered"/>
-                </div>
-
-                <div class="field">
-                    <label for="date_received">Date received</label>
-                    <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received"/>
-                </div>
-
-                <!--------------------------------------- RECIPES ---------------------------------------------->
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Planning Processed Case(s):</h3>
-                </div>
-
-                <template class="caseCard" v-for="(poRecipe, counter) in recipeArray">
-
-                <div class ="caseCard">
-                    <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(recipeArray, counter)"/>
-
-                    <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create #{{ counter + 1 }}</h4><br>
-                    <div class="block-div">
-                        <div class="field">
-                            <label for="name">Name:</label>
-                            <AutoComplete 
-                                v-model="poRecipe.recipeObj"
-                                :suggestions="filteredRecipes[counter] || []"
-                                @complete="(event: any) => searchRecipes(event, counter)"
-                                @item-select="onRecipeSelection(poRecipe.recipeObj, counter)"
-                                :dropdown="true"
-                                :optionLabel="'label'"
-                                
-                                placeholder="Select or enter a product"
-                                class="md:w-14rem"
-                                :class="{'p-invalid': submitted && !poRecipe.recipeObj}"
-                                :forceSelection="false"
-                            /> <!-- :modelValue="'label'" -->
-                            <small class="p-error" v-if="submitted && !poRecipe.recipeObj">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="qty">Normal Case QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            :class="{'p-invalid': submitted && !poCases[counter].default_units_per_case}"
-                            v-model="poCases[counter].default_units_per_case" disabled
-                            />
-                            <small class="p-error" v-if="submitted && !poCases[counter].default_units_per_case">Amount is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="amount">Cases Desired to Be Made</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
-                            v-model="poRecipe.amount" showButtons :min="1"
-                            @update=""/>
-                        </div>
-
-                        <div class="field">
-                            <label for="notes">Notes:</label>
-                            <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                        </div>
-
-                        <div v-if="poRecipe.amount && poRecipe.recipeObj" class="field">
-                            <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                            <div class="flex justify-content-end font-bold w-full">{{ poCases[counter].default_units_per_case * poRecipe.amount }}</div>
-                        </div>
-
-                    </div>
-
-                    <div v-if="poCases[counter].default_units_per_case">
-                        <DataTable :value="selectRecipeElements(poRecipe.recipeObj)" :rowStyle="rowStyleMissingDefault">
-                            <Column field="name" header="Product Name" />
-                            <Column header="Units per Box" >
-                                <template #body="{data}">
-                                    {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                                </template>
-                            </Column>
-                            <Column field="qty" header="Unit(s) per Bundle" ></Column>
-                            <Column header="Total Units Needed">
-                                <template #body="{data}">
-                                    {{  getTotalUnitsNeeded(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Units Ordered" >
-                                <template #body="{data}">
-                                    {{ getTotalUnitsOrdered(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Raw Box Total" >
-                                <template #body="{data}">
-                                    {{ getRawBoxTotal(data, poCases[counter], poRecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Unit Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getTotalCost(data, poCases[counter], poRecipe.amount)) }}
-                                </template>
-                            </Column>
-                        </DataTable>
-                        <InputText id="notes" v-model="poCases[counter].notes" rows="3" cols="20" />
-                    </div>
-                
-                </div>
-
-                </template>
-
-                <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(recipeArray); addBulkLine(poCases);"/> 
-
-                
-                <!-- RAW ----------------------------------------------------------------------------------- -->
-                <div class="field">
-                    <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-create-section-title">Raw Box(s):</h3>
-                </div>
-
-                <div class="field">
-                    <h4 for="purchaseOrder" class="flex justify-content-start font-bold w-full">How would you like to order the raw product?</h4>
-
-                    <div v-for="type in rawOrderType" class="flex align-items-center">
-                        <RadioButton v-model="selectedOrderType" name="dynamic" :value="type"/>
-                        <label :for="type">{{ type }}</label>
-                    </div>
-                </div>
-
-                <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
-
-                    <!-- ADD ANOTHER COLUMN THAT SELECTS BETWEEN 'ORDER BY BOX' AND 'ORDER BY UNIT'. BY BOX WILL DISPLAY -->
-                    <!-- THE TOTAL UNITS NEEDED AND BY UNIT WILL SHOW THE TOTAL BOXES NEEDED -->
-
-                    <div class ="caseCard">
-                        <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteBulkLine(poBoxes, counter)"/>
-
-                        <h4 class="flex justify-content-start font-bold w-full">Raw Product #{{ counter + 1 }}</h4><br>
-                        <div class="block-div">
-                            <div class="field">
-                                <label for="name">Name:</label>
-                                    <AutoComplete 
-                                        v-model="poBox.productObj"
-                                        :suggestions="filteredRawProducts || []"
-                                        @complete="(event: any) => searchRawProducts(event)"
-                                        @item-select="onRawProductAutoCompleteSelectCreate($event.value, counter)"
-                                        :dropdown="true"
-                                        :optionLabel="(data) => data.name"
-                                        :virtualScrollerOptions="{ itemSize: 38 }"
-                                        placeholder="Select or enter a product"
-                                        class="md:w-19rem"
-                                        :class="{'p-invalid': submitted && !poBox.product_id}"
-                                        :forceSelection="false"
-                                    > 
-                                    <template #option="slotProps">
-                                        <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
-                                    </template>
-                                </AutoComplete>
-
-
-                                <small class="p-error" v-if="submitted && !poBox.product_id">Name is required.</small>
-                            </div>
-
-                            <div class="field">
-                                <label for="qty">QTY:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
-                                :class="{'p-invalid': submitted && !poBox.units_per_case}"
-                                v-model="poBox.units_per_case" disabled
-                                @input="poBox.total = poBox.amount*poBox.units_per_case"/>
-                                <small class="p-error" v-if="submitted && !poBox.units_per_case">Amount is required.</small>
-                            </div>
-
-                            <div v-if="selectedOrderType === 'By Box'" v-show="!poBox.case_id" class="field">
-                                <label for="amount">How Many Boxes to Order?</label>
-                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="poBox.amount" showButtons/>
-                            </div>
-
-                            <div v-else-if="selectedOrderType === 'By Unit'" v-show="!poBox.case_id" class="field">
-                                <label for="amount">REQUESTED Units to Order:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" :min="1"
-                                v-model="poBox.unitAmount" @input="poBox.amount = Math.ceil(poBox.unitAmount/poBox.units_per_case)" showButtons/>
-                            </div>
-
-                            <div class="field">
-                                <label for="notes">Notes:</label>
-                                <InputText id="notes" v-model="poBox.notes" rows="3" cols="20" />
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Box'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ poBox.units_per_case * poBox.amount }}</div>
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Units:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case }}</div>
-                            </div>
-
-                            <div v-if="poBox.units_per_case && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Boxes:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ Math.ceil(poBox.unitAmount/poBox.units_per_case) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Unit Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id && selectedOrderType === 'By Box'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(poBox.units_per_case * poBox.amount)) }}</div>
-                            </div>
-
-                            <div v-if="poBox.product_id && selectedOrderType === 'By Unit'" class="field">
-                                <label class="flex justify-content-center font-bold w-full" for="total">Total Cost:</label>
-                                <div class="flex justify-content-center font-bold w-full">{{ formatCurrency(getUnitCost(poBox.product_id)*(Math.ceil(poBox.unitAmount/poBox.units_per_case)*poBox.units_per_case)) }}</div>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </template>
-
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-create-add-btn" @click="addBulkLine(poBoxes)"/>
 
             </div>
 
@@ -808,7 +1013,7 @@
 
             <div class="field">
                 <label for="vendor">Vendor</label>
-                <Dropdown disabled v-model="purchaseOrder.vendor_id"
+                <Select disabled v-model="purchaseOrder.vendor_id"
                 placeholder="Select a Vendor" class="w-full md:w-14rem" editable
                 :options="vendors"
                 filter
@@ -819,7 +1024,7 @@
 
             <div class="field">
                 <label for="status">Status</label>
-                <Dropdown v-model="purchaseOrder.status" :options="statuses" :disabled="isPoReadOnly" @change="onStatusChange()"/>
+                <Select v-model="purchaseOrder.status" :options="statuses" :disabled="isPoReadOnly" @change="onStatusChange()"/>
             </div>
 
             <div class="field">
@@ -834,12 +1039,12 @@
 
             <div class="field">
                 <label for="date_ordered">Date Ordered</label>
-                <Calendar id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered" :disabled="isPoReadOnly"/>
+                <DatePicker id="date_ordered" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_ordered" :disabled="isPoReadOnly"/>
             </div>
 
             <div class="field">
                 <label for="date_received">Date received</label>
-                <Calendar id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received" :disabled="isPoReadOnly"/>
+                <DatePicker id="date_received" dateFormat="yy-mm-dd" v-model="purchaseOrder.date_received" :disabled="isPoReadOnly"/>
             </div>
 
             <section class="po-edit-section-card">
@@ -848,6 +1053,12 @@
             </div>
             <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
             <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" :loading="editRecipeRowsLoading" @row-edit-save="onPORecipeRowEditSave">
+                <template #empty>
+                    <div class="flex flex-column align-items-center gap-3 py-5">
+                        <i class="pi pi-box text-4xl"></i>
+                        <div class="text-lg">No planned processed cases.</div>
+                    </div>
+                </template>
                 <Column header="Name" field="product_name">
                     <template #editor="{data}">
                         <AutoComplete
@@ -943,6 +1154,12 @@
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
             <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="line_key" editMode="row" :loading="editRawRowsLoading" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+                <template #empty>
+                    <div class="flex flex-column align-items-center gap-3 py-5">
+                        <i class="pi pi-box text-4xl"></i>
+                        <div class="text-lg">No raw boxes in order.</div>
+                    </div>
+                </template>
                 <Column header="Name" field="product_name">
                     <template #editor="{data, field, index}">
                         <AutoComplete 
@@ -1169,13 +1386,20 @@
                 <div class="field">
                     <label for="location">Location:</label>
                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                    <Dropdown v-model="poBox.location_id"
-                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                    :options="locations"
-                    filter
-                    :virtualScrollerOptions="{ itemSize: 38 }"
-                    optionLabel="name"
-                    optionValue="location_id" />
+                    <AutoComplete
+                        :modelValue="getLocationAutoCompleteValue(poBox.location_id)"
+                        :suggestions="filteredLocations"
+                        @complete="searchLocations"
+                        @focus="searchLocations({ query: '' })"
+                        @item-select="onLocationAutoCompleteChange(poBox, $event.value)"
+                        @update:modelValue="onLocationAutoCompleteChange(poBox, $event)"
+                        :dropdown="true"
+                        :showOnFocus="true"
+                        optionLabel="name"
+                        placeholder="Select a Location"
+                        class="w-full md:w-14rem"
+                        :forceSelection="true"
+                    />
                 </div>
             </template>
             
@@ -1224,13 +1448,20 @@
                             <template #editor="{data}">
                                 <div class="container">
                                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
-                                    <Dropdown v-model="data.location_id"
-                                    placeholder="Select a Location" class="w-full md:w-14rem" editable
-                                    :options="locations"
-                                    filter
-                                    :virtualScrollerOptions="{ itemSize: 38 }"
-                                    optionLabel="name"
-                                    optionValue="location_id" />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(data.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(data, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(data, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="w-full md:w-14rem"
+                                        :forceSelection="true"
+                                    />
                                     <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
                                 </div>
                             </template>
@@ -1346,77 +1577,345 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '900px' }">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '960px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
-                <p class="m-0">
-                    Eligible boxes are grouped by product and units per box. This list excludes canceled boxes and boxes already linked to an invoice for this purchase order.
+
+                <div class="inbound-invoice-name-field">
+                    <label class="inbound-field-label" for="inboundInvoiceName">Invoice Name <span class="inbound-required">*</span></label>
+                    <InputText
+                        id="inboundInvoiceName"
+                        v-model="inboundInvoiceName"
+                        placeholder="e.g. INV-2026-001"
+                        class="inbound-invoice-name-input"
+                        :class="{ 'p-invalid': inboundSubmitted && !inboundInvoiceName.trim() }"
+                    />
+                    <small class="p-error" v-if="inboundSubmitted && !inboundInvoiceName.trim()">Invoice name is required.</small>
+                </div>
+
+                <p class="inbound-instructions m-0">
+                    Account for each product by splitting units into shipped and back ordered.
+                    Product amounts already linked to an invoice or cancelled are excluded.
+                    Remaining units are unaccounted and must be reviewed before saving.
                 </p>
 
-                <DataTable v-if="inboundBoxesLoading" :value="[{ id: 1 }, { id: 2 }, { id: 3 }]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
-                    <Column header="Product">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--product"></div>
+                <DataTable v-if="inboundBoxesLoading" :value="[1,2,3]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
+                    <Column header="Item #"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                    <Column header="Ordered Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units Shipped"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Units Back Ordered"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Remaining"><template #body><div class="skeleton-line skeleton-line--number skeleton-line--total"></div></template></Column>
+                </DataTable>
+
+                <DataTable v-else :value="inboundLineAllocations" stripedRows showGridlines responsiveLayout="scroll" class="inbound-lines-table">
+                    <template #empty>
+                        No eligible raw products are available to inbound for this purchase order.
+                    </template>
+
+                    <Column field="product_name" header="Product" sortable >
+                        <template #body="{ data }">
+                            {{ data.product_name || data.name }}
                         </template>
                     </Column>
-                    <Column header="Item #">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--item"></div>
+                    <Column field="item_num" header="Item #" sortable />
+                    <Column field="total_units" header="Ordered Units" sortable />
+                    <Column header="Units Shipped">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.units_shipped"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsInput(data, 'units_shipped')"
+                            />
                         </template>
                     </Column>
-                    <Column header="Units per Box">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number"></div>
+                    <Column header="Units Back Ordered">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.units_backordered"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsInput(data, 'units_backordered')"
+                            />
                         </template>
                     </Column>
-                    <Column header="Box Count">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number"></div>
+                    <Column header="Remaining">
+                        <template #body="{ data }">
+                            <span :class="getInboundRemainingClass(data)">
+                                {{ getInboundRemaining(data) }}
+                            </span>
                         </template>
                     </Column>
-                    <Column header="Total Units">
-                        <template #body>
-                            <div class="skeleton-line skeleton-line--number skeleton-line--total"></div>
+                    <Column header="Unit Price">
+                        <template #body="{ data }">
+                            {{ data.unit_price || data.price_2023 ? formatCurrency(data.unit_price || data.price_2023) : '—' }}
+                        </template>
+                    </Column>
+                    <Column header="Disc%">
+                        <template #body="{ data }">
+                            {{ purchaseOrder.discount ? purchaseOrder.discount + '%' : '—' }}
+                        </template>
+                    </Column>
+                    <Column header="Subtotal">
+                        <template #body="{ data }">
+                            {{ (data.unit_price || data.price_2023) && data.units_shipped ? formatCurrency((data.unit_price || data.price_2023) * data.units_shipped * (1 - (purchaseOrder.discount || 0)/100)) : '—' }}
                         </template>
                     </Column>
                 </DataTable>
 
-                <DataTable v-else :value="inboundBoxes" stripedRows showGridlines responsiveLayout="scroll">
+                <small class="p-error" v-if="inboundSubmitted && !inboundLineAllocations.some((l: any) => Number(l.units_shipped) > 0)">
+                    At least one line must have shipped units greater than 0.
+                </small>
+
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="inboundPurchaseOrderDialog = false" :disabled="inboundCreatingInvoice" />
+                <Button label="Create Invoice" icon="pi pi-check" class="p-button-success" @click="submitCreateInvoice" :loading="inboundCreatingInvoice" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="inboundUnaccountedDialog" header="Unaccounted Product Units" :modal="true" :style="{ width: '560px' }">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
+                <div>
+                    <p class="m-0">Some products still have unaccounted units. You can go back to adjust, flag the unaccounted units, or ignore them for now.</p>
+                    <ul class="inbound-unaccounted-list">
+                        <li v-for="line in inboundUnaccountedLines" :key="line.po_raw_line_id">
+                            <strong>{{ line.product_name }}</strong>: {{ line.remaining_units }} unaccounted unit<span v-if="line.remaining_units !== 1">s</span>
+                        </li>
+                    </ul>
+                    <p class="m-0">Choose how to handle the unaccounted units before creating this invoice.</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="inboundUnaccountedDialog = false" />
+                <Button label="Flag Unaccounted" icon="pi pi-flag" class="p-button-warning" @click="submitCreateInvoiceWithUnaccounted('flag')" :loading="inboundCreatingInvoice" />
+                <Button label="Ignore Unaccounted" icon="pi pi-check" class="p-button-secondary" @click="submitCreateInvoiceWithUnaccounted('ignore')" :loading="inboundCreatingInvoice" />
+            </template>
+        </Dialog>
+
+        <Dialog
+            v-model:visible="receiveInvoiceDialogVisible"
+            :header="receiveInvoiceDialogTitle"
+            :modal="true"
+            :style="{ width: '1500px', maxWidth: '97vw' }"
+            @hide="onReceiveInvoiceDialogHide"
+        >
+            <div class="receive-invoice-layout">
+                <p class="receive-invoice-instructions m-0">
+                    Enter how many boxes were received for each invoice product line and where they were stored.
+                    Received boxes will be created and linked to this purchase order and invoice.
+                </p>
+
+                <DataTable v-if="receiveInvoiceLoading" :value="[1,2,3]" stripedRows showGridlines responsiveLayout="scroll" class="inbound-skeleton-table">
+                    <Column header="Invoice"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                    <Column header="Product"><template #body><div class="skeleton-line skeleton-line--product"></div></template></Column>
+                    <Column header="Units"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Default Units / Box"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Expected Boxes"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Boxes Received"><template #body><div class="skeleton-line skeleton-line--number"></div></template></Column>
+                    <Column header="Location"><template #body><div class="skeleton-line skeleton-line--item"></div></template></Column>
+                </DataTable>
+
+                <DataTable
+                    v-else
+                    :value="receiveInvoiceLineAllocations"
+                    dataKey="row_key"
+                    rowGroupMode="subheader"
+                    groupRowsBy="invoice_id"
+                    sortField="invoice_id"
+                    :sortOrder="1"
+                    stripedRows
+                    removableSort
+                    showGridlines
+                    responsiveLayout="scroll"
+                    class="receive-invoice-table"
+                >
                     <template #empty>
-                        No eligible boxes are available to inbound for this purchase order.
+                        No invoice-linked raw lines are currently available to receive for this purchase order.
+                    </template>
+
+                    <template #groupheader="{ data }">
+                        <div class="receive-invoice-group-header">
+                            <strong>{{ data.invoice_name || `Invoice #${data.invoice_id}` }}</strong>
+                            <span class="receive-invoice-group-sub">Invoice ID: {{ data.invoice_id }}</span>
+                            <span class="receive-invoice-group-sub">PO: {{ data.purchase_order_name || `#${data.purchase_order_id}` }}</span>
+                        </div>
                     </template>
 
                     <Column field="product_name" header="Product" sortable />
                     <Column field="item_num" header="Item #" sortable />
-                    <Column field="units_per_case" header="Units per Box" sortable />
-                    <Column field="amount" header="Box Count" sortable />
-                    <Column header="Total Units" sortable>
+                    <Column field="total_units" header="Total Units" sortable />
+                    <Column field="default_units_per_case" header="Default Units / Box" sortable />
+                    <Column header="Actual Units / Box" sortable>
                         <template #body="{ data }">
-                            {{ data.amount * data.units_per_case }}
+                            <InputNumber
+                                v-model="data.actual_units_per_box"
+                                :min="0"
+                                :maxFractionDigits="2"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Expected Boxes" sortable>
+                        <template #body="{ data }">
+                            {{ getReceiveExpectedBoxes(data) }}
+                        </template>
+                    </Column>
+                    <Column header="Boxes Received" sortable>
+                        <template #body="{ data }">
+                            <span
+                                class="receive-boxes-total"
+                                :class="{ 'receive-boxes-total--over': Number(getReceiveAllocatedBoxes(data) || 0) > Number(getReceiveExpectedBoxes(data) || 0) }"
+                            >
+                                {{ getReceiveAllocatedBoxes(data) }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Location Split (Pallets)">
+                        <template #body="{ data }">
+                            <div class="receive-split-grid">
+                                <div
+                                    v-for="(split, splitIdx) in (data.receive_splits || [])"
+                                    :key="split.split_key || `${data.row_key}-${splitIdx}`"
+                                    class="receive-split-row"
+                                >
+                                    <InputNumber
+                                        v-model="split.boxes_received"
+                                        :min="0"
+                                        showButtons
+                                        :maxFractionDigits="2"
+                                        :useGrouping="false"
+                                        class="inbound-units-input receive-split-row__boxes"
+                                        @update:modelValue="onReceiveSplitBoxesInput(data, split)"
+                                    />
+                                    <AutoComplete
+                                        :modelValue="getLocationAutoCompleteValue(split.location_id)"
+                                        :suggestions="filteredLocations"
+                                        @complete="searchLocations"
+                                        @focus="searchLocations({ query: '' })"
+                                        @item-select="onLocationAutoCompleteChange(split, $event.value)"
+                                        @update:modelValue="onLocationAutoCompleteChange(split, $event)"
+                                        :dropdown="true"
+                                        :showOnFocus="true"
+                                        optionLabel="name"
+                                        placeholder="Select a Location"
+                                        class="receive-split-row__location"
+                                        :forceSelection="true"
+                                    />
+                                    <Button
+                                        icon="pi pi-times"
+                                        class="p-button-text p-button-sm"
+                                        @click="removeReceiveSplit(data, Number(splitIdx))"
+                                        :disabled="(data.receive_splits || []).length <= 1"
+                                    />
+                                </div>
+
+                                <div class="receive-split-actions">
+                                    <Button
+                                        icon="pi pi-plus"
+                                        label="Add Location"
+                                        class="p-button-text p-button-sm"
+                                        @click="addReceiveSplit(data)"
+                                    />
+                                </div>
+                            </div>
+                            <small class="p-error" v-if="receiveInvoicesSubmitted && hasReceiveSplitLocationErrors(data)">
+                                Every split with received boxes must include a location.
+                            </small>
                         </template>
                     </Column>
                 </DataTable>
+
+                <small class="p-error" v-if="receiveInvoicesSubmitted && !(receiveInvoiceLineAllocations || []).some((row: any) => Number(getReceiveAllocatedBoxes(row) || 0) > 0)">
+                    Enter at least one received box amount before saving.
+                </small>
             </div>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="receiveInvoiceDialogVisible = false" :disabled="receiveInvoiceSaving" />
+                <Button label="Save Received Boxes" icon="pi pi-check" class="po-action-btn po-action-btn--receive" @click="saveReceivedInvoiceBoxes" :loading="receiveInvoiceSaving" />
+            </template>
+        </Dialog>
+
+        <Dialog
+            v-model:visible="invoiceEditDialogVisible"
+            header="Edit Invoice"
+            :modal="true"
+            :style="{ width: '560px', maxWidth: '94vw' }"
+            class="p-fluid po-invoice-edit-dialog"
+        >
+            <div class="po-invoice-edit-layout">
+                <div class="po-invoice-edit-section">
+                    <div class="field">
+                        <label for="invoiceEditName">Invoice Name</label>
+                        <InputText
+                            id="invoiceEditName"
+                            v-model="invoiceEditDraft.invoice_name"
+                            :class="{ 'p-invalid': invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim() }"
+                            placeholder="Invoice name"
+                        />
+                        <small class="p-error" v-if="invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim()">
+                            Invoice name is required.
+                        </small>
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDateShipped">Date Shipped</label>
+                        <input id="invoiceEditDateShipped" v-model="invoiceEditDraft.date_shipped" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDateDue">Date Due</label>
+                        <input id="invoiceEditDateDue" v-model="invoiceEditDraft.date_due" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditDatePaid">Date Paid</label>
+                        <input id="invoiceEditDatePaid" v-model="invoiceEditDraft.date_paid" type="date" class="p-inputtext p-component w-full" />
+                    </div>
+
+                    <div class="field">
+                        <label for="invoiceEditNotes">Notes</label>
+                        <textarea id="invoiceEditNotes" v-model="invoiceEditDraft.notes" rows="3" class="p-inputtext p-component w-full"></textarea>
+                    </div>
+
+                    <div class="po-invoice-edit-checkbox">
+                        <input id="invoiceEditFiled" v-model="invoiceEditDraft.filed" type="checkbox" />
+                        <label for="invoiceEditFiled">Filed</label>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="invoiceEditDialogVisible = false" :disabled="invoiceEditSaving" />
+                <Button label="Save Invoice" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="saveInvoiceEdits" :loading="invoiceEditSaving" />
+            </template>
         </Dialog>
         
     </div>
 </template>
 
 <script lang="ts">
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 import importAction from "../components/utils/importUtils";
 
-import InputNumber from 'primevue/inputnumber';
-import RadioButton from 'primevue/radiobutton';
+
 import { debounce, keys } from 'lodash';
+import { ref } from 'vue'; 
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
 import { supabase } from '@/clients/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { pinia } from '@/stores';
-import { table } from 'console';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -1435,6 +1934,7 @@ export default {
             },
             columns: [] as any[],
             expandedRows: [],
+            invoiceExpandedRowsByPo: {} as Record<number, any>,
 
             //DIALOG VARIABLES
             submitted: false,
@@ -1451,7 +1951,7 @@ export default {
             editPurchaseOrderDialog: false,
             newPurchaseOrderProductDialog: false,
             editingRows: [] as any[],
-            rawEditingRows: [] as any[],
+            rawEditingRows: [] as any[] | Record<string, boolean>,
             recipeEditingRows: [] as any[],
             editRawRowsLoading: false,
             editRecipeRowsLoading: false,
@@ -1464,6 +1964,37 @@ export default {
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
             inboundBoxesLoading: false,
+            inboundBoxes: [] as any[],
+            inboundInvoiceName: '' as string,
+            inboundLineAllocations: [] as any[],
+            inboundSubmitted: false,
+            inboundCreatingInvoice: false,
+            inboundUnaccountedDialog: false,
+            inboundUnaccountedLines: [] as any[],
+            receiveInvoiceDialogVisible: false,
+            receiveInvoiceDialogTitle: 'Receive Invoices' as string,
+            receiveInvoiceLoading: false,
+            receiveInvoiceSaving: false,
+            receiveInvoicesSubmitted: false,
+            receiveInvoiceLineAllocations: [] as any[],
+            invoiceEditDialogVisible: false,
+            invoiceEditSaving: false,
+            invoiceEditSubmitted: false,
+            invoiceEditDraft: {
+                invoice_id: null as number | null,
+                invoice_name: '',
+                total_cost: 0,
+                purchase_order_id: 0,
+                date_shipped: '',
+                date_due: '',
+                date_paid: '',
+                card: 0,
+                filed: false,
+                notes: '',
+            } as any,
+
+            selectedDetailPo: null as any,
+            detailDialogVisible: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -1509,7 +2040,6 @@ export default {
             displayStatus: "",
             delivered: [] as any[],
             boxesToDelete: [] as any[],
-            inboundBoxes: [] as any[],
             po_raw_products: [] as any[],
             invoices: [] as any[],
             singlePoRawProducts: [] as any[],
@@ -1536,6 +2066,7 @@ export default {
 
             //LOCATION VARIABLES
             locations: [] as any[],
+            filteredLocations: [] as any[],
             locationToCreate: {} as any,
             locationDialog: false,
             additionalLocationDialog: false,
@@ -1568,6 +2099,8 @@ export default {
             sortField: '',
             sortOrder: -1,
             tableLoading: false,
+            poViewMode: 'cards' as 'cards' | 'table',
+            poPopupRefs: {} as Record<number, any>,
 
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
@@ -1586,6 +2119,7 @@ export default {
     },
     created() {
         this.initFilters();
+        this.loadPoViewModePreference();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
         this.onSearchDebounced = debounce(async () => {
             this.currentPage = 1;
@@ -1604,6 +2138,9 @@ export default {
         searchText: {
             handler() { this.onSearchDebounced(); }
         },
+        poViewMode: {
+            handler() { this.persistPoViewModePreference(); }
+        }
     },
     async mounted() {
         console.log('Mounted');
@@ -1662,10 +2199,310 @@ export default {
             const editorName = this.activePoLock?.editor_name || 'another user';
             return `Read-only mode: ${editorName} is currently editing this purchase order.`;
         },
+        selectedWorkspacePo(): any {
+            if (Array.isArray(this.selectedPurchaseOrder)) {
+                return this.selectedPurchaseOrder[0] || null;
+            }
+            return this.selectedPurchaseOrder || null;
+        },
+        workspaceInvoiceList(): any[] {
+            const poId = Number(this.selectedWorkspacePo?.purchase_order_id || 0);
+            if (!poId) return [];
+
+            return (this.invoices || [])
+                .filter((invoice: any) => Number(invoice?.purchase_order_id || 0) === poId)
+                .sort((a: any, b: any) => Number(b?.invoice_id || 0) - Number(a?.invoice_id || 0));
+        },
+        workspaceUninvoicedLines(): any[] {
+            const poId = Number(this.selectedWorkspacePo?.purchase_order_id || 0);
+            if (!poId) return [];
+
+            const selectedPoLines = Array.isArray(this.selectedWorkspacePo?.po_raw_lines)
+                ? this.selectedWorkspacePo.po_raw_lines
+                : [];
+            const sourceLines = selectedPoLines.length > 0
+                ? selectedPoLines
+                : (this.po_raw_products || []).filter((line: any) => Number(line?.purchase_order_id || 0) === poId);
+
+            return (sourceLines || [])
+                .filter((line: any) => !line?.invoice_id && (line?.status || '').toLowerCase() !== 'cancelled')
+                .sort((a: any, b: any) => (a?.product_name || '').localeCompare(b?.product_name || ''));
+        },
+        workspaceInvoicedUnits(): number {
+            return (this.workspaceInvoiceList || []).reduce((invoiceTotal: number, invoice: any) => {
+                const invoiceUnits = this.getInvoiceLinkedLines(invoice)
+                    .reduce((lineTotal: number, line: any) => lineTotal + Number(line?.total_units || 0), 0);
+                return invoiceTotal + invoiceUnits;
+            }, 0);
+        },
+        detailSelectedPoId(): number {
+            return Number(this.selectedDetailPo?.purchase_order_id || this.selectedWorkspacePo?.purchase_order_id || 0);
+        },
+        detailInvoiceList(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            return (this.invoices || [])
+                .filter((invoice: any) => Number(invoice?.purchase_order_id || 0) === poId)
+                .sort((a: any, b: any) => Number(a?.invoice_id || 0) - Number(b?.invoice_id || 0));
+        },
+        detailPlannedCases(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            return (this.poRecipes || [])
+                .filter((recipe: any) => Number(recipe?.purchase_order_id || 0) === poId)
+                .map((recipe: any, idx: number) => {
+                    const recipeId = Number(recipe?.recipe_id || 0);
+                    const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
+                        Number(element?.recipe_id || 0) === recipeId && element?.type === 'output'
+                    );
+                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0))
+                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0));
+                    const unitsPerCase = Number(product?.default_units_per_case || recipe?.units_per_case || 0);
+                    const qty = Number(recipe?.qty || 0);
+                    const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
+
+                    return {
+                        ...recipe,
+                        line_key: `planned-${recipe?.po_recipe_id || recipeId || idx}`,
+                        recipe_name: recipe?.label || recipe?.recipe_name || `Recipe #${recipeId || 'N/A'}`,
+                        product_name: product?.name || recipe?.product_name || 'Unknown product',
+                        units_per_case: unitsPerCase,
+                        amount: cases,
+                        qty,
+                    };
+                });
+        },
+        detailRawLines(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            const groupedByProduct = new Map<string, any>();
+
+            (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
+                .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
+                .forEach((line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const key = productId > 0
+                        ? `product-${productId}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    const existing = groupedByProduct.get(key) || {
+                        ...line,
+                        line_key: key,
+                        product_id: productId || null,
+                        product_name: productName,
+                        total_units: 0,
+                    };
+
+                    existing.total_units += Number(line?.total_units || 0);
+                    groupedByProduct.set(key, existing);
+                });
+
+            return Array.from(groupedByProduct.values())
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+        },
+        detailArrivedBoxes(): any[] {
+            const poId = this.detailSelectedPoId;
+            if (!poId) return [];
+
+            console.log("Detail Arrived Boxes: ", this.selectedDetailPo.grouped_boxes);
+            console.log("Arrived Boxes Length: ", this.selectedDetailPo.grouped_boxes.length);
+
+            return (this.selectedDetailPo.grouped_boxes || [])
+                .filter((box: any) => Number(box?.purchase_order_id || 0) === poId && this.normalizeRawLineStatus(box?.status) !== 'Cancelled')
+                .map((box: any, idx: number) => {
+                    return {
+                        ...box,
+                        line_key: `arrived-${box?.po_case_id || idx}`,
+                    };
+                })
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+        },
+        detailInvoiceRows(): any[] {
+            const invoiceRows: any[] = [];
+            const discountPct = Number(this.selectedDetailPo?.discount || 0);
+            const discountMultiplier = 1 - (Number.isFinite(discountPct) ? discountPct : 0) / 100;
+
+            (this.detailInvoiceList || []).forEach((invoice: any, invoiceIdx: number) => {
+                const linkedLines = this.getInvoiceLinkedLines(invoice);
+                const receivableLines = this.getInvoiceReceiveableLines(invoice);
+                const groupKey = `invoice-${invoice?.invoice_id || invoiceIdx}`;
+                const computedInvoiceTotal = linkedLines.reduce((invoiceTotal: number, line: any) => {
+                    const units = Number((line?.units_on_invoice ?? line?.total_units) || 0);
+                    const fallbackUnitCost = Number(this.getUnitCost(line?.product_id) || 0);
+                    const unitCost = Number(line?.unit_price ?? fallbackUnitCost);
+                    if (!Number.isFinite(units) || !Number.isFinite(unitCost)) return invoiceTotal;
+
+                    return invoiceTotal + (units * unitCost * discountMultiplier);
+                }, 0);
+
+                if (!linkedLines.length) {
+                    invoiceRows.push({
+                        ...invoice,
+                        invoice_group_key: groupKey,
+                        line_key: `${groupKey}-none`,
+                        has_line: false,
+                        invoice_id: invoice?.invoice_id,
+                        invoice_name: invoice?.invoice_name,
+                        total_cost: 0,
+                        date_shipped: invoice?.date_shipped,
+                        date_due: invoice?.date_due,
+                        date_paid: invoice?.date_paid,
+                        filed: invoice?.filed,
+                        invoice_notes: invoice?.notes,
+                        linked_line_count: 0,
+                        can_receive: receivableLines.length > 0,
+                    });
+                    return;
+                }
+
+                linkedLines.forEach((line: any, lineIdx: number) => {
+                    invoiceRows.push({
+                        ...line,
+                        invoice_group_key: groupKey,
+                        line_key: `${groupKey}-${line?.po_raw_line_id || lineIdx}`,
+                        has_line: true,
+                        invoice_id: invoice?.invoice_id,
+                        invoice_name: invoice?.invoice_name,
+                        total_cost: Number(computedInvoiceTotal.toFixed(2)),
+                        date_shipped: invoice?.date_shipped,
+                        date_due: invoice?.date_due,
+                        date_paid: invoice?.date_paid,
+                        filed: invoice?.filed,
+                        invoice_notes: invoice?.notes,
+                        linked_line_count: linkedLines.length,
+                        line_notes: line?.notes,
+                        can_receive: receivableLines.length > 0,
+                    });
+                });
+            });
+
+            return invoiceRows;
+        },
+        activeReceiveInvoices(): any[] {
+            return this.getActiveReceiveInvoices(this.invoices || []);
+        },
     },
     methods: {
         lazySave: () => Promise.resolve(),
         onSearchDebounced: async () => Promise.resolve(),
+
+        getPoViewModeStorageKey() {
+            return 'inventory-app.po-view-mode';
+        },
+
+        loadPoViewModePreference() {
+            if (typeof window === 'undefined') return;
+
+            const savedPreference = window.localStorage.getItem(this.getPoViewModeStorageKey());
+            if (savedPreference === 'cards' || savedPreference === 'table') {
+                this.poViewMode = savedPreference;
+            }
+        },
+
+        persistPoViewModePreference() {
+            if (typeof window === 'undefined') return;
+            window.localStorage.setItem(this.getPoViewModeStorageKey(), this.poViewMode);
+        },
+
+        setPoPopupRef(el: any, purchaseOrderId: number) {
+            const poId = Number(purchaseOrderId || 0);
+            if (!poId) return;
+
+            if (el) {
+                this.poPopupRefs[poId] = el;
+                return;
+            }
+
+            delete this.poPopupRefs[poId];
+        },
+
+        togglePoPopup(event: any, purchaseOrderId: number) {
+            const poId = Number(purchaseOrderId || 0);
+            if (!poId) return;
+
+            const popover = this.poPopupRefs[poId] as any;
+            if (popover?.toggle) {
+                popover.toggle(event);
+            }
+        },
+
+        setPoViewMode(mode: 'cards' | 'table') {
+            this.poViewMode = mode;
+        },
+
+        openInboundWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            void this.openInboundDialog(purchaseOrder);
+        },
+
+        openReceiveInvoicesWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+            const purchaseOrderInvoices = (this.invoices || []).filter((invoice: any) =>
+                Number(invoice?.purchase_order_id || 0) === purchaseOrderId,
+            );
+
+            void this.openReceiveInvoiceDialog({
+                purchaseOrder,
+                invoices: purchaseOrderInvoices,
+                title: `Receive Invoices for ${purchaseOrder?.purchase_order_name || 'Purchase Order'}`,
+            });
+        },
+
+        openReceiveAllActiveInvoices() {
+            const activeInvoices = this.getActiveReceiveInvoices(this.invoices || []);
+            if (!activeInvoices.length) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'No Active Invoices',
+                    detail: 'There are no active invoice lines available to receive on this page.',
+                    life: 4000,
+                });
+                return;
+            }
+
+            void this.openReceiveInvoiceDialog({
+                invoices: activeInvoices,
+                title: `Receive ${activeInvoices.length} Active Invoice${activeInvoices.length === 1 ? '' : 's'}`,
+            });
+        },
+
+        openReceiveInvoiceFromDetail(invoiceRow: any) {
+            const sourceInvoice = (this.invoices || []).find((invoice: any) =>
+                Number(invoice?.invoice_id || 0) === Number(invoiceRow?.invoice_id || 0),
+            ) || invoiceRow;
+
+            if (!this.canReceiveInvoice(sourceInvoice)) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Nothing To Receive',
+                    detail: 'That invoice does not have any active linked raw lines to receive.',
+                    life: 4000,
+                });
+                return;
+            }
+
+            this.detailDialogVisible = false;
+            void this.openReceiveInvoiceDialog({
+                purchaseOrder: this.selectedDetailPo,
+                invoices: [sourceInvoice],
+                title: `Receive ${sourceInvoice?.invoice_name || `Invoice #${sourceInvoice?.invoice_id || ''}`}`,
+            });
+        },
+
+        openEditWorkspace(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            void this.onPurchaseOrderDialogOpen(purchaseOrder);
+        },
+            openDetailDialog(purchaseOrder: any) {
+                this.selectedDetailPo = purchaseOrder;
+                this.selectedPurchaseOrder = purchaseOrder;
+                this.detailDialogVisible = true;
+            },
 
         ensurePoEditable(actionLabel = 'edit this purchase order') {
             if (!this.isPoReadOnly) return true;
@@ -1962,7 +2799,7 @@ export default {
                 return;
             }
 
-            await this.continueOpenNewWithNickname(nickname, false);
+            await this.continueOpenNewWithNickname(nickname);
 
             this.purchaseOrder.notes = this.purchaseOrder.notes ?? '';
             this.purchaseOrder.discount = this.purchaseOrder.discount ?? 0;
@@ -1973,7 +2810,7 @@ export default {
             this.purchaseOrder.purchase_order_id = purchaseOrderId;
 
             await this.loadPage(1);
-            await this.onPurchaseOrderDialogOpen(2, { ...this.purchaseOrder });
+            await this.onPurchaseOrderDialogOpen({ ...this.purchaseOrder });
         },
         
         async save(): Promise<void> { 
@@ -1991,8 +2828,11 @@ export default {
                     if(editedPO.date_received)
                         editedPO.date_received = editedPO.date_received.split('T')[0];
 
-                    const poIdx = this.purchaseOrders.findIndex(po => po.purchase_order_id === editedPO.purchase_order_id);
-                    this.purchaseOrders[poIdx] = editedPO;
+                    this.purchaseOrderRefresh(editedPO.purchase_order_id, {
+                        syncTable: true,
+                        syncDialog: Number(this.purchaseOrder?.purchase_order_id || 0) === Number(editedPO.purchase_order_id),
+                        patchRowData: editedPO,
+                    });
                 }
                 this.autoSaveState = 'saved';
             } catch (error) {
@@ -2244,10 +3084,54 @@ export default {
         async getLocations(){
             try {
                 this.locations = await action.getLocations();
+                this.filteredLocations = Array.isArray(this.locations) ? [...this.locations] : [];
             } catch (error) {
                 console.log(error);
             }
         }, 
+
+        searchLocations(event: any){
+            const query = String(event?.query || '').toLowerCase().trim();
+            const allLocations = Array.isArray(this.locations) ? this.locations : [];
+
+            if (!query.length) {
+                this.filteredLocations = [...allLocations];
+                return;
+            }
+
+            this.filteredLocations = allLocations.filter((location: any) =>
+                String(location?.name || '').toLowerCase().includes(query)
+            );
+        },
+
+        getLocationAutoCompleteValue(locationId: any){
+            const normalizedLocationId = Number(locationId || 0);
+            if (!normalizedLocationId) return null;
+
+            return (this.locations || []).find((location: any) =>
+                Number(location?.location_id || 0) === normalizedLocationId
+            ) || null;
+        },
+
+        onLocationAutoCompleteChange(targetRow: any, nextValue: any){
+            if (!targetRow) return;
+
+            if (nextValue && typeof nextValue === 'object' && 'location_id' in nextValue) {
+                targetRow.location_id = Number(nextValue.location_id || 0) || null;
+                return;
+            }
+
+            if (typeof nextValue === 'string') {
+                const normalizedName = nextValue.toLowerCase().trim();
+                const matchedLocation = (this.locations || []).find((location: any) =>
+                    String(location?.name || '').toLowerCase() === normalizedName
+                );
+                targetRow.location_id = matchedLocation ? Number(matchedLocation.location_id || 0) : null;
+                return;
+            }
+
+            targetRow.location_id = null;
+        },
 
         /**
          * Description: Clears the locationToCreate object and opens the Dialog for adding a new location to the database
@@ -2408,14 +3292,13 @@ export default {
         },
         getCreatedUnitTotal(poID: number){
             let total = 0;
-            let neededPO = this.purchaseOrders.find(po => po.purchase_order_id === poID);
-            const poLines: Array<{ status?: string; total_units?: number }> = neededPO?.po_raw_lines || [];
-            let usedLines = poLines.filter((line: { status?: string; total_units?: number }) => line.status !== 'Cancelled');
+            const poLines = this.getPurchaseOrderLinesForDisplay(poID);
+            let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Unit Total", usedBoxes);
             // Prioritize the lines, but if only legacy count exist, use that
             if (usedLines.length !== 0)
-                usedLines.forEach((line: any) => total+=line.total_units);
+                usedLines.forEach((line: any) => total += Number(line.total_units || 0));
             else if (usedBoxes.length !== 0)
                 usedBoxes.forEach((b: any) => total+=b.units_per_case);
 
@@ -2437,17 +3320,15 @@ export default {
          */
         getCreatedCostTotal(poID: number, poDiscount: number){
             let total = 0;
-            let neededPO = this.purchaseOrders.find(po => po.purchase_order_id === poID);
-            const poLines: Array<{ status?: string; product_id?: number; total_units?: number }> = neededPO?.po_raw_lines || [];
-            let usedLines = poLines.filter((line: { status?: string; product_id?: number; total_units?: number }) => line.status !== 'Cancelled');
+            const poLines = this.getPurchaseOrderLinesForDisplay(poID);
+            let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Cost Total", usedBoxes);
             // console.log("Products List", this.products);
-            usedLines.forEach((line: { status?: string; product_id?: number; total_units?: number }) => {
-                let prod = this.products.find(p => p.product_id === line.product_id);
-                if (!prod) return;
-                // console.log("Product key for line: ", prod);
-                total+=((line.total_units || 0)*prod.price_2023);
+            usedLines.forEach((line: any) => {
+                const productPrice = Number(this.getProductInfo(line?.product_id, 'price_2023') || 0);
+                const unitPrice = Number(line?.unit_price ?? productPrice);
+                total += Number(line?.total_units || 0) * unitPrice;
                 // console.log("Total in for each: ", total);
             });
 
@@ -2788,6 +3669,83 @@ export default {
             return boxStatus || this.purchaseOrder.status || 'Draft';
         },
 
+        normalizeRawLineForTotals(line: any){
+            if (!line) return line;
+
+            const productId = Number(line.product_id || 0);
+            const product = (this.products || []).find((p: any) => p.product_id === productId)
+                || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+            const totalUnits = Number(
+                line.total_units ??
+                line.total ??
+                (Number(line.amount || 0) * Number(line.units_per_case || 0))
+            );
+
+            return {
+                ...line,
+                total_units: Number.isFinite(totalUnits) ? totalUnits : 0,
+                unit_price: Number(line.unit_price ?? product?.price_2023 ?? 0),
+                product_name: line.product_name || product?.name || null,
+            };
+        },
+
+        getPurchaseOrderLinesForDisplay(poId: number, poRow: any = null){
+            if (!poId) return [];
+
+            const row = poRow || (this.purchaseOrders || []).find((po: any) => po.purchase_order_id === poId);
+            const rowLines = Array.isArray(row?.po_raw_lines) ? row.po_raw_lines : [];
+            const sourceLines = rowLines.length > 0
+                ? rowLines
+                : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+
+            return (sourceLines || []).map((line: any) => this.normalizeRawLineForTotals(line));
+        },
+
+        /**
+         * Refreshes the purchase order data in the table and/or dialog.
+         * @param poId - The ID of the purchase order to refresh.
+         * @param options - Options to control the refresh behavior.
+         * @param options.syncTable - Whether to refresh the table view. Defaults to true.
+         * @param options.syncDialog - Whether to refresh the dialog view. Defaults to true.
+         * @param options.patchRowData - Optional partial data to merge into the existing table row.
+         * @param options.patchDialogData - Optional partial data to merge into the existing dialog data
+         */
+        purchaseOrderRefresh(
+            poId: number,
+            options: {
+                syncTable?: boolean;
+                syncDialog?: boolean;
+                patchRowData?: Record<string, any>;
+                patchDialogData?: Record<string, any>;
+            } = {}
+        ){
+            if (!poId) return;
+
+            const { syncTable = true, syncDialog = true, patchRowData = {}, patchDialogData = {} } = options;
+            const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === poId);
+            const existingRow = poRowIdx > -1 ? this.purchaseOrders[poRowIdx] : null;
+            const normalizedLines = this.getPurchaseOrderLinesForDisplay(poId, existingRow);
+
+            if (syncTable && poRowIdx > -1) {
+                const nextPoRow = {
+                    ...existingRow,
+                    ...patchRowData,
+                    po_raw_lines: [...normalizedLines],
+                };
+                this.purchaseOrders.splice(poRowIdx, 1, nextPoRow);
+            }
+
+            if (syncDialog && Number(this.purchaseOrder?.purchase_order_id || 0) === poId) {
+                this.isInitializingPurchaseOrder = true;
+                this.purchaseOrder = {
+                    ...(this.purchaseOrder || {}),
+                    ...patchDialogData,
+                    po_raw_lines: [...normalizedLines],
+                };
+                this.$nextTick(() => { this.isInitializingPurchaseOrder = false; });
+            }
+        },
+
         /**
          * Converts edited poBoxes to po_raw_lines format for database storage.
          * Each row becomes one line with aggregated total_units.
@@ -2957,7 +3915,7 @@ export default {
             return vendorRecipes;
         },
 
-        async continueOpenNewWithNickname(nickname: string, openCreateDialog = true){
+        async continueOpenNewWithNickname(nickname: string){
             const today = new Date();
             const year = today.getFullYear().toString();
             let maxSeqForYear = 0;
@@ -2982,114 +3940,47 @@ export default {
 
             this.purchaseOrder.purchase_order_name = `${nickname}-${year}${seqStr}`;
             this.purchaseOrder.status = 'Draft';
-
-            if (openCreateDialog) {
-                this.newBulkArray();
-                this.submitted = false;
-                this.purchaseOrderDialog = true;
-                console.log('Purchase Order Dialog Opened, PO Object: ', this.purchaseOrder);
-            }
-        },
-
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-5-2024
-        async openNew() {
-            try {
-                // this.loading = true;
-                this.vendorDialog = false;
-                this.vendorSubmitted = false;
-                this.poBoxes = [];
-                this.poCases = [];
-                this.recipeArray = [];
-                this.selectedOrderType = "";
-                this.amount = 1;
-                console.log("Purchase Order: ", this.purchaseOrder);
-
-                const nickname = (this.purchaseOrder?.vendor?.vendor_nickname || '').trim();
-                console.log("Nickname from vendor record: ", nickname);
-
-                if (!nickname) {
-                    // Vendor has no company code — prompt the user before building PO name
-                    this.pendingVendorNickname = '';
-                    this.missingVendorNicknameDialog = true;
-                    return;
-                }
-
-                await this.continueOpenNewWithNickname(nickname);
-            } catch (error) {
-                console.error("Error occurred while opening new purchase order:", error);
-            }
-            
         },
 
         /**
-         * @description Handles the opening of the purchase order dialog for both creating a new PO and editing an existing PO.
-         * Initializes necessary data such as raw products and recipes based on the vendor, and then opens the dialog with the appropriate state for either creating or editing.
-         * @param dialogType The type of dialog to open (1 for creating a new PO, 2 for editing an existing PO)
-         * @param purchaseOrder The purchase order object to edit (required if dialogType is 2)
+         * @description Opens an existing purchase order in edit mode.
+         * Initializes vendor-scoped data, acquires the edit lock, and opens the edit dialog.
+         * @param purchaseOrder The purchase order object to edit.
          * @author Gabe de la Torre-Garcia
          * @dateCreated 3-25-2026
-         * @dateLastEdited 3-25-2026
+         * @dateLastEdited 5-20-2026
          */
-        async onPurchaseOrderDialogOpen(dialogType: number, purchaseOrder?: any){
+        async onPurchaseOrderDialogOpen(purchaseOrder: any){
             let previousTableLoading = this.tableLoading;
             try {
                 this.autoSaveState = 'idle';
                 this.loading = true;
                 this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
-                console.log("Purchase Order Dialog opened with dialogType:", dialogType);
+                console.log("Purchase Order Dialog opened from Edit PO flow");
+                console.log("Purchase Order to edit:", purchaseOrder);
 
-                
-
-                if (dialogType === 1) {
-                    console.log("Purchase Order Dialog opened from Create New PO flow");
-                    this.vendorSubmitted = true;
-
-                    if (!this.purchaseOrder.vendor_id) {
-                        this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
-                        return;
-                    }
-
-                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    /* await this.getAllProductsForVendor();
-
-                    await this.getRawProductsForVendor();
-                    await this.getProcProductsForVendor();
-                    await this.getRecipes();
-                     */
-                    await this.startNewPurchaseOrderDraftFlow();
-                } else if (dialogType === 2) {
-                    console.log("Purchase Order Dialog opened from Edit PO flow");
-                    console.log("Purchase Order to edit:", purchaseOrder);
-
-                    if (!purchaseOrder?.purchase_order_id) {
-                        console.warn("Edit PO flow was called without a valid purchase order.");
-                        return;
-                    }
-
-                    if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
-                        await this.releaseActivePoLock();
-                    }
-
-                    // Set the active PO first so vendor-scoped initialization uses the correct vendor.
-                    this.purchaseOrder = { ...purchaseOrder };
-
-                    await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
-
-                    /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
-                    await this.getAllProductsForVendor();
-
-                    await this.getRawProductsForVendor();
-                    await this.getProcProductsForVendor();
-                    await this.getRecipes();
-                    await this.editPurchaseOrder(purchaseOrder);
-                } else {
-                    console.log("Purchase Order Dialog opened with unknown dialogType:", dialogType);
+                if (!purchaseOrder?.purchase_order_id) {
+                    console.warn("Edit PO flow was called without a valid purchase order.");
+                    return;
                 }
+
+                if (this.currentEditingPoId && this.currentEditingPoId !== purchaseOrder.purchase_order_id) {
+                    await this.releaseActivePoLock();
+                }
+
+                // Set the active PO first so vendor-scoped initialization uses the correct vendor.
+                this.purchaseOrder = { ...purchaseOrder };
+
+                await this.acquirePoLock(this.purchaseOrder.purchase_order_id);
+
+                /** @TODO Need to go through and change all uses of this.products to either this.procProducts or this.unprocProducts */
+                await this.getAllProductsForVendor();
+
+                await this.getRawProductsForVendor();
+                await this.getProcProductsForVendor();
+                await this.getRecipes();
+                await this.editPurchaseOrder(purchaseOrder);
             } catch (error) {
                 console.error("Error occurred during Purchase Order Dialog initialization:", error);
             } finally {
@@ -3139,19 +4030,6 @@ export default {
             return total;
         }, */
 
-        //Description: 
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: ???
-        //Date Last Edited: 7-3-2024
-        newBulkArray(){
-
-            for(let idx = 0; idx < 3; idx++){
-                this.addBulkLine(this.poCases);
-                this.addBulkLine(this.poBoxes);
-                this.addBulkLine(this.recipeArray);
-            }
-        },
         addBulkLine(poArray: any){
             console.log("PO ARRAY", poArray);
             poArray.push(
@@ -3176,13 +4054,66 @@ export default {
                 this[flagKey] = false;
             }
         },
+        createNewEditRecipeRow(){
+            return {
+                line_key: `recipe-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                recipeObj: null,
+                recipe_id: null,
+                productObj: null,
+                product_id: null,
+                product_name: '',
+                units_per_case: 0,
+                amount: 1,
+                qty: 0,
+            };
+        },
+        createNewEditRawRow(){
+            return {
+                line_key: `raw-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                productObj: null,
+                product_id: null,
+                product_name: '',
+                units_per_case: 0,
+                amount: 1,
+                total: 0,
+                status: this.purchaseOrder?.status || 'Draft',
+            };
+        },
+        openRecipeRowEditor(rowData: any){
+            if (!rowData) return;
+            rowData.d_editing = true;
+            this.editingRows = [rowData];
+        },
+        openRawRowEditor(rowData: any){
+            if (!rowData) return;
+            rowData.d_editing = true;
+            this.rawEditingRows = [rowData];
+        },
         async addEditRawLine(){
             if (!this.ensurePoEditable('add raw products')) return;
-            await this.withTransientRowAddLoading('editRawRowsLoading', () => this.addBulkLine(this.poBoxes));
+            let newRow: any = null;
+            await this.withTransientRowAddLoading('editRawRowsLoading', () => {
+                newRow = this.createNewEditRawRow();
+                this.poBoxes = [...(this.poBoxes || []), newRow];
+            });
+
+            if (newRow) {
+                await this.$nextTick();
+                this.openRawRowEditor(newRow);
+            }
         },
         async addEditRecipeLine(){
             if (!this.ensurePoEditable('add processed products')) return;
-            await this.withTransientRowAddLoading('editRecipeRowsLoading', () => this.addBulkLine(this.singlePoRecipes));
+            let newRow: any = null;
+            await this.withTransientRowAddLoading('editRecipeRowsLoading', () => {
+                newRow = this.createNewEditRecipeRow();
+                this.singlePoRecipes = [...(this.singlePoRecipes || []), newRow];
+            });
+
+            if (newRow) {
+                await this.$nextTick();
+                this.openRecipeRowEditor(newRow);
+            }
         },
         deleteBulkLine(array: any, counter: any){
             array.splice(counter,1);
@@ -3275,18 +4206,15 @@ export default {
          */
         applyRawProductToRow(productObj: any, rowData: any){
             if (!productObj?.product_id || !rowData) return;
-            rowData.productObj     = productObj;
-            rowData.product_id     = productObj.product_id;
-            rowData.product_name   = productObj.name;
-            rowData.units_per_case = productObj.default_units_per_case || 1;
-            rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
-            this.promptForMissingImportantProductFields([productObj]);
-            console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
-        },
+            const productKey = this.getProductForImportantFieldCheck(productObj) || productObj;
 
-        onRawProductAutoCompleteSelectCreate(productObj: any, index: number){
-            console.log("Product AutoComplete Selection (create):", productObj, "index:", index);
-            this.applyRawProductToRow(productObj, this.poBoxes[index]);
+            rowData.productObj     = productKey;
+            rowData.product_id     = productKey.product_id;
+            rowData.product_name   = productKey.name;
+            rowData.units_per_case = productKey.default_units_per_case || 1;
+            rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
+            this.promptForMissingImportantProductFields([productKey]);
+            console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
         },
 
         /**
@@ -3338,7 +4266,21 @@ export default {
         /**
          * Opens a dialog for any product that is missing important fields used during ordering calculations.
          */
-        promptForMissingImportantProductFields(products: any[], recipeIndex: number | null = null){
+        getProductForImportantFieldCheck(product: any){
+            const productId = Number(product?.product_id || 0);
+            if (!productId) return null;
+
+            const cachedProduct = (this.products || []).find((p: any) => p.product_id === productId)
+                || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+
+            return {
+                ...(cachedProduct || {}),
+                ...(product || {}),
+                product_id: productId,
+            };
+        },
+
+        getMissingImportantProductFields(products: any[]){
             type MissingImportantFieldItem = {
                 product_id: number;
                 name: string;
@@ -3353,7 +4295,9 @@ export default {
 
             (products || []).forEach((product: any) => {
                 if (!product?.product_id) return;
-                uniqueProductsById.set(product.product_id, product);
+                const hydratedProduct = this.getProductForImportantFieldCheck(product);
+                if (!hydratedProduct) return;
+                uniqueProductsById.set(hydratedProduct.product_id, hydratedProduct);
             });
 
             const missingImportantFields: MissingImportantFieldItem[] = [];
@@ -3376,6 +4320,12 @@ export default {
                     requires_price_2023: requiresPrice,
                 });
             });
+
+            return missingImportantFields;
+        },
+
+        promptForMissingImportantProductFields(products: any[], recipeIndex: number | null = null){
+            const missingImportantFields = this.getMissingImportantProductFields(products);
 
             if (!missingImportantFields.length) return;
 
@@ -3485,36 +4435,6 @@ export default {
             } finally {
                 this.loading = false;
             }
-        },
-
-        /**
-         * On recipe selection, updates the recipe array with the selected recipe id
-         * @param recipeId - The recipe id to select
-         * @param counter - The counter to update
-         * 
-         * Created by: Gabe de la Torre
-         * 
-         * Date Created: 7-03-2024
-         * 
-         * Date Last Edited: 7-15-2024
-         */
-        onRecipeSelection(recipeId: any, counter: number){
-            // Ensure recipeId is always a primitive
-            console.log("RECIPE ID BEGIN: ", recipeId);
-            let id = recipeId;
-            if (typeof recipeId === 'object' && recipeId !== null && 'recipe_id' in recipeId) {
-                id = recipeId.recipe_id;
-            }
-            this.recipeArray[counter].recipe_id = id;
-            console.log("RECIPE ID: ", id);
-            console.log("PO RECIPE ID: ", this.poRecipes[counter].recipe_id);
-            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
-            console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCases[counter] = this.procProducts.find(p => p.product_id === recipeElement.product_id);
-            console.log("PO CASE", this.poCases[counter]);
-
-            // If the selected recipe contains raw products missing default_units_per_case, prompt the user to set them
-            this.checkMissingDefaultUnitsForRecipe(recipeId, counter);
         },
 
         onRecipeSelectionEdit(recipeId: any){
@@ -3644,12 +4564,7 @@ export default {
                 //this.submitted = true;
                 if (this.purchaseOrder.purchase_order_name.trim()) {
                     this.loading = true;
-                    if (this.purchaseOrder.purchase_order_id) {
-                        await this.confirmEdit();
-                    }
-                    else {
-                        await this.confirmCreate();
-                    }
+                    await this.confirmEdit();
 
                     if(this.purchaseOrder.status !== 'Draft' && this.purchaseOrder.status !== 'Submitted'){
                         await this.checkForRequests();
@@ -3734,55 +4649,39 @@ export default {
                 if (!this.purchaseOrder.date_received)
                     this.purchaseOrder.date_received = this.today;
 
-
                 this.purchaseOrder.status = 'Delivered';
                 let boxesToInsert = [] as any[];
 
                 // Grab the boxes already received and the newly inputted boxes
                 let receivedBoxArray = this.checkBoxes("Received");
                 let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
-                let awaitedBoxes = this.checkBoxes("Awaited");
 
                 console.log("receivedBoxArray", receivedBoxArray);
                 console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
                 // Loop through all of the requested boxes
                 this.reqPoBoxes.forEach(reqBox => {
-                    // let poBox = this.poBoxes.find(poBox => poBox.product_id === reqBox.product_id);                    
-
-                    // Grab the received Box line and all of the newly arrived boxes.
-                    /** @TODO Loop through the newlyArrivedBox array, function should still work as intended.
-                     * Try to find a more effecient way to work after getting it to work at all.
-                     */
                     let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
                     let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
                     let newArrive = {} as any;
 
                     console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
 
-                    // Check if the newly arrived boxes are in one location or multiple
-                    if (newlyArrivedBoxes.length === 1){
+                    if (newlyArrivedBoxes.length === 1) {
                         newArrive = newlyArrivedBoxes[0];
-                        console.log("ONLY ONE LOCATION");
-                        // console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
-                        // Calculations
                         boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, true));
                     } else if (newlyArrivedBoxes.length > 1) {
-                        console.log("MULTIPLE LOCATIONS");
                         let lineIdx = 0;
                         let lastLine = false;
                         newlyArrivedBoxes.forEach(newRow => {
                             newArrive = newRow;
-                            console.log("REQUESTED BOXES ", reqBox, " ACTUAL RECEIVED BOXES ", receivedBox, "AND NEWLY RECEIVED BOXES ", newArrive);
-                            // Calculations
                             if(lineIdx > newlyArrivedBoxes.length)
                                 lastLine = true;
 
                             boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, newArrive, lastLine));
                             lineIdx++;
-                        })
+                        });
                     } else {
-                        // No locations, all awaited boxes of this product type set to back ordered
                         let noArrivales = {} as any;
                         noArrivales.total = 0;
                         noArrivales.amount = 0;
@@ -3790,36 +4689,21 @@ export default {
                         noArrivales.purchase_order_id = reqBox.purchase_order_id;
                         noArrivales.product_id = reqBox.product_id;
                         boxesToInsert.push(this.alocateBoxCalculation(reqBox, receivedBox, noArrivales, true));
-                        /* let awaitedProduct = awaitedBoxes.filter(box => box.product_id === reqBox.product_id);
-                        awaitedProduct.forEach(box => {
-                            box.status = 'BO';
-                            boxesToInsert.push(box);
-                        }) */
-                    }            
-                                       
-                })
-
-                console.log("BOXES TO INSERT ", boxesToInsert.flat());
+                    }
+                });
 
                 let insertArray = [] as any[];
 
                 boxesToInsert.flat().forEach(async box => {
                     if (box.case_id){
-                        //console.log("PRODUCT NAME: ", box.name, "BOX UNIT AMOUNT: ", box.units_per_case, "BOX STATUS: ", box.status, "BOX LOCATION: ", box.location)
                         let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location_id, box.status, box.purchase_order_id, box.request_id, box.case_id];
                         insertArray.push(tempArray);
                     } else {
-                        console.log("BACK ORDERED PARTIAL BOX", box);
                         await action.addCase(box);
                     }
-                })
-                
-                console.log('Insert Array: ', insertArray);
+                });
+
                 await action.bulkEditCases(insertArray);
-
-                // console.log("BOXES TO INSERT ", boxesToInsert);
-
-                    
             } catch (error) {
                 console.log(error);
             }
@@ -3934,12 +4818,13 @@ export default {
                     console.log(box);
                     boxesToInsert.push(box);
 
-                    let boBox = [] as any[];
-                    boBox[<any>'name'] = box.name;
-                    boBox[<any>'product_id'] = box.product_id
-                    boBox[<any>'purchase_order_id'] = box.purchase_order_id
-                    boBox[<any>'units_per_case'] = partialBackOrderBoxAmount;
-                    boBox[<any>'status'] = 'BO'
+                    const boBox: any = {
+                        name: box.name,
+                        product_id: box.product_id,
+                        purchase_order_id: box.purchase_order_id,
+                        units_per_case: partialBackOrderBoxAmount,
+                        status: 'BO',
+                    };
 
                     console.log(boBox);
                     //EVENTUALLY, JUST ADD THE BO BOX DIRECTLY HERE
@@ -3960,136 +4845,6 @@ export default {
             }) 
 
             return boxesToInsert;
-        },
-
-        /**
-         * Creates a new purchase order, the recipe's required for the purchase order, and the raw boxes to order.
-         * 
-         * Created by: Gabe de la Torre
-         * Date Created: ???
-         * Date Last Edited: 2-24-2025
-         */
-        async confirmCreate(){
-            try {
-                this.purchaseOrders.push(this.purchaseOrder);
-                let addedPurchaseOrderId = await action.addPurchaseOrder(this.purchaseOrder);
-                //let addedPurchaseOrderId = '';
-
-                console.log("PO ID BEFORE VALUES", addedPurchaseOrderId);
-
-                let boxesToInsert = [] as any[];
-
-                let recipesToInsert = [] as any[];
-
-                console.log("PO CASES", this.poCases);
-                console.log("RECIPES ", this.recipeArray);
-
-                this.recipeArray.filter(r => r.recipe_id).forEach(r => {
-
-                    let processedRecEl = this.recipeElements.find(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'output');
-
-                    let processedCaseKey = this.products.find(prod => prod.product_id === processedRecEl.product_id);
-
-                    let totalUnitQty = r.amount*processedCaseKey.default_units_per_case;
-
-                    console.log("Total Recipe QTY: ", totalUnitQty);
-                    let tempArray = [addedPurchaseOrderId, r.recipe_id, totalUnitQty];
-                    recipesToInsert.push(tempArray);
-
-                    /* let procCase = {} as any;
-
-                    procCase.product_id = processedCaseKey.product_id;
-                    procCase.units_per_case = processedCaseKey.default_units_per_case;
-                    procCase.purchase_order_id = addedPurchaseOrderId;
-                    if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                        procCase.status = this.purchaseOrder.status;
-
-                    if(this.purchaseOrder.status === 'Delivered')
-                        procCase.date_received = this.purchaseOrder.date_received;
-
-                    for (let recIdx = 0; recIdx < r.amount; recIdx++){
-                        casesToInsert.push(procCase);
-                    } */
-
-                    let rawRecElArray = this.recipeElements.filter(recEl => recEl.recipe_id === r.recipe_id && recEl.type === 'input');
-                    console.log("Raw Recipe Element Array: ", rawRecElArray);
-
-                    rawRecElArray.forEach(rawRecEl => {
-                        let rawKey = this.products.find(prod => prod.product_id === rawRecEl.product_id);
-                        console.log("Raw Product Key in Create: ", rawKey);
-
-                        let rawBox = {} as any;
-
-                        rawBox.product_id = rawKey.product_id;
-                        rawBox.units_per_case = rawKey.default_units_per_case;
-                        rawBox.purchase_order_id = addedPurchaseOrderId;
-                        if(this.purchaseOrder.status === 'Draft' || this.purchaseOrder.status === 'Submitted' ||this.purchaseOrder.status === 'Ordered' || this.purchaseOrder.status === 'Inbound' ||this.purchaseOrder.status === 'Delivered')
-                            rawBox.status = this.purchaseOrder.status;
-
-                        if(this.purchaseOrder.status === 'Delivered')
-                            rawBox.date_received = this.purchaseOrder.date_received;
-
-                        // let loopAmount = this.getRawBoxTotal(rawRecEl, procCase, r.amount);
-                        let loopAmount = Math.ceil(totalUnitQty / rawBox.units_per_case);
-                        console.log("Loop Amount in Linked Raw Box Create: ", loopAmount);
-
-                        for (let recIdx = 0; recIdx < loopAmount; recIdx++){
-                            boxesToInsert.push(rawBox);
-                        }
-                    })
-                })
-
-                console.log("RECIPES TO INSERT ",recipesToInsert)
-                if(recipesToInsert.length > 0)
-                    await action.bulkAddPurchaseOrderRecipe(recipesToInsert);
-
-                //this.poBoxes = this.poBoxes.filter(b => b.product_id);
-
-                // Convert manual poBoxes entries to po_raw_lines (one row per product line)
-                const rawLinesToInsert = this.poBoxes.filter((b: any) => b.product_id).map((rawProduct: any) => {
-                    const rawKey = this.products.find((p: any) => p.product_id === rawProduct.product_id);
-                    const units_per_case = rawKey?.default_units_per_case || rawProduct.units_per_case || 1;
-                    const total_units = (rawProduct.amount || 1) * units_per_case;
-                    return {
-                        product_id: rawProduct.product_id,
-                        purchase_order_id: addedPurchaseOrderId,
-                        total_units,
-                        status: this.purchaseOrder.status || 'Draft',
-                        notes: rawProduct.notes ?? null,
-                        invoice_id: rawProduct.invoice_id ?? null,
-                    };
-                });
-
-                console.log("RAW LINES TO INSERT: ", rawLinesToInsert);
-                if (rawLinesToInsert.length > 0)
-                    await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);
-
-                // Recipe-derived boxes still go through cases until that flow is migrated
-                console.log("RECIPE BOXES TO INSERT: ", boxesToInsert);
-                let finalCaseArray = [] as any[];
-                boxesToInsert.forEach(c => {
-                    if(!c.location_id) c.location_id = null;
-                    if(!c.notes) c.notes = null;
-                    if(!c.date_received) c.date_received = null;
-                    let tempArray = [c.units_per_case, c.date_received, c.notes, c.product_id, c.location_id, c.status, c.purchase_order_id, c.request_id];
-                    finalCaseArray.push(tempArray);
-                });
-                console.log("FINAL CASE ARRAY (recipes only): ", finalCaseArray);
-                if(finalCaseArray.length > 0)
-                    await action.bulkCreateCases(finalCaseArray);
-
-                //REMEMBER TO GET THE PRODUCTS AGAIN FOR AN UPDATED LIST
-                console.log("ADDED PURCHASE ORDER ", addedPurchaseOrderId);
-                await this.loadPage(this.currentPage);
-                // await this.getBoxes();
-
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Created', life: 3000});
-
-                return addedPurchaseOrderId;
-            } catch (err) {
-                console.log(err);
-                this.$toast.add({severity:'error', summary: 'Error', detail: err});
-            }
         },
 
         //Description: Sets up all the boxes and cases related to a purchase order and then opens the po dialog
@@ -4321,31 +5076,18 @@ export default {
             //DISPLAYING RAW BOXES---------------------------------------------------------------------------
             else if (po.displayStatus === "Unprocessed"){
                 if (linkedRawLines.length > 0) {
-                    // Prefer po_raw_lines for expansion display; keep a box-shaped UI model for users.
-                    displayArray = linkedRawLines.map((line: any) => {
-                        const rawProduct = (this.unprocProducts || []).find((p: any) => p.product_id === line.product_id)
-                            || (this.products || []).find((p: any) => p.product_id === line.product_id);
-                        const unitsPerCase = rawProduct?.default_units_per_case || line.units_per_case || 1;
-                        const totalUnits = Number(line.total_units || 0);
-                        const wholeAmount = Number(Math.floor(totalUnits / unitsPerCase));
-                        const partialUnits = Number((totalUnits - (wholeAmount * unitsPerCase)).toFixed(2));
-                        const displayAmount = partialUnits > 0
-                            ? `${wholeAmount} (With ${partialUnits} units in a partial)`
-                            : wholeAmount;
-
-                        return {
-                            ...line,
-                            product_name: rawProduct?.name || this.getProductInfo(line.product_id, 'name'),
-                            units_per_case: unitsPerCase,
-                            amount: displayAmount,
-                            status: this.normalizeRawLineStatus(line.status),
-                            location_id: line.location_id ?? null,
-                            notes: line.notes ?? null,
-                        };
-                    });
+                    // Group by product type for clean totals; keep cancelled lines in their own bucket.
+                    displayArray = this.aggregateUnprocessedByProduct(linkedRawLines);
                 } else if (linkedBoxes.length > 0) {
                     // Fallback for legacy POs that still only have individual box records.
-                    displayArray = helper.groupProductsByKey(linkedBoxes, ['status', 'notes', 'location_id']);
+                    const legacyLines = linkedBoxes.map((box: any) => ({
+                        purchase_order_id: box.purchase_order_id,
+                        product_id: box.product_id,
+                        total_units: Number(box.amount || 0) * Number(box.units_per_case || 0),
+                        status: box.status,
+                        notes: box.notes,
+                    }));
+                    displayArray = this.aggregateUnprocessedByProduct(legacyLines);
                 }
             } else if (po.displayStatus === 'Invoices') {
                 displayArray = (this.invoices || [])
@@ -4360,6 +5102,281 @@ export default {
 
             console.log("DISPLAY ARRAY", displayArray);
             return displayArray;
+        },
+
+        aggregateUnprocessedByProduct(lines: any[]){
+            const grouped = new Map<string, any>();
+
+            (lines || []).forEach((line: any) => {
+                if (!line || line.product_id == null) return;
+
+                const normalizedStatus = this.normalizeRawLineStatus(line.status);
+                const isCancelled = normalizedStatus === 'Cancelled';
+                const key = `${line.product_id}-${isCancelled ? 'cancelled' : 'active'}`;
+                const totalUnits = Number(line.total_units || 0);
+
+                const existing = grouped.get(key);
+                if (!existing) {
+                    grouped.set(key, {
+                        purchase_order_id: line.purchase_order_id,
+                        product_id: line.product_id,
+                        total_units: totalUnits,
+                        notes: isCancelled ? (line.notes ?? null) : null,
+                    });
+                    return;
+                }
+
+                existing.total_units += totalUnits;
+            });
+
+            return Array.from(grouped.values()).map((entry: any) => {
+                const rawProduct = (this.unprocProducts || []).find((p: any) => p.product_id === entry.product_id)
+                    || (this.products || []).find((p: any) => p.product_id === entry.product_id);
+                const unitsPerCase = Number(rawProduct?.default_units_per_case || 1);
+                const totalUnits = Number(entry.total_units || 0);
+
+                return {
+                    ...entry,
+                    product_name: rawProduct?.name || this.getProductInfo(entry.product_id, 'name'),
+                    units_per_case: unitsPerCase,
+                    amount: unitsPerCase > 0 ? Number((totalUnits / unitsPerCase).toFixed(2)) : 0,
+                };
+            });
+        },
+
+        getInvoiceExpandedRows(poId: number){
+            if (!poId) return [];
+            return this.invoiceExpandedRowsByPo[poId] || [];
+        },
+
+        setInvoiceExpandedRows(poId: number, expandedRows: any){
+            if (!poId) return;
+            this.invoiceExpandedRowsByPo = {
+                ...(this.invoiceExpandedRowsByPo || {}),
+                [poId]: expandedRows || [],
+            };
+        },
+
+        getInvoiceLinkedLines(invoice: any){
+            const poId = Number(invoice?.purchase_order_id || this.purchaseOrder?.purchase_order_id || this.detailSelectedPoId || 0);
+            const invoiceId = Number(invoice?.invoice_id || 0);
+            const rawLines = Array.isArray(invoice?.po_raw_lines) && invoice.po_raw_lines.length > 0
+                ? invoice.po_raw_lines
+                : (this.po_raw_products || []).filter((line: any) =>
+                    Number(line?.purchase_order_id || 0) === poId && Number(line?.invoice_id || 0) === invoiceId,
+                );
+
+            return (rawLines || [])
+                .filter((line: any) => line && line.product_id != null)
+                .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0));
+        },
+
+        getInvoiceLinkedLineLabel(line: any){
+            const fallbackName = line?.product_id ? `Product #${line.product_id}` : 'Unknown product';
+            const productName = line?.product_name || this.getProductInfo(line?.product_id, 'name') || fallbackName;
+            const units = Number(line?.total_units || 0);
+
+            return `${productName} (${units} unit${units === 1 ? '' : 's'})`;
+        },
+
+        onReceiveInvoiceDialogHide() {
+            this.receiveInvoicesSubmitted = false;
+            this.receiveInvoiceLineAllocations = [];
+            this.receiveInvoiceLoading = false;
+            this.receiveInvoiceSaving = false;
+            this.receiveInvoiceDialogTitle = 'Receive Invoices';
+        },
+
+        getInvoiceReceiveableLines(invoice: any): any[] {
+            return (this.getInvoiceLinkedLines(invoice) || []).filter((line: any) => {
+                const totalUnits = Number(line?.total_units || 0);
+                const normalizedStatus = String(this.normalizeRawLineStatus(line?.status) || '').toLowerCase();
+                return totalUnits > 0 && normalizedStatus !== 'delivered' && normalizedStatus !== 'cancelled';
+            });
+        },
+
+        canReceiveInvoice(invoice: any): boolean {
+            return this.getInvoiceReceiveableLines(invoice).length > 0;
+        },
+
+        getActiveReceiveInvoices(invoiceRows: any[]): any[] {
+            return (invoiceRows || []).filter((invoice: any) => this.canReceiveInvoice(invoice));
+        },
+
+        getReceiveExpectedBoxes(line: any): number {
+            const units = Number(line?.total_units || 0);
+            const unitsPerBox = Number(line?.actual_units_per_box || line?.default_units_per_case || 0);
+            if (!Number.isFinite(units) || !Number.isFinite(unitsPerBox) || unitsPerBox <= 0) return 0;
+            return Number((units / unitsPerBox).toFixed(2));
+        },
+
+        getReceiveAllocatedBoxes(line: any): number {
+            const splits = Array.isArray(line?.receive_splits) ? line.receive_splits : [];
+            const total = splits.reduce((sum: number, split: any) => sum + Number(split?.boxes_received || 0), 0);
+            return Number(Number.isFinite(total) ? total.toFixed(2) : 0);
+        },
+
+        onReceiveSplitBoxesInput(line: any, split: any) {
+            if (!line) return;
+            const nextValue = Number(split?.boxes_received ?? 0);
+            split.boxes_received = Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 0;
+        },
+
+        addReceiveSplit(line: any) {
+            if (!line) return;
+            if (!Array.isArray(line.receive_splits)) {
+                line.receive_splits = [];
+            }
+
+            const nextIdx = line.receive_splits.length;
+            line.receive_splits.push({
+                split_key: `${line.row_key}-split-${nextIdx}`,
+                boxes_received: 0,
+                location_id: null,
+            });
+        },
+
+        removeReceiveSplit(line: any, splitIdx: number) {
+            if (!line || !Array.isArray(line.receive_splits)) return;
+            if (line.receive_splits.length <= 1) {
+                line.receive_splits[0].boxes_received = 0;
+                line.receive_splits[0].location_id = null;
+                return;
+            }
+            line.receive_splits.splice(splitIdx, 1);
+        },
+
+        hasReceiveSplitLocationErrors(line: any): boolean {
+            const splits = Array.isArray(line?.receive_splits) ? line.receive_splits : [];
+            return splits.some((split: any) => Number(split?.boxes_received || 0) > 0 && !split?.location_id);
+        },
+
+        async openReceiveInvoiceDialog(options: { purchaseOrder?: any; invoices?: any[]; title?: string } = {}) {
+            const purchaseOrder = options.purchaseOrder || null;
+            const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+
+            if (purchaseOrderId) {
+                this.purchaseOrder = { ...purchaseOrder };
+            }
+
+            this.receiveInvoiceDialogVisible = true;
+            this.receiveInvoiceDialogTitle = options.title || (purchaseOrder?.purchase_order_name
+                ? `Receive Invoices for ${purchaseOrder.purchase_order_name}`
+                : 'Receive Invoices');
+            this.receiveInvoiceLoading = true;
+            this.receiveInvoiceSaving = false;
+            this.receiveInvoicesSubmitted = false;
+            this.receiveInvoiceLineAllocations = [];
+
+            try {
+                let invoiceRows = Array.isArray(options.invoices) ? [...options.invoices] : [];
+
+                if (!invoiceRows.length && purchaseOrderId) {
+                    invoiceRows = (this.invoices || []).filter((invoice: any) =>
+                        Number(invoice?.purchase_order_id || 0) === purchaseOrderId,
+                    );
+                }
+
+                if (!invoiceRows.length && purchaseOrderId) {
+                    invoiceRows = (await action.getInvoicesForPurchaseOrder(purchaseOrderId)) || [];
+                }
+
+                invoiceRows = this.getActiveReceiveInvoices(invoiceRows);
+
+                const receiveRows: any[] = [];
+
+                (invoiceRows || []).forEach((invoice: any) => {
+                    const linkedLines = this.getInvoiceReceiveableLines(invoice);
+                    const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
+                    const invoicePurchaseOrderName = String(
+                        invoice?.purchase_order_name
+                        || (this.purchaseOrders || []).find((po: any) => Number(po?.purchase_order_id || 0) === invoicePurchaseOrderId)?.purchase_order_name
+                        || purchaseOrder?.purchase_order_name
+                        || ''
+                    );
+
+                    linkedLines.forEach((line: any) => {
+                        const productId = Number(line?.product_id || 0);
+                        const product = (this.products || []).find((p: any) => p.product_id === productId)
+                            || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+                        const unitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
+
+                        const expectedBoxes = this.getReceiveExpectedBoxes(line);
+                        let partialQty = 0;
+
+                        if(!Number.isInteger(expectedBoxes)) {
+                            const wholeBoxes = Math.trunc(expectedBoxes);
+                            partialQty = Number(line.total_units - (wholeBoxes * unitsPerCase));
+                        }
+
+                        receiveRows.push({
+                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                            invoice_id: Number(invoice?.invoice_id || 0),
+                            invoice_name: String(invoice?.invoice_name || ''),
+                            purchase_order_id: invoicePurchaseOrderId,
+                            purchase_order_name: invoicePurchaseOrderName,
+                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                            product_id: productId,
+                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                            item_num: String(line?.item_num || product?.item_num || ''),
+                            total_units: Number(line?.total_units - partialQty || 0),
+                            default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                            actual_units_per_box: unitsPerCase > 0 ? unitsPerCase : 0,
+                            receive_splits: [
+                                {
+                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                    boxes_received: 0,
+                                    location_id: null,
+                                },
+                            ],
+                            line_status: String(line?.status || 'Inbound'),
+                            line_notes: line?.notes ?? null,
+                        });
+
+                        if(partialQty > 0){
+                            receiveRows.push({
+                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                            invoice_id: Number(invoice?.invoice_id || 0),
+                            invoice_name: String(invoice?.invoice_name || ''),
+                            purchase_order_id: invoicePurchaseOrderId,
+                            purchase_order_name: invoicePurchaseOrderName,
+                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                            product_id: productId,
+                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                            item_num: String(line?.item_num || product?.item_num || ''),
+                            total_units: Number(partialQty),
+                            default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                            actual_units_per_box: partialQty > 0 ? partialQty : 0,
+                            receive_splits: [
+                                {
+                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                    boxes_received: 0,
+                                    location_id: null,
+                                },
+                            ],
+                            line_status: String(line?.status || 'Inbound'),
+                            line_notes: line?.notes ?? null,
+                        });
+                        }
+                    });
+                });
+
+                this.receiveInvoiceLineAllocations = receiveRows.sort((a: any, b: any) => {
+                    if (a.purchase_order_id !== b.purchase_order_id) return a.purchase_order_id - b.purchase_order_id;
+                    if (a.invoice_id !== b.invoice_id) return a.invoice_id - b.invoice_id;
+                    return String(a.product_name || '').localeCompare(String(b.product_name || ''));
+                });
+            } catch (error) {
+                console.error('Error preparing receive invoice dialog:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to load invoice lines for receiving. Please try again.',
+                    life: 5000,
+                });
+            } finally {
+                this.receiveInvoiceLoading = false;
+            }
         },
         
         /** 
@@ -4543,7 +5560,12 @@ export default {
 
             //console.log(prod.price_2023);
             //NEED TO MAKE ANOTHER TABLE FOR PRICES
-            return prod.price_2023;
+            let price = 0;
+
+            if(prod?.price_2023)
+                price = prod.price_2023
+
+            return price;
         },
         //Description: Gets the fnksu for a specific product
         //Created by: Gabe de la Torre
@@ -4888,6 +5910,103 @@ export default {
             
             // console.log(total);
             return total;
+        },
+
+        getPoRawLineProgress(po: any){
+            const poId = Number(po?.purchase_order_id || 0);
+            if (!poId) {
+                return {
+                    deliveredUnits: 0,
+                    inboundUnits: 0,
+                    otherUnits: 0,
+                    totalUnits: 0,
+                    deliveredPct: 0,
+                    inboundPct: 0,
+                    otherPct: 0,
+                };
+            }
+
+            const lines = Array.isArray(po?.po_raw_lines)
+                ? po.po_raw_lines
+                : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+
+            let deliveredUnits = 0;
+            let inboundUnits = 0;
+            let otherUnits = 0;
+
+            (lines || []).forEach((line: any) => {
+                if (!line) return;
+                const normalizedStatus = this.normalizeRawLineStatus(line.status || po?.status || 'Draft');
+                if (normalizedStatus === 'Cancelled') return;
+
+                const units = Number(
+                    line.total_units ??
+                    (Number(line.amount || 0) * Number(line.units_per_case || 0))
+                );
+
+                if (!Number.isFinite(units) || units <= 0) return;
+
+                if (normalizedStatus === 'Delivered') {
+                    deliveredUnits += units;
+                } else if (normalizedStatus === 'Inbound') {
+                    inboundUnits += units;
+                } else {
+                    otherUnits += units;
+                }
+            });
+
+            const totalUnits = deliveredUnits + inboundUnits + otherUnits;
+            if (totalUnits <= 0) {
+                return {
+                    deliveredUnits,
+                    inboundUnits,
+                    otherUnits,
+                    totalUnits,
+                    deliveredPct: 0,
+                    inboundPct: 0,
+                    otherPct: 0,
+                };
+            }
+
+            const deliveredPct = (deliveredUnits / totalUnits) * 100;
+            const inboundPct = (inboundUnits / totalUnits) * 100;
+            const otherPct = (otherUnits / totalUnits) * 100;
+
+            return {
+                deliveredUnits,
+                inboundUnits,
+                otherUnits,
+                totalUnits,
+                deliveredPct,
+                inboundPct,
+                otherPct,
+            };
+        },
+
+        getPoProgressSegmentStyle(po: any, segment: 'delivered' | 'inbound' | 'other'){
+            const progress = this.getPoRawLineProgress(po);
+            const leftBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+                delivered: 0,
+                inbound: progress.deliveredPct,
+                other: progress.deliveredPct + progress.inboundPct,
+            };
+            const widthBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+                delivered: progress.deliveredPct,
+                inbound: progress.inboundPct,
+                other: progress.otherPct,
+            };
+
+            return {
+                left: `${leftBySegment[segment]}%`,
+                width: `${widthBySegment[segment]}%`,
+            };
+        },
+
+        getPoProgressSummary(po: any): string {
+            const progress = this.getPoRawLineProgress(po);
+            if (!progress.totalUnits) return 'No active units';
+
+            return `Delivered ${progress.deliveredUnits} | Inbound ${progress.inboundUnits} | Other ${progress.otherUnits}`;
         },
 
         getPOProgressPercent(status: string): number {
@@ -5295,33 +6414,72 @@ export default {
             }
         },
 
+        detailRowStyleProc(data: any) {
+            const rowIndex = this.detailPlannedCases.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+
+            if (data?.product_name) {
+                const bgColor = isEvenRow ? '#bbffb5' : '#D4F5DD';
+                return { font: 'bold', color: '#000000', backgroundColor: bgColor };
+            }
+
+            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+        },
+
+        detailRowStyleRaw(data: any) {
+            const rowIndex = this.detailRawLines.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+
+            if (this.normalizeRawLineStatus(data?.status) === 'Cancelled') {
+                return { font: 'bold', color: '#000000', backgroundColor: '#f19595' };
+            }
+
+            if (data?.product_id) {
+                const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
+                return { font: 'bold', color: '#000000', backgroundColor: bgColor };
+            }
+
+            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+        },
+
+        detailInvoiceRowStyle(data: any) {
+            if (!data?.has_line) {
+                return { font: 'bold', color: '#000000', backgroundColor: '#E8F4FF' };
+            }
+
+            const rowIndex = this.detailInvoiceRows.indexOf(data);
+            const isEvenRow = rowIndex % 2 === 0;
+            const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
+            return { font: 'bold', color: '#000000', backgroundColor: bgColor };
+        },
+
         rowStyleRequested() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
         rowStyleReceived() {
-            return { font: 'bold', backgroundColor: '#bbffb5' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#bbffb5' };
         },
         rowStyleAwaiting() {
-            return { font: 'bold', backgroundColor: '#FFD580'};
+            return { font: 'bold', color: '#000000', backgroundColor: '#FFD580'};
         },
         rowStyleUnprocessed() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
         rowStylePool() {
-            return { font: 'bold', backgroundColor: '#C0EEFF' };
+            return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
         },
 
         rowStyleCompared(data: any){
             if (data.moment === 'Requested') {
-                return { font: 'bold', backgroundColor: '#C0EEFF' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#C0EEFF' };
             } else if (data.moment === 'Received') {
-                return { font: 'bold', backgroundColor: '#bbffb5' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#bbffb5' };
             } else if (data.moment === 'Awaiting') {
-                return { font: 'bold', backgroundColor: '#FFD580' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#FFD580' };
             } else if (data.moment === 'Newly Arrived') {
-                return { font: 'bold', backgroundColor: '#a3e4d7' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#a3e4d7' };
             }else if (data.moment === 'Back Ordered') {
-                return { font: 'bold', backgroundColor: '#f1948a' };
+                return { font: 'bold', color: '#000000', backgroundColor: '#f1948a' };
             }
         },
 
@@ -5396,14 +6554,14 @@ export default {
 
             if (Array.isArray(this.rawEditingRows)) {
                 return this.rawEditingRows.some((row: any) =>
-                    row === raw_product || row?.product_id === raw_product?.product_id
+                    row === raw_product || row?.line_key === raw_product?.line_key || row?.product_id === raw_product?.product_id
                 );
             }
 
             if (this.rawEditingRows && typeof this.rawEditingRows === 'object') {
-                const productId = raw_product?.product_id;
-                if (productId === null || productId === undefined) return false;
-                return Boolean((this.rawEditingRows as Record<string, any>)[productId]);
+                const rowKey = raw_product?.line_key ?? raw_product?.po_raw_line_id ?? raw_product?.product_id;
+                if (rowKey === null || rowKey === undefined) return false;
+                return Boolean((this.rawEditingRows as Record<string, any>)[String(rowKey)]);
             }
 
             return false;
@@ -5504,6 +6662,9 @@ export default {
             this.singlePoRawProducts = nextSinglePoRawProducts;
             const otherPoRawLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id !== poId);
             this.po_raw_products = [...otherPoRawLines, ...nextSinglePoRawProducts];
+
+            this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
+
             this.checkPoTotals();
 
             this.$toast.add({
@@ -5532,14 +6693,17 @@ export default {
             const activePoBoxes = poAllBoxes.filter((box: any) => box.status !== 'Cancelled');
             this.poBoxes = helper.groupItemsByKey(activePoBoxes, ['product_id', 'units_per_case', 'status']);
 
-            // Keep the paginated table row in sync too, when present.
-            const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === currentPoId);
-            if (poRowIdx > -1) {
-                const nextPo = { ...this.purchaseOrders[poRowIdx] };
-                nextPo.individual_boxes = [...poAllBoxes];
-                nextPo.grouped_boxes = [...this.poBoxes];
-                this.purchaseOrders.splice(poRowIdx, 1, nextPo);
-            }
+            this.purchaseOrderRefresh(currentPoId, {
+                syncTable: true,
+                syncDialog: true,
+                patchRowData: {
+                    individual_boxes: [...poAllBoxes],
+                    grouped_boxes: [...this.poBoxes],
+                },
+                patchDialogData: {
+                    individual_boxes: poAllBoxes,
+                },
+            });
         },
 
         /**
@@ -5730,6 +6894,7 @@ export default {
             
             try {
                 await this.loadPage(this.currentPage, { rebuildSubscriptions: false });
+                this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
                 await this.editPurchaseOrder(this.purchaseOrder);
             } finally {
                 this.isSavingEditDialog = false;
@@ -5998,6 +7163,7 @@ export default {
                 await this.getBoxes();
 
                 this.syncCurrentPurchaseOrderBoxViews();
+                this.purchaseOrderRefresh(this.purchaseOrder?.purchase_order_id, { syncTable: true, syncDialog: true });
                 this.checkPoTotals();
 
                 const cancelDescription = cancelOption === 'boxes' 
@@ -6547,13 +7713,6 @@ export default {
             console.log("Filtered Recipes after search: ", this.filteredRecipesEdit);
         },
 
-        /**
-         * If requests haven't been made for the purchase order, add them
-         */
-        async addRequestsToProcess(){
-
-        },
-
         openNewPurchaseOrderProductDialog(){
             this.newPurchaseOrderProductDialog = true;
             this.newPORecipe = {} as any;
@@ -6575,36 +7734,574 @@ export default {
         },
 
         async openInboundDialog(purchaseOrder: any){
+            if (!purchaseOrder?.purchase_order_id) {
+                return;
+            }
+
+            // Keep the currently selected PO in sync so header/toasts use the correct name.
+            this.purchaseOrder = { ...purchaseOrder };
+            this.inboundInvoiceName = '';
+            this.inboundSubmitted = false;
+            this.inboundUnaccountedLines = [];
+            this.inboundUnaccountedDialog = false;
+            this.inboundPurchaseOrderDialog = true;
+            this.inboundBoxesLoading = true;
+            console.log("Opening inbound dialog for PO: ", purchaseOrder);
+
             try {
-                this.inboundBoxesLoading = true;
-                this.inboundBoxes = [];
-                this.inboundPurchaseOrderDialog = true;
-                console.log("Purchase order in inbound dialog: ", purchaseOrder);
-                console.log("PO Boxes: ", this.poBoxes);
-                let allInboundBoxes = await action.getInboundBoxes(purchaseOrder.purchase_order_id);
-                this.inboundBoxes = helper
-                    .groupProductsByKey(allInboundBoxes, [])
-                    .sort((a: any, b: any) => {
-                        const productCompare = (a.product_name || '').localeCompare(b.product_name || '');
-                        if (productCompare !== 0) {
-                            return productCompare;
+                const purchaseOrderId = purchaseOrder.purchase_order_id;
+
+                // Fetch the latest raw lines directly so we always have fresh data.
+                let rawLines = purchaseOrder.po_raw_lines || await action.getCurrentPurchaseOrderRawLines(purchaseOrderId);
+
+                // Legacy bootstrap: old orders may have only individual boxes and no po_raw_lines yet.
+                if (!Array.isArray(rawLines) || rawLines.length === 0) {
+                    const legacyBoxes = (purchaseOrder.individual_boxes || []).filter((box: any) =>
+                        Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                    );
+
+                    // ensureRawLinesExist builds lines from uBoxes; seed it from row payload if needed.
+                    if (legacyBoxes.length > 0) {
+                        const hasCurrentPoBoxesInCache = (this.uBoxes || []).some((box: any) =>
+                            Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                        );
+
+                        if (!hasCurrentPoBoxesInCache) {
+                            this.uBoxes = [...(this.uBoxes || []), ...legacyBoxes];
                         }
 
-                        return Number(a.units_per_case || 0) - Number(b.units_per_case || 0);
-                    });
-                console.log("Inbound boxes: ", this.inboundBoxes);
+                        rawLines = await this.ensureRawLinesExist();
+                    }
+                }
 
+                this.purchaseOrder.po_raw_lines = rawLines || [];
+
+                // Eligible: not cancelled, not already linked to an invoice
+                const eligible = (this.purchaseOrder.po_raw_lines || [])
+                    .filter((l: any) => !l.invoice_id && l.status?.toLowerCase() !== 'cancelled')
+                    .sort((a: any, b: any) => (a.product_name || '').localeCompare(b.product_name || ''));
+
+                this.inboundLineAllocations = eligible.map((l: any) => ({
+                    ...l,
+                    units_shipped: 0,
+                    units_backordered: 0,
+                }));
             } catch (error) {
-                console.error("Error opening inbound dialog: ", error);
+                console.error('Error opening inbound dialog:', error);
             } finally {
                 this.inboundBoxesLoading = false;
             }
         },
-    }
-}
 
-function floor(arg0: number): any {
-    throw new Error('Function not implemented.');
+        onInboundDialogHide() {
+            this.inboundSubmitted = false;
+            this.inboundUnaccountedLines = [];
+            this.inboundUnaccountedDialog = false;
+        },
+
+        getInboundRemaining(line: any): number {
+            const ordered = Number(line?.total_units || 0);
+            const shipped = Number(line?.units_shipped || 0);
+            const backordered = Number(line?.units_backordered || 0);
+            return ordered - shipped - backordered;
+        },
+
+        getInboundRemainingClass(line: any): Record<string, boolean> {
+            return {
+                'inbound-remaining--alert': true,
+            };
+        },
+
+        onInboundUnitsInput(line: any, field: 'units_shipped' | 'units_backordered') {
+            // Clamp to non-negative
+            if (line[field] < 0 || line[field] == null) {
+                line[field] = 0;
+            }
+        },
+
+        getInboundUnaccountedLines(): any[] {
+            return (this.inboundLineAllocations || [])
+                .map((line: any) => ({
+                    ...line,
+                    remaining_units: this.getInboundRemaining(line),
+                }))
+                .filter((line: any) => Number(line.remaining_units || 0) > 0);
+        },
+
+        async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
+            const ordered = Math.max(0, Number(line?.total_units || 0));
+            const shipped = Math.max(0, Number(line?.units_shipped || 0));
+            const backordered = Math.max(0, Number(line?.units_backordered || 0));
+            const remaining = Math.max(0, ordered - shipped - backordered);
+
+            const segments = [
+                { kind: 'shipped', qty: shipped },
+                { kind: 'backordered', qty: backordered },
+                { kind: 'remaining', qty: remaining },
+            ].filter((segment: any) => segment.qty > 0);
+
+            if (!segments.length) return;
+
+            const keepKind = shipped > 0
+                ? 'shipped'
+                : backordered > 0
+                    ? 'backordered'
+                    : 'remaining';
+            const keepSegment = segments.find((segment: any) => segment.kind === keepKind) || segments[0];
+
+            const baseStatus = String(line?.status || this.purchaseOrder?.status || 'Draft');
+            const statusByKind: Record<string, string> = {
+                shipped: 'Inbound',
+                backordered: 'Back Ordered',
+                remaining: unaccountedMode === 'flag' ? 'Flagged' : baseStatus,
+            };
+
+            await action.editPurchaseOrderRawLine({
+                ...line,
+                total_units: keepSegment.qty,
+                status: statusByKind[keepSegment.kind],
+            });
+
+            if (keepSegment.kind === 'shipped') {
+                invoiceLineIds.push(Number(line.po_raw_line_id));
+            }
+
+            const createSegmentLine = async (segment: any) => {
+                const created = await action.addPurchaseOrderRawLine({
+                    product_id: line.product_id,
+                    purchase_order_id: line.purchase_order_id,
+                    total_units: segment.qty,
+                    notes: line.notes ?? null,
+                    status: statusByKind[segment.kind],
+                });
+
+                if (segment.kind === 'shipped' && created?.po_raw_line_id) {
+                    invoiceLineIds.push(Number(created.po_raw_line_id));
+                }
+            };
+
+            for (const segment of segments) {
+                if (segment.kind === keepSegment.kind) continue;
+                await createSegmentLine(segment);
+            }
+        },
+
+        getTodayDateString(): string {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+
+        toInvoiceDateInput(value: any): string {
+            if (!value) return '';
+            return String(value).slice(0, 10);
+        },
+
+        toNullableInvoiceDate(value: any): string | null {
+            const normalized = String(value || '').trim();
+            return normalized.length ? normalized : null;
+        },
+
+        openInvoiceEditDialog(invoiceRow: any) {
+            const invoiceId = Number(invoiceRow?.invoice_id || 0);
+            if (!invoiceId) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Invoice unavailable',
+                    detail: 'Could not open invoice editor for this row.',
+                    life: 3500,
+                });
+                return;
+            }
+
+            const sourceInvoice = (this.invoices || []).find((inv: any) => Number(inv?.invoice_id || 0) === invoiceId) || invoiceRow;
+
+            this.invoiceEditDraft = {
+                invoice_id: Number(sourceInvoice?.invoice_id || 0),
+                invoice_name: String(sourceInvoice?.invoice_name || ''),
+                total_cost: Number(sourceInvoice?.total_cost || 0),
+                purchase_order_id: Number(sourceInvoice?.purchase_order_id || this.detailSelectedPoId || 0),
+                date_shipped: this.toInvoiceDateInput(sourceInvoice?.date_shipped),
+                date_due: this.toInvoiceDateInput(sourceInvoice?.date_due),
+                date_paid: this.toInvoiceDateInput(sourceInvoice?.date_paid),
+                card: Number(sourceInvoice?.card || 0),
+                filed: !!sourceInvoice?.filed,
+                notes: String(sourceInvoice?.notes ?? sourceInvoice?.invoice_notes ?? ''),
+            };
+
+            this.invoiceEditSubmitted = false;
+            this.invoiceEditDialogVisible = true;
+        },
+
+        async saveInvoiceEdits() {
+            this.invoiceEditSubmitted = true;
+
+            if (!String(this.invoiceEditDraft?.invoice_name || '').trim()) {
+                return;
+            }
+
+            this.invoiceEditSaving = true;
+
+            try {
+                await action.editInvoice({
+                    invoice_id: Number(this.invoiceEditDraft.invoice_id || 0),
+                    invoice_name: String(this.invoiceEditDraft.invoice_name || '').trim(),
+                    total_cost: Number(this.invoiceEditDraft.total_cost || 0),
+                    purchase_order_id: Number(this.invoiceEditDraft.purchase_order_id || this.detailSelectedPoId || 0),
+                    date_shipped: this.toNullableInvoiceDate(this.invoiceEditDraft.date_shipped),
+                    date_due: this.toNullableInvoiceDate(this.invoiceEditDraft.date_due),
+                    date_paid: this.toNullableInvoiceDate(this.invoiceEditDraft.date_paid),
+                    card: Number(this.invoiceEditDraft.card || 0),
+                    filed: !!this.invoiceEditDraft.filed,
+                    notes: String(this.invoiceEditDraft.notes || '').trim() || null,
+                });
+
+                this.invoiceEditDialogVisible = false;
+
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice updated',
+                    detail: 'Invoice details were saved successfully.',
+                    life: 3500,
+                });
+
+                await this.loadPage(this.currentPage ?? 1);
+            } catch (error) {
+                console.error('Error updating invoice:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to update invoice. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.invoiceEditSaving = false;
+            }
+        },
+
+        /**
+         * Called when user clicks "Create Invoice".
+         * Validates, checks for extra units, then either creates the invoice
+         * immediately or shows an extra-units confirmation dialog first.
+         */
+        submitCreateInvoice() {
+            this.inboundSubmitted = true;
+
+            const hasName = !!this.inboundInvoiceName.trim();
+            const linesWithShippedUnits = this.inboundLineAllocations.filter((l: any) => Number(l.units_shipped) > 0);
+
+            if (!hasName || linesWithShippedUnits.length === 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Please enter an invoice name and allocate at least one shipped unit to the invoice.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            const overAllocated = (this.inboundLineAllocations || []).filter((line: any) =>
+                Number(line.units_shipped || 0) + Number(line.units_backordered || 0) > Number(line.total_units || 0),
+            );
+
+            if (overAllocated.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Shipped + Back Ordered cannot exceed Ordered Units on any line.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            const unaccountedLines = this.getInboundUnaccountedLines();
+
+            if (unaccountedLines.length > 0) {
+                this.inboundUnaccountedLines = unaccountedLines;
+                this.inboundUnaccountedDialog = true;
+                return;
+            }
+
+            void this.confirmCreateInvoice('ignore');
+        },
+
+        submitCreateInvoiceWithUnaccounted(mode: 'flag' | 'ignore') {
+            this.inboundUnaccountedDialog = false;
+            void this.confirmCreateInvoice(mode);
+        },
+
+        /**
+         * Performs split + invoice creation after all validations pass.
+         * Shipped units are linked to the new invoice.
+         * Back ordered units remain unlinked with status "Back Ordered".
+         * Unaccounted units are handled by the chosen mode:
+         *   - flag   → set/create lines as "Flagged"
+         *   - ignore → keep status unchanged on unaccounted split lines
+         */
+        async confirmCreateInvoice(unaccountedMode: 'flag' | 'ignore' = 'ignore') {
+            this.inboundUnaccountedDialog = false;
+            this.inboundCreatingInvoice = true;
+
+            try {
+                const linesWithAnyAllocation = (this.inboundLineAllocations || []).filter((line: any) =>
+                    Number(line.units_shipped || 0) > 0
+                    || Number(line.units_backordered || 0) > 0
+                    || this.getInboundRemaining(line) > 0,
+                );
+                const invoiceLineIds: number[] = [];
+
+                for (const line of linesWithAnyAllocation) {
+                    await this.applyInboundLineAllocation(line, unaccountedMode, invoiceLineIds);
+                }
+
+                if (!invoiceLineIds.length) {
+                    this.$toast.add({
+                        severity: 'error',
+                        summary: 'Validation Error',
+                        detail: 'At least one shipped line is required to create an invoice.',
+                        life: 5000,
+                    });
+                    return;
+                }
+
+                await action.addInvoiceWithRawLines(
+                    {
+                        invoice_name: this.inboundInvoiceName.trim(),
+                        purchase_order_id: this.purchaseOrder.purchase_order_id,
+                        total_cost: 0,
+                        date_shipped: this.getTodayDateString(),
+                        date_due: null,
+                        date_paid: null,
+                        card: 0,
+                        filed: false,
+                        notes: null,
+                        status: "Inbound",
+                    },
+                    invoiceLineIds,
+                );
+
+                (this as any).$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice Created',
+                    detail: `Invoice "${this.inboundInvoiceName.trim()}" created with ${invoiceLineIds.length} line(s).`,
+                    life: 5000,
+                });
+
+                this.inboundPurchaseOrderDialog = false;
+                await this.loadPage(this.currentPage ?? 1);
+
+            } catch (error) {
+                console.error('Error creating invoice:', error);
+                (this as any).$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to create invoice. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.inboundCreatingInvoice = false;
+            }
+        },
+
+        /**
+         * Called when user clicks "Save Received Boxes" in the Receive Invoice dialog. 
+         * Validates that at least one box is received, that all splits with received boxes have a location, and that all lines have valid units per case. 
+         * Then creates cases for each split with received boxes and updates PO line statuses as needed.
+         */
+        async saveReceivedInvoiceBoxes() {
+            this.receiveInvoicesSubmitted = true;
+
+            const rowsWithBoxes = (this.receiveInvoiceLineAllocations || []).filter((row: any) =>
+                Number(this.getReceiveAllocatedBoxes(row) || 0) > 0,
+            );
+
+            if (!rowsWithBoxes.length) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Enter at least one received box amount before saving.',
+                    life: 4500,
+                });
+                return;
+            }
+
+            const missingLocationRows = rowsWithBoxes.filter((row: any) => this.hasReceiveSplitLocationErrors(row));
+            if (missingLocationRows.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Validation Error',
+                    detail: 'Choose a location for every split that has received boxes.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            const invalidUnitsPerCase = rowsWithBoxes.filter((row: any) => Number(row?.actual_units_per_box || 0) <= 0);
+            if (invalidUnitsPerCase.length > 0) {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Missing Actual Units Per Box',
+                    detail: 'One or more lines have no valid actual units per box.',
+                    life: 5000,
+                });
+                return;
+            }
+
+            this.receiveInvoiceSaving = true;
+
+            try {
+                const today = this.getTodayDateString();
+
+                const boxArray: {
+                    product_id: number;
+                    units_per_case: number;
+                    amount: number;
+                    date_received: string | null;
+                    notes: string | null;
+                    location_id: number | null;
+                    status: string | null;
+                    purchase_order_id: number | null;
+                    request_id: number | null;
+                    invoice_id: number | null;
+                }[] = [];
+
+                const fullyReceivedLineIds: number[] = [];
+                const partiallyReceivedLineIds: number[] = [];
+                const linesToUpdate: any[] = [];
+                const lineTotals: {line_id: number, orderedUnits: number, receivedUnits: number, remainingUnits: number}[] = [];
+
+                for (const row of rowsWithBoxes) {
+                    const unitsPerCase = Number(row.actual_units_per_box || 0);
+                    const activeSplits = (row.receive_splits || []).filter((split: any) => Number(split?.boxes_received || 0) > 0);
+                    let totalBoxesReceived = 0;
+
+                    for (const split of activeSplits) {
+                        const splitBoxes = Number(split.boxes_received || 0);
+                        totalBoxesReceived += splitBoxes;
+
+                        const fullBoxes = Math.floor(splitBoxes);
+                        const partialBoxFactor = Number((splitBoxes - fullBoxes).toFixed(4));
+                        const partialUnits = Number((partialBoxFactor * unitsPerCase).toFixed(2));
+
+                        if (fullBoxes > 0) {
+                            boxArray.push({
+                                product_id: Number(row.product_id),
+                                units_per_case: unitsPerCase,
+                                amount: fullBoxes,
+                                date_received: today,
+                                notes: row.line_notes || null,
+                                location_id: Number(split.location_id),
+                                status: 'On RTP',
+                                purchase_order_id: Number(row.purchase_order_id),
+                                request_id: null,
+                                invoice_id: Number(row.invoice_id),
+                            });
+                        }
+
+                        if (partialUnits > 0) {
+                            const partialNote = `Partial box received from invoice ${row.invoice_name || row.invoice_id}`;
+                            boxArray.push({
+                                product_id: Number(row.product_id),
+                                units_per_case: partialUnits,
+                                amount: 1,
+                                date_received: today,
+                                notes: row.line_notes ? `${row.line_notes} | ${partialNote}` : partialNote,
+                                location_id: Number(split.location_id),
+                                status: 'On RTP',
+                                purchase_order_id: Number(row.purchase_order_id),
+                                request_id: null,
+                                invoice_id: Number(row.invoice_id),
+                            });
+                        }
+                    }
+
+                    const receivedUnits = Number((totalBoxesReceived * unitsPerCase).toFixed(2));
+                    const orderedUnits = Number(row.total_units || 0);
+
+                    lineTotals.push({
+                        line_id: Number(row.po_raw_line_id),
+                        orderedUnits,
+                        receivedUnits,
+                        remainingUnits: Number((orderedUnits - receivedUnits).toFixed(2)),
+                    });
+
+                    if (orderedUnits > 0 && receivedUnits >= orderedUnits && Number(row.po_raw_line_id || 0) > 0) {
+                        fullyReceivedLineIds.push(Number(row.po_raw_line_id));
+                    } else if (orderedUnits > 0 && receivedUnits < orderedUnits && receivedUnits > 0 && Number(row.po_raw_line_id || 0) > 0) {
+                        partiallyReceivedLineIds.push(Number(row.po_raw_line_id));
+                    }
+                }
+
+                const createdCaseCount = boxArray.reduce((sum, record) => sum + record.amount, 0);
+
+                if (boxArray.length > 0) {
+                    await action.createMultipleCasesByType(boxArray);
+                }
+
+                // If all boxes of this product type were grabbed for this invoice, set the raw line to Delivered
+                for (const lineId of fullyReceivedLineIds) {
+                    const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === lineId);
+                    if (sourceLine) {
+                        // await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Delivered' });
+                        linesToUpdate.push({ ...sourceLine, status: 'Delivered' });
+                    }
+                }
+
+                // If any lines were partially received, check to see if there is already a split line for remaining product, if there is, update the total count, if not, create one, and set the status to Inbound
+                for (const lineId of partiallyReceivedLineIds) {
+                    const sourceLine = (this.po_raw_products || []).find((line: any) => Number(line?.po_raw_line_id || 0) === lineId);
+                    if (sourceLine) {
+                        // await action.editPurchaseOrderRawLine({ ...sourceLine, status: 'Partially Delivered' });
+
+                        const totalCounts = lineTotals.find((line: any) => line.line_id === lineId);
+                        // Check to see if there is another line linked to the invoice for this product type (means a remainder line was previously created)
+                        const remainderLine = (this.po_raw_products || []).find((line: any) => Number( line?.po_raw_line_id || 0) !== lineId && Number(line?.invoice_id || 0) === sourceLine.invoice_id && line.status === 'Inbound');
+
+                        console.log("RemainderLine: ", remainderLine);
+                        // If a remainder line exists, update the original source line total to only the received units, with a status of delivered, and
+                        // set the total units of the remainderLine to the ordered unit amount - received unit amount
+                        if(remainderLine){
+                            linesToUpdate.push({...sourceLine, total_units: totalCounts?.receivedUnits || sourceLine.total_units, status: 'Delivered'});
+                            linesToUpdate.push({...remainderLine, total_units: totalCounts?.remainingUnits || remainderLine.total_units, status: 'Inbound'});
+                        } else{ // If a remainderLine does not exist, create it, setting the status to inbound and the unit total to order amount - received amount
+                                // Update the received line like with the first half of the if statement
+                            linesToUpdate.push({...sourceLine, total_units: totalCounts?.receivedUnits || sourceLine.total_units, status: 'Delivered'});
+                            await action.addPurchaseOrderRawLine({
+                                ...sourceLine,
+                                total_units: totalCounts?.remainingUnits || 0,
+                                status: 'Inbound',
+                            });
+                        }
+                    }
+                }
+
+                if (linesToUpdate.length > 0)
+                    await action.bulkEditPurchaseOrderRawLines(linesToUpdate);
+
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Invoice Receipt Saved',
+                    detail: `Created ${createdCaseCount} received box record${createdCaseCount === 1 ? '' : 's'}.`,
+                    life: 5000,
+                });
+
+                this.receiveInvoiceDialogVisible = false;
+                await this.loadPage(this.currentPage ?? 1);
+            } catch (error) {
+                console.error('Error saving received invoice boxes:', error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to save received boxes. Please try again.',
+                    life: 6000,
+                });
+            } finally {
+                this.receiveInvoiceSaving = false;
+            }
+        },
+    }
 }
 </script>
 
@@ -6623,6 +8320,141 @@ function floor(arg0: number): any {
 .inbound-skeleton-table {
      pointer-events: none;
  }
+
+.inbound-invoice-name-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-width: 380px;
+}
+
+.inbound-field-label {
+    font-weight: 700;
+    color: #2a4761;
+    font-size: 0.92rem;
+}
+
+.inbound-required {
+    color: #e24c4c;
+}
+
+.inbound-invoice-name-input {
+    width: 100%;
+}
+
+.inbound-instructions {
+    color: var(--text-color-secondary, #6b7280);
+    font-size: 0.9rem;
+}
+
+.receive-invoice-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.receive-invoice-instructions {
+    color: var(--text-color-secondary, #6b7280);
+    font-size: 0.9rem;
+}
+
+.receive-invoice-table {
+    border: 1px solid #d4e1ee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.receive-invoice-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #1f3f5f;
+}
+
+.receive-invoice-group-sub {
+    color: #55738f;
+    font-size: 0.82rem;
+}
+
+.receive-boxes-total {
+    display: inline-flex;
+    min-width: 72px;
+    justify-content: flex-end;
+    font-weight: 700;
+    color: #1d4f73;
+}
+
+.receive-boxes-total--over {
+    color: #b42318;
+}
+
+.receive-split-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 350px;
+}
+
+.receive-split-row {
+    display: grid;
+    grid-template-columns: 110px minmax(180px, 1fr) 32px;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.receive-split-row__boxes {
+    width: 100%;
+}
+
+.receive-split-row__location {
+    width: 100%;
+}
+
+.receive-split-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.inbound-lines-table {
+    border: 1px solid #d4e1ee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+:deep(.inbound-units-input .p-inputnumber-input) {
+    width: 100px;
+    text-align: right;
+}
+
+:deep(.inbound-units-input--over .p-inputnumber-input) {
+    background-color: #fff4de;
+    border-color: #d9ad20;
+    color: #5e4702;
+}
+
+.inbound-remaining--alert {
+    color: #b42318;
+    font-weight: 700;
+}
+
+.inbound-unaccounted-list {
+    margin: 0.65rem 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.invoice-products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.invoice-lines-expand-wrap {
+    padding: 0.4rem 0.25rem 0.75rem;
+}
+
 .skeleton-line {
      height: 0.95rem;
      border-radius: 999px;
@@ -6657,13 +8489,156 @@ function floor(arg0: number): any {
 }
 
 .p-datatable.p-datatable-gridlines .p-datatable-border-color .p-datatable-tbody > tr {
-  background: gray
-  
+  background: #000000;
+  color: #000000 !important;
 }
 
 /* ── Table-scoped loading overlay ────────────────────────────── */
 .dt-loading-wrapper {
   position: relative;
+}
+
+.po-master-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    background: #000000;
+}
+
+.po-master-detail--table {
+    grid-template-columns: minmax(0, 1fr) 380px;
+    background: #000000;
+}
+
+.po-master-detail__table {
+    min-width: 0;
+    background: #000000;
+}
+
+.po-master-detail__table--cards {
+    border: 1px solid #d4e1ee;
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: #000000;
+}
+
+.po-workspace-panel {
+    border: 1px solid #000000;
+    border-radius: 14px;
+    background: #000000;
+    box-shadow: 0 8px 20px rgba(15, 46, 79, 0.08);
+    padding: 0.85rem;
+    position: sticky;
+    top: 0.75rem;
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+}
+
+.po-workspace-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.65rem;
+}
+
+.po-workspace-kicker {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #2f597f;
+}
+
+.po-workspace-title {
+    margin: 0;
+    color: #1d3f5e;
+    line-height: 1.2;
+}
+
+.po-workspace-subtitle {
+    margin: 0;
+    color: #5f7487;
+    font-size: 0.88rem;
+}
+
+.po-workspace-dot {
+    margin: 0 0.35rem;
+}
+
+.po-workspace-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+}
+
+.po-workspace-metric {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.45rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.po-workspace-metric-label {
+    font-size: 0.72rem;
+    color: #5f7487;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.po-workspace-metric-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f3d5a;
+}
+
+.po-workspace-actions {
+    display: flex;
+    gap: 0.45rem;
+    margin-bottom: 0.8rem;
+}
+
+.po-workspace-actions .po-action-btn {
+    flex: 1;
+}
+
+.po-workspace-section {
+    margin-top: 0.8rem;
+}
+
+.po-workspace-section-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
+    color: #274d6f;
+}
+
+.po-workspace-empty {
+    border: 1px dashed #c7d8e8;
+    border-radius: 12px;
+    padding: 1.1rem;
+    text-align: center;
+    color: #4d6780;
+    background: #f8fbff;
+}
+
+.po-workspace-empty-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.po-workspace-empty-title {
+    margin: 0;
+    color: #264866;
+}
+
+.po-workspace-empty-copy {
+    margin: 0.3rem 0 0;
+    font-size: 0.9rem;
 }
 
 .dt-loading-overlay {
@@ -6744,14 +8719,7 @@ function floor(arg0: number): any {
     padding-top: 0.75rem;
 }
 
-.card {
-    --po-pill-radius: 999px;
-    --po-pill-height: 30px;
-    --po-pill-font-size: 0.73rem;
-    --po-pill-font-weight: 700;
-    --po-transition-fast: 160ms ease;
-    --po-transition-medium: 220ms ease;
-
+:root{
     --po-blue-border: #7faad6;
     --po-blue-soft: #dcedff;
     --po-blue-strong: #72a9e2;
@@ -6771,10 +8739,21 @@ function floor(arg0: number): any {
     --po-green-soft: #84e8ae;
     --po-green-strong: #3fc87a;
     --po-green-text: #0a3f23;
+}
+
+.card {
+    --po-pill-radius: 999px;
+    --po-pill-height: 30px;
+    --po-pill-font-size: 0.73rem;
+    --po-pill-font-weight: 700;
+    --po-transition-fast: 160ms ease;
+    --po-transition-medium: 220ms ease;
+
+    
 
     border: 1px solid var(--surface-border, #d4d8dd);
     border-radius: 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+    background: #f6f8fa;
     box-shadow: 0 12px 28px rgba(8, 25, 45, 0.08);
     overflow: hidden;
 }
@@ -6802,6 +8781,338 @@ function floor(arg0: number): any {
     min-width: 260px;
 }
 
+.po-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+}
+
+.po-view-toggle-btn {
+    min-height: 2.05rem;
+}
+
+.po-card-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.po-card-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #c5ced8;
+    border-radius: 10px;
+    color: #ffffff;
+}
+
+.po-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.8rem;
+    overflow-y: auto;       /* Enables vertical scrolling */
+    max-height: 60vh;    /* Adjusts based on your layout needs */
+    background: #000000;
+    padding: 0.8rem;
+}
+
+.po-card {
+    border: 1px solid #d4e1ee;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 10px rgba(15, 46, 79, 0.08);
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.po-card:hover {
+    transform: translateY(-1px);
+    border-color: #8fb0ce;
+    box-shadow: 0 8px 16px rgba(15, 46, 79, 0.12);
+}
+
+.po-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border-bottom: 1px solid #e1eaf2;
+    padding-bottom: 0.55rem;
+}
+
+.po-card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns dots to the top of the title text */
+}
+
+/* NEW: Optional container to keep title/subtitle stacked vertically */
+.po-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.po-card-title {
+    margin: 0;
+    font-size: 1rem;
+    color: #1b3f60;
+}
+
+.po-card-subtitle {
+    margin: 0;
+    font-size: 0.84rem;
+    color: #5f7487;
+}
+
+.po-card-dots :deep(.p-button-icon) {
+    display: flex;
+}
+
+.po-card-dot-appearance{
+    color: #000000 !important;
+}
+
+.popover-button-stack {
+  display: flex;
+  flex-direction: column; /* Stacks items vertically */
+  gap: 0.5rem;            /* Adds uniform spacing between buttons */
+  min-width: 180px;       /* Keeps the popover wide enough for text */
+}
+
+.po-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.po-card-metric {
+    border: 1px solid #dce8f3;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.po-card-metric-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #5f7487;
+}
+
+.po-card-metric-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1f3d5a;
+}
+
+.po-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.po-card-empty {
+    border: 1px dashed #c7d8e8;
+    border-radius: 12px;
+    padding: 1.4rem;
+    text-align: center;
+    color: #4d6780;
+    background: #f8fbff;
+}
+
+.po-card-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.po-card-pagination :deep(.p-paginator) {
+    border: 0;
+    border-top: 1px solid var(--surface-border, #d4d8dd);
+    background: #fbfdff;
+    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+}
+
+.po-detail-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.po-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.po-detail-item {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.55rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.po-detail-item-label {
+    font-size: 0.72rem;
+    color: #5f7487;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.po-detail-item-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1f3d5a;
+    line-height: 1.25;
+}
+
+.po-detail-item--wide,
+.po-detail-item--progress {
+    grid-column: 1 / -1;
+}
+
+.po-detail-collapsible {
+    border: 1px solid #d7e4f1;
+    border-radius: 10px;
+    background: #f8fbff;
+    padding: 0.4rem 0.55rem;
+}
+
+.po-detail-collapsible + .po-detail-collapsible {
+    margin-top: 0.55rem;
+}
+
+.po-detail-collapsible summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #264b6d;
+    list-style: none;
+    padding: 0.3rem 0.15rem;
+}
+
+.po-detail-collapsible summary::-webkit-details-marker {
+    display: none;
+}
+
+.po-detail-collapsible summary::before {
+    content: '+';
+    display: inline-block;
+    width: 1rem;
+    margin-right: 0.35rem;
+    color: #2f597f;
+}
+
+.po-detail-collapsible[open] summary::before {
+    content: '-';
+}
+
+.po-detail-table {
+    margin-top: 0.35rem;
+    color: #000000 !important;
+}
+
+.po-detail-table :deep(.p-datatable-thead > tr > th),
+.po-detail-table :deep(.p-datatable-tbody > tr > td),
+.po-detail-table :deep(.p-datatable-emptymessage > td),
+.po-detail-table :deep(.p-rowgroup-header > td),
+.po-detail-table :deep(.p-sortable-column-icon),
+.po-detail-table :deep(.p-column-title) {
+    color: #000000 !important;
+}
+
+.po-detail-subsection-title {
+    margin: 0.75rem 0 0.35rem;
+    color: #274d6f;
+    font-size: 0.92rem;
+}
+
+.po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
+    /* background: #bbffb5; */
+    background: #16ae08;
+}
+
+.po-detail-table--green :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
+    /* background: #d4f5dd; */
+    background: #057f26;
+}
+
+.po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(odd) > td) {
+    /* background: #c0eeff; */
+    background: #015674;
+}
+
+.po-detail-table--blue :deep(.p-datatable-tbody > tr:nth-child(even) > td) {
+    /* background: #e8f4ff; */
+    background: #3078b8;
+}
+
+.po-detail-table--invoice :deep(.p-rowgroup-header > td) {
+    background: #e8f0f8;
+    border-color: #c9d9e7;
+}
+
+.po-invoice-group-head {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.po-invoice-group-head__title {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    font-weight: 700;
+    color: #82b6ff;
+}
+
+.po-invoice-group-head__name-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.po-invoice-group-head__name-btn:hover {
+    color: #0f4f88;
+}
+
+.po-invoice-group-head__meta {
+    font-size: 0.82rem;
+    color: #46627b;
+    font-weight: 600;
+}
+
+.po-invoice-group-head__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    color: #334f68;
+    font-size: 0.82rem;
+}
+
+:deep(.po-detail-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
 .po-table-header {
     gap: 0.8rem;
 }
@@ -6820,40 +9131,64 @@ function floor(arg0: number): any {
 }
 
 .po-action-btn--primary {
-    border: 1px solid #1f8c56;
-    background: linear-gradient(180deg, #44c783 0%, #2ca765 100%);
-    color: #ffffff;
+    border: 1px solid #1f8c56 !important;
+    background: #44c783 !important;
+    color: #ffffff !important;
 }
 
 .po-action-btn--primary:hover {
-    filter: brightness(0.96);
-    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22);
+    filter: brightness(0.96) !important;
+    box-shadow: 0 3px 8px rgba(33, 128, 76, 0.22) !important;
 }
 
 .po-action-btn--secondary {
-    border: 1px solid #91a8bf;
-    background: linear-gradient(180deg, #f7fbff 0%, #ebf2f8 100%);
-    color: #1b3b59;
+    border: 1px solid #91a8bf !important;
+    background: #ebf2f8 !important;
+    color: #1b3b59 !important;
 }
 
 .po-action-btn--secondary:hover {
-    border-color: #7193b5;
-    background: linear-gradient(180deg, #eef6ff 0%, #dfeeff 100%);
+    border-color: #7193b5 !important;
+    background: #dfeeff !important;
+}
+
+.po-action-btn--inbound {
+    border: 1px solid var(--po-yellow-border) !important;
+    background: #ffe79a !important;
+    color: var(--po-yellow-text) !important;
+}
+
+.po-action-btn--inbound:hover {
+    border-color: #c89a10 !important;
+    background: #ffd95d !important;
+    box-shadow: 0 3px 8px rgba(201, 154, 16, 0.18) !important;
+}
+
+.po-action-btn--receive {
+    border: 1px solid #3f91c6 !important;
+    background:#c2e9ff !important;
+    color: #0b4f79 !important;
+}
+
+.po-action-btn--receive:hover {
+    border-color: #2d7dae !important;
+    background: #aee0ff !important;
+    box-shadow: 0 3px 8px rgba(37, 126, 178, 0.2) !important;
 }
 
 .po-action-btn--recipe {
-    border: 1px solid #6dbf8f;
-    background: linear-gradient(180deg, #eefaf2 0%, #dff2e7 100%);
-    color: #155738;
+    border: 1px solid #6dbf8f !important;
+    background: #dff2e7 !important;
+    color: #155738 !important;
 }
 
 .po-action-btn--recipe:hover {
-    border-color: #52a878;
-    background: linear-gradient(180deg, #e0f4e8 0%, #cfead9 100%);
+    border-color: #52a878 !important;
+    background: #cfead9 !important;
 }
 
 :deep(.po-create-dialog .p-dialog-content) {
-    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+    background: #eef5fd;
 }
 
 .po-create-layout {
@@ -6909,6 +9244,55 @@ function floor(arg0: number): any {
 
 :deep(.po-edit-dialog .p-dialog-content) {
     background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+:deep(.po-invoice-edit-dialog .p-dialog-content) {
+    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
+}
+
+.po-invoice-edit-layout {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.po-invoice-edit-section {
+    border: 1px solid #c7d8e8;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 4px 14px rgba(15, 46, 79, 0.08);
+}
+
+.po-invoice-edit-dialog .field {
+    margin-bottom: 0.75rem;
+}
+
+.po-invoice-edit-dialog .field:last-child {
+    margin-bottom: 0;
+}
+
+.po-invoice-edit-dialog .field label {
+    font-weight: 700;
+    color: #2a4761;
+    margin-bottom: 0.3rem;
+}
+
+.po-invoice-edit-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-top: 0.25rem;
+}
+
+.po-invoice-edit-checkbox label {
+    margin: 0;
+    font-weight: 700;
+    color: #2a4761;
+}
+
+.po-invoice-edit-dialog .p-dialog-footer {
+    border-top: 1px solid #d4e1ee;
+    background: #f4f8fc;
 }
 
 .po-edit-layout {
@@ -7067,6 +9451,7 @@ function floor(arg0: number): any {
 
 :deep(.card .p-datatable .p-datatable-tbody > tr > td) {
     border-color: #e7edf3;
+    color: #000000 !important;
     padding: 0.75rem 0.65rem;
 }
 
@@ -7086,6 +9471,53 @@ function floor(arg0: number): any {
     font-weight: 700;
     letter-spacing: 0.01em;
     padding: 0.25rem 0.6rem;
+}
+
+.po-progress-pill {
+    min-width: 220px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.32rem;
+}
+
+.po-progress-track {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #e6edf4;
+    border: 1px solid #c7d5e4;
+}
+
+.po-progress-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    transition: width var(--po-transition-medium), left var(--po-transition-medium);
+}
+
+.po-progress-segment--delivered {
+    background: linear-gradient(180deg, #3ac879 0%, #239b59 100%);
+}
+
+.po-progress-segment--inbound {
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            #ffd86b 0 8px,
+            #fff4bf 8px 16px
+        );
+}
+
+.po-progress-segment--other {
+    background: linear-gradient(180deg, #8ea3b8 0%, #6f859b 100%);
+}
+
+.po-progress-meta {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #2d4d6c;
+    letter-spacing: 0.01em;
 }
 
 .po-status-pill {
@@ -7266,6 +9698,15 @@ function floor(arg0: number): any {
 }
 
 @media (max-width: 768px) {
+    .po-master-detail {
+        grid-template-columns: 1fr;
+    }
+
+    .po-workspace-panel {
+        position: static;
+        max-height: none;
+    }
+
     .card {
         border-radius: 12px;
     }
@@ -7277,6 +9718,33 @@ function floor(arg0: number): any {
     .po-toolbar-filter,
     .po-toolbar-filter--search {
         min-width: 100%;
+    }
+
+    .po-view-toggle {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .po-view-toggle-btn {
+        flex: 1;
+    }
+
+    .po-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .po-card-grid-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .po-card-metrics,
+    .po-card-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .po-detail-grid {
+        grid-template-columns: 1fr;
     }
 
     .po-header-actions {
