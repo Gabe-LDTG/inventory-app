@@ -769,6 +769,7 @@
                                 <Column field="product_name" header="Product" />
                                 <Column field="item_num" header="Item #" />
                                 <Column field="units_per_case" header="Units / Box" />
+                                <Column field="amount" header="# of Boxes" />
                                 <Column field="total_units" header="Total Units" />
                                 <Column field="location_name" header="Location" />
                             </DataTable>
@@ -1052,7 +1053,14 @@
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Planned Processed Case(s)</h3>
             </div>
             <small class="p-error" v-if="totalErrorMSG">{{totalErrorMSG}}</small>
-            <DataTable class="po-edit-data-table" v-model:editingRows="editingRows" :value="singlePoRecipes" :rowStyle="editRowStyleProc" editMode="row" :loading="editRecipeRowsLoading" @row-edit-save="onPORecipeRowEditSave">
+                <DataTable 
+                class="po-edit-data-table" 
+                v-model:editingRows="editingRows" 
+                :value="singlePoRecipes" 
+                :rowStyle="editRowStyleProc" 
+                editMode="row" 
+                :loading="editRecipeRowsLoading" 
+                @row-edit-save="onPORecipeRowEditSave">
                 <template #empty>
                     <div class="flex flex-column align-items-center gap-3 py-5">
                         <i class="pi pi-box text-4xl"></i>
@@ -1942,6 +1950,7 @@ export default {
 
             //PURCHASE ORDER VARIABLES
             purchaseOrders: [] as any[],
+            /**@TODO need to see how to consolidate purchaseOrder, selectedPurchaseOrder, and selectedDetailPo */
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
@@ -2280,7 +2289,63 @@ export default {
 
             const groupedByProduct = new Map<string, any>();
 
-            (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
+            return (this.purchaseOrder.po_raw_lines || [])
+                .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
+                .map((line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
+                    const key = productId > 0
+                        ? `product-${productId}-${line?.total_units || 0}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    const existing = groupedByProduct.get(key) || {
+                        ...line,
+                        line_key: key,
+                        product_id: productId || null,
+                        product_name: productName,
+                        item_num: itemNum,
+                        total_units: 0,
+                    };
+
+                    existing.total_units += Number(line?.total_units || 0);
+                    groupedByProduct.set(key, existing);
+
+                    console.log("Existing grouped line for key", key, existing);
+
+                    return existing;
+                })
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+
+                /*
+                .reduce((array: any[], line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
+                    const key = productId > 0
+                        ? `product-${productId}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    if (array[key]){
+                            array.total_units += Number(line?.total_units || 0);
+                    } else {
+                        array[key] = {
+                            ...line,
+                            line_key: key,
+                            product_id: productId || null,
+                            product_name: productName,
+                            item_num: itemNum,
+                            total_units: 0,
+                        };
+                    }                 
+                    
+                    console.log("Existing grouped line for key", key, array);
+
+                    return array;
+                })
+                
+                 */
+            /* (this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo) || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
                 .forEach((line: any) => {
                     const productId = Number(line?.product_id || 0);
@@ -2302,7 +2367,7 @@ export default {
                 });
 
             return Array.from(groupedByProduct.values())
-                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || ''))); */
         },
         detailArrivedBoxes(): any[] {
             const poId = this.detailSelectedPoId;
@@ -2498,11 +2563,49 @@ export default {
             this.selectedPurchaseOrder = purchaseOrder;
             void this.onPurchaseOrderDialogOpen(purchaseOrder);
         },
-            openDetailDialog(purchaseOrder: any) {
-                this.selectedDetailPo = purchaseOrder;
-                this.selectedPurchaseOrder = purchaseOrder;
+
+        async openDetailDialog(purchaseOrder: any) {
+            this.selectedDetailPo = purchaseOrder;
+            this.selectedPurchaseOrder = purchaseOrder;
+            this.purchaseOrder = purchaseOrder;
+
+            try{
+                this.loading = true;
+                this.tableLoading = true;
+                const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+                let rawLines = purchaseOrder.po_raw_lines || await action.getCurrentPurchaseOrderRawLines(purchaseOrderId);
+
+                // Legacy bootstrap: old orders may have only individual boxes and no po_raw_lines yet.
+                if (!Array.isArray(rawLines) || rawLines.length === 0) {
+                    const legacyBoxes = (purchaseOrder.individual_boxes || []).filter((box: any) =>
+                        Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                    );
+
+                    // ensureRawLinesExist builds lines from uBoxes; seed it from row payload if needed.
+                    if (legacyBoxes.length > 0) {
+                        const hasCurrentPoBoxesInCache = (this.uBoxes || []).some((box: any) =>
+                            Number(box?.purchase_order_id) === Number(purchaseOrderId),
+                        );
+
+                        if (!hasCurrentPoBoxesInCache) {
+                            this.uBoxes = [...(this.uBoxes || []), ...legacyBoxes];
+                        }
+
+                        console.log("About to ensure raw lines exist");
+                        rawLines = await this.ensureRawLinesExist();
+                    }
+                }
+
+                this.purchaseOrder.po_raw_lines = rawLines || [];
                 this.detailDialogVisible = true;
-            },
+            } catch (error) {
+                console.error("Error loading purchase order details:", error);
+            } finally {
+                this.loading = false;
+                this.tableLoading = false;
+            }
+            
+        },
 
         ensurePoEditable(actionLabel = 'edit this purchase order') {
             if (!this.isPoReadOnly) return true;
@@ -3295,6 +3398,7 @@ export default {
             const poLines = this.getPurchaseOrderLinesForDisplay(poID);
             let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
+            console.log("Used Lines For Unit Total", usedLines);
             // console.log("Used Boxes For Unit Total", usedBoxes);
             // Prioritize the lines, but if only legacy count exist, use that
             if (usedLines.length !== 0)
@@ -3828,6 +3932,7 @@ export default {
          */
         async ensureRawLinesExist(): Promise<any[]> {
             if (!this.purchaseOrder.purchase_order_id) return [];
+            console.log("In ensureRawLinesExist for PO ID", this.purchaseOrder.purchase_order_id);
 
             // Check if po_raw_lines already exist for this PO
             const existingLines = await action.getCurrentPurchaseOrderRawLines(this.purchaseOrder.purchase_order_id);
@@ -3838,10 +3943,8 @@ export default {
 
             // If no lines exist but boxes do, create lines from grouped boxes.
             // Include all statuses (including Cancelled) so old orders are fully represented.
-            const boxes = this.uBoxes.filter(b =>
-                b.purchase_order_id === this.purchaseOrder.purchase_order_id
-            );
-
+            const boxes = this.purchaseOrder.individual_boxes || (this.uBoxes || []).filter((b: any) => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            console.log("Boxes in order: ", boxes);
             if (boxes.length === 0) return [];
 
             // Normalize status on each source row first (row-level transform).
@@ -3857,6 +3960,7 @@ export default {
                 product_id: box.product_id,
                 purchase_order_id: this.purchaseOrder.purchase_order_id,
                 total_units: Number(box.total || 0),
+                item_num: box.item_num,
                 status: box.raw_line_status || this.purchaseOrder.status || 'Draft',
                 notes: null,
                 invoice_id: null,
@@ -6386,14 +6490,14 @@ export default {
             
             if (data.po_raw_line_id || data.case_id) {
                 if (data.status == 'Cancelled'){
-                    return { font: 'bold', backgroundColor: '#f19595' };
+                    return { font: 'bold', color: '#000000', backgroundColor: '#f19595' };
                 } else {
                     // Blue striping for persisted raw rows
                     const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
-                    return { font: 'bold', backgroundColor: bgColor };
+                    return { font: 'bold', color: '#000000', backgroundColor: bgColor };
                 }
             }  else {
-                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+                return { font: 'bold', fontStyle: 'italic', color: '#000000', backgroundColor: 'Gold' };
             }
         },
 
@@ -6403,14 +6507,14 @@ export default {
             
             if (data.product_id) {
                 if(data.warning === true){
-                    return { font: 'bold', backgroundColor: '#ffb439' };
+                    return { font: 'bold', color: '#000000', backgroundColor: '#ffb439' };
                 } else {
                     // Green striping for recipes
                     const bgColor = isEvenRow ? '#bbffb5' : '#D4F5DD';
-                    return { font: 'bold', backgroundColor: bgColor };
+                    return { font: 'bold', color: '#000000', backgroundColor: bgColor };
                 }
             } else {
-                return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+                return { font: 'bold', fontStyle: 'italic', color: '#000000', backgroundColor: 'Gold' };
             }
         },
 
@@ -6423,7 +6527,7 @@ export default {
                 return { font: 'bold', color: '#000000', backgroundColor: bgColor };
             }
 
-            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            return { font: 'bold', fontStyle: 'italic', color: '#000000', backgroundColor: 'Gold' };
         },
 
         detailRowStyleRaw(data: any) {
@@ -6439,7 +6543,7 @@ export default {
                 return { font: 'bold', color: '#000000', backgroundColor: bgColor };
             }
 
-            return { font: 'bold', fontStyle: 'italic', backgroundColor: 'Gold' };
+            return { font: 'bold', fontStyle: 'italic', color: '#000000', backgroundColor: 'Gold' };
         },
 
         detailInvoiceRowStyle(data: any) {
