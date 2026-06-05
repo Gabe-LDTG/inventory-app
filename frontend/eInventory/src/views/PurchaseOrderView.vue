@@ -2348,11 +2348,43 @@ export default {
             const poId = this.detailSelectedPoId;
             if (!poId) return [];
 
+            const sourceLines = this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo);
             const groupedByProduct = new Map<string, any>();
 
-            return (this.purchaseOrder.po_raw_lines || [])
+            (sourceLines || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
+                .forEach((line: any, idx: number) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
+                    const key = productId > 0
+                        ? `product-${productId}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    const existing = groupedByProduct.get(key);
+
+                    if (existing) {
+                        existing.total_units += Number(line?.total_units || 0);
+                    } else {
+                        groupedByProduct.set(key, {
+                            ...line,
+                            line_key: key,
+                            product_id: productId || null,
+                            product_name: productName,
+                            item_num: itemNum,
+                            total_units: Number(line?.total_units || 0),
+                            first_seen_idx: idx,
+                        });
+                    }
+                });
+
+            return Array.from(groupedByProduct.values())
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')))
                 .map((line: any) => {
+                    const { first_seen_idx, ...rest } = line;
+                    return rest;
+                });
+                /* .map((line: any) => {
                     const productId = Number(line?.product_id || 0);
                     const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
                     const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
@@ -2376,7 +2408,7 @@ export default {
 
                     return existing;
                 })
-                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || ''))); */
 
                 /*
                 .reduce((array: any[], line: any) => {
