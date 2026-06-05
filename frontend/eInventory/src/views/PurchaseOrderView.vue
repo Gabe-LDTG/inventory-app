@@ -6,9 +6,14 @@
                 <template #start>
                     <div class="po-toolbar-filters">
                         <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
-                            <InputText v-model="searchText" placeholder="Search purchase orders..." />
+                            <div v-tooltip.top="isSearchBarDisabled() ? 'Search bar disabled when filters are in place' : null">
+                                <InputText v-model="searchText" placeholder="Search purchase orders..." :disabled="isSearchBarDisabled()"/>
+                            </div>
                         </span>
                         <div class="po-view-toggle" role="group" aria-label="Purchase order layout mode">
+                            <div v-tooltip.top="isFilterBoxDisabled() ? 'Filter box disabled when search is in place' : null">
+                                <Button :icon="setFilterIcon()" class="p-button-rounded p-button-text" @click="openFilterMenu" :disabled="isFilterBoxDisabled()" />
+                            </div>
                             <Button
                                 label="Cards"
                                 icon="pi pi-id-card"
@@ -56,7 +61,7 @@
                 <div class="po-card-grid-header">
                     <h4 class="m-0">Manage Purchase Orders</h4>
                     <div class="po-header-actions">
-                        <ZoomDropdown v-model="tableZoom" />
+                        <!-- <ZoomDropdown v-model="tableZoom" /> -->
                         <Button
                             label="New PO"
                             icon="pi pi-plus"
@@ -1905,6 +1910,47 @@
                 <Button label="Save Invoice" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="saveInvoiceEdits" :loading="invoiceEditSaving" />
             </template>
         </Dialog>
+
+        <Dialog
+            v-model:visible="filterDialog"
+            header="Filter Purchase Orders"
+        >
+            <div class="p-fluid">
+                <div class="field">
+                    <label for="filterField">Filter By</label>
+                    <Select id="filterField" v-model="filterMenuField" :options="[
+                        { label: 'Purchase Order Name', value: 'purchase_order_name' },
+                        { label: 'Vendor Name', value: 'vendor_id' },
+                    ]" optionLabel="label" optionValue="value" placeholder="Select a field to filter by" @change="filterMenuValue=''; filterMenuVendor=null" />
+                </div>
+                
+                <div v-if="filterMenuField === 'vendor_id'" class="field">
+                    <label for="filterMenuValue">Vendor</label>
+                    <AutoComplete 
+                        id="filterMenuValue"
+                        v-model="filterMenuVendor"
+                        :suggestions="filteredVendors"
+                        @complete="searchVendors"
+                        @focus="searchVendors({ query: '' })"
+                        @item-select="onFilterVendorSelect($event.value)"
+                        :dropdown="true"
+                        :showOnFocus="true"
+                        :optionLabel="'vendor_name'"
+                        placeholder="Select a vendor to filter by"
+                    />
+                </div>
+                <div v-else class="field">
+                    <label for="searchText">Search Text</label>
+                    <InputText id="searchText" v-model="filterMenuValue" placeholder="Enter search text" />
+                </div>
+
+                <div class="field">
+                    <Button label="Apply Filter" icon="pi pi-filter" class="p-button-primary" @click="applyFilter" :disabled="!filterMenuField && (!filterMenuValue.trim() || !filterMenuVendor)" />
+                    <Button label="Clear Filter" icon="pi pi-filter-slash" class="p-button-secondary" @click="clearFilter" :disabled="!filterMenuField && (!filterMenuValue.trim() || !filterMenuVendor)" />
+                </div>
+            </div>
+
+        </Dialog>
         
     </div>
 </template>
@@ -2100,7 +2146,12 @@ export default {
                 { label: 'Inbound', status: 'Inbound', icon: 'pi pi-truck' },
                 { label: 'Delivered', status: 'Delivered', icon: 'pi pi-check' },
             ],
+            filterDialog: false,
+            filterMenuField: '',
+            filterMenuValue: '',
+            filterMenuVendor: {} as any,
             filterField: '',
+            filterValue: '',
             searchText: '',
             currentPage: 1,
             rowsPerPage: 25,
@@ -2131,6 +2182,7 @@ export default {
         this.loadPoViewModePreference();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
         this.onSearchDebounced = debounce(async () => {
+            this.filterValue = this.searchText;
             this.currentPage = 1;
             this.tableLoading = true;
             await this.loadPage(1);
@@ -2145,7 +2197,10 @@ export default {
         }
         },
         searchText: {
-            handler() { this.onSearchDebounced(); }
+            handler() { 
+                if(this.filterDialog) return; // don't trigger search when changing search text from filter dialog
+                this.onSearchDebounced(); 
+            }
         },
         poViewMode: {
             handler() { this.persistPoViewModePreference(); }
@@ -2497,6 +2552,57 @@ export default {
 
         setPoViewMode(mode: 'cards' | 'table') {
             this.poViewMode = mode;
+        },
+
+        openFilterMenu(){
+            this.filterDialog = true;
+        },
+
+        setFilterIcon(){
+            return this.filterField === '' ? String('pi pi-filter') : String('pi pi-filter-fill');
+        },
+
+        isSearchBarDisabled() {
+            return this.filterMenuField !== '';
+        },
+
+        isFilterBoxDisabled(){
+            return this.searchText !== '';  
+        },
+
+        applyFilter(){
+            if(this.filterMenuVendor && this.filterMenuField === 'vendor_id'){
+                console.log("Applying vendor filter with value", this.filterMenuVendor);
+                this.filterMenuValue = String(this.filterMenuVendor?.vendor_id);
+            }
+
+            if (this.filterMenuField) {
+                this.filterField = this.filterMenuField;
+                this.filterValue = this.filterMenuValue.trim();
+            } else {
+                this.filterField = '';
+                this.filterValue = '';
+            }
+            
+            console.log("Applying filter with field", this.filterMenuField, "and value", this.filterMenuValue);
+
+            this.loadPage(1);
+            this.filterDialog = false;
+        },
+
+        clearFilter(){
+            this.filterField = '';
+            this.filterValue = '';
+            this.filterMenuVendor = '';
+            this.filterMenuField = '';
+            this.filterMenuValue = '';
+            this.filterDialog = false;
+            this.loadPage(1);
+        },
+
+        onFilterVendorSelect(event: any){
+            console.log(event);
+            this.filterMenuVendor = event;
         },
 
         openInboundWorkspace(purchaseOrder: any) {
@@ -2964,7 +3070,7 @@ export default {
                     page,
                     this.rowsPerPage,
                     this.filterField || '',
-                    this.searchText || '',
+                    this.filterValue || '',
                     this.sortField || '',
                     this.sortOrder
                 );            
@@ -3398,7 +3504,7 @@ export default {
             const poLines = this.getPurchaseOrderLinesForDisplay(poID);
             let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
-            console.log("Used Lines For Unit Total", usedLines);
+            // console.log("Used Lines For Unit Total", usedLines);
             // console.log("Used Boxes For Unit Total", usedBoxes);
             // Prioritize the lines, but if only legacy count exist, use that
             if (usedLines.length !== 0)
