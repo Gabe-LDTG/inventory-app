@@ -119,6 +119,9 @@
                             <div class="po-progress-track" :title="getPoProgressSummary(po)">
                                 <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(po, 'delivered')"></div>
                                 <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(po, 'inbound')"></div>
+                                <div class="po-progress-segment po-progress-segment--ordered" :style="getPoProgressSegmentStyle(po, 'ordered')"></div>
+                                <div class="po-progress-segment po-progress-segment--backordered" :style="getPoProgressSegmentStyle(po, 'back ordered')"></div>
+                                <div class="po-progress-segment po-progress-segment--flagged" :style="getPoProgressSegmentStyle(po, 'flagged')"></div>
                                 <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(po, 'other')"></div>
                             </div>
                             <div class="po-progress-meta">{{ getPoProgressSummary(po) }}</div>
@@ -597,6 +600,9 @@
                                     <div class="po-progress-track" :title="getPoProgressSummary(selectedDetailPo)">
                                         <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'delivered')"></div>
                                         <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(selectedDetailPo, 'inbound')"></div>
+                                        <div class="po-progress-segment po-progress-segment--ordered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'ordered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--backordered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'back ordered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--flagged" :style="getPoProgressSegmentStyle(selectedDetailPo, 'flagged')"></div>
                                         <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(selectedDetailPo, 'other')"></div>
                                     </div>
                                     <div class="po-progress-meta">{{ getPoProgressSummary(selectedDetailPo) }}</div>
@@ -3952,6 +3958,11 @@ export default {
                     ...patchDialogData,
                     po_raw_lines: [...normalizedLines],
                 };
+                this.selectedDetailPo = {
+                    ...(this.purchaseOrder || {}),
+                    ...patchDialogData,
+                    po_raw_lines: [...normalizedLines],
+                };
                 this.$nextTick(() => { this.isInitializingPurchaseOrder = false; });
             }
         },
@@ -6128,10 +6139,16 @@ export default {
                 return {
                     deliveredUnits: 0,
                     inboundUnits: 0,
+                    orderedUnits: 0,
+                    backOrderedUnits: 0,
+                    flaggedUnits: 0,
                     otherUnits: 0,
                     totalUnits: 0,
                     deliveredPct: 0,
                     inboundPct: 0,
+                    orderedPct: 0,
+                    backOrderedPct: 0,
+                    flaggedPct: 0,
                     otherPct: 0,
                 };
             }
@@ -6142,6 +6159,9 @@ export default {
 
             let deliveredUnits = 0;
             let inboundUnits = 0;
+            let orderedUnits = 0;
+            let backOrderedUnits = 0;
+            let flaggedUnits = 0;
             let otherUnits = 0;
 
             (lines || []).forEach((line: any) => {
@@ -6160,49 +6180,76 @@ export default {
                     deliveredUnits += units;
                 } else if (normalizedStatus === 'Inbound') {
                     inboundUnits += units;
+                } else if (normalizedStatus === 'Ordered') {
+                    orderedUnits += units;
+                } else if (normalizedStatus === 'Back Ordered') {
+                    backOrderedUnits += units;
+                } else if (normalizedStatus === 'Flagged') {
+                    flaggedUnits += units;
                 } else {
                     otherUnits += units;
                 }
             });
 
-            const totalUnits = deliveredUnits + inboundUnits + otherUnits;
+            const totalUnits = deliveredUnits + inboundUnits + orderedUnits + backOrderedUnits + flaggedUnits + otherUnits;
             if (totalUnits <= 0) {
                 return {
-                    deliveredUnits,
-                    inboundUnits,
-                    otherUnits,
-                    totalUnits,
+                    deliveredUnits: 0,
+                    inboundUnits: 0,
+                    orderedUnits: 0,
+                    backOrderedUnits: 0,
+                    flaggedUnits: 0,
+                    otherUnits: 0,
+                    totalUnits: 0,
                     deliveredPct: 0,
                     inboundPct: 0,
+                    orderedPct: 0,
+                    backOrderedPct: 0,
+                    flaggedPct: 0,
                     otherPct: 0,
                 };
             }
 
             const deliveredPct = (deliveredUnits / totalUnits) * 100;
             const inboundPct = (inboundUnits / totalUnits) * 100;
+            const orderedPct = (orderedUnits / totalUnits) * 100;
+            const backOrderedPct = (backOrderedUnits / totalUnits) * 100;
+            const flaggedPct = (flaggedUnits / totalUnits) * 100;
             const otherPct = (otherUnits / totalUnits) * 100;
 
             return {
                 deliveredUnits,
                 inboundUnits,
+                orderedUnits,
+                backOrderedUnits,
+                flaggedUnits,
                 otherUnits,
                 totalUnits,
                 deliveredPct,
                 inboundPct,
+                orderedPct,
+                backOrderedPct,
+                flaggedPct,
                 otherPct,
             };
         },
 
-        getPoProgressSegmentStyle(po: any, segment: 'delivered' | 'inbound' | 'other'){
+        getPoProgressSegmentStyle(po: any, segment: 'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other'){
             const progress = this.getPoRawLineProgress(po);
-            const leftBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+            const leftBySegment: Record<'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other', number> = {
                 delivered: 0,
                 inbound: progress.deliveredPct,
-                other: progress.deliveredPct + progress.inboundPct,
+                ordered: progress.deliveredPct + progress.inboundPct,
+                'back ordered': progress.deliveredPct + progress.inboundPct + progress.orderedPct,
+                flagged: progress.deliveredPct + progress.inboundPct + progress.orderedPct + progress.backOrderedPct,
+                other: progress.deliveredPct + progress.inboundPct + progress.orderedPct + progress.backOrderedPct + progress.flaggedPct,
             };
-            const widthBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+            const widthBySegment: Record<'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other', number> = {
                 delivered: progress.deliveredPct,
                 inbound: progress.inboundPct,
+                ordered: progress.orderedPct,
+                'back ordered': progress.backOrderedPct,
+                flagged: progress.flaggedPct,
                 other: progress.otherPct,
             };
 
@@ -6216,7 +6263,7 @@ export default {
             const progress = this.getPoRawLineProgress(po);
             if (!progress.totalUnits) return 'No active units';
 
-            return `Delivered ${progress.deliveredUnits} | Inbound ${progress.inboundUnits} | Other ${progress.otherUnits}`;
+            return `Delivered ${progress.deliveredUnits} | Inbound ${progress.inboundUnits} | Ordered ${progress.orderedUnits} | BO ${progress.backOrderedUnits} | Flagged ${progress.flaggedUnits} | Other ${progress.otherUnits}`;
         },
 
         getPOProgressPercent(status: string): number {
@@ -8298,9 +8345,10 @@ export default {
                     detail: `Invoice "${this.inboundInvoiceName.trim()}" created with ${invoiceLineIds.length} line(s).`,
                     life: 5000,
                 });
-
+                
                 this.inboundPurchaseOrderDialog = false;
                 await this.loadPage(this.currentPage ?? 1);
+                this.purchaseOrderRefresh(this.purchaseOrder?.purchase_order_id);
 
             } catch (error) {
                 console.error('Error creating invoice:', error);
@@ -9717,6 +9765,18 @@ export default {
             #ffd86b 0 8px,
             #fff4bf 8px 16px
         );
+}
+
+.po-progress-segment--ordered {
+    background: #2f6bf9;
+}
+
+.po-progress-segment--backordered {
+    background: #ffd86b;
+}
+
+.po-progress-segment--flagged {
+    background: #8a0000;
 }
 
 .po-progress-segment--other {
