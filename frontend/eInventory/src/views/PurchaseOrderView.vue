@@ -678,7 +678,7 @@
                     <div class="po-workspace-section">
                         <details class="po-detail-collapsible">
                             <summary>Raw Products ({{ detailRawLines.length }})</summary>
-                            <small style="color: red;" v-if="doesPOHaveFlaggedLine(detailSelectedPoId)">*This order contains at least one flagged product.</small>
+                            <small style="color: red;" v-if="doesPOHaveFlaggedLine(detailSelectedPoId)">*This order contains at least one flagged product. Contact the vendor to confirm this product is still on the order.</small>
                             <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
                                 <template #empty>No raw products found for this purchase order.</template>
                                 <Column field="product_name" header="Product" />
@@ -2363,6 +2363,11 @@ export default {
                         : `product-name-${String(productName).toLowerCase()}`;
 
                     const existing = groupedByProduct.get(key);
+                    
+                    let nameForLine = productName;
+
+                    if(line?.status === 'Flagged')
+                        nameForLine+='*';
 
                     if (existing && line?.status !== 'Flagged') {
                         existing.total_units += Number(line?.total_units || 0);
@@ -2371,7 +2376,7 @@ export default {
                             ...line,
                             line_key: key,
                             product_id: productId || null,
-                            product_name: productName,
+                            product_name: nameForLine,
                             item_num: itemNum,
                             total_units: Number(line?.total_units || 0),
                             first_seen_idx: idx,
@@ -8124,7 +8129,7 @@ export default {
                     ...line,
                     remaining_units: this.getInboundRemaining(line),
                 }))
-                .filter((line: any) => Number(line.remaining_units || 0) > 0);
+                .filter((line: any) => Number(line.remaining_units || 0) > 0 && line.status !== 'Flagged');
         },
 
         async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
