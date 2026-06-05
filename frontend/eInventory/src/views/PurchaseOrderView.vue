@@ -678,6 +678,7 @@
                     <div class="po-workspace-section">
                         <details class="po-detail-collapsible">
                             <summary>Raw Products ({{ detailRawLines.length }})</summary>
+                            <small style="color: red;" v-if="doesPOHaveFlaggedLine(detailSelectedPoId)">*This order contains at least one flagged product.</small>
                             <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
                                 <template #empty>No raw products found for this purchase order.</template>
                                 <Column field="product_name" header="Product" />
@@ -2363,7 +2364,7 @@ export default {
 
                     const existing = groupedByProduct.get(key);
 
-                    if (existing) {
+                    if (existing && line?.status !== 'Flagged') {
                         existing.total_units += Number(line?.total_units || 0);
                     } else {
                         groupedByProduct.set(key, {
@@ -3947,6 +3948,11 @@ export default {
                 : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
 
             return (sourceLines || []).map((line: any) => this.normalizeRawLineForTotals(line));
+        },
+
+        doesPOHaveFlaggedLine(poId: number){
+            const lines = this.getPurchaseOrderLinesForDisplay(poId);
+            return (lines || []).some((line: any) => this.normalizeRawLineStatus(line.status) === 'Flagged');
         },
 
         /**
@@ -6721,6 +6727,10 @@ export default {
 
             if (this.normalizeRawLineStatus(data?.status) === 'Cancelled') {
                 return { font: 'bold', color: '#000000', backgroundColor: '#f19595' };
+            }
+
+            if (this.normalizeRawLineStatus(data?.status) === 'Flagged') {
+                return { font: 'bold', color: '#000000', backgroundColor: '#e65c00' };
             }
 
             if (data?.product_id) {
