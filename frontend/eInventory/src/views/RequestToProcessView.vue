@@ -283,20 +283,33 @@
         </div>
 
         <div class="field">
-            <label for="ship_to_amz">To Amazon</label>
+            <label for="ship_to_amz">Cases Shipping to Amazon</label>
             <InputNumber v-model="requestToProcess.ship_to_amz" required="true" placeholder="Amount to Ship" class="md:w-14rem" showButtons/>
         </div>
         
 
         <div class="field">
-            <label for="warehouse_qty">To Store</label>
+            <label for="warehouse_qty">Cases to Store in Warehouse</label>
             <InputNumber v-model="requestToProcess.warehouse_qty" required="true" placeholder="Amount to Store" class="md:w-14rem" showButtons/>
         </div>
 
         <div class="field">
-            <label for="container_qty">Case QTY</label>
+            <label for="container_qty">Units per Case</label>
             <InputNumber v-model="requestToProcess.container_qty" required="true" placeholder="Amount to Container" class="md:w-14rem" showButtons/>
         </div>
+
+        <div class="field">
+            <label for="deadline">Deadline</label>
+            <DatePicker dateFormat="mm/dd/yy" v-model="requestToProcess.deadline"/>
+        </div>
+
+        <div class="field">
+            <label for="status">Status</label>
+            <Select v-model="requestToProcess.status"
+                placeholder="Select a status" class="w-full md:w-14rem" editable
+                :options="statuses"/>
+        </div>
+
 
         <!-- <Select v-model="requestToProcess.purchase_order_id" required="true" 
             placeholder="Select a Purchase Order" class="md:w-14rem" editable

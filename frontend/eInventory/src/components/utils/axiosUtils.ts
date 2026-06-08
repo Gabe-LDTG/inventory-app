@@ -1735,6 +1735,18 @@ var action = {
 
     },
 
+    // Get requests linked to a purchase order
+    async getPurchaseOrderRequests(po_id: number){
+        const {data, error} = await supabase.rpc('check_for_po_requests', {po_id: po_id});
+        if(error){
+            console.error('Error fetching purchase order requests: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Requests: ', data);
+            return data;
+        }
+    },
+
     //Get Purchase Order Recipes
     async getPurchaseOrderRecipes(){
         const query = supabase.from('po_recipes').select('*');

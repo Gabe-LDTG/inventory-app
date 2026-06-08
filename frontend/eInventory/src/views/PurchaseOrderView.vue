@@ -1627,7 +1627,15 @@
                     <Column header="Remaining"><template #body><div class="skeleton-line skeleton-line--number skeleton-line--total"></div></template></Column>
                 </DataTable>
 
-                <DataTable v-else :value="inboundLineAllocations" stripedRows showGridlines responsiveLayout="scroll" class="inbound-lines-table">
+                <DataTable v-else 
+                    :value="inboundLineAllocations" 
+                    stripedRows 
+                    showGridlines 
+                    responsiveLayout="scroll" 
+                    class="inbound-lines-table"
+                    scrollable 
+                    scrollHeight="800px"
+                >
                     <template #empty>
                         No eligible raw products are available to inbound for this purchase order.
                     </template>
@@ -1754,6 +1762,8 @@
                     showGridlines
                     responsiveLayout="scroll"
                     class="receive-invoice-table"
+                    scrollable 
+                    scrollHeight="800px"
                 >
                     <template #empty>
                         No invoice-linked raw lines are currently available to receive for this purchase order.
@@ -6460,7 +6470,10 @@ export default {
          */
         async checkForRequests(){
             // Check to see if there are any requests for the PO recipes, if not, create them
-            let requests = await action.getRequests('');
+            // let requests = await action.getRequests('');
+            let po_requests = await action.getPurchaseOrderRequests(this.purchaseOrder.purchase_order_id || 0);
+
+
 
             console.log("IN REQUEST CHECK");
 
@@ -6473,77 +6486,93 @@ export default {
                 return;
             }
 
-            const poRecipes = Array.isArray(this.poRecipes) ? this.poRecipes : [];
-            const recipeElements = Array.isArray(this.recipeElements) ? this.recipeElements : [];
-            const existingRequests = Array.isArray(requests) ? requests : [];
+            const poRecipes = Array.isArray(this.purchaseOrder?.po_recipes) ? this.purchaseOrder.po_recipes : [];
+            const recMissingRequest: any[] = [];
+            poRecipes.forEach((poRec: any) => {
+                let foundRequest = po_requests.find((req: any) => req.product_id === poRec.product_id);
+                if (!foundRequest) {
+                    console.warn("No Request found for the following po recipe", poRec);
+                    recMissingRequest.push(poRec);
+                }
+            });
 
-            let neededPoRecipes = poRecipes.filter(recipe => recipe.purchase_order_id === poId)
-            console.log("Needed Po Recipes: ", neededPoRecipes);
+            // If non of the planned recipes are missing a request, end function early to avoid unnecessary processing
+            if(recMissingRequest.length === 0) 
+                return;
+            else{ // Else, grab all recipes and elements and add the necessary requests
+                const recPackage: { elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                console.log("Recipe package", recPackage);
+                
+                const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
+                const existingRequests = Array.isArray(po_requests) ? po_requests : [];
 
-            const skippedRecipeIds: number[] = [];
+                console.log("Needed Po Recipes: ", recMissingRequest);
 
-            for (const recipe of neededPoRecipes) {
+                const skippedRecipeIds: number[] = [];
 
-                let neededRecElement = recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
-                console.log("Needed Recipe Element: ", neededRecElement);
+                for (const recipe of recMissingRequest) {
 
-                if (!neededRecElement || !neededRecElement.product_id) {
-                    console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
-                    if (recipe?.recipe_id) {
-                        skippedRecipeIds.push(recipe.recipe_id);
+                    let neededRecElement = recipeElements.find((recElement: any) => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
+                    console.log("Needed Recipe Element: ", neededRecElement);
+
+                    if (!neededRecElement || !neededRecElement.product_id) {
+                        console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
+                        if (recipe?.recipe_id) {
+                            skippedRecipeIds.push(recipe.recipe_id);
+                        }
+                        continue;
                     }
-                    continue;
+
+                    let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
+                    console.log("Product Key: ", productKey);
+
+                    let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
+                    console.log("Recipe Request: ", recRequest);
+                    if(!recRequest){
+                        // No request made for this recipe yet, make one
+                        const createdRequest: {
+                            product_id: number; 
+                            purchase_order_id: number;
+                            notes: string | null, 
+                            status: string,
+                            labels_printed: boolean; 
+                            ship_label: boolean; 
+                            priority: string; 
+                            ship_to_amz: number; 
+                            deadline: Date | null; 
+                            warehouse_qty: number;
+                            container_qty: number;
+                        } = {
+                            product_id: Number(neededRecElement.product_id),
+                            purchase_order_id: Number(poId),
+                            notes: null, 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            container_qty: Number(recipe.qty)
+                        };
+
+                        console.log("Created Request: ", createdRequest);
+
+                        await action.addRequest(createdRequest);
+
+                        // Keep local dedupe list in sync so duplicate requests are not created in the same run.
+                        existingRequests.push(createdRequest);
+                    }
                 }
 
-                let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
-                console.log("Product Key: ", productKey);
-
-                let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
-                console.log("Recipe Request: ", recRequest);
-                if(!recRequest){
-                    // No request made for this recipe yet, make one
-                    const createdRequest: {
-                        product_id: number; 
-                        purchase_order_id: number;
-                        notes: string | null, 
-                        status: string,
-                        labels_printed: boolean; 
-                        ship_label: boolean; 
-                        priority: string; 
-                        ship_to_amz: number; 
-                        deadline: Date | null; 
-                        warehouse_qty: number;
-                        container_qty: number;
-                    } = {
-                        product_id: Number(neededRecElement.product_id),
-                        purchase_order_id: Number(poId),
-                        notes: null, 
-                        status: '5 ON ORDER', 
-                        labels_printed: false, 
-                        ship_label: false, 
-                        priority: '6 Prep For Later', 
-                        ship_to_amz: 0, 
-                        deadline: null, 
-                        warehouse_qty: 0,
-                        container_qty: Number(recipe.qty)
-                    };
-
-                    console.log("Created Request: ", createdRequest);
-
-                    await action.addRequest(createdRequest);
-
-                    // Keep local dedupe list in sync so duplicate requests are not created in the same run.
-                    existingRequests.push(createdRequest);
+                if (skippedRecipeIds.length > 0) {
+                    this.$toast.add({
+                        severity: 'warn',
+                        summary: 'Request Check Skipped',
+                        detail: `Skipped ${skippedRecipeIds.length} recipe(s) because their output mapping is missing.`,
+                        life: 5000,
+                    });
                 }
-            }
-
-            if (skippedRecipeIds.length > 0) {
-                this.$toast.add({
-                    severity: 'warn',
-                    summary: 'Request Check Skipped',
-                    detail: `Skipped ${skippedRecipeIds.length} recipe(s) because their output mapping is missing.`,
-                    life: 5000,
-                });
             }
         },
 
@@ -8392,6 +8421,14 @@ export default {
                     detail: `Invoice "${this.inboundInvoiceName.trim()}" created with ${invoiceLineIds.length} line(s).`,
                     life: 5000,
                 });
+
+                this.purchaseOrder.status = 'Inbound';
+                await action.editPurchaseOrder({
+                    ...this.purchaseOrder,
+                    status: 'Inbound',
+                });
+
+                await this.checkForRequests();
                 
                 this.inboundPurchaseOrderDialog = false;
                 await this.loadPage(this.currentPage ?? 1);
