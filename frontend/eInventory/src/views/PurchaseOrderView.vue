@@ -1041,7 +1041,8 @@
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="vendor_name"
-                optionValue="vendor_id" />
+                optionValue="vendor_id" 
+                :disabled="isPoReadOnly"/>
             </div>
 
             <div class="field">
@@ -1178,11 +1179,21 @@
             <br>
             </section>
 
+
             <section class="po-edit-section-card">
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
-            <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="line_key" editMode="row" :loading="editRawRowsLoading" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+            <DataTable 
+            class="po-edit-data-table" 
+            v-model:editingRows="rawEditingRows" 
+            :value="poBoxes" 
+            :rowStyle="editRowStyleRaw" 
+            dataKey="line_key" 
+            editMode="row" 
+            :loading="editRawRowsLoading" 
+            @row-edit-init="onPOBoxRowEditInit" 
+            @row-edit-save="onPORawLineEditSave">
                 <template #empty>
                     <div class="flex flex-column align-items-center gap-3 py-5">
                         <i class="pi pi-box text-4xl"></i>
@@ -1228,7 +1239,7 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.total = data.amount*data.units_per_case"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
                     </template>
                 </Column>
                 <Column header="Units per Box" field="units_per_case">
@@ -1241,9 +1252,19 @@
                         {{ formatCurrency(getUnitCost(data.product_id)) }}
                     </template>
                 </Column>
+                <Column header="Units for FBA" field="store">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" disabled/>
+                    </template>
+                </Column>
+                <Column header="Units for FBM" field="fbm">
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)"/>
+                    </template>
+                </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.amount = data.total/data.units_per_case"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
                         <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
@@ -4417,9 +4438,30 @@ export default {
                 units_per_case: 0,
                 amount: 1,
                 total: 0,
+                fbm: 0,
+                store: 0,
                 status: this.purchaseOrder?.status || 'Draft',
             };
         },
+
+        onRawTotalsChange(event: any, line: any, field: any){
+            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
+            if (field === 'total'){
+                line.amount = event.value/line.units_per_case;
+                if(line.fbm > event.value)
+                    line.fbm = event.value;
+            } else if (field === 'amount'){
+                line.total = (event.value || line.amount || 0)*line.units_per_case;
+            } else if (field === 'fbm'){
+                if(event.value > line.total){
+                    line.fbm = line.total;
+                    this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total'});
+                }
+                line.store = 0;
+            }
+
+        },
+
         openRecipeRowEditor(rowData: any){
             if (!rowData) return;
             rowData.d_editing = true;
@@ -4738,6 +4780,7 @@ export default {
                     const updated = updatedByProductId.get(row.product_id);
                     if (!updated) return row;
 
+                    /**@TODO Figure out why units per case is not being updated in the edit po dialog */
                     const nextRow = { ...row };
                     if (updated.requires_default_units_per_case && updated.default_units_per_case && updated.default_units_per_case > 0) {
                         nextRow.units_per_case = updated.default_units_per_case;
@@ -6980,7 +7023,7 @@ export default {
          * Saves a raw-row edit by persisting a single po_raw_lines record.
          * The row total is treated as source-of-truth total_units, so we no longer split/cancel individual boxes here.
          */
-        async onPOBoxRowEditSave(event: any){
+        async onPORawLineEditSave(event: any){
             if (!this.ensurePoEditable('save raw lines')) return;
             const { newData, index } = event;
             const poId = this.purchaseOrder?.purchase_order_id;
@@ -7021,6 +7064,9 @@ export default {
                         purchase_order_id: poId,
                         invoice_id: newData.invoice_id ?? matchingLine.invoice_id ?? null,
                         total_units: totalUnits,
+                        store: newData.store ?? 0,
+                        fbm: newData.fbm ?? 0,
+                        fba_prep: newData.fba_prep ?? 0,
                         notes: newData.notes ?? matchingLine.notes ?? null,
                         status: normalizedStatus,
                     });
@@ -7034,6 +7080,9 @@ export default {
                     purchase_order_id: poId,
                     invoice_id: newData.invoice_id ?? null,
                     total_units: totalUnits,
+                    store: newData.store ?? 0,
+                    fbm: newData.fbm ?? 0,
+                    fba_prep: newData.fba_prep ?? 0,
                     notes: newData.notes ?? null,
                     status: normalizedStatus,
                 });
@@ -7278,6 +7327,9 @@ export default {
                         product_id: rawInput.product_id,
                         purchase_order_id: poId,
                         total_units: Number((Number(rawInput.qty || 0) * desiredQty).toFixed(2)),
+                        store: newData.store ?? 0,
+                        fbm: newData.fbm ?? 0,
+                        fba_prep: newData.fba_prep ?? 0,
                         status: this.normalizeRawLineStatus(this.purchaseOrder.status || 'Draft'),
                         notes: null,
                         invoice_id: null,
@@ -8271,6 +8323,9 @@ export default {
                     product_id: line.product_id,
                     purchase_order_id: line.purchase_order_id,
                     total_units: segment.qty,
+                    store: segment.store ?? 0,
+                    fbm: segment.fbm ?? 0,
+                    fba_prep: segment.fba_prep ?? 0,
                     notes: line.notes ?? null,
                     status: statusByKind[segment.kind],
                 });

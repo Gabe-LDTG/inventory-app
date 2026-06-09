@@ -1928,6 +1928,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }){
@@ -1936,6 +1939,9 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         };
@@ -1963,6 +1969,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }[]){
@@ -1975,6 +1984,9 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         }));
@@ -2001,6 +2013,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }){
@@ -2009,6 +2024,9 @@ var action = {
             purchase_order_id: po_raw_line.purchase_order_id,
             invoice_id: po_raw_line.invoice_id ?? null,
             total_units: po_raw_line.total_units,
+            store: po_raw_line.store ?? 0,
+            fbm: po_raw_line.fbm ?? 0,
+            fba_prep: po_raw_line.fba_prep ?? 0,
             notes: po_raw_line.notes ?? null,
             status: po_raw_line.status,
         };
@@ -2035,6 +2053,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }[]){
@@ -2048,6 +2069,9 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         }));
