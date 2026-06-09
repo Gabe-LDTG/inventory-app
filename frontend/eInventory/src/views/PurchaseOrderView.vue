@@ -111,6 +111,15 @@
                                         :disabled="po.status === ''"
                                         @click.stop="openEditWorkspace(po)"
                                     />
+                                    <div v-tooltip.top="isOrderDeleteButtonDisabled(po) ? 'Only Orders with a status of Draft can be deleted.' : null">
+                                    <Button
+                                        label="Delete PO"
+                                        icon="pi pi-trash"
+                                        class="po-action-btn po-action-btn--danger"
+                                        @click.stop="confirmDeletePurchaseOrder(po)"
+                                        :disabled="isOrderDeleteButtonDisabled(po)"
+                                    />
+                                    </div>
                                 </div>
                             </Popover>
                         </header>
@@ -1325,6 +1334,19 @@
             </template>
         </Dialog>
 
+        <Dialog v-model:visible="deleteOrderDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                <span v-if="purchaseOrder">Are you sure you want to delete purchase order <b>{{purchaseOrder.purchase_order_name}}</b>? This action cannot be undone.</span><br><br>
+                <span>NOTE: This will delete all associated raw products, planned cases invoices. To continue, please enter the full phrase, "Delete {{purchaseOrder.purchase_order_name}}"</span>
+                <InputText v-model="deleteOrderText" class="w-full mt-3" :disabled="!purchaseOrder" placeholder='Type the confirmation phrase here' />
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="deleteOrderDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" text @click="deletePurchaseOrder(purchaseOrder)" severity="danger" :disabled="deleteOrderText !== 'Delete ' + purchaseOrder.purchase_order_name"/>
+            </template>
+        </Dialog>
+
         <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '500px'}" header="Cancel Product" :modal="true">
             <div class="field" v-if="rawProductToCancel">
                 <p class="m-0 mb-3">
@@ -2018,25 +2040,16 @@ export default {
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
-            rawProductCancelDialog: false,
-            rawProductToCancel: null as any,
+            deleteOrderDialog: false,
+            deleteOrderText: "",
             editPurchaseOrderDialog: false,
             newPurchaseOrderProductDialog: false,
-            editingRows: [] as any[],
-            rawEditingRows: [] as any[] | Record<string, boolean>,
-            recipeEditingRows: [] as any[],
-            editRawRowsLoading: false,
-            editRecipeRowsLoading: false,
             unsavedChangesDialog: false,
-            rawOrderType: ['By Box', 'By Unit'],
-            selectedOrderType: "",
             statusChangeDialog: false,
             receivedDialog: false,
             newStatus: "",
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
-            inboundBoxesLoading: false,
-            inboundBoxes: [] as any[],
             inboundInvoiceName: '' as string,
             inboundLineAllocations: [] as any[],
             inboundSubmitted: false,
@@ -2067,6 +2080,22 @@ export default {
 
             selectedDetailPo: null as any,
             detailDialogVisible: false,
+
+            // PO RAW LINES
+            rawProductCancelDialog: false,
+            rawProductToCancel: null as any,
+            editingRows: [] as any[],
+            rawEditingRows: [] as any[] | Record<string, boolean>,
+            editRawRowsLoading: false,
+            inboundBoxesLoading: false,
+            inboundBoxes: [] as any[],
+            rawOrderType: ['By Box', 'By Unit'],
+            selectedOrderType: "",
+            
+
+            // PO RECIPES
+            recipeEditingRows: [] as any[],
+            editRecipeRowsLoading: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -2604,6 +2633,40 @@ export default {
             }
         },
 
+        confirmDeletePurchaseOrder(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            this.purchaseOrder = purchaseOrder;
+            this.deleteOrderDialog = true;
+        },
+
+        async deletePurchaseOrder(purchaseOrder: any) {
+            if (!purchaseOrder?.purchase_order_id) return;
+
+            try {
+                this.loading = true;
+                await action.deletePurchaseOrder(purchaseOrder.purchase_order_id);
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Purchase Order Deleted',
+                    detail: `Purchase order "${purchaseOrder.purchase_order_name}" has been deleted.`,
+                    life: 4000,
+                });
+                await this.loadPage(this.currentPage);
+            } catch (error) {
+                console.error("Error deleting purchase order:", error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error Deleting Purchase Order',
+                    detail: `An error occurred while trying to delete "${purchaseOrder.purchase_order_name}". Please try again.`,
+                    life: 5000,
+                });
+            } finally {
+                this.loading = false;
+                this.deleteOrderDialog = false;
+                this.deleteOrderText = '';
+            }
+        },
+
         setPoViewMode(mode: 'cards' | 'table') {
             this.poViewMode = mode;
         },
@@ -2622,6 +2685,10 @@ export default {
 
         isFilterBoxDisabled(){
             return this.searchText !== '';  
+        },
+
+        isOrderDeleteButtonDisabled(purchaseOrder: any){
+            return purchaseOrder.status !== 'Draft';
         },
 
         applyFilter(){
@@ -9492,6 +9559,18 @@ export default {
 .po-action-btn--secondary:hover {
     border-color: #7193b5 !important;
     background: #dfeeff !important;
+}
+
+.po-action-btn--danger {
+    border: 1px solid #b42318 !important;
+    background: #ffb3a8 !important;
+    color: #7a0e0c !important;
+}
+
+.po-action-btn--danger:hover {
+    border-color: #7a0e0c !important;
+    background: #ff8c7f !important;
+    box-shadow: 0 3px 8px rgba(180, 35, 24, 0.2) !important;
 }
 
 .po-action-btn--inbound {
