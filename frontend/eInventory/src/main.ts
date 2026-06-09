@@ -18,6 +18,7 @@ import AutoComplete from 'primevue/autocomplete';
 import Button from 'primevue/button';
 //import ButtonGroup from 'primevue/buttongroup';
 import Card from 'primevue/card';
+import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
 import DataTable from 'primevue/datatable';
@@ -71,6 +72,7 @@ app.component('AutoComplete', AutoComplete);
 app.component('Button', Button);
 //app.component('ButtonGroup', ButtonGroup);
 app.component('Card', Card);
+app.component('Checkbox', Checkbox);
 app.component('Column', Column);
 app.component('ColumnGroup', ColumnGroup);
 app.component('DataTable', DataTable);

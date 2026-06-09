@@ -40,7 +40,7 @@
                     <h4 class="m-0">Request To Proccess List</h4>
                     <div class="po-header-actions">
                         <ZoomDropdown v-model="tableZoom" />
-                        <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" class="po-action-btn po-action-btn--primary"/>  
+                        <Button label="Request" v-tooltip.top="'Add a new request to process'" @click="addRequestSetup" icon="pi pi-plus" class="po-action-btn po-action-btn--primary" :loading="loading"/>  
                         <!-- <Button label="Pick List" v-tooltip.top="'Generate a new pick list'" @click="openPicklistAmountDialog" icon="pi pi-plus" severity="info" class="mr-2" :disabled="!selectedRecipeLines || !selectedRecipeLines.length" /> -->
                         <Button @click="toggleStatus" :severity="statusFilterSeverity(statusFilter)" class="po-action-btn po-action-btn--secondary">
                             <div v-if="statusFilter === '0 COMPLETED'">
@@ -267,40 +267,47 @@
         </template>
     </Dialog>
 
-    <Dialog v-model:visible="newRequestDialog" :style="{width: '1000px'}" header="Add a new request" :modal="true">
+    <Dialog v-model:visible="newRequestDialog" :style="{width: '600px'}" header="Add a new request" :modal="true">
 
         <div class="field">
             <label for="product_id">Product</label>
-            <Select v-model="requestToProcess.product_id" required="true" 
-                placeholder="Select a Product" class="md:w-14rem" editable
-                :options="getUsableProducts()"
-                optionLabel="name"
-                optionValue="product_id"
-                filter
-                @change="getUnitsPerCase"
+            <AutoComplete 
+                v-model="requestToProcess.productObj"
+                :suggestions="filteredProcProducts || []"
+                @complete="(event: any) => searchProcProducts(event)"
+                @item-select="onProcProductAutoCompleteSelectEdit($event.value)"
+                :dropdown="true"
+                fluid
+                :optionLabel="(data) => data.name"
                 :virtualScrollerOptions="{ itemSize: 38 }"
-            />
+                placeholder="Select or enter a product"
+                :forceSelection="false"
+                > 
+                <template #option="slotProps">
+                    <div>{{ slotProps.option.name }} - {{ slotProps.option.fnsku }}</div>
+                </template>
+            </AutoComplete>
         </div>
 
         <div class="field">
             <label for="ship_to_amz">Cases Shipping to Amazon</label>
-            <InputNumber v-model="requestToProcess.ship_to_amz" required="true" placeholder="Amount to Ship" class="md:w-14rem" showButtons/>
+            <InputNumber v-model="requestToProcess.ship_to_amz" :required="true" placeholder="Amount to Ship" fluid showButtons/>
         </div>
         
 
         <div class="field">
             <label for="warehouse_qty">Cases to Store in Warehouse</label>
-            <InputNumber v-model="requestToProcess.warehouse_qty" required="true" placeholder="Amount to Store" class="md:w-14rem" showButtons/>
+            <InputNumber v-model="requestToProcess.warehouse_qty" :required="true" placeholder="Amount to Store" fluid showButtons/>
         </div>
 
         <div class="field">
             <label for="container_qty">Units per Case</label>
-            <InputNumber v-model="requestToProcess.container_qty" required="true" placeholder="Amount to Container" class="md:w-14rem" showButtons/>
+            <InputNumber v-model="requestToProcess.container_qty" :required="true" placeholder="Amount to Container" fluid showButtons/>
         </div>
 
         <div class="field">
             <label for="deadline">Deadline</label>
-            <DatePicker dateFormat="mm/dd/yy" v-model="requestToProcess.deadline"/>
+            <DatePicker dateFormat="mm/dd/yy" v-model="requestToProcess.deadline" fluid/>
         </div>
 
         <div class="field">
@@ -357,6 +364,7 @@ export default {
             products: [] as any[],
             unprocProducts: [] as any[],
             procProducts: [] as any[],
+            filteredProcProducts: [] as any[],
             product: {} as any,
             selectedProducts: [] as any[],
 
@@ -414,6 +422,7 @@ export default {
                 deadline: Date | null; 
                 warehouse_qty: number;
                 container_qty: number;
+                productObj: any | null;
             },
             R2Parray: [] as any[],
             requestsToProcess: [] as any[],
@@ -1304,23 +1313,35 @@ export default {
             });
         },
 
-        addRequestSetup(){
-            this.newRequestDialog = true;
+        async addRequestSetup(){
+            try {
+                this.loading = true;
 
-            this.requestToProcess = {
-                            notes: '', 
-                            status: '5 ON ORDER', 
-                            labels_printed: false, 
-                            ship_label: false, 
-                            priority: '6 Prep For Later', 
-                            ship_to_amz: 0, 
-                            deadline: null, 
-                            warehouse_qty: 0,
-                            product_id: null,
-                            purchase_order_id: null,
-                            request_id: null,
-                            container_qty: 0
+                this.procProducts = await action.getProcProducts();
+                
+                this.newRequestDialog = true;
+                
+
+                this.requestToProcess = {
+                                notes: '', 
+                                status: '5 ON ORDER', 
+                                labels_printed: false, 
+                                ship_label: false, 
+                                priority: '6 Prep For Later', 
+                                ship_to_amz: 0, 
+                                deadline: null, 
+                                warehouse_qty: 0,
+                                product_id: null,
+                                purchase_order_id: null,
+                                request_id: null,
+                                container_qty: 0,
+                                productObj: null,
                         };
+            } catch (error) {
+                console.log(error);
+            } finally {
+                this.loading = false;
+            }
         },
 
         async onNewRequestSave(){
@@ -1381,7 +1402,8 @@ export default {
                             product_id: null,
                             purchase_order_id: null,
                             request_id: null,
-                            container_qty: 0
+                            container_qty: 0,
+                            productObj: null,
                         };
             this.newRequestDialog = false;
         },
@@ -1520,7 +1542,28 @@ export default {
                 return 'success';
             else 
                 return 'info';
-        }
+        },
+
+        searchProcProducts(event: any) {
+            // console.log("Search Products Event: ", event);
+            // console.log("Search Products Counter: ", counter);
+            // console.log("Filtered Products: ", this.filteredProcProducts);
+            const query = event.query ? event.query.toLowerCase() : '';
+            // const allProducts = this.products || [];
+            // Ensure filteredProducts is an array of arrays, one per row
+            if (!Array.isArray(this.filteredProcProducts)) 
+                this.filteredProcProducts = [];
+
+            this.filteredProcProducts = this.procProducts.filter(p =>
+                p.name && p.name.toLowerCase().includes(query)
+            );
+            // console.log("Filtered Products after search: ", this.filteredProcProducts);
+        },
+
+        onProcProductAutoCompleteSelectEdit(productObj: any,){
+            this.requestToProcess.product_id = productObj.product_id;
+            this.requestToProcess.container_qty = productObj?.default_units_per_case || 1;
+        },
 
     },
 }

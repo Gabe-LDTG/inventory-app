@@ -92,7 +92,7 @@
                 <template #expansion="slotProps">
                     <div class="p-3">
                         <h3>Recipe for {{ slotProps.data.name }}</h3>
-                        <div v-if="slotProps.data.fnsku || slotProps.data.asin">
+                        <div v-if="slotProps.data.is_processed">
                             PROCESSED
 
                             <DataTable :value="getProductRecipes(slotProps.data.product_id)">
@@ -101,7 +101,7 @@
                                 <Column field="qty" header="Raw Unit(s) Needed Per Processed Unit"></Column>
                             </DataTable>
                         </div>
-                        <div v-else-if="!slotProps.data.fnsku && !slotProps.data.asin">
+                        <div v-else>
                             This item is raw and has no recipe.
                         </div>
                     </div>
@@ -175,8 +175,13 @@
 
                         <div class="field">
                             <label for="name">Name</label>
-                            <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
+                            <InputText id="name" v-model.trim="product.name" :required="true" autofocus :class="{'p-invalid': submitted && !product.name}" />
                             <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
+                        </div>
+
+                        <div class="field">
+                            <label for="default_units_per_case">Default Units per Case</label>
+                            <InputText v-model="product.default_units_per_case" />
                         </div>
 
                         <div class="field">
@@ -188,11 +193,32 @@
                             <label for="date_added">Date Added</label>
                             <DatePicker id="date_added" dateFormat="yy/mm/dd" v-model="product.date_received"/>
                         </div>
+
+                        <div class="field">
+                            <label for="is_processed">Is this Product Processed?</label>
+                            <Checkbox id="is_processed" v-model="product.is_processed" binary/>
+                        </div>
                         
                     </div>
                 </section>
 
-                <section class="pl-dialog-section">
+                <section v-if="product.is_processed" class="pl-dialog-section">
+                    <h4 class="pl-dialog-section-title">Processed Details</h4>
+                    <div class="pl-fields-grid">
+                        <div class="field">
+                            <label for="asin">ASIN</label>
+                            <InputText id="asin" v-model="product.asin"/>
+                        </div>
+
+                        <div class="field">
+                            <label for="fnsku">FNSKU</label>
+                            <InputText id="fnsku" v-model="product.fnsku" />
+                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
+                        </div>
+                   </div>
+                </section>
+                
+                <section v-else class="pl-dialog-section">
                     <h4 class="pl-dialog-section-title">Raw Details</h4>
                     <div class="pl-fields-grid">
                         <div class="field">
@@ -208,29 +234,9 @@
                 </section>
 
                 <section class="pl-dialog-section">
-                    <h4 class="pl-dialog-section-title">Processed Details</h4>
-                    <div class="pl-fields-grid">
-                        <div class="field">
-                            <label for="asin">ASIN</label>
-                            <InputText id="asin" v-model="product.asin"/>
-                        </div>
-
-                        <div class="field">
-                            <label for="fnsku">FNSKU</label>
-                            <InputText id="fnsku" v-model="product.fnsku" />
-                            <small class="p-error" v-if="submitted && validFnsku===false">FNSKU already in use.</small>
-                        </div>
-                   </div>
-                </section>
-
-                <section class="pl-dialog-section">
                     <h4 class="pl-dialog-section-title">Packaging And Size</h4>
                     <div class="pl-fields-grid">
-                        <div class="field">
-                            <label for="default_units_per_case">Default Units per Case</label>
-                            <InputText v-model="product.default_units_per_case" />
-                        </div>
-
+                        
                         <div class="field">
                             <label for="bag_size">Bag Size</label>
                             <Select v-model="product.bag_size"
@@ -264,7 +270,7 @@
                         </div>
 
                         <div class="field">
-                            <div v-if="product.fnsku || product.asin">
+                            <div v-if="product.is_processed">
                                 <label for="weight_lbs">Weight per Case (lbs)</label>
                                 <InputNumber v-model="product.weight_lbs" inputId="integeronly" />
                             </div>
@@ -385,7 +391,7 @@
                     </div>
                 </section>
 
-                <section class="pl-dialog-section" v-if="product.fnsku || product.asin">
+                <section class="pl-dialog-section" v-if="product.is_processed">
                     <h4 class="pl-dialog-section-title">Processed Product Recipe</h4>
                     <div class="field">
                         <label>Product(s) Needed</label>
@@ -398,7 +404,7 @@
                                 <div class="pl-fields-grid">
                                     <div class="field">
                                         <label for="name">Product Needed:</label>
-                                        <Select v-model="ing.product_id" required="true"
+                                        <Select v-model="ing.product_id" :required="true"
                                         placeholder="Select a Product" class="md:w-14rem" editable
                                         :options="unprocessedProducts"
                                         optionLabel="name"
@@ -424,8 +430,8 @@
                                     </div>
 
                                     <div class="field" style="max-width: 10rem;">
-                                        <label for="qty">QTY:</label>
-                                        <InputNumber inputId="stacked-buttons" required="true"
+                                        <label for="qty">Raw QTY (per Processed Unit):</label>
+                                        <InputNumber inputId="stacked-buttons" :required="true"
                                         :class="{'p-invalid': submitted && !ing.qty}"
                                         v-model="ing.qty" showButtons />
                                         <small class="p-error" v-if="submitted && !ing.qty">Amount is required.</small>
@@ -1083,17 +1089,14 @@ export default {
 
                 // console.log("PRODUCT BEFORE AWAIT",this.product);
 
-                const editedProduct = await action.editProduct(this.product, this.recipesInUse);
-
-                this.getRecipes();
-                
-                this.products[this.findIndexById(this.product.product_id)] = this.product;
+                await action.editProduct(this.product, this.recipesInUse);
+                // this.products[this.findIndexById(this.product.product_id)] = this.product;
                 await this.loadPage(this.currentPage);
+                this.getRecipes();
                 
                 // console.log("PRODUCT AFTER AWAIT",this.product);
                 //alert("Testing");
-                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 3000});
-                return editedProduct;
+                this.$toast.add({severity:'success', summary: 'Successful', detail: 'Case Updated', life: 6000});
             } catch (err) {
                 console.log(err);
                 this.$toast.add({severity:'error', summary: 'Error', detail: err});
@@ -1132,7 +1135,6 @@ export default {
 
                 recMap = {};
 
-                return addedProduct;
             } catch (err) {
                 console.log(err);
                 this.$toast.add({severity:'error', summary: 'Error', detail: err});
@@ -1145,7 +1147,7 @@ export default {
 
             console.log(this.product);
 
-            if(this.product.fnsku || this.product.asin){
+            if(this.product.is_processed){
                 console.log('Processed Product Edit');
                 let recipeMap = this.getProductRecipes(this.product.product_id);
 
@@ -1751,7 +1753,7 @@ export default {
     border: 1px solid #d6e2ee;
     border-radius: 12px;
     padding: 0.9rem 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    background: #000000;
 }
 
 .pl-dialog-section-title {

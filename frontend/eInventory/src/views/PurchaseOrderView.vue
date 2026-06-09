@@ -927,7 +927,7 @@
                             </template>
                             <template #editor={data}>
                                 <label for=""># of Boxes that Arrived:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" :required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = data.amount*data.units_per_case"
                                 />
@@ -1028,7 +1028,7 @@
             <div class="po-edit-layout">
             <div class="field">
                 <label for="purchase_order_name">Name</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
+                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" :required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
                     :disabled="isPoReadOnly"
                 />
             </div>
@@ -1465,7 +1465,7 @@
                                 {{ data.amount }}
                             </template>
                             <template #editor={data}>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" :required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = Math.round(data.amount*data.units_per_case)"
                                 />
@@ -1549,7 +1549,7 @@
 
                         <div class="field">
                             <label for="qty">Normal Case QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
+                            <InputNumber inputId="stacked-buttons" :required="true" 
                             :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
                             v-model="poCasesEdit.default_units_per_case" disabled
                             />
@@ -1558,7 +1558,7 @@
 
                         <div class="field">
                             <label for="amount">Cases Desired to Be Made</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
+                            <InputNumber inputId="stacked-buttons" :required="true" 
                             v-model="newPORecipe.amount" showButtons :min="1"
                             @update=""/>
                         </div>
