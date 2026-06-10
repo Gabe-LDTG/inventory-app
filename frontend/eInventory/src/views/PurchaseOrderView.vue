@@ -692,14 +692,24 @@
                                 <template #empty>No raw products found for this purchase order.</template>
                                 <Column field="product_name" header="Product" />
                                 <Column field="item_num" header="Item #" />
+                                <Column header="Unit for FBA">
+                                    <template #body="{ data }">
+                                        {{ (data.fba_prep || 0) + (data.store || 0) }}
+                                    </template>
+                                </Column>
+                                <Column field="fbm" header="Units for FBM" >
+                                    <template #body="{ data }">
+                                        {{ (data.fbm || 0) }}
+                                    </template>
+                                </Column>
                                 <Column field="total_units" header="Total Units" />
                                 <Column header="Unit Cost">
-                                    <template #body = {data}>
+                                    <template #body="{ data }">
                                         {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
                                     </template>
                                 </Column>
                                 <Column header="Total Cost">
-                                    <template #body = {data}>
+                                    <template #body="{ data }">
                                         {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
                                     </template>
                                 </Column>
@@ -895,7 +905,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
+        <!-- <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
 
             <div v-if="purchaseOrder.purchase_order_id">
 
@@ -955,7 +965,7 @@
                             <template #editor="{data}">
                                 <label for="location">Location:</label>
                                 <div class="container">
-                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> --
                                     <AutoComplete
                                         :modelValue="getLocationAutoCompleteValue(data.location_id)"
                                         :suggestions="filteredLocations"
@@ -975,7 +985,7 @@
                             </template>
                         </Column>
 
-                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> -->
+                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> --
                     
                         <Column >
                             <template #body="{data}">
@@ -990,13 +1000,13 @@
             </div>
 
             <template #footer>
-                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
+                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else --
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
-        </Dialog>
+        </Dialog> -->
 
         <!-- @TODO Make the width reactive to the size of the user's monitor -->
         <Dialog
@@ -1042,7 +1052,7 @@
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="vendor_name"
                 optionValue="vendor_id" 
-                :disabled="isPoReadOnly"/>
+                />
             </div>
 
             <div class="field">
@@ -1185,15 +1195,16 @@
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
             <DataTable 
-            class="po-edit-data-table" 
-            v-model:editingRows="rawEditingRows" 
-            :value="poBoxes" 
-            :rowStyle="editRowStyleRaw" 
-            dataKey="line_key" 
-            editMode="row" 
-            :loading="editRawRowsLoading" 
-            @row-edit-init="onPOBoxRowEditInit" 
-            @row-edit-save="onPORawLineEditSave">
+                class="po-edit-data-table" 
+                v-model:editingRows="rawEditingRows" 
+                :value="poBoxes" 
+                :rowStyle="editRowStyleRaw" 
+                dataKey="line_key" 
+                editMode="row" 
+                :loading="editRawRowsLoading" 
+                @row-edit-init="onPOBoxRowEditInit" 
+                @row-edit-save="onPORawLineEditSave"
+            >
                 <template #empty>
                     <div class="flex flex-column align-items-center gap-3 py-5">
                         <i class="pi pi-box text-4xl"></i>
@@ -1253,11 +1264,17 @@
                     </template>
                 </Column>
                 <Column header="Units for FBA" field="store">
+                    <template #body="{data}">
+                        {{ (data.store || 0) }}
+                    </template>
                     <template #editor="{data, field}">
                         <InputNumber v-model="data[field]" disabled/>
                     </template>
                 </Column>
                 <Column header="Units for FBM" field="fbm">
+                    <template #body="{data}">
+                        {{ (data.fbm || 0) }}
+                    </template>
                     <template #editor="{data, field}">
                         <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)"/>
                     </template>
@@ -1547,7 +1564,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
+        <!-- <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
 
             <div class="block-div">
@@ -1638,7 +1655,7 @@
                 <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
             </template>
-        </Dialog>
+        </Dialog> -->
 
         <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '960px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
@@ -4023,6 +4040,7 @@ export default {
 
         normalizeRawLineForTotals(line: any){
             if (!line) return line;
+            // console.log("Normalizing line for totals: ", line);
 
             const productId = Number(line.product_id || 0);
             const product = (this.products || []).find((p: any) => p.product_id === productId)
@@ -4046,9 +4064,14 @@ export default {
 
             const row = poRow || (this.purchaseOrders || []).find((po: any) => po.purchase_order_id === poId);
             const rowLines = Array.isArray(row?.po_raw_lines) ? row.po_raw_lines : [];
-            const sourceLines = rowLines.length > 0
-                ? rowLines
-                : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+            const globalLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+            // Prefer page-level canonical raw lines so dialog/table refreshes reflect recent edits immediately.
+            const sourceLines = rowLines.length > 0 ? globalLines : rowLines;
+
+            /**@TODO Figure out why the system is not updating the po_raw_lines inside of the order. I want to grab the row data, not the global data */
+            // const sourceLines = rowLines.length > 0 ? rowLines : globalLines;
+
+            // console.log("Source lines for PO ID " + poId, sourceLines);
 
             return (sourceLines || []).map((line: any) => this.normalizeRawLineForTotals(line));
         },
@@ -4078,10 +4101,13 @@ export default {
         ){
             if (!poId) return;
 
+            console.log(`Refreshing purchase order data for PO ID ${poId} with options:`, options);
+
             const { syncTable = true, syncDialog = true, patchRowData = {}, patchDialogData = {} } = options;
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === poId);
             const existingRow = poRowIdx > -1 ? this.purchaseOrders[poRowIdx] : null;
             const normalizedLines = this.getPurchaseOrderLinesForDisplay(poId, existingRow);
+            let refreshedRow = existingRow;
 
             if (syncTable && poRowIdx > -1) {
                 const nextPoRow = {
@@ -4090,22 +4116,34 @@ export default {
                     po_raw_lines: [...normalizedLines],
                 };
                 this.purchaseOrders.splice(poRowIdx, 1, nextPoRow);
+                refreshedRow = nextPoRow;
             }
 
-            if (syncDialog && Number(this.purchaseOrder?.purchase_order_id || 0) === poId) {
+            const dialogPoId = Number(this.purchaseOrder?.purchase_order_id || 0);
+            const detailPoId = Number(this.selectedDetailPo?.purchase_order_id || 0);
+            const dialogBase = refreshedRow || this.purchaseOrder || {};
+            const detailBase = refreshedRow || this.selectedDetailPo || {};
+
+            if (syncDialog && dialogPoId === poId) {
                 this.isInitializingPurchaseOrder = true;
                 this.purchaseOrder = {
-                    ...(this.purchaseOrder || {}),
-                    ...patchDialogData,
-                    po_raw_lines: [...normalizedLines],
-                };
-                this.selectedDetailPo = {
+                    ...dialogBase,
                     ...(this.purchaseOrder || {}),
                     ...patchDialogData,
                     po_raw_lines: [...normalizedLines],
                 };
                 this.$nextTick(() => { this.isInitializingPurchaseOrder = false; });
             }
+
+            if (syncDialog && detailPoId === poId) {
+                this.selectedDetailPo = {
+                    ...detailBase,
+                    ...(this.selectedDetailPo || {}),
+                    ...patchDialogData,
+                    po_raw_lines: [...normalizedLines],
+                };
+            }
+            console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
         },
 
         /**
@@ -4455,9 +4493,11 @@ export default {
             } else if (field === 'fbm'){
                 if(event.value > line.total){
                     line.fbm = line.total;
+                    line.store = 0;
                     this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total'});
+                } else {
+                    line.store = line.total - event.value - (line.fba_prep || 0);
                 }
-                line.store = 0;
             }
 
         },
@@ -4803,6 +4843,8 @@ export default {
                     if (refreshedProduct) {
                         nextRow.productObj = refreshedProduct;
                     }
+
+                    console.log("Updated row after saving missing defaults: ", JSON.stringify(nextRow));
 
                     return nextRow;
                 });
@@ -7033,6 +7075,8 @@ export default {
                 return;
             }
 
+            // console.log("Saving raw line edit with data:", newData);
+
             this.isSavingEditDialog = true;
 
             const normalizedStatus = this.normalizeRawLineStatus(newData.status || this.purchaseOrder.status);
@@ -7111,6 +7155,10 @@ export default {
             this.singlePoRawProducts = nextSinglePoRawProducts;
             const otherPoRawLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id !== poId);
             this.po_raw_products = [...otherPoRawLines, ...nextSinglePoRawProducts];
+            console.log("Updated singlePoRawProducts: ", this.singlePoRawProducts);
+            console.log("Updated Purchase Order: ", this.purchaseOrder);
+
+            // this.loadPage(this.currentPage);
 
             this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
 
@@ -7120,7 +7168,7 @@ export default {
                 severity: 'success',
                 summary: 'Raw Line Saved',
                 detail: totalUnits > 0 ? 'Raw line updated.' : 'Raw line removed.',
-                life: 4000,
+                life: 10000,
             });
 
             this.isSavingEditDialog = false;

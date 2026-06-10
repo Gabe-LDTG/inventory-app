@@ -1849,11 +1849,11 @@ var action = {
 
     //Add a Purchase Order Recipe
     async addPurchaseOrderRecipe(poRecipe: any){
-        const {data, error} = await supabase.rpc('create_po_recipe', {record_array: [
-            poRecipe.purchase_order_id,
-            poRecipe.recipe_id,
-            poRecipe.qty
-        ]});
+        const {data, error} = await supabase.rpc('create_po_recipe', {record_array: {
+            purchase_order_id: poRecipe.purchase_order_id,
+            recipe_id: poRecipe.recipe_id,
+            qty: poRecipe.qty
+        }});
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -1946,11 +1946,9 @@ var action = {
             status: rawLine.status,
         };
 
-        const {data, error} = await supabase
-            .from('po_raw_lines')
-            .insert(payload)
-            .select()
-            .single();
+        const {data, error} = await supabase.rpc('create_po_raw_line', {
+            received_raw_line_data: payload,
+        });
 
         if(error){
             console.error('Error creating purchase order raw line:', error);
@@ -2030,6 +2028,8 @@ var action = {
             notes: po_raw_line.notes ?? null,
             status: po_raw_line.status,
         };
+
+        console.log("Raw line payload to update: ", payload);
 
         const {data, error} = await supabase
             .from('po_raw_lines')
