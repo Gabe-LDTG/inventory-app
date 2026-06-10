@@ -1124,11 +1124,11 @@
                                         {{ inputRow.key?.default_units_per_case || 0 }}
                                     </template>
                                 </Column>
-                                <!-- <Column header="Units per Recipe Unit">
+                                <Column header="Units per Recipe Unit">
                                     <template #body="{data: inputRow}">
                                         {{ inputRow.rec?.qty || 0 }}
                                     </template>
-                                </Column> -->
+                                </Column>
                                 <Column header="Unit Price">
                                     <template #body="{data: inputRow}">
                                         {{ formatCurrency(inputRow.key?.price_2023) }}
@@ -1137,6 +1137,16 @@
                                 <Column header="Required Units">
                                     <template #body="{data: inputRow}">
                                         {{ inputRow.required_units }}
+                                    </template>
+                                </Column>
+                                <Column header="Whole Box Units">
+                                    <template #body="{data: inputRow}">
+                                        {{ (Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1))) * (inputRow.key?.default_units_per_case || 0) }}
+                                    </template>
+                                </Column>
+                                <Column header="# of Boxes">
+                                    <template #body="{data: inputRow}">
+                                        {{ Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1)) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Price" class="font-bold">
@@ -7068,6 +7078,7 @@ export default {
         async onPORawLineEditSave(event: any){
             if (!this.ensurePoEditable('save raw lines')) return;
             const { newData, index } = event;
+            console.log("Saving raw line edit with event data:", event);
             const poId = this.purchaseOrder?.purchase_order_id;
 
             if (!poId || !newData?.product_id) {
@@ -7369,20 +7380,31 @@ export default {
                     qty: desiredQty,
                 });
 
+                /**@TODO Figure out why raw lines are not consolidating in the dialog after new recipes are made */
+                // (Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1))) * (inputRow.key?.default_units_per_case || 0)
+                /**@TODO Make sure the total units is rounding up based on default units per case */
+
                 const rawInputs = (this.recipeElements || []).filter((re: any) => re.recipe_id === selectedRecipeId && re.type === 'input');
-                const rawLinesToInsert = rawInputs
-                    .map((rawInput: any) => ({
+                const rawLinesToInsert: any[] = [];
+                
+                rawInputs
+                    .forEach((rawInput: any) => {
+                        const rawKey = this.products.find((product: any) => product.product_id === rawInput.product_id);
+                        let totalUnits = Math.ceil((Number(rawInput.qty || 0)*desiredQty)/rawKey.default_units_per_case)*rawKey.default_units_per_case;
+
+                        rawLinesToInsert.push({
                         product_id: rawInput.product_id,
                         purchase_order_id: poId,
-                        total_units: Number((Number(rawInput.qty || 0) * desiredQty).toFixed(2)),
+                        total_units: totalUnits,
                         store: newData.store ?? 0,
                         fbm: newData.fbm ?? 0,
                         fba_prep: newData.fba_prep ?? 0,
                         status: this.normalizeRawLineStatus(this.purchaseOrder.status || 'Draft'),
                         notes: null,
                         invoice_id: null,
-                    }))
-                    .filter((line: any) => line.product_id && line.total_units > 0);
+                        });
+                    })
+                    // .filter((line: any) => line.product_id && line.total_units > 0);
 
                 if (rawLinesToInsert.length > 0) {
                     await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);

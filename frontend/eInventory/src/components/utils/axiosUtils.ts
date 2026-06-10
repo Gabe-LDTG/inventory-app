@@ -2031,12 +2031,9 @@ var action = {
 
         console.log("Raw line payload to update: ", payload);
 
-        const {data, error} = await supabase
-            .from('po_raw_lines')
-            .update(payload)
-            .eq('po_raw_line_id', po_raw_line.po_raw_line_id)
-            .select()
-            .single();
+        const {data, error} = await supabase.rpc('edit_po_raw_line', {
+            received_raw_line_data: payload,
+        });
 
         if(error){
             console.error('Error editing purchase order raw line:', error);
