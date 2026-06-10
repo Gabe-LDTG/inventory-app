@@ -1717,7 +1717,46 @@
                     </Column>
                     <Column field="item_num" header="Item #" sortable />
                     <Column field="total_units" header="Ordered Units" sortable />
-                    <Column header="Units Shipped">
+                    <Column header="Units for FBA Prep" field="fba_prep">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.fba_prep"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
+                                @input="onInboundUnitsInput($event, data, 'fba_prep')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Units for Store" field="store">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.store"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'store')"
+                                @input="onInboundUnitsInput($event, data, 'store')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Units for FBM" field="fbm">
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.fbm"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'fbm')"
+                                @input="onInboundUnitsInput($event, data, 'fbm')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Units Shipped" field="units_shipped">
                         <template #body="{ data }">
                             <InputNumber
                                 v-model="data.units_shipped"
@@ -1725,7 +1764,8 @@
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsInput(data, 'units_shipped')"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'units_shipped')"
+                                disabled
                             />
                         </template>
                     </Column>
@@ -1737,7 +1777,7 @@
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsInput(data, 'units_backordered')"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'units_backordered')"
                             />
                         </template>
                     </Column>
@@ -8334,10 +8374,21 @@ export default {
             };
         },
 
-        onInboundUnitsInput(line: any, field: 'units_shipped' | 'units_backordered') {
+        onInboundUnitsUpdate(line: any, field: 'units_shipped' | 'units_backordered' | 'fba_prep' | 'store' | 'fbm') {
             // Clamp to non-negative
             if (line[field] < 0 || line[field] == null) {
                 line[field] = 0;
+            }
+        },
+
+        onInboundUnitsInput(event: any, data: any, field: string){
+            console.log("Inbound input event: ", event);
+            if (field === 'fba_prep'){
+                data.units_shipped = event.value + data.store + data.fbm;
+            } else if (field === 'store') {
+                data.units_shipped = data.fba_prep + event.value + data.fbm;
+            } else if (field === 'fbm') {
+                data.units_shipped = data.fba_prep + data.store + event.value;
             }
         },
 
