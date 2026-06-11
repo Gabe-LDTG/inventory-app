@@ -225,10 +225,10 @@ var action = {
                 .order('product_id', { ascending: true });
     
             if(processed === 1){
-                query.or('fnsku.neq.null,asin.neq.null');
+                query.is('is_processed', true);
                 
             } else if(processed === 2){
-                query.is('fnsku', null).is('asin', null);
+                query.is('is_processed', false);
             } 
     
             if (filter_data !== '') {
@@ -460,84 +460,116 @@ var action = {
 
         console.log('Recipe Element Array: ', element_array);
 
-        let record_array = [
-            p.name, 
-            p.item_num, 
-            p.vendor_id, 
-            p.weight_lbs, 
-            p.box_type, 
-            p.box_cost, 
-            p.bag_size, 
-            p.bag_cost, 
-            p.price_2021, 
-            p.price_2022, 
-            p.price_2023, 
-            p.notes, 
-            p.date_added, 
-            p.upc, 
-            p.fnsku, 
-            p.asin, 
-            p.do_we_carry, 
-            p.process_time_per_unit_sec, 
-            p.meltable, 
-            p.map, 
-            p.in_shipping_cost,
-            p.out_shipping_cost, 
-            p.labor_cost, 
-            p.item_cost, 
-            p.misc_cost, 
-            p.amz_fees_cost, 
-            p.amz_fulfilment_cost, 
-            p.storage_cost_30_day, 
-            p.holiday_storage_cost, 
-            p.total_cost, 
-            p.total_holiday_cost, 
-            p.default_units_per_case, 
-            p.status, 
-            p.unit_box_cost
-        ];
-
-        let new_product = {} as any;
+        let product : {
+            name: string;
+            item_num: number;
+            vendor_id: number;
+            weight_lbs: number;
+            box_type: string;
+            box_cost: number;
+            bag_size: string;
+            bag_cost: number;
+            price_2021: number;
+            price_2022: number;
+            price_2023: number;
+            notes: string;
+            date_added: Date;
+            upc: string;
+            fnsku: string;
+            asin: string;
+            do_we_carry: string;
+            process_time_per_unit_sec: number;
+            meltable: string;
+            map: number;
+            in_shipping_cost: number;
+            out_shipping_cost: number;
+            labor_cost: number;
+            item_cost: number;
+            misc_cost: number;
+            amz_fees_cost: number;
+            amz_fulfilment_cost: number;
+            storage_cost_30_day: number;
+            holiday_storage_cost: number;
+            total_cost: number;
+            total_holiday_cost: number;
+            default_units_per_case: number;
+            status: string;
+            unit_box_cost: number;
+            is_processed: boolean;
+        } = {
+            name: p.name, 
+            item_num: p.item_num, 
+            vendor_id: p.vendor_id,
+            weight_lbs: p.weight_lbs,
+            box_type: p.box_type,
+            box_cost: p.box_cost,
+            bag_size: p.bag_size,
+            bag_cost: p.bag_cost,
+            price_2021: p.price_2021,
+            price_2022: p.price_2022,
+            price_2023: p.price_2023,
+            notes: p.notes,
+            date_added: p.date_added,
+            upc: p.upc,
+            fnsku: p.fnsku,
+            asin: p.asin,
+            do_we_carry: p.do_we_carry,
+            process_time_per_unit_sec: p.process_time_per_unit_sec,
+            meltable: p.meltable,
+            map: p.map,
+            in_shipping_cost: p.in_shipping_cost,
+            out_shipping_cost: p.out_shipping_cost,
+            labor_cost: p.labor_cost,
+            item_cost: p.item_cost,
+            misc_cost: p.misc_cost,
+            amz_fees_cost: p.amz_fees_cost,
+            amz_fulfilment_cost: p.amz_fulfilment_cost,
+            storage_cost_30_day: p.storage_cost_30_day,
+            holiday_storage_cost: p.holiday_storage_cost,
+            total_cost: p.total_cost,
+            total_holiday_cost: p.total_holiday_cost,
+            default_units_per_case: p.default_units_per_case,
+            status: p.status,
+            unit_box_cost: p.unit_box_cost,
+            is_processed: p.is_processed
+        };
 
         //MOVE OVER TO THE addRecipe() FUNCTION AND THEN CALL THAT FUNCTION IN HERE
         if(element_array.length > 0){
             console.log('Created processed product');
 
-            let recipe_2Darray = [] as any[];
+            const recipeElements = [] as any[];
 
             element_array.forEach((recipe_element: any) => {
-                recipe_2Darray.push([
-                    recipe_element.product_id,
-                    recipe_element.qty
-                ])
+                recipeElements.push({
+                    product_id: recipe_element.product_id,
+                    qty: recipe_element.qty
+                });
             })
 
-            console.log('2D Array', recipe_2Darray);
+            console.log('2D Array', recipeElements);
 
-            const {data, error} = await supabase.rpc('add_processed_product_text', {
-                product_record: record_array,
-                recipe_array: recipe_2Darray
+            const {data, error} = await supabase.rpc('create_product_key', {
+                new_product_data: product,
+                new_recipe_data: recipeElements
             });
             if(error){
                 console.error(error);
                 throw error;
             } else {
-                console.log('Successfully Added Processed Product: ', data);
-                new_product = data;
+                console.log('Successfully Added Processed Product');
             }
         } else {    
             console.log('Creating raw product');
-            const {data, error} = await supabase.rpc('add_raw_product_text', {product_record: record_array});
+            const {data, error} = await supabase.rpc('create_product_key', {new_product_data: product});
             if(error){
                 console.error('Error calling RPC:', error);
                 throw error;
             } else {
-                console.log('Newly Added Raw Product:', data);
-                new_product = data;
+                console.log('Newly Added Raw Product:');
             }
         }
 
-        return new_product;
     },
 
     //Removes a product from the database using API
@@ -557,94 +589,124 @@ var action = {
 
         console.log('Product: ', p, 'Recipe: ', r);
 
-        let record_array = [
-            p.product_id,
-            p.name, 
-            p.item_num, 
-            p.vendor_id, 
-            p.weight_lbs, 
-            p.box_type, 
-            p.box_cost, 
-            p.bag_size, 
-            p.bag_cost, 
-            p.price_2021, 
-            p.price_2022, 
-            p.price_2023, 
-            p.notes, 
-            p.date_added, 
-            p.upc, 
-            p.fnsku, 
-            p.asin, 
-            p.do_we_carry, 
-            p.process_time_per_unit_sec, 
-            p.meltable, 
-            p.map, 
-            p.in_shipping_cost,
-            p.out_shipping_cost, 
-            p.labor_cost, 
-            p.item_cost, 
-            p.misc_cost, 
-            p.amz_fees_cost, 
-            p.amz_fulfilment_cost, 
-            p.storage_cost_30_day, 
-            p.holiday_storage_cost, 
-            p.total_cost, 
-            p.total_holiday_cost, 
-            p.default_units_per_case, 
-            p.status, 
-            p.unit_box_cost
-        ];
+        let product : {
+            product_id: number;
+            name: string;
+            item_num: number;
+            vendor_id: number;
+            weight_lbs: number;
+            box_type: string;
+            box_cost: number;
+            bag_size: string;
+            bag_cost: number;
+            price_2021: number;
+            price_2022: number;
+            price_2023: number;
+            notes: string;
+            date_added: Date;
+            upc: string;
+            fnsku: string;
+            asin: string;
+            do_we_carry: string;
+            process_time_per_unit_sec: number;
+            meltable: string;
+            map: number;
+            in_shipping_cost: number;
+            out_shipping_cost: number;
+            labor_cost: number;
+            item_cost: number;
+            misc_cost: number;
+            amz_fees_cost: number;
+            amz_fulfilment_cost: number;
+            storage_cost_30_day: number;
+            holiday_storage_cost: number;
+            total_cost: number;
+            total_holiday_cost: number;
+            default_units_per_case: number;
+            status: string;
+            unit_box_cost: number;
+            is_processed: boolean;
+        } = {
+            product_id: p.product_id,
+            name: p.name, 
+            item_num: p.item_num, 
+            vendor_id: p.vendor_id,
+            weight_lbs: p.weight_lbs,
+            box_type: p.box_type,
+            box_cost: p.box_cost,
+            bag_size: p.bag_size,
+            bag_cost: p.bag_cost,
+            price_2021: p.price_2021,
+            price_2022: p.price_2022,
+            price_2023: p.price_2023,
+            notes: p.notes,
+            date_added: p.date_added,
+            upc: p.upc,
+            fnsku: p.fnsku,
+            asin: p.asin,
+            do_we_carry: p.do_we_carry,
+            process_time_per_unit_sec: p.process_time_per_unit_sec,
+            meltable: p.meltable,
+            map: p.map,
+            in_shipping_cost: p.in_shipping_cost,
+            out_shipping_cost: p.out_shipping_cost,
+            labor_cost: p.labor_cost,
+            item_cost: p.item_cost,
+            misc_cost: p.misc_cost,
+            amz_fees_cost: p.amz_fees_cost,
+            amz_fulfilment_cost: p.amz_fulfilment_cost,
+            storage_cost_30_day: p.storage_cost_30_day,
+            holiday_storage_cost: p.holiday_storage_cost,
+            total_cost: p.total_cost,
+            total_holiday_cost: p.total_holiday_cost,
+            default_units_per_case: p.default_units_per_case,
+            status: p.status,
+            unit_box_cost: p.unit_box_cost,
+            is_processed: p.is_processed
+        };
 
-        let recipe_elements = r;
+        let elementArray = r;
 
-        console.log('Recipe Elements: ', recipe_elements);
-
-        let element_array = [] as any[];
-
-        if(recipe_elements){
-            recipe_elements.forEach((element: any) => {
-                console.log(element.product_id);
-                if(element.product_id)
-                    element_array.push(element);
-            });
-        }
+        console.log('Recipe Elements: ', elementArray);
         
 
-        if(element_array.length >0){
+        if(elementArray.length >0){
             console.log('Updated Processed Product')
 
             console.log('Created processed product');
 
-            let recipe_2Darray = [] as any[];
+            let recipeElements = [] as any[];
 
-            element_array.forEach((recipe_element: any) => {
-                recipe_2Darray.push([
-                    recipe_element.recipe_element_id,
-                    recipe_element.product_id,
-                    recipe_element.qty,
-                    recipe_element.recipe_id
-                ])
+            elementArray.forEach((element: any) => {
+                if (element.product_id){
+                    recipeElements.push({
+                        recipe_element_id: element.recipe_element_id,
+                        product_id: element.product_id,
+                        qty: element.qty,
+                        recipe_id: element.recipe_id
+                    });
+                }
             })
 
-            const {data, error} = await supabase.rpc('edit_processed_product_text', {
-                product_record: record_array,
-                recipe_array: recipe_2Darray
+            const {data, error} = await supabase.rpc('update_product_key', {
+                updated_product_data: product,
+                updated_recipe_data: recipeElements
             })
             if(error){
                 console.error('Error calling RPC: ', error);
                 throw error;
             } else {
-                console.log('Processed Product Key updated: ', data);
+                console.log('Processed Product Key updated');
             }
 
         } else {
             console.log('Updated Raw Product')
-            const {data, error} = await supabase.rpc('edit_raw_product_text',{product_record: record_array})
+            const {data, error} = await supabase.rpc('update_product_key',{updated_product_data: product})
             if(error){
                 console.error('Error calling RPC: ', error);
                 throw error;
             } else {
-                console.log('Raw Product key updated: ', data);
+                console.log('Raw Product key updated');
             }
         }
     },
@@ -1735,6 +1797,18 @@ var action = {
 
     },
 
+    // Get requests linked to a purchase order
+    async getPurchaseOrderRequests(po_id: number){
+        const {data, error} = await supabase.rpc('check_for_po_requests', {po_id: po_id});
+        if(error){
+            console.error('Error fetching purchase order requests: ', error);
+            throw error;
+        } else {
+            console.log('Purchase Order Requests: ', data);
+            return data;
+        }
+    },
+
     //Get Purchase Order Recipes
     async getPurchaseOrderRecipes(){
         const query = supabase.from('po_recipes').select('*');
@@ -1775,11 +1849,11 @@ var action = {
 
     //Add a Purchase Order Recipe
     async addPurchaseOrderRecipe(poRecipe: any){
-        const {data, error} = await supabase.rpc('create_po_recipe', {record_array: [
-            poRecipe.purchase_order_id,
-            poRecipe.recipe_id,
-            poRecipe.qty
-        ]});
+        const {data, error} = await supabase.rpc('create_po_recipe', {record_array: {
+            purchase_order_id: poRecipe.purchase_order_id,
+            recipe_id: poRecipe.recipe_id,
+            qty: poRecipe.qty
+        }});
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -1854,6 +1928,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }){
@@ -1862,15 +1939,16 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         };
 
-        const {data, error} = await supabase
-            .from('po_raw_lines')
-            .insert(payload)
-            .select()
-            .single();
+        const {data, error} = await supabase.rpc('create_po_raw_line', {
+            received_raw_line_data: payload,
+        });
 
         if(error){
             console.error('Error creating purchase order raw line:', error);
@@ -1889,6 +1967,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }[]){
@@ -1901,6 +1982,9 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         }));
@@ -1927,6 +2011,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }){
@@ -1935,16 +2022,18 @@ var action = {
             purchase_order_id: po_raw_line.purchase_order_id,
             invoice_id: po_raw_line.invoice_id ?? null,
             total_units: po_raw_line.total_units,
+            store: po_raw_line.store ?? 0,
+            fbm: po_raw_line.fbm ?? 0,
+            fba_prep: po_raw_line.fba_prep ?? 0,
             notes: po_raw_line.notes ?? null,
             status: po_raw_line.status,
         };
 
-        const {data, error} = await supabase
-            .from('po_raw_lines')
-            .update(payload)
-            .eq('po_raw_line_id', po_raw_line.po_raw_line_id)
-            .select()
-            .single();
+        console.log("Raw line payload to update: ", payload);
+
+        const {data, error} = await supabase.rpc('edit_po_raw_line', {
+            received_raw_line_data: payload,
+        });
 
         if(error){
             console.error('Error editing purchase order raw line:', error);
@@ -1961,6 +2050,9 @@ var action = {
         purchase_order_id: number;
         invoice_id?: number | null;
         total_units: number;
+        store?: number;
+        fbm?: number;
+        fba_prep?: number;
         notes?: string | null;
         status: string;
     }[]){
@@ -1974,6 +2066,9 @@ var action = {
             purchase_order_id: rawLine.purchase_order_id,
             invoice_id: rawLine.invoice_id ?? null,
             total_units: rawLine.total_units,
+            store: rawLine.store ?? 0,
+            fbm: rawLine.fbm ?? 0,
+            fba_prep: rawLine.fba_prep ?? 0,
             notes: rawLine.notes ?? null,
             status: rawLine.status,
         }));

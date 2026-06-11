@@ -6,9 +6,14 @@
                 <template #start>
                     <div class="po-toolbar-filters">
                         <span class="p-input-icon-right po-toolbar-filter po-toolbar-filter--search">
-                            <InputText v-model="searchText" placeholder="Search purchase orders..." />
+                            <div v-tooltip.top="isSearchBarDisabled() ? 'Search bar disabled when filters are in place' : null">
+                                <InputText v-model="searchText" placeholder="Search purchase orders..." :disabled="isSearchBarDisabled()"/>
+                            </div>
                         </span>
                         <div class="po-view-toggle" role="group" aria-label="Purchase order layout mode">
+                            <div v-tooltip.top="isFilterBoxDisabled() ? 'Filter box disabled when search is in place' : null">
+                                <Button :icon="setFilterIcon()" class="p-button-rounded p-button-text" @click="openFilterMenu" :disabled="isFilterBoxDisabled()" />
+                            </div>
                             <Button
                                 label="Cards"
                                 icon="pi pi-id-card"
@@ -56,7 +61,7 @@
                 <div class="po-card-grid-header">
                     <h4 class="m-0">Manage Purchase Orders</h4>
                     <div class="po-header-actions">
-                        <ZoomDropdown v-model="tableZoom" />
+                        <!-- <ZoomDropdown v-model="tableZoom" /> -->
                         <Button
                             label="New PO"
                             icon="pi pi-plus"
@@ -106,6 +111,15 @@
                                         :disabled="po.status === ''"
                                         @click.stop="openEditWorkspace(po)"
                                     />
+                                    <div v-tooltip.top="isOrderDeleteButtonDisabled(po) ? 'Only Orders with a status of Draft can be deleted.' : null">
+                                    <Button
+                                        label="Delete PO"
+                                        icon="pi pi-trash"
+                                        class="po-action-btn po-action-btn--danger"
+                                        @click.stop="confirmDeletePurchaseOrder(po)"
+                                        :disabled="isOrderDeleteButtonDisabled(po)"
+                                    />
+                                    </div>
                                 </div>
                             </Popover>
                         </header>
@@ -114,6 +128,9 @@
                             <div class="po-progress-track" :title="getPoProgressSummary(po)">
                                 <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(po, 'delivered')"></div>
                                 <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(po, 'inbound')"></div>
+                                <div class="po-progress-segment po-progress-segment--ordered" :style="getPoProgressSegmentStyle(po, 'ordered')"></div>
+                                <div class="po-progress-segment po-progress-segment--backordered" :style="getPoProgressSegmentStyle(po, 'back ordered')"></div>
+                                <div class="po-progress-segment po-progress-segment--flagged" :style="getPoProgressSegmentStyle(po, 'flagged')"></div>
                                 <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(po, 'other')"></div>
                             </div>
                             <div class="po-progress-meta">{{ getPoProgressSummary(po) }}</div>
@@ -592,6 +609,9 @@
                                     <div class="po-progress-track" :title="getPoProgressSummary(selectedDetailPo)">
                                         <div class="po-progress-segment po-progress-segment--delivered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'delivered')"></div>
                                         <div class="po-progress-segment po-progress-segment--inbound" :style="getPoProgressSegmentStyle(selectedDetailPo, 'inbound')"></div>
+                                        <div class="po-progress-segment po-progress-segment--ordered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'ordered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--backordered" :style="getPoProgressSegmentStyle(selectedDetailPo, 'back ordered')"></div>
+                                        <div class="po-progress-segment po-progress-segment--flagged" :style="getPoProgressSegmentStyle(selectedDetailPo, 'flagged')"></div>
                                         <div class="po-progress-segment po-progress-segment--other" :style="getPoProgressSegmentStyle(selectedDetailPo, 'other')"></div>
                                     </div>
                                     <div class="po-progress-meta">{{ getPoProgressSummary(selectedDetailPo) }}</div>
@@ -667,18 +687,29 @@
                     <div class="po-workspace-section">
                         <details class="po-detail-collapsible">
                             <summary>Raw Products ({{ detailRawLines.length }})</summary>
+                            <small style="color: red;" v-if="doesPOHaveFlaggedLine(detailSelectedPoId)">*This order contains at least one flagged product. Contact the vendor to confirm this product is still on the order.</small>
                             <DataTable :value="detailRawLines" dataKey="line_key" size="small" class="po-detail-table po-detail-table--blue" showGridlines :rowStyle="detailRowStyleRaw">
                                 <template #empty>No raw products found for this purchase order.</template>
                                 <Column field="product_name" header="Product" />
                                 <Column field="item_num" header="Item #" />
+                                <Column header="Unit for FBA">
+                                    <template #body="{ data }">
+                                        {{ (data.fba_prep || 0) + (data.store || 0) }}
+                                    </template>
+                                </Column>
+                                <Column field="fbm" header="Units for FBM" >
+                                    <template #body="{ data }">
+                                        {{ (data.fbm || 0) }}
+                                    </template>
+                                </Column>
                                 <Column field="total_units" header="Total Units" />
                                 <Column header="Unit Cost">
-                                    <template #body = {data}>
+                                    <template #body="{ data }">
                                         {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)) : 'N/A'}}
                                     </template>
                                 </Column>
                                 <Column header="Total Cost">
-                                    <template #body = {data}>
+                                    <template #body="{ data }">
                                         {{getUnitCost(data.product_id) ? formatCurrency(getUnitCost(data.product_id)*data.total_units*(1-(getPurchaseOrderDiscount(selectedDetailPo.purchase_order_id)))) : 'N/A'}}
                                     </template>
                                 </Column>
@@ -874,7 +905,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
+        <!-- <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
 
             <div v-if="purchaseOrder.purchase_order_id">
 
@@ -906,7 +937,7 @@
                             </template>
                             <template #editor={data}>
                                 <label for=""># of Boxes that Arrived:</label>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" :required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = data.amount*data.units_per_case"
                                 />
@@ -934,7 +965,7 @@
                             <template #editor="{data}">
                                 <label for="location">Location:</label>
                                 <div class="container">
-                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> --
                                     <AutoComplete
                                         :modelValue="getLocationAutoCompleteValue(data.location_id)"
                                         :suggestions="filteredLocations"
@@ -954,7 +985,7 @@
                             </template>
                         </Column>
 
-                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> -->
+                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> --
                     
                         <Column >
                             <template #body="{data}">
@@ -969,13 +1000,13 @@
             </div>
 
             <template #footer>
-                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else -->
+                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else --
                 <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
                 <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
                 <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
                 <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
             </template>
-        </Dialog>
+        </Dialog> -->
 
         <!-- @TODO Make the width reactive to the size of the user's monitor -->
         <Dialog
@@ -1007,7 +1038,7 @@
             <div class="po-edit-layout">
             <div class="field">
                 <label for="purchase_order_name">Name</label>
-                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
+                <InputText id="name" v-model.trim="purchaseOrder.purchase_order_name" :required="true" autofocus :class="{'p-invalid': submitted == true && (!purchaseOrder.purchase_order_name || purchaseOrder.purchase_order_name == '')}" 
                     :disabled="isPoReadOnly"
                 />
             </div>
@@ -1020,7 +1051,8 @@
                 filter
                 :virtualScrollerOptions="{ itemSize: 38 }"
                 optionLabel="vendor_name"
-                optionValue="vendor_id" />
+                optionValue="vendor_id" 
+                />
             </div>
 
             <div class="field">
@@ -1092,11 +1124,11 @@
                                         {{ inputRow.key?.default_units_per_case || 0 }}
                                     </template>
                                 </Column>
-                                <!-- <Column header="Units per Recipe Unit">
+                                <Column header="Units per Recipe Unit">
                                     <template #body="{data: inputRow}">
                                         {{ inputRow.rec?.qty || 0 }}
                                     </template>
-                                </Column> -->
+                                </Column>
                                 <Column header="Unit Price">
                                     <template #body="{data: inputRow}">
                                         {{ formatCurrency(inputRow.key?.price_2023) }}
@@ -1105,6 +1137,16 @@
                                 <Column header="Required Units">
                                     <template #body="{data: inputRow}">
                                         {{ inputRow.required_units }}
+                                    </template>
+                                </Column>
+                                <Column header="Whole Box Units">
+                                    <template #body="{data: inputRow}">
+                                        {{ (Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1))) * (inputRow.key?.default_units_per_case || 0) }}
+                                    </template>
+                                </Column>
+                                <Column header="# of Boxes">
+                                    <template #body="{data: inputRow}">
+                                        {{ Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1)) }}
                                     </template>
                                 </Column>
                                 <Column header="Total Price" class="font-bold">
@@ -1157,11 +1199,22 @@
             <br>
             </section>
 
+
             <section class="po-edit-section-card">
             <div class="field">
                 <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full po-edit-section-title">Raw Boxes</h3>
             </div>
-            <DataTable class="po-edit-data-table" v-model:editingRows="rawEditingRows" :value="poBoxes" :rowStyle="editRowStyleRaw" dataKey="line_key" editMode="row" :loading="editRawRowsLoading" @row-edit-init="onPOBoxRowEditInit" @row-edit-save="onPOBoxRowEditSave">
+            <DataTable 
+                class="po-edit-data-table" 
+                v-model:editingRows="rawEditingRows" 
+                :value="poBoxes" 
+                :rowStyle="editRowStyleRaw" 
+                dataKey="line_key" 
+                editMode="row" 
+                :loading="editRawRowsLoading" 
+                @row-edit-init="onPOBoxRowEditInit" 
+                @row-edit-save="onPORawLineEditSave"
+            >
                 <template #empty>
                     <div class="flex flex-column align-items-center gap-3 py-5">
                         <i class="pi pi-box text-4xl"></i>
@@ -1207,7 +1260,7 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.total = data.amount*data.units_per_case"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
                     </template>
                 </Column>
                 <Column header="Units per Box" field="units_per_case">
@@ -1220,9 +1273,25 @@
                         {{ formatCurrency(getUnitCost(data.product_id)) }}
                     </template>
                 </Column>
+                <Column header="Units for FBA" field="store">
+                    <template #body="{data}">
+                        {{ (data.store || 0) }}
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" disabled/>
+                    </template>
+                </Column>
+                <Column header="Units for FBM" field="fbm">
+                    <template #body="{data}">
+                        {{ (data.fbm || 0) }}
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)"/>
+                    </template>
+                </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.amount = data.total/data.units_per_case"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
                         <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
@@ -1310,6 +1379,19 @@
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="cancelOrderDialog = false"/>
                 <Button label="Yes" icon="pi pi-check" text @click="cancelOrder" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="deleteOrderDialog" :style="{width: '450px'}" header="Confirm" :modal="true">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                <span v-if="purchaseOrder">Are you sure you want to delete purchase order <b>{{purchaseOrder.purchase_order_name}}</b>? This action cannot be undone.</span><br><br>
+                <span>NOTE: This will delete all associated raw products, planned cases invoices. To continue, please enter the full phrase, "Delete {{purchaseOrder.purchase_order_name}}"</span>
+                <InputText v-model="deleteOrderText" class="w-full mt-3" :disabled="!purchaseOrder" placeholder='Type the confirmation phrase here' />
+            </div>
+            <template #footer>
+                <Button label="No" icon="pi pi-times" text @click="deleteOrderDialog = false"/>
+                <Button label="Yes" icon="pi pi-check" text @click="deletePurchaseOrder(purchaseOrder)" severity="danger" :disabled="deleteOrderText !== 'Delete ' + purchaseOrder.purchase_order_name"/>
             </template>
         </Dialog>
 
@@ -1431,7 +1513,7 @@
                                 {{ data.amount }}
                             </template>
                             <template #editor={data}>
-                                <InputNumber inputId="stacked-buttons" required="true" 
+                                <InputNumber inputId="stacked-buttons" :required="true" 
                                 v-model="data.amount" showButtons
                                 @update:model-value="data.total = Math.round(data.amount*data.units_per_case)"
                                 />
@@ -1492,7 +1574,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
+        <!-- <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
             <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
 
             <div class="block-div">
@@ -1515,7 +1597,7 @@
 
                         <div class="field">
                             <label for="qty">Normal Case QTY:</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
+                            <InputNumber inputId="stacked-buttons" :required="true" 
                             :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
                             v-model="poCasesEdit.default_units_per_case" disabled
                             />
@@ -1524,7 +1606,7 @@
 
                         <div class="field">
                             <label for="amount">Cases Desired to Be Made</label>
-                            <InputNumber inputId="stacked-buttons" required="true" 
+                            <InputNumber inputId="stacked-buttons" :required="true" 
                             v-model="newPORecipe.amount" showButtons :min="1"
                             @update=""/>
                         </div>
@@ -1583,9 +1665,9 @@
                 <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
                 <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
             </template>
-        </Dialog>
+        </Dialog> -->
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '960px' }" @hide="onInboundDialogHide">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Plan Out Invoice for Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '1200px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
 
                 <div class="inbound-invoice-name-field">
@@ -1615,31 +1697,144 @@
                     <Column header="Remaining"><template #body><div class="skeleton-line skeleton-line--number skeleton-line--total"></div></template></Column>
                 </DataTable>
 
-                <DataTable v-else :value="inboundLineAllocations" stripedRows showGridlines responsiveLayout="scroll" class="inbound-lines-table">
+                <DataTable v-else 
+                    :value="inboundLineAllocations" 
+                    stripedRows 
+                    showGridlines 
+                    responsiveLayout="scroll" 
+                    class="inbound-lines-table"
+                    scrollable 
+                    scrollHeight="800px"
+                >
                     <template #empty>
                         No eligible raw products are available to inbound for this purchase order.
                     </template>
 
-                    <Column field="product_name" header="Product" sortable >
+                    <Column field="product_name" header="Product" sortable frozen  >
                         <template #body="{ data }">
                             {{ data.product_name || data.name }}
                         </template>
                     </Column>
-                    <Column field="item_num" header="Item #" sortable />
-                    <Column field="total_units" header="Ordered Units" sortable />
-                    <Column header="Units Shipped">
+                    <Column field="item_num" header="Item #" sortable frozen  />
+                    <Column field="total_units" header="Ordered Units" sortable frozen  :pt="{
+                            bodyCell: { style: { zIndex: 10, position: 'sticky' } },
+                            headerCell: { style: { zIndex: 11, position: 'sticky' } }
+                        }"
+                    />
+                    <Column header="Planned Units for FBA Prep" field="fba_prep" :pt="{
+                            bodyCell: ({ context }) => ({
+                                root: { style: { zIndex: 1, position: 'relative' } },
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.fba_prep || 0 }}
+                        </template>
+                    </Column>
+                     <Column header="Shipped (FBA Prep)" field="fba_prep" class="inbound-fba-prep" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                     >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.units_shipped"
+                                v-model="data.fba_prep_shipped"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsInput(data, 'units_shipped')"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
+                                @input="onInboundUnitsInput($event, data, 'fba_prep')"
+                                :pt="{
+                                    /* Force input to stack layout flat at 0 so it stays underneath the frozen column (zIndex 10) */
+                                    root: { style: { zIndex: 0, position: 'relative' } }
+                                }" 
                             />
                         </template>
                     </Column>
-                    <Column header="Units Back Ordered">
+                    <Column header="Planned Units to Store" field="store" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.store || 0 }}
+                        </template>
+                    </Column>
+                    <Column header="Shipped (Store)" field="store" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.store_shipped"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'store')"
+                                @input="onInboundUnitsInput($event, data, 'store')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Planned Units for FBM" field="fbm" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.fbm || 0 }}
+                        </template>
+                    </Column>
+                     <Column header="Shipped (FBM)" field="fbm" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                     >
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.fbm_shipped"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'fbm')"
+                                @input="onInboundUnitsInput($event, data, 'fbm')"
+                            />
+                        </template>
+                    </Column>
+                    <Column header="Units Shipped" field="units_shipped">
+                        <template #body="{ data }">
+                            {{ data.units_shipped || 0 }}
+                        </template>
+                    </Column>
+                    <Column header="Units Back Ordered" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#e99149' : '#e99149' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
                             <InputNumber
                                 v-model="data.units_backordered"
@@ -1647,7 +1842,8 @@
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsInput(data, 'units_backordered')"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'units_backordered')"
+                                @input="onInboundUnitsInput($event, data, 'backordered')"
                             />
                         </template>
                     </Column>
@@ -1742,6 +1938,8 @@
                     showGridlines
                     responsiveLayout="scroll"
                     class="receive-invoice-table"
+                    scrollable 
+                    scrollHeight="800px"
                 >
                     <template #empty>
                         No invoice-linked raw lines are currently available to receive for this purchase order.
@@ -1905,6 +2103,47 @@
                 <Button label="Save Invoice" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="saveInvoiceEdits" :loading="invoiceEditSaving" />
             </template>
         </Dialog>
+
+        <Dialog
+            v-model:visible="filterDialog"
+            header="Filter Purchase Orders"
+        >
+            <div class="p-fluid">
+                <div class="field">
+                    <label for="filterField">Filter By</label>
+                    <Select id="filterField" v-model="filterMenuField" :options="[
+                        { label: 'Purchase Order Name', value: 'purchase_order_name' },
+                        { label: 'Vendor Name', value: 'vendor_id' },
+                    ]" optionLabel="label" optionValue="value" placeholder="Select a field to filter by" @change="filterMenuValue=''; filterMenuVendor=null" />
+                </div>
+                
+                <div v-if="filterMenuField === 'vendor_id'" class="field">
+                    <label for="filterMenuValue">Vendor</label>
+                    <AutoComplete 
+                        id="filterMenuValue"
+                        v-model="filterMenuVendor"
+                        :suggestions="filteredVendors"
+                        @complete="searchVendors"
+                        @focus="searchVendors({ query: '' })"
+                        @item-select="onFilterVendorSelect($event.value)"
+                        :dropdown="true"
+                        :showOnFocus="true"
+                        :optionLabel="'vendor_name'"
+                        placeholder="Select a vendor to filter by"
+                    />
+                </div>
+                <div v-else class="field">
+                    <label for="searchText">Search Text</label>
+                    <InputText id="searchText" v-model="filterMenuValue" placeholder="Enter search text" />
+                </div>
+
+                <div class="field">
+                    <Button label="Apply Filter" icon="pi pi-filter" class="p-button-primary" @click="applyFilter" :disabled="!filterMenuField && (!filterMenuValue.trim() || !filterMenuVendor)" />
+                    <Button label="Clear Filter" icon="pi pi-filter-slash" class="p-button-secondary" @click="clearFilter" :disabled="!filterMenuField && (!filterMenuValue.trim() || !filterMenuVendor)" />
+                </div>
+            </div>
+
+        </Dialog>
         
     </div>
 </template>
@@ -1955,25 +2194,16 @@ export default {
             purchaseOrderDialog: false,
             selectedPurchaseOrder: [] as any[],
             cancelOrderDialog: false,
-            rawProductCancelDialog: false,
-            rawProductToCancel: null as any,
+            deleteOrderDialog: false,
+            deleteOrderText: "",
             editPurchaseOrderDialog: false,
             newPurchaseOrderProductDialog: false,
-            editingRows: [] as any[],
-            rawEditingRows: [] as any[] | Record<string, boolean>,
-            recipeEditingRows: [] as any[],
-            editRawRowsLoading: false,
-            editRecipeRowsLoading: false,
             unsavedChangesDialog: false,
-            rawOrderType: ['By Box', 'By Unit'],
-            selectedOrderType: "",
             statusChangeDialog: false,
             receivedDialog: false,
             newStatus: "",
             headerData: { name: '', vendor_id: 0, status: '', notes: '', discount: 0, date_ordered: null, date_received: null},
             inboundPurchaseOrderDialog: false,
-            inboundBoxesLoading: false,
-            inboundBoxes: [] as any[],
             inboundInvoiceName: '' as string,
             inboundLineAllocations: [] as any[],
             inboundSubmitted: false,
@@ -2004,6 +2234,22 @@ export default {
 
             selectedDetailPo: null as any,
             detailDialogVisible: false,
+
+            // PO RAW LINES
+            rawProductCancelDialog: false,
+            rawProductToCancel: null as any,
+            editingRows: [] as any[],
+            rawEditingRows: [] as any[] | Record<string, boolean>,
+            editRawRowsLoading: false,
+            inboundBoxesLoading: false,
+            inboundBoxes: [] as any[],
+            rawOrderType: ['By Box', 'By Unit'],
+            selectedOrderType: "",
+            
+
+            // PO RECIPES
+            recipeEditingRows: [] as any[],
+            editRecipeRowsLoading: false,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -2100,7 +2346,12 @@ export default {
                 { label: 'Inbound', status: 'Inbound', icon: 'pi pi-truck' },
                 { label: 'Delivered', status: 'Delivered', icon: 'pi pi-check' },
             ],
+            filterDialog: false,
+            filterMenuField: '',
+            filterMenuValue: '',
+            filterMenuVendor: {} as any,
             filterField: '',
+            filterValue: '',
             searchText: '',
             currentPage: 1,
             rowsPerPage: 25,
@@ -2131,6 +2382,7 @@ export default {
         this.loadPoViewModePreference();
         this.lazySave = debounce(() => this.save(), 250, { trailing: true }) as (() => Promise<void>);
         this.onSearchDebounced = debounce(async () => {
+            this.filterValue = this.searchText;
             this.currentPage = 1;
             this.tableLoading = true;
             await this.loadPage(1);
@@ -2145,7 +2397,10 @@ export default {
         }
         },
         searchText: {
-            handler() { this.onSearchDebounced(); }
+            handler() { 
+                if(this.filterDialog) return; // don't trigger search when changing search text from filter dialog
+                this.onSearchDebounced(); 
+            }
         },
         poViewMode: {
             handler() { this.persistPoViewModePreference(); }
@@ -2287,11 +2542,48 @@ export default {
             const poId = this.detailSelectedPoId;
             if (!poId) return [];
 
+            const sourceLines = this.getPurchaseOrderLinesForDisplay(poId, this.selectedDetailPo);
             const groupedByProduct = new Map<string, any>();
 
-            return (this.purchaseOrder.po_raw_lines || [])
+            (sourceLines || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled')
+                .forEach((line: any, idx: number) => {
+                    const productId = Number(line?.product_id || 0);
+                    const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
+                    const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
+                    const key = productId > 0
+                        ? `product-${productId}`
+                        : `product-name-${String(productName).toLowerCase()}`;
+
+                    const existing = groupedByProduct.get(key);
+                    
+                    let nameForLine = productName;
+
+                    if(line?.status === 'Flagged')
+                        nameForLine+='*';
+
+                    if (existing && line?.status !== 'Flagged') {
+                        existing.total_units += Number(line?.total_units || 0);
+                    } else {
+                        groupedByProduct.set(key, {
+                            ...line,
+                            line_key: key,
+                            product_id: productId || null,
+                            product_name: nameForLine,
+                            item_num: itemNum,
+                            total_units: Number(line?.total_units || 0),
+                            first_seen_idx: idx,
+                        });
+                    }
+                });
+
+            return Array.from(groupedByProduct.values())
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')))
                 .map((line: any) => {
+                    const { first_seen_idx, ...rest } = line;
+                    return rest;
+                });
+                /* .map((line: any) => {
                     const productId = Number(line?.product_id || 0);
                     const productName = line?.product_name || this.getProductInfo(productId, 'name') || 'Unknown product';
                     const itemNum = line?.item_num || this.getProductInfo(productId, 'item_num') || '';
@@ -2315,7 +2607,7 @@ export default {
 
                     return existing;
                 })
-                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')));
+                .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || ''))); */
 
                 /*
                 .reduce((array: any[], line: any) => {
@@ -2495,8 +2787,97 @@ export default {
             }
         },
 
+        confirmDeletePurchaseOrder(purchaseOrder: any) {
+            this.selectedPurchaseOrder = purchaseOrder;
+            this.purchaseOrder = purchaseOrder;
+            this.deleteOrderDialog = true;
+        },
+
+        async deletePurchaseOrder(purchaseOrder: any) {
+            if (!purchaseOrder?.purchase_order_id) return;
+
+            try {
+                this.loading = true;
+                await action.deletePurchaseOrder(purchaseOrder.purchase_order_id);
+                this.$toast.add({
+                    severity: 'success',
+                    summary: 'Purchase Order Deleted',
+                    detail: `Purchase order "${purchaseOrder.purchase_order_name}" has been deleted.`,
+                    life: 4000,
+                });
+                await this.loadPage(this.currentPage);
+            } catch (error) {
+                console.error("Error deleting purchase order:", error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Error Deleting Purchase Order',
+                    detail: `An error occurred while trying to delete "${purchaseOrder.purchase_order_name}". Please try again.`,
+                    life: 5000,
+                });
+            } finally {
+                this.loading = false;
+                this.deleteOrderDialog = false;
+                this.deleteOrderText = '';
+            }
+        },
+
         setPoViewMode(mode: 'cards' | 'table') {
             this.poViewMode = mode;
+        },
+
+        openFilterMenu(){
+            this.filterDialog = true;
+        },
+
+        setFilterIcon(){
+            return this.filterField === '' ? String('pi pi-filter') : String('pi pi-filter-fill');
+        },
+
+        isSearchBarDisabled() {
+            return this.filterMenuField !== '';
+        },
+
+        isFilterBoxDisabled(){
+            return this.searchText !== '';  
+        },
+
+        isOrderDeleteButtonDisabled(purchaseOrder: any){
+            return purchaseOrder.status !== 'Draft';
+        },
+
+        applyFilter(){
+            if(this.filterMenuVendor && this.filterMenuField === 'vendor_id'){
+                console.log("Applying vendor filter with value", this.filterMenuVendor);
+                this.filterMenuValue = String(this.filterMenuVendor?.vendor_id);
+            }
+
+            if (this.filterMenuField) {
+                this.filterField = this.filterMenuField;
+                this.filterValue = this.filterMenuValue.trim();
+            } else {
+                this.filterField = '';
+                this.filterValue = '';
+            }
+            
+            console.log("Applying filter with field", this.filterMenuField, "and value", this.filterMenuValue);
+
+            this.loadPage(1);
+            this.filterDialog = false;
+        },
+
+        clearFilter(){
+            this.filterField = '';
+            this.filterValue = '';
+            this.filterMenuVendor = '';
+            this.filterMenuField = '';
+            this.filterMenuValue = '';
+            this.filterDialog = false;
+            this.loadPage(1);
+        },
+
+        onFilterVendorSelect(event: any){
+            console.log(event);
+            this.filterMenuVendor = event;
         },
 
         openInboundWorkspace(purchaseOrder: any) {
@@ -2964,7 +3345,7 @@ export default {
                     page,
                     this.rowsPerPage,
                     this.filterField || '',
-                    this.searchText || '',
+                    this.filterValue || '',
                     this.sortField || '',
                     this.sortOrder
                 );            
@@ -3398,7 +3779,7 @@ export default {
             const poLines = this.getPurchaseOrderLinesForDisplay(poID);
             let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
             let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
-            console.log("Used Lines For Unit Total", usedLines);
+            // console.log("Used Lines For Unit Total", usedLines);
             // console.log("Used Boxes For Unit Total", usedBoxes);
             // Prioritize the lines, but if only legacy count exist, use that
             if (usedLines.length !== 0)
@@ -3775,6 +4156,7 @@ export default {
 
         normalizeRawLineForTotals(line: any){
             if (!line) return line;
+            // console.log("Normalizing line for totals: ", line);
 
             const productId = Number(line.product_id || 0);
             const product = (this.products || []).find((p: any) => p.product_id === productId)
@@ -3798,11 +4180,21 @@ export default {
 
             const row = poRow || (this.purchaseOrders || []).find((po: any) => po.purchase_order_id === poId);
             const rowLines = Array.isArray(row?.po_raw_lines) ? row.po_raw_lines : [];
-            const sourceLines = rowLines.length > 0
-                ? rowLines
-                : (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+            const globalLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id === poId);
+            // Prefer page-level canonical raw lines so dialog/table refreshes reflect recent edits immediately.
+            const sourceLines = rowLines.length > 0 ? globalLines : rowLines;
+
+            /**@TODO Figure out why the system is not updating the po_raw_lines inside of the order. I want to grab the row data, not the global data */
+            // const sourceLines = rowLines.length > 0 ? rowLines : globalLines;
+
+            // console.log("Source lines for PO ID " + poId, sourceLines);
 
             return (sourceLines || []).map((line: any) => this.normalizeRawLineForTotals(line));
+        },
+
+        doesPOHaveFlaggedLine(poId: number){
+            const lines = this.getPurchaseOrderLinesForDisplay(poId);
+            return (lines || []).some((line: any) => this.normalizeRawLineStatus(line.status) === 'Flagged');
         },
 
         /**
@@ -3825,10 +4217,13 @@ export default {
         ){
             if (!poId) return;
 
+            console.log(`Refreshing purchase order data for PO ID ${poId} with options:`, options);
+
             const { syncTable = true, syncDialog = true, patchRowData = {}, patchDialogData = {} } = options;
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === poId);
             const existingRow = poRowIdx > -1 ? this.purchaseOrders[poRowIdx] : null;
             const normalizedLines = this.getPurchaseOrderLinesForDisplay(poId, existingRow);
+            let refreshedRow = existingRow;
 
             if (syncTable && poRowIdx > -1) {
                 const nextPoRow = {
@@ -3837,17 +4232,34 @@ export default {
                     po_raw_lines: [...normalizedLines],
                 };
                 this.purchaseOrders.splice(poRowIdx, 1, nextPoRow);
+                refreshedRow = nextPoRow;
             }
 
-            if (syncDialog && Number(this.purchaseOrder?.purchase_order_id || 0) === poId) {
+            const dialogPoId = Number(this.purchaseOrder?.purchase_order_id || 0);
+            const detailPoId = Number(this.selectedDetailPo?.purchase_order_id || 0);
+            const dialogBase = refreshedRow || this.purchaseOrder || {};
+            const detailBase = refreshedRow || this.selectedDetailPo || {};
+
+            if (syncDialog && dialogPoId === poId) {
                 this.isInitializingPurchaseOrder = true;
                 this.purchaseOrder = {
+                    ...dialogBase,
                     ...(this.purchaseOrder || {}),
                     ...patchDialogData,
                     po_raw_lines: [...normalizedLines],
                 };
                 this.$nextTick(() => { this.isInitializingPurchaseOrder = false; });
             }
+
+            if (syncDialog && detailPoId === poId) {
+                this.selectedDetailPo = {
+                    ...detailBase,
+                    ...(this.selectedDetailPo || {}),
+                    ...patchDialogData,
+                    po_raw_lines: [...normalizedLines],
+                };
+            }
+            console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
         },
 
         /**
@@ -4180,9 +4592,32 @@ export default {
                 units_per_case: 0,
                 amount: 1,
                 total: 0,
+                fbm: 0,
+                store: 0,
                 status: this.purchaseOrder?.status || 'Draft',
             };
         },
+
+        onRawTotalsChange(event: any, line: any, field: any){
+            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
+            if (field === 'total'){
+                line.amount = event.value/line.units_per_case;
+                if(line.fbm > event.value)
+                    line.fbm = event.value;
+            } else if (field === 'amount'){
+                line.total = (event.value || line.amount || 0)*line.units_per_case;
+            } else if (field === 'fbm'){
+                if(event.value > line.total){
+                    line.fbm = line.total;
+                    line.store = 0;
+                    this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total'});
+                } else {
+                    line.store = line.total - event.value - (line.fba_prep || 0);
+                }
+            }
+
+        },
+
         openRecipeRowEditor(rowData: any){
             if (!rowData) return;
             rowData.d_editing = true;
@@ -4501,6 +4936,7 @@ export default {
                     const updated = updatedByProductId.get(row.product_id);
                     if (!updated) return row;
 
+                    /**@TODO Figure out why units per case is not being updated in the edit po dialog */
                     const nextRow = { ...row };
                     if (updated.requires_default_units_per_case && updated.default_units_per_case && updated.default_units_per_case > 0) {
                         nextRow.units_per_case = updated.default_units_per_case;
@@ -4523,6 +4959,8 @@ export default {
                     if (refreshedProduct) {
                         nextRow.productObj = refreshedProduct;
                     }
+
+                    console.log("Updated row after saving missing defaults: ", JSON.stringify(nextRow));
 
                     return nextRow;
                 });
@@ -6022,10 +6460,16 @@ export default {
                 return {
                     deliveredUnits: 0,
                     inboundUnits: 0,
+                    orderedUnits: 0,
+                    backOrderedUnits: 0,
+                    flaggedUnits: 0,
                     otherUnits: 0,
                     totalUnits: 0,
                     deliveredPct: 0,
                     inboundPct: 0,
+                    orderedPct: 0,
+                    backOrderedPct: 0,
+                    flaggedPct: 0,
                     otherPct: 0,
                 };
             }
@@ -6036,6 +6480,9 @@ export default {
 
             let deliveredUnits = 0;
             let inboundUnits = 0;
+            let orderedUnits = 0;
+            let backOrderedUnits = 0;
+            let flaggedUnits = 0;
             let otherUnits = 0;
 
             (lines || []).forEach((line: any) => {
@@ -6054,49 +6501,76 @@ export default {
                     deliveredUnits += units;
                 } else if (normalizedStatus === 'Inbound') {
                     inboundUnits += units;
+                } else if (normalizedStatus === 'Ordered') {
+                    orderedUnits += units;
+                } else if (normalizedStatus === 'Back Ordered') {
+                    backOrderedUnits += units;
+                } else if (normalizedStatus === 'Flagged') {
+                    flaggedUnits += units;
                 } else {
                     otherUnits += units;
                 }
             });
 
-            const totalUnits = deliveredUnits + inboundUnits + otherUnits;
+            const totalUnits = deliveredUnits + inboundUnits + orderedUnits + backOrderedUnits + flaggedUnits + otherUnits;
             if (totalUnits <= 0) {
                 return {
-                    deliveredUnits,
-                    inboundUnits,
-                    otherUnits,
-                    totalUnits,
+                    deliveredUnits: 0,
+                    inboundUnits: 0,
+                    orderedUnits: 0,
+                    backOrderedUnits: 0,
+                    flaggedUnits: 0,
+                    otherUnits: 0,
+                    totalUnits: 0,
                     deliveredPct: 0,
                     inboundPct: 0,
+                    orderedPct: 0,
+                    backOrderedPct: 0,
+                    flaggedPct: 0,
                     otherPct: 0,
                 };
             }
 
             const deliveredPct = (deliveredUnits / totalUnits) * 100;
             const inboundPct = (inboundUnits / totalUnits) * 100;
+            const orderedPct = (orderedUnits / totalUnits) * 100;
+            const backOrderedPct = (backOrderedUnits / totalUnits) * 100;
+            const flaggedPct = (flaggedUnits / totalUnits) * 100;
             const otherPct = (otherUnits / totalUnits) * 100;
 
             return {
                 deliveredUnits,
                 inboundUnits,
+                orderedUnits,
+                backOrderedUnits,
+                flaggedUnits,
                 otherUnits,
                 totalUnits,
                 deliveredPct,
                 inboundPct,
+                orderedPct,
+                backOrderedPct,
+                flaggedPct,
                 otherPct,
             };
         },
 
-        getPoProgressSegmentStyle(po: any, segment: 'delivered' | 'inbound' | 'other'){
+        getPoProgressSegmentStyle(po: any, segment: 'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other'){
             const progress = this.getPoRawLineProgress(po);
-            const leftBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+            const leftBySegment: Record<'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other', number> = {
                 delivered: 0,
                 inbound: progress.deliveredPct,
-                other: progress.deliveredPct + progress.inboundPct,
+                ordered: progress.deliveredPct + progress.inboundPct,
+                'back ordered': progress.deliveredPct + progress.inboundPct + progress.orderedPct,
+                flagged: progress.deliveredPct + progress.inboundPct + progress.orderedPct + progress.backOrderedPct,
+                other: progress.deliveredPct + progress.inboundPct + progress.orderedPct + progress.backOrderedPct + progress.flaggedPct,
             };
-            const widthBySegment: Record<'delivered' | 'inbound' | 'other', number> = {
+            const widthBySegment: Record<'delivered' | 'inbound' | 'ordered' | 'back ordered' | 'flagged' | 'other', number> = {
                 delivered: progress.deliveredPct,
                 inbound: progress.inboundPct,
+                ordered: progress.orderedPct,
+                'back ordered': progress.backOrderedPct,
+                flagged: progress.flaggedPct,
                 other: progress.otherPct,
             };
 
@@ -6110,7 +6584,7 @@ export default {
             const progress = this.getPoRawLineProgress(po);
             if (!progress.totalUnits) return 'No active units';
 
-            return `Delivered ${progress.deliveredUnits} | Inbound ${progress.inboundUnits} | Other ${progress.otherUnits}`;
+            return `Delivered ${progress.deliveredUnits} | Inbound ${progress.inboundUnits} | Ordered ${progress.orderedUnits} | BO ${progress.backOrderedUnits} | Flagged ${progress.flaggedUnits} | Other ${progress.otherUnits}`;
         },
 
         getPOProgressPercent(status: string): number {
@@ -6264,7 +6738,10 @@ export default {
          */
         async checkForRequests(){
             // Check to see if there are any requests for the PO recipes, if not, create them
-            let requests = await action.getRequests('');
+            // let requests = await action.getRequests('');
+            let po_requests = await action.getPurchaseOrderRequests(this.purchaseOrder.purchase_order_id || 0);
+
+
 
             console.log("IN REQUEST CHECK");
 
@@ -6277,77 +6754,93 @@ export default {
                 return;
             }
 
-            const poRecipes = Array.isArray(this.poRecipes) ? this.poRecipes : [];
-            const recipeElements = Array.isArray(this.recipeElements) ? this.recipeElements : [];
-            const existingRequests = Array.isArray(requests) ? requests : [];
+            const poRecipes = Array.isArray(this.purchaseOrder?.po_recipes) ? this.purchaseOrder.po_recipes : [];
+            const recMissingRequest: any[] = [];
+            poRecipes.forEach((poRec: any) => {
+                let foundRequest = po_requests.find((req: any) => req.product_id === poRec.product_id);
+                if (!foundRequest) {
+                    console.warn("No Request found for the following po recipe", poRec);
+                    recMissingRequest.push(poRec);
+                }
+            });
 
-            let neededPoRecipes = poRecipes.filter(recipe => recipe.purchase_order_id === poId)
-            console.log("Needed Po Recipes: ", neededPoRecipes);
+            // If non of the planned recipes are missing a request, end function early to avoid unnecessary processing
+            if(recMissingRequest.length === 0) 
+                return;
+            else{ // Else, grab all recipes and elements and add the necessary requests
+                const recPackage: { elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                console.log("Recipe package", recPackage);
+                
+                const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
+                const existingRequests = Array.isArray(po_requests) ? po_requests : [];
 
-            const skippedRecipeIds: number[] = [];
+                console.log("Needed Po Recipes: ", recMissingRequest);
 
-            for (const recipe of neededPoRecipes) {
+                const skippedRecipeIds: number[] = [];
 
-                let neededRecElement = recipeElements.find(recElement => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
-                console.log("Needed Recipe Element: ", neededRecElement);
+                for (const recipe of recMissingRequest) {
 
-                if (!neededRecElement || !neededRecElement.product_id) {
-                    console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
-                    if (recipe?.recipe_id) {
-                        skippedRecipeIds.push(recipe.recipe_id);
+                    let neededRecElement = recipeElements.find((recElement: any) => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
+                    console.log("Needed Recipe Element: ", neededRecElement);
+
+                    if (!neededRecElement || !neededRecElement.product_id) {
+                        console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
+                        if (recipe?.recipe_id) {
+                            skippedRecipeIds.push(recipe.recipe_id);
+                        }
+                        continue;
                     }
-                    continue;
+
+                    let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
+                    console.log("Product Key: ", productKey);
+
+                    let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
+                    console.log("Recipe Request: ", recRequest);
+                    if(!recRequest){
+                        // No request made for this recipe yet, make one
+                        const createdRequest: {
+                            product_id: number; 
+                            purchase_order_id: number;
+                            notes: string | null, 
+                            status: string,
+                            labels_printed: boolean; 
+                            ship_label: boolean; 
+                            priority: string; 
+                            ship_to_amz: number; 
+                            deadline: Date | null; 
+                            warehouse_qty: number;
+                            container_qty: number;
+                        } = {
+                            product_id: Number(neededRecElement.product_id),
+                            purchase_order_id: Number(poId),
+                            notes: null, 
+                            status: '5 ON ORDER', 
+                            labels_printed: false, 
+                            ship_label: false, 
+                            priority: '6 Prep For Later', 
+                            ship_to_amz: 0, 
+                            deadline: null, 
+                            warehouse_qty: 0,
+                            container_qty: Number(recipe.qty)
+                        };
+
+                        console.log("Created Request: ", createdRequest);
+
+                        await action.addRequest(createdRequest);
+
+                        // Keep local dedupe list in sync so duplicate requests are not created in the same run.
+                        existingRequests.push(createdRequest);
+                    }
                 }
 
-                let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
-                console.log("Product Key: ", productKey);
-
-                let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
-                console.log("Recipe Request: ", recRequest);
-                if(!recRequest){
-                    // No request made for this recipe yet, make one
-                    const createdRequest: {
-                        product_id: number; 
-                        purchase_order_id: number;
-                        notes: string | null, 
-                        status: string,
-                        labels_printed: boolean; 
-                        ship_label: boolean; 
-                        priority: string; 
-                        ship_to_amz: number; 
-                        deadline: Date | null; 
-                        warehouse_qty: number;
-                        container_qty: number;
-                    } = {
-                        product_id: Number(neededRecElement.product_id),
-                        purchase_order_id: Number(poId),
-                        notes: null, 
-                        status: '5 ON ORDER', 
-                        labels_printed: false, 
-                        ship_label: false, 
-                        priority: '6 Prep For Later', 
-                        ship_to_amz: 0, 
-                        deadline: null, 
-                        warehouse_qty: 0,
-                        container_qty: Number(recipe.qty)
-                    };
-
-                    console.log("Created Request: ", createdRequest);
-
-                    await action.addRequest(createdRequest);
-
-                    // Keep local dedupe list in sync so duplicate requests are not created in the same run.
-                    existingRequests.push(createdRequest);
+                if (skippedRecipeIds.length > 0) {
+                    this.$toast.add({
+                        severity: 'warn',
+                        summary: 'Request Check Skipped',
+                        detail: `Skipped ${skippedRecipeIds.length} recipe(s) because their output mapping is missing.`,
+                        life: 5000,
+                    });
                 }
-            }
-
-            if (skippedRecipeIds.length > 0) {
-                this.$toast.add({
-                    severity: 'warn',
-                    summary: 'Request Check Skipped',
-                    detail: `Skipped ${skippedRecipeIds.length} recipe(s) because their output mapping is missing.`,
-                    life: 5000,
-                });
             }
         },
 
@@ -6538,6 +7031,10 @@ export default {
                 return { font: 'bold', color: '#000000', backgroundColor: '#f19595' };
             }
 
+            if (this.normalizeRawLineStatus(data?.status) === 'Flagged') {
+                return { font: 'bold', color: '#000000', backgroundColor: '#e65c00' };
+            }
+
             if (data?.product_id) {
                 const bgColor = isEvenRow ? '#C0EEFF' : '#E8F4FF';
                 return { font: 'bold', color: '#000000', backgroundColor: bgColor };
@@ -6684,15 +7181,18 @@ export default {
          * Saves a raw-row edit by persisting a single po_raw_lines record.
          * The row total is treated as source-of-truth total_units, so we no longer split/cancel individual boxes here.
          */
-        async onPOBoxRowEditSave(event: any){
+        async onPORawLineEditSave(event: any){
             if (!this.ensurePoEditable('save raw lines')) return;
             const { newData, index } = event;
+            console.log("Saving raw line edit with event data:", event);
             const poId = this.purchaseOrder?.purchase_order_id;
 
             if (!poId || !newData?.product_id) {
                 this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Missing purchase order or product id.' });
                 return;
             }
+
+            // console.log("Saving raw line edit with data:", newData);
 
             this.isSavingEditDialog = true;
 
@@ -6725,6 +7225,9 @@ export default {
                         purchase_order_id: poId,
                         invoice_id: newData.invoice_id ?? matchingLine.invoice_id ?? null,
                         total_units: totalUnits,
+                        store: newData.store ?? 0,
+                        fbm: newData.fbm ?? 0,
+                        fba_prep: newData.fba_prep ?? 0,
                         notes: newData.notes ?? matchingLine.notes ?? null,
                         status: normalizedStatus,
                     });
@@ -6738,6 +7241,9 @@ export default {
                     purchase_order_id: poId,
                     invoice_id: newData.invoice_id ?? null,
                     total_units: totalUnits,
+                    store: newData.store ?? 0,
+                    fbm: newData.fbm ?? 0,
+                    fba_prep: newData.fba_prep ?? 0,
                     notes: newData.notes ?? null,
                     status: normalizedStatus,
                 });
@@ -6766,6 +7272,10 @@ export default {
             this.singlePoRawProducts = nextSinglePoRawProducts;
             const otherPoRawLines = (this.po_raw_products || []).filter((line: any) => line.purchase_order_id !== poId);
             this.po_raw_products = [...otherPoRawLines, ...nextSinglePoRawProducts];
+            console.log("Updated singlePoRawProducts: ", this.singlePoRawProducts);
+            console.log("Updated Purchase Order: ", this.purchaseOrder);
+
+            // this.loadPage(this.currentPage);
 
             this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
 
@@ -6775,7 +7285,7 @@ export default {
                 severity: 'success',
                 summary: 'Raw Line Saved',
                 detail: totalUnits > 0 ? 'Raw line updated.' : 'Raw line removed.',
-                life: 4000,
+                life: 10000,
             });
 
             this.isSavingEditDialog = false;
@@ -6976,17 +7486,31 @@ export default {
                     qty: desiredQty,
                 });
 
+                /**@TODO Figure out why raw lines are not consolidating in the dialog after new recipes are made */
+                // (Math.ceil((inputRow.required_units || 0) / (inputRow.key?.default_units_per_case || 1))) * (inputRow.key?.default_units_per_case || 0)
+                /**@TODO Make sure the total units is rounding up based on default units per case */
+
                 const rawInputs = (this.recipeElements || []).filter((re: any) => re.recipe_id === selectedRecipeId && re.type === 'input');
-                const rawLinesToInsert = rawInputs
-                    .map((rawInput: any) => ({
+                const rawLinesToInsert: any[] = [];
+                
+                rawInputs
+                    .forEach((rawInput: any) => {
+                        const rawKey = this.products.find((product: any) => product.product_id === rawInput.product_id);
+                        let totalUnits = Math.ceil((Number(rawInput.qty || 0)*desiredQty)/rawKey.default_units_per_case)*rawKey.default_units_per_case;
+
+                        rawLinesToInsert.push({
                         product_id: rawInput.product_id,
                         purchase_order_id: poId,
-                        total_units: Number((Number(rawInput.qty || 0) * desiredQty).toFixed(2)),
+                        total_units: totalUnits,
+                        store: newData.store ?? 0,
+                        fbm: newData.fbm ?? 0,
+                        fba_prep: newData.fba_prep ?? 0,
                         status: this.normalizeRawLineStatus(this.purchaseOrder.status || 'Draft'),
                         notes: null,
                         invoice_id: null,
-                    }))
-                    .filter((line: any) => line.product_id && line.total_units > 0);
+                        });
+                    })
+                    // .filter((line: any) => line.product_id && line.total_units > 0);
 
                 if (rawLinesToInsert.length > 0) {
                     await action.bulkAddPurchaseOrderRawLines(rawLinesToInsert);
@@ -7887,6 +8411,9 @@ export default {
 
                 this.inboundLineAllocations = eligible.map((l: any) => ({
                     ...l,
+                    fba_prep_shipped: 0,
+                    store_shipped: 0,
+                    fbm_shipped: 0,
                     units_shipped: 0,
                     units_backordered: 0,
                 }));
@@ -7916,10 +8443,24 @@ export default {
             };
         },
 
-        onInboundUnitsInput(line: any, field: 'units_shipped' | 'units_backordered') {
+        onInboundUnitsUpdate(line: any, field: 'units_shipped' | 'units_backordered' | 'fba_prep' | 'store' | 'fbm') {
             // Clamp to non-negative
             if (line[field] < 0 || line[field] == null) {
                 line[field] = 0;
+            }
+        },
+
+        onInboundUnitsInput(event: any, data: any, field: string){
+            console.log("Inbound input event: ", event);
+            if (field === 'fba_prep'){
+                data.units_shipped = event.value + data.store_shipped + data.fbm_shipped;
+            } else if (field === 'store') {
+                data.units_shipped = data.fba_prep_shipped + event.value + data.fbm_shipped;
+            } else if (field === 'fbm') {
+                data.units_shipped = data.fba_prep_shipped + data.store_shipped + event.value;
+            } else if (field === 'backordered'){
+                data.units_backordered = event.value;
+                this.getInboundRemaining(data);
             }
         },
 
@@ -7929,19 +8470,38 @@ export default {
                     ...line,
                     remaining_units: this.getInboundRemaining(line),
                 }))
-                .filter((line: any) => Number(line.remaining_units || 0) > 0);
+                .filter((line: any) => Number(line.remaining_units || 0) > 0 && line.status !== 'Flagged');
         },
 
         async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
-            const ordered = Math.max(0, Number(line?.total_units || 0));
-            const shipped = Math.max(0, Number(line?.units_shipped || 0));
-            const backordered = Math.max(0, Number(line?.units_backordered || 0));
-            const remaining = Math.max(0, ordered - shipped - backordered);
+            const ordered = Math.max(0, Number(line?.total_units || 0)); //Total units ordered for PO
+            const fbmOrdered = Math.max(0, Number(line?.fbm || 0)); // Total number of units in PO being set for fbm
+            console.log("Ordered variables : ", ordered, "fbmOrdered: ", fbmOrdered);
 
+            const shipped = Math.max(0, Number(line?.units_shipped || 0)); // Total units being shipped in this invoice
+            const fbaShipped = Math.max(0, Number(line?.fba || 0)); // Units being shipped in this invoice for fba prep
+            const storeShipped = Math.max(0, Number(line?.store || 0)); // Units being shipped in this invoice to be stored
+            const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
+            console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
+
+            const backordered = Math.max(0, Number(line?.units_backordered || 0)); // Total units on back order for this invoice, should be the remainder after shipped units are accounted for
+            const fbaBackordered = 0; // No units will be set to fba prep on back order, as all back ordered units not going to fbm will be set to be stored, but this is here for clarity and future proofing
+            const fbmBackordered = Math.max(0, fbmOrdered - fbmShipped); // Units on back order for fbm is the remainder of the fbm ordered units after subtracting any fbm shipped units, as fbm units are always fulfilled before store units
+            const storeBackordered = Math.max(0, backordered - fbaBackordered); // Units on back order for store is the remainder of the backordered units after accounting for fba prep backordered units
+            console.log("Backordered variables : ", backordered, "fbaBackordered: ", fbaBackordered, "storeBackordered: ", storeBackordered, "fbmBackordered: ", fbmBackordered);
+
+            const remaining = Math.max(0, ordered - shipped - backordered); // Any units not explicitly marked as shipped or back ordered. Users will be notified if any remainders exist
+            const fbaRemaining = 0; // Again, setting fba prep to zero, as all remainders will either be set to store or to go to fbm
+            const fbmRemaining = Math.max(0, fbmOrdered - fbmShipped - fbmBackordered); // Any fbm units not set to backordered or shipped, should always be zero, but is here just in case
+            const storeRemaining = Math.max(0, remaining - fbmRemaining); // Any store units not set to backordered or shipped, should always be zero, but is here just in case
+            console.log("Remaining variables : ", remaining, "fbaRemaining: ", fbaRemaining, "storeRemaining: ", storeRemaining, "fbmRemaining: ", fbmRemaining);
+            
+            
+            /**@TODO Incorporate splitting fba_prep, store, and fbm into the shipped and back ordered splits */
             const segments = [
-                { kind: 'shipped', qty: shipped },
-                { kind: 'backordered', qty: backordered },
-                { kind: 'remaining', qty: remaining },
+                { kind: 'shipped', qty: shipped, fba_prep: fbaShipped, store: storeShipped, fbm: fbmShipped },
+                { kind: 'backordered', qty: backordered, fba_prep: fbaBackordered, store: storeBackordered, fbm: fbmBackordered },
+                { kind: 'remaining', qty: remaining, fba_prep: fbaRemaining, store: storeRemaining, fbm: fbmRemaining },
             ].filter((segment: any) => segment.qty > 0);
 
             if (!segments.length) return;
@@ -7975,6 +8535,9 @@ export default {
                     product_id: line.product_id,
                     purchase_order_id: line.purchase_order_id,
                     total_units: segment.qty,
+                    store: segment.store,
+                    fbm: segment.fbm,
+                    fba_prep: segment.fba_prep,
                     notes: line.notes ?? null,
                     status: statusByKind[segment.kind],
                 });
@@ -8193,8 +8756,17 @@ export default {
                     life: 5000,
                 });
 
+                this.purchaseOrder.status = 'Inbound';
+                await action.editPurchaseOrder({
+                    ...this.purchaseOrder,
+                    status: 'Inbound',
+                });
+
+                await this.checkForRequests();
+                
                 this.inboundPurchaseOrderDialog = false;
                 await this.loadPage(this.currentPage ?? 1);
+                this.purchaseOrderRefresh(this.purchaseOrder?.purchase_order_id);
 
             } catch (error) {
                 console.error('Error creating invoice:', error);
@@ -9256,6 +9828,18 @@ export default {
     background: #dfeeff !important;
 }
 
+.po-action-btn--danger {
+    border: 1px solid #b42318 !important;
+    background: #ffb3a8 !important;
+    color: #7a0e0c !important;
+}
+
+.po-action-btn--danger:hover {
+    border-color: #7a0e0c !important;
+    background: #ff8c7f !important;
+    box-shadow: 0 3px 8px rgba(180, 35, 24, 0.2) !important;
+}
+
 .po-action-btn--inbound {
     border: 1px solid var(--po-yellow-border) !important;
     background: #ffe79a !important;
@@ -9613,6 +10197,18 @@ export default {
         );
 }
 
+.po-progress-segment--ordered {
+    background: #2f6bf9;
+}
+
+.po-progress-segment--backordered {
+    background: #ffd86b;
+}
+
+.po-progress-segment--flagged {
+    background: #8a0000;
+}
+
 .po-progress-segment--other {
     background: linear-gradient(180deg, #8ea3b8 0%, #6f859b 100%);
 }
@@ -9863,6 +10459,28 @@ export default {
     :deep(.card .p-datatable .p-datatable-header) {
         padding: 0.7rem;
     }
+}
+
+:deep(.p-datatable-tbody > tr:nth-child(odd) td.inbound-fba-prep) {
+    background-color: #e0f2fe; /* Light blue striping tint */
+}
+
+:deep(.p-datatable-tbody > tr:nth-child(even) td.inbound-fba-prep) {
+    background-color: #f1f5f9; /* Change this hex to match your global table striping */
+}
+
+:deep(tr:nth-child(even) td.inbound-fbm) {
+  background-color: #f1f5f9; /* Light gray */
+}
+:deep(tr:nth-child(odd) td.inbound-fbm) {
+  background-color: #e0f2fe; /* Light blue */
+}
+
+:deep(tr:nth-child(even) td.inbound-store) {
+  background-color: #f1f5f9; /* Light gray */
+}
+:deep(tr:nth-child(odd) td.inbound-store) {
+  background-color: #e0f2fe; /* Light blue */
 }
 
 </style>
