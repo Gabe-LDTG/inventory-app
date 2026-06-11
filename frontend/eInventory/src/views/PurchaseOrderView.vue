@@ -1751,10 +1751,6 @@
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
                                 @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
                                 @input="onInboundUnitsInput($event, data, 'fba_prep')"
-                                :pt="{
-                                    /* Force input to stack layout flat at 0 so it stays underneath the frozen column (zIndex 10) */
-                                    root: { style: { zIndex: 0, position: 'relative' } }
-                                }" 
                             />
                         </template>
                     </Column>
@@ -8474,13 +8470,15 @@ export default {
         },
 
         async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
+            console.log("Applying inbound line allocation for line: ", line, "with unaccounted mode: ", unaccountedMode);
+
             const ordered = Math.max(0, Number(line?.total_units || 0)); //Total units ordered for PO
             const fbmOrdered = Math.max(0, Number(line?.fbm || 0)); // Total number of units in PO being set for fbm
             console.log("Ordered variables : ", ordered, "fbmOrdered: ", fbmOrdered);
 
             const shipped = Math.max(0, Number(line?.units_shipped || 0)); // Total units being shipped in this invoice
-            const fbaShipped = Math.max(0, Number(line?.fba || 0)); // Units being shipped in this invoice for fba prep
-            const storeShipped = Math.max(0, Number(line?.store || 0)); // Units being shipped in this invoice to be stored
+            const fbaShipped = Math.max(0, Number(line?.fba_prep_shipped || 0)); // Units being shipped in this invoice for fba prep
+            const storeShipped = Math.max(0, Number(line?.store_shipped || 0)); // Units being shipped in this invoice to be stored
             const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
             console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
 
@@ -8506,12 +8504,16 @@ export default {
 
             if (!segments.length) return;
 
+            console.log("Segments to apply: ", segments);
+
             const keepKind = shipped > 0
                 ? 'shipped'
                 : backordered > 0
                     ? 'backordered'
                     : 'remaining';
             const keepSegment = segments.find((segment: any) => segment.kind === keepKind) || segments[0];
+
+            console.log("Keep segment: ", keepSegment);
 
             const baseStatus = String(line?.status || this.purchaseOrder?.status || 'Draft');
             const statusByKind: Record<string, string> = {
@@ -8520,9 +8522,16 @@ export default {
                 remaining: unaccountedMode === 'flag' ? 'Flagged' : baseStatus,
             };
 
+            console.log("Status by kind: ", statusByKind);
+
+            console.log("Line right before edit: ", line);
+
             await action.editPurchaseOrderRawLine({
                 ...line,
                 total_units: keepSegment.qty,
+                store: keepSegment.store,
+                fbm: keepSegment.fbm,
+                fba_prep: keepSegment.fba_prep,
                 status: statusByKind[keepSegment.kind],
             });
 

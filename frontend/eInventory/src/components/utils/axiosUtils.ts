@@ -2018,6 +2018,7 @@ var action = {
         status: string;
     }){
         const payload = {
+            po_raw_line_id: po_raw_line.po_raw_line_id,
             product_id: po_raw_line.product_id,
             purchase_order_id: po_raw_line.purchase_order_id,
             invoice_id: po_raw_line.invoice_id ?? null,
