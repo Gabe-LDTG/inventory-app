@@ -1667,7 +1667,7 @@
             </template>
         </Dialog> -->
 
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Inbounding Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '960px' }" @hide="onInboundDialogHide">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Plan Out Invoice for Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '1200px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
 
                 <div class="inbound-invoice-name-field">
@@ -1710,30 +1710,77 @@
                         No eligible raw products are available to inbound for this purchase order.
                     </template>
 
-                    <Column field="product_name" header="Product" sortable >
+                    <Column field="product_name" header="Product" sortable frozen  >
                         <template #body="{ data }">
                             {{ data.product_name || data.name }}
                         </template>
                     </Column>
-                    <Column field="item_num" header="Item #" sortable />
-                    <Column field="total_units" header="Ordered Units" sortable />
-                    <Column header="Units for FBA Prep" field="fba_prep">
+                    <Column field="item_num" header="Item #" sortable frozen  />
+                    <Column field="total_units" header="Ordered Units" sortable frozen  :pt="{
+                            bodyCell: { style: { zIndex: 10, position: 'sticky' } },
+                            headerCell: { style: { zIndex: 11, position: 'sticky' } }
+                        }"
+                    />
+                    <Column header="Planned Units for FBA Prep" field="fba_prep" :pt="{
+                            bodyCell: ({ context }) => ({
+                                root: { style: { zIndex: 1, position: 'relative' } },
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.fba_prep || 0 }}
+                        </template>
+                    </Column>
+                     <Column header="Shipped (FBA Prep)" field="fba_prep" class="inbound-fba-prep" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                     >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fba_prep"
+                                v-model="data.fba_prep_shipped"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
                                 @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
                                 @input="onInboundUnitsInput($event, data, 'fba_prep')"
+                                :pt="{
+                                    /* Force input to stack layout flat at 0 so it stays underneath the frozen column (zIndex 10) */
+                                    root: { style: { zIndex: 0, position: 'relative' } }
+                                }" 
                             />
                         </template>
                     </Column>
-                    <Column header="Units for Store" field="store">
+                    <Column header="Planned Units to Store" field="store" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.store || 0 }}
+                        </template>
+                    </Column>
+                    <Column header="Shipped (Store)" field="store" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.store"
+                                v-model="data.store_shipped"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
@@ -1743,10 +1790,29 @@
                             />
                         </template>
                     </Column>
-                    <Column header="Units for FBM" field="fbm">
+                    <Column header="Planned Units for FBM" field="fbm" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                    >
+                        <template #body="{ data }">
+                            {{ data.fbm || 0 }}
+                        </template>
+                    </Column>
+                     <Column header="Shipped (FBM)" field="fbm" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                     >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fbm"
+                                v-model="data.fbm_shipped"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
@@ -1758,18 +1824,17 @@
                     </Column>
                     <Column header="Units Shipped" field="units_shipped">
                         <template #body="{ data }">
-                            <InputNumber
-                                v-model="data.units_shipped"
-                                :min="0"
-                                :useGrouping="false"
-                                class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'units_shipped')"
-                                disabled
-                            />
+                            {{ data.units_shipped || 0 }}
                         </template>
                     </Column>
-                    <Column header="Units Back Ordered">
+                    <Column header="Units Back Ordered" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#e99149' : '#e99149' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
                             <InputNumber
                                 v-model="data.units_backordered"
@@ -1778,6 +1843,7 @@
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
                                 @update:modelValue="onInboundUnitsUpdate(data, 'units_backordered')"
+                                @input="onInboundUnitsInput($event, data, 'backordered')"
                             />
                         </template>
                     </Column>
@@ -8345,6 +8411,9 @@ export default {
 
                 this.inboundLineAllocations = eligible.map((l: any) => ({
                     ...l,
+                    fba_prep_shipped: 0,
+                    store_shipped: 0,
+                    fbm_shipped: 0,
                     units_shipped: 0,
                     units_backordered: 0,
                 }));
@@ -8384,11 +8453,14 @@ export default {
         onInboundUnitsInput(event: any, data: any, field: string){
             console.log("Inbound input event: ", event);
             if (field === 'fba_prep'){
-                data.units_shipped = event.value + data.store + data.fbm;
+                data.units_shipped = event.value + data.store_shipped + data.fbm_shipped;
             } else if (field === 'store') {
-                data.units_shipped = data.fba_prep + event.value + data.fbm;
+                data.units_shipped = data.fba_prep_shipped + event.value + data.fbm_shipped;
             } else if (field === 'fbm') {
-                data.units_shipped = data.fba_prep + data.store + event.value;
+                data.units_shipped = data.fba_prep_shipped + data.store_shipped + event.value;
+            } else if (field === 'backordered'){
+                data.units_backordered = event.value;
+                this.getInboundRemaining(data);
             }
         },
 
@@ -8402,15 +8474,34 @@ export default {
         },
 
         async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
-            const ordered = Math.max(0, Number(line?.total_units || 0));
-            const shipped = Math.max(0, Number(line?.units_shipped || 0));
-            const backordered = Math.max(0, Number(line?.units_backordered || 0));
-            const remaining = Math.max(0, ordered - shipped - backordered);
+            const ordered = Math.max(0, Number(line?.total_units || 0)); //Total units ordered for PO
+            const fbmOrdered = Math.max(0, Number(line?.fbm || 0)); // Total number of units in PO being set for fbm
+            console.log("Ordered variables : ", ordered, "fbmOrdered: ", fbmOrdered);
 
+            const shipped = Math.max(0, Number(line?.units_shipped || 0)); // Total units being shipped in this invoice
+            const fbaShipped = Math.max(0, Number(line?.fba || 0)); // Units being shipped in this invoice for fba prep
+            const storeShipped = Math.max(0, Number(line?.store || 0)); // Units being shipped in this invoice to be stored
+            const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
+            console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
+
+            const backordered = Math.max(0, Number(line?.units_backordered || 0)); // Total units on back order for this invoice, should be the remainder after shipped units are accounted for
+            const fbaBackordered = 0; // No units will be set to fba prep on back order, as all back ordered units not going to fbm will be set to be stored, but this is here for clarity and future proofing
+            const fbmBackordered = Math.max(0, fbmOrdered - fbmShipped); // Units on back order for fbm is the remainder of the fbm ordered units after subtracting any fbm shipped units, as fbm units are always fulfilled before store units
+            const storeBackordered = Math.max(0, backordered - fbaBackordered); // Units on back order for store is the remainder of the backordered units after accounting for fba prep backordered units
+            console.log("Backordered variables : ", backordered, "fbaBackordered: ", fbaBackordered, "storeBackordered: ", storeBackordered, "fbmBackordered: ", fbmBackordered);
+
+            const remaining = Math.max(0, ordered - shipped - backordered); // Any units not explicitly marked as shipped or back ordered. Users will be notified if any remainders exist
+            const fbaRemaining = 0; // Again, setting fba prep to zero, as all remainders will either be set to store or to go to fbm
+            const fbmRemaining = Math.max(0, fbmOrdered - fbmShipped - fbmBackordered); // Any fbm units not set to backordered or shipped, should always be zero, but is here just in case
+            const storeRemaining = Math.max(0, remaining - fbmRemaining); // Any store units not set to backordered or shipped, should always be zero, but is here just in case
+            console.log("Remaining variables : ", remaining, "fbaRemaining: ", fbaRemaining, "storeRemaining: ", storeRemaining, "fbmRemaining: ", fbmRemaining);
+            
+            
+            /**@TODO Incorporate splitting fba_prep, store, and fbm into the shipped and back ordered splits */
             const segments = [
-                { kind: 'shipped', qty: shipped },
-                { kind: 'backordered', qty: backordered },
-                { kind: 'remaining', qty: remaining },
+                { kind: 'shipped', qty: shipped, fba_prep: fbaShipped, store: storeShipped, fbm: fbmShipped },
+                { kind: 'backordered', qty: backordered, fba_prep: fbaBackordered, store: storeBackordered, fbm: fbmBackordered },
+                { kind: 'remaining', qty: remaining, fba_prep: fbaRemaining, store: storeRemaining, fbm: fbmRemaining },
             ].filter((segment: any) => segment.qty > 0);
 
             if (!segments.length) return;
@@ -8444,9 +8535,9 @@ export default {
                     product_id: line.product_id,
                     purchase_order_id: line.purchase_order_id,
                     total_units: segment.qty,
-                    store: segment.store ?? 0,
-                    fbm: segment.fbm ?? 0,
-                    fba_prep: segment.fba_prep ?? 0,
+                    store: segment.store,
+                    fbm: segment.fbm,
+                    fba_prep: segment.fba_prep,
                     notes: line.notes ?? null,
                     status: statusByKind[segment.kind],
                 });
@@ -10368,6 +10459,28 @@ export default {
     :deep(.card .p-datatable .p-datatable-header) {
         padding: 0.7rem;
     }
+}
+
+:deep(.p-datatable-tbody > tr:nth-child(odd) td.inbound-fba-prep) {
+    background-color: #e0f2fe; /* Light blue striping tint */
+}
+
+:deep(.p-datatable-tbody > tr:nth-child(even) td.inbound-fba-prep) {
+    background-color: #f1f5f9; /* Change this hex to match your global table striping */
+}
+
+:deep(tr:nth-child(even) td.inbound-fbm) {
+  background-color: #f1f5f9; /* Light gray */
+}
+:deep(tr:nth-child(odd) td.inbound-fbm) {
+  background-color: #e0f2fe; /* Light blue */
+}
+
+:deep(tr:nth-child(even) td.inbound-store) {
+  background-color: #f1f5f9; /* Light gray */
+}
+:deep(tr:nth-child(odd) td.inbound-store) {
+  background-color: #e0f2fe; /* Light blue */
 }
 
 </style>
