@@ -2514,11 +2514,12 @@ export default {
                 .filter((recipe: any) => Number(recipe?.purchase_order_id || 0) === poId)
                 .map((recipe: any, idx: number) => {
                     const recipeId = Number(recipe?.recipe_id || 0);
-                    const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
+                    /* const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
                         Number(element?.recipe_id || 0) === recipeId && element?.type === 'output'
-                    );
-                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0))
-                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0));
+                    ); */
+                    const recipeKey = (this.purchaseOrder.recipes || []).find((rec: any) => Number(rec?.recipe_id || 0) === recipeId);
+                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeKey?.output_product_id || 0))
+                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeKey?.output_product_id || 0));
                     const unitsPerCase = Number(product?.default_units_per_case || recipe?.units_per_case || 0);
                     const qty = Number(recipe?.qty || 0);
                     const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
@@ -3853,8 +3854,8 @@ export default {
                     const recipeKey = (this.recipes || []).find(r => poRec.recipe_id === r.recipe_id);
                     if (!recipeKey) return;
                     const recipeElements = (this.recipeElements || []).filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
-                    const processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    const processedRecElKey = (this.products || []).find((p) => processedRecEl && p.product_id === processedRecEl.product_id);
+                    // const processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    const processedRecElKey = (this.products || []).find((p) => p.product_id === recipeKey.output_product_id);
                     const rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     rawRecElArray.forEach(recEl => {
                         if (!this.getTotalCost || typeof this.getTotalCost !== 'function') return;
@@ -3972,24 +3973,21 @@ export default {
             console.log("boxArray", boxArray);
 
             linkedPoRecipes.forEach((poRec: any) => {
-                let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
-                if (!recipeOutput) return;
+                /* let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
+                if (!recipeOutput) return; */
 
-                console.log("recipeOutput", recipeOutput);
+                // Why the heck am I grabbing the po recipe when I am looping inside of the po recipes lol
+                /* let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+                if (!poRecipe) return; */
 
-                let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
-                if (!poRecipe) return;
-
-                console.log("poRecipe",poRecipe);
-
-                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
                 rawRecInputs.forEach((r: any) => {
                     let map = {} as any;
                     map.product_id = r.product_id;
-                    r.totalUnits = poRecipe.qty;
+                    r.totalUnits = poRec.qty;
                     map.currentUnits = 0;
                     totals.push(map);
                 });
@@ -4787,9 +4785,9 @@ export default {
          * @returns An array of raw products
          */
         getRawProducts(procProductId: number){
-            const output = this.recipeElements.find(re => re.product_id === procProductId && re.type === 'output');
+            const recipe = this.recipes.find(re => re.output_product_id === procProductId);
             const rawProductInfo: {rec: any, key: any}[] = [];
-            const inputs = this.recipeElements.filter(re => re.recipe_id === output.recipe_id && re.type === 'input');
+            const inputs = this.recipeElements.filter(re => re.recipe_id === recipe.recipe_id && re.type === 'input');
             for (const input of inputs) {
                 const rawProduct = this.products.find(p => p.product_id === input.product_id);
                 rawProductInfo.push({rec: input, key: rawProduct});
@@ -4984,9 +4982,9 @@ export default {
             this.recipeArrayEdit.recipe_id = id;
             this.recipeArrayEdit.default_units_per_case = recipeId.default_units_per_case;
             console.log("RECIPE ID: ", id);
-            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
-            console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipeElement.product_id);
+            let recipe = this.recipes.find(r => r.recipe_id === id);
+            console.log("RECIPE: ", recipe);
+            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipe.product_id);
             console.log("PO CASE", this.poCasesEdit);
         },
 
@@ -4998,11 +4996,11 @@ export default {
             if (!recipeObj?.recipe_id || !rowData) return;
 
             const recipeId = recipeObj.recipe_id;
-            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === recipeId && re.type === 'output');
-            if (!recipeOutput) return;
+            // const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === recipeId && re.type === 'output');
+            // if (!recipeOutput) return;
 
-            const processedProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
-                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
+            const processedProduct = (this.products || []).find((p: any) => p.product_id === recipeObj.output_product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipeObj.output_product_id);
             if (!processedProduct) return;
 
             rowData.recipeObj = recipeObj;
@@ -5577,9 +5575,10 @@ export default {
 
             console.log("displayRecipeElements: ", this.displayRecipeElements);
             poRecipes.forEach(poRec => {
-                let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
-                recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
-                poRecElements.push(recElArray);
+                // let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
+                // recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
+                let output = {amount: poRec.qty};
+                poRecElements.push(output);
             });
             poRecElements = poRecElements.flat();
             let total = 0;
@@ -5934,7 +5933,7 @@ export default {
             console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
             //Grab the linked po recipe for the inline processed product
-            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
+            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipes.find(r => r.output_product_id === product_id && r.recipe_id === rec.recipe_id) !== undefined);
             
             // let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
 
@@ -6000,7 +5999,7 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let recipeOutput = this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        let recipeOutput = this.displayRecipes.find(r => r.output_product_id === product_id);
         console.log("recipeOutput", recipeOutput);
         let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
         console.log("outputKey", outputKey);
@@ -6353,8 +6352,8 @@ export default {
                     let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
                     //console.log(recipeElements);
 
-                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    // let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === recipeKey.output_product_id);
                     let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
@@ -6420,8 +6419,8 @@ export default {
                     let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
                     //console.log(recipeElements);
 
-                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    // let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === recipeKey.output_product_id);
                     let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
@@ -6764,9 +6763,10 @@ export default {
             if(recMissingRequest.length === 0) 
                 return;
             else{ // Else, grab all recipes and elements and add the necessary requests
-                const recPackage: { elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                const recPackage: { recipes: any[]; elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
                 console.log("Recipe package", recPackage);
                 
+                const recipes = Array.isArray(recPackage.recipes) ? recPackage.recipes : [];
                 const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
                 const existingRequests = Array.isArray(po_requests) ? po_requests : [];
 
@@ -6776,10 +6776,10 @@ export default {
 
                 for (const recipe of recMissingRequest) {
 
-                    let neededRecElement = recipeElements.find((recElement: any) => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
-                    console.log("Needed Recipe Element: ", neededRecElement);
+                    let neededRecipe = recipeElements.find((rec: any) => rec.recipe_id === recipe.recipe_id);
+                    console.log("Needed Recipe Element: ", neededRecipe);
 
-                    if (!neededRecElement || !neededRecElement.product_id) {
+                    if (!neededRecipe || !neededRecipe.output_product_id) {
                         console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
                         if (recipe?.recipe_id) {
                             skippedRecipeIds.push(recipe.recipe_id);
@@ -6787,10 +6787,10 @@ export default {
                         continue;
                     }
 
-                    let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
+                    let productKey = this.products.find(product => product.product_id === neededRecipe.output_product_id);
                     console.log("Product Key: ", productKey);
 
-                    let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
+                    let recRequest = existingRequests.find(request => request.product_id === neededRecipe.output_product_id && request.purchase_order_id === poId);
                     console.log("Recipe Request: ", recRequest);
                     if(!recRequest){
                         // No request made for this recipe yet, make one
@@ -6807,7 +6807,7 @@ export default {
                             warehouse_qty: number;
                             container_qty: number;
                         } = {
-                            product_id: Number(neededRecElement.product_id),
+                            product_id: Number(neededRecipe.output_product_id),
                             purchase_order_id: Number(poId),
                             notes: null, 
                             status: '5 ON ORDER', 
@@ -7437,14 +7437,14 @@ export default {
                 return;
             }
 
-            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === selectedRecipeId && re.type === 'output');
-            if (!recipeOutput) {
+            const recipe = (this.recipes || []).find((r: any) => r.recipe_id === selectedRecipeId);
+            if (!recipe) {
                 this.$toast.add({severity:'error', summary: 'Recipe Error', detail: 'Selected recipe output could not be found.', life: 4000});
                 return;
             }
 
-            const outputProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
-                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
+            const outputProduct = (this.products || []).find((p: any) => p.product_id === recipe.output_product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipe.output_product_id);
             if (!outputProduct) {
                 this.$toast.add({severity:'error', summary: 'Product Error', detail: 'Recipe output product is missing.', life: 4000});
                 return;

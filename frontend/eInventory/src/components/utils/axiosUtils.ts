@@ -2567,11 +2567,11 @@ var action = {
         .select(`
             *,  
             purchase_orders!inner(status, purchase_order_name),
-            recipes!inner(*, recipe_elements!inner(*, products!inner(*)))
+            recipes!inner(*, products!inner(*))
             `)
         // .filter('products.fnsku', 'neq', null)
         // .filter('products.asin', 'neq', null)
-        .eq('recipes.recipe_elements.type', 'output')
+        // .eq('recipes.recipe_elements.type', 'output')
         .in('purchase_orders.status', ['Ordered','Inbound', 'Partially Delivered', 'Delivered']);
 
         const {data, error} = await query;
@@ -2582,13 +2582,13 @@ var action = {
             console.log('Requested recipes: ', data);
             const flattenedData = data.map(recipeItem => ({
                 ...recipeItem,
-                product_name: recipeItem.recipes.recipe_elements[0].products.name,
-                product_id: recipeItem.recipes.recipe_elements[0].products.product_id,
-                fnsku: recipeItem.recipes.recipe_elements[0].products.fnsku,
-                asin: recipeItem.recipes.recipe_elements[0].products.asin,
-                units_per_case: recipeItem.recipes.recipe_elements[0].products.default_units_per_case,
-                bag_size: recipeItem.recipes.recipe_elements[0].products.bag_size,
-                box_size: recipeItem.recipes.recipe_elements[0].products.box_size
+                product_name: recipeItem.recipes.products.name,
+                product_id: recipeItem.recipes.products.product_id,
+                fnsku: recipeItem.recipes.products.fnsku,
+                asin: recipeItem.recipes.products.asin,
+                units_per_case: recipeItem.recipes.products.default_units_per_case,
+                bag_size: recipeItem.recipes.products.bag_size,
+                box_size: recipeItem.recipes.products.box_size
 
             }));
             console.log("Flattened recipes: ", flattenedData);

@@ -1153,19 +1153,14 @@ export default {
                 pickListOutputOBJ = pickRecipe;
 
                 // Grab the output recipe element
-                let recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
+                let recipe = this.recipes.find(rec => rec.recipe_id === pickRecipe.recipe_id);
                 
                 let recInputs = [] as any[];
 
                 // If there is a linked recipe output, grab the recipe inputs
-                if(recOutput)
-                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
-                else{
-                    recOutput = this.recipeElements.find(rec => rec.product_id === pickRecipe.product_id && rec.type === 'output');
-                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
-                }
+                recInputs = recipe ? this.recipeElements.filter(elem => elem.recipe_id === recipe.recipe_id && elem.type === 'input') : [];
 
-                console.log("Recipe output", recOutput);
+                console.log("Recipe ", recipe);
                 console.log("recInputs", recInputs);
                 let totalArray = [] as any[];
                 // pickListInputArray = [];
