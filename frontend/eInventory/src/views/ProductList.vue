@@ -1496,7 +1496,7 @@ export default {
 
         getProductRecipes(productId: number){
 
-            let recipe = this.recipeElements.find(r => r.output_product_id === productId);
+            let recipe = this.recipes.find(r => r.output_product_id === productId);
             console.log("OUTPUT RECIPE", recipe);
 
             let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);

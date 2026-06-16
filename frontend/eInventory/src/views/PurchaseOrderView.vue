@@ -859,7 +859,7 @@
 
         <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '700px'}" header="Missing Product Fields" :modal="true">
             <div class="field">
-                <p>The following product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
+                <p>The following raw product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
             </div>
 
             <div v-for="(item, idx) in missingDefaults" :key="item.product_id" class="field">
@@ -869,12 +869,12 @@
                         <div class="text-sm">Item#: {{ item.item_num }}</div>
                     </div>
                     <div class="col-4">
-                        <label class="block">Default Units per Case</label>
+                        <label class="block">Default Units per Raw Box</label>
                         <InputNumber v-model="item.default_units_per_case" :min="1" showButtons />
                         <small v-if="item.requires_default_units_per_case" class="p-error">Required</small>
                     </div>
                     <div class="col-4">
-                        <label class="block">Unit Price</label>
+                        <label class="block">Raw Unit Price</label>
                         <InputNumber v-model="item.price_2023" mode="currency" currency="USD" locale="en-US" :min="0.01" />
                         <small v-if="item.requires_price_2023" class="p-error">Required</small>
                     </div>
@@ -1111,6 +1111,7 @@
                             placeholder="Select a recipe"
                             class="w-full"
                             :forceSelection="false"
+                            :disabled="isPoReadOnly"
                         />
                         <div v-if="data.recipeObj" class="mt-2">
                             <DataTable :value="getRecipeInputsForEditRow(data)">
@@ -1174,12 +1175,15 @@
                 </Column>
                 <Column header="# of Cases" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.qty = Number(data.amount || 0) * Number(data.units_per_case || 0)" showButtons/>
+                        <InputNumber v-model="data[field]" @update:model-value="data.qty = Number(data.amount || 0) * Number(data.units_per_case || 0)" showButtons :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Units per Case" field="units_per_case">
-                    <template #body="{data}">
-                        {{ data.units_per_case || 0 }}
+                    <template #body="{data, field}">
+                        {{ data.field || 0 }}
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputNumber v-model="data[field]" :disabled="isPoReadOnly || data.field > 0"/>
                     </template>
                 </Column>
                 <Column header="Total Units" field="qty">
@@ -1195,7 +1199,9 @@
                     </template>
                 </Column> -->
             </DataTable>
-            <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="isPoReadOnly || editRecipeRowsLoading" :loading="editRecipeRowsLoading"/>
+            <div v-tooltip.top="hasEmptyPORecipeLines() ? 'Only one planned case line can be added at a time. This is to ensure all items are saved.' : null">
+                <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="isPoReadOnly || editRecipeRowsLoading || hasEmptyPORecipeLines()" :loading="editRecipeRowsLoading"/>
+            </div>
             <br>
             </section>
 
@@ -1235,6 +1241,7 @@
                                 class="md:w-19rem"
                                 :class="{'p-invalid': submitted && !data.product_id}"
                                 :forceSelection="false"
+                                :disabled="isPoReadOnly"
                             > 
                             <template #option="slotProps">
                                 <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
@@ -1260,11 +1267,11 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Units per Box" field="units_per_case">
-                    <template #editor="{data}">
+                    <template #body="{data}">
                         <span>{{ data.units_per_case ?? '—' }}</span>
                     </template>
                 </Column>
@@ -1286,12 +1293,12 @@
                         {{ (data.fbm || 0) }}
                     </template>
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                         <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
@@ -1301,6 +1308,14 @@
                     </template>
                 </Column>
                 <Column header="Status" field="status"></Column>
+                <Column header="Notes" field="notes">
+                    <template #body="{data}">
+                        {{ data.notes }}
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" :disabled="isPoReadOnly" />
+                    </template>
+                </Column>
                 <Column :rowEditor="!isPoReadOnly" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
                     <template #body="{data}">
@@ -1325,7 +1340,9 @@
                     </template>
                 </Column>
             </DataTable> 
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="isPoReadOnly || editRawRowsLoading" :loading="editRawRowsLoading"/>
+            <div v-tooltip.top="hasEmptyPORawLines() ? 'Only one raw product line can be added at a time. This is to ensure all items are saved.' : null">
+                <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="isPoReadOnly || editRawRowsLoading || hasEmptyPORawLines()" :loading="editRawRowsLoading"/>
+            </div>
             <br>
             </section>
 
@@ -2259,6 +2276,7 @@ export default {
 
             // IMPORTANT PRODUCT FIELDS DIALOG
             missingDefaultUnitsDialog: false,
+            missingProcDefaultUnits: 0,
             missingDefaults: [] as Array<{
                 product_id: number;
                 name: string;
@@ -4635,6 +4653,11 @@ export default {
                 this.openRawRowEditor(newRow);
             }
         },
+
+        hasEmptyPORawLines(){
+            return this.poBoxes.find((line: any) => line.product_id === null || line.product_id === '') ? true : false;
+        },
+
         async addEditRecipeLine(){
             if (!this.ensurePoEditable('add processed products')) return;
             let newRow: any = null;
@@ -4648,6 +4671,12 @@ export default {
                 this.openRecipeRowEditor(newRow);
             }
         },
+
+        
+        hasEmptyPORecipeLines(){
+            return this.singlePoRecipes.find((line: any) => line.product_id === null || line.product_id === '') ? true : false;
+        },
+
         deleteBulkLine(array: any, counter: any){
             array.splice(counter,1);
         },
@@ -4773,7 +4802,7 @@ export default {
                 if (editingRow) {
                     editingRow.product_id = productObj.product_id;
                     editingRow.product_name = productObj.name;
-                    editingRow.units_per_case = productObj.default_units_per_case || 1;
+                    editingRow.units_per_case = productObj.default_units_per_case || 0;
                     editingRow.qty = editingRow.amount * editingRow.units_per_case;
                 }
             }
