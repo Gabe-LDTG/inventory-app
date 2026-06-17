@@ -148,9 +148,11 @@
                     {{ data.warehouse_qty + data.ship_to_amz }}
                 </template>
             </Column>
-            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold">
+            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" >
                 <template #body="{data}">
-                    {{ data.purchase_order_name }}
+                    <div :style="poNameStyle(data.purchase_order_name)">
+                        {{ data.purchase_order_name }}
+                    </div>
                 </template>
                 <!-- <template #editor="{data}">
                     <div class="container">
@@ -953,6 +955,13 @@ export default {
             } else {
                 return { font: 'bold', color: '#311b92', backgroundColor: '#fafafa', fontSize: '14px' };
             }
+        },
+
+        poNameStyle(data: string){
+            if (data === 'No linked PO')
+                return { font: 'bold', color: '#cb4335', backgroundColor: '#f5b7b1', fontSize: '14px' };
+            else
+                return { font: 'bold', fontSize: '14px' };
         },
 
         /**
