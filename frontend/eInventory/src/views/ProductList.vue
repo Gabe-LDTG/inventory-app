@@ -827,7 +827,7 @@ export default {
         },
 
         isProcessedProduct(product: any) {
-            return !!(product?.fnsku || product?.asin);
+            return !!(product?.is_processed);
         },
 
         rowStyleProductRow(data: any, options?: any) {
