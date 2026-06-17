@@ -2400,6 +2400,23 @@ var action = {
         }
     },
 
+    async editRecipeElement(recipeElement: any){
+        const {data, error} = await supabase
+            .from('recipe_elements')
+            .update({
+                product_id: recipeElement.product_id,
+                qty: recipeElement.qty
+            })
+            .eq('recipe_element_id', recipeElement.recipe_element_id);
+        if(error){
+            console.error('Error calling RPC:', error);
+            throw error;
+        } else {
+            console.log('Recipe Element Updated:', data);
+            return data;
+        }
+    },
+
     /* //Add a new recipe
     async addRecipe(recipe: any){
         return axios.post(BASE_URL+"/", {
