@@ -148,9 +148,11 @@
                     {{ data.warehouse_qty + data.ship_to_amz }}
                 </template>
             </Column>
-            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" class="font-bold">
+            <Column field="purchase_order_name" header="Purchase Order #" style="min-width: 200px" >
                 <template #body="{data}">
-                    {{ data.purchase_order_name }}
+                    <div :style="poNameStyle(data.purchase_order_name)">
+                        {{ data.purchase_order_name }}
+                    </div>
                 </template>
                 <!-- <template #editor="{data}">
                     <div class="container">
@@ -955,6 +957,13 @@ export default {
             }
         },
 
+        poNameStyle(data: string){
+            if (data === 'No linked PO')
+                return { font: 'bold', color: '#cb4335', backgroundColor: '#f5b7b1', fontSize: '14px' };
+            else
+                return { font: 'bold', fontSize: '14px' };
+        },
+
         /**
          * Runs every time a request cell is edited and autosaves new data
          * @param event The request field cell being edited
@@ -1153,19 +1162,14 @@ export default {
                 pickListOutputOBJ = pickRecipe;
 
                 // Grab the output recipe element
-                let recOutput = this.recipeElements.find(rec => rec.recipe_id === pickRecipe.recipe_id && rec.type === 'output');
+                let recipe = this.recipes.find(rec => rec.recipe_id === pickRecipe.recipe_id);
                 
                 let recInputs = [] as any[];
 
                 // If there is a linked recipe output, grab the recipe inputs
-                if(recOutput)
-                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
-                else{
-                    recOutput = this.recipeElements.find(rec => rec.product_id === pickRecipe.product_id && rec.type === 'output');
-                    recInputs = this.recipeElements.filter(rec => rec.recipe_id === recOutput.recipe_id && rec.type === 'input');
-                }
+                recInputs = recipe ? this.recipeElements.filter(elem => elem.recipe_id === recipe.recipe_id && elem.type === 'input') : [];
 
-                console.log("Recipe output", recOutput);
+                console.log("Recipe ", recipe);
                 console.log("recInputs", recInputs);
                 let totalArray = [] as any[];
                 // pickListInputArray = [];

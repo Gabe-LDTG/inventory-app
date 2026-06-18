@@ -827,7 +827,7 @@ export default {
         },
 
         isProcessedProduct(product: any) {
-            return !!(product?.fnsku || product?.asin);
+            return !!(product?.is_processed);
         },
 
         rowStyleProductRow(data: any, options?: any) {
@@ -1496,10 +1496,10 @@ export default {
 
         getProductRecipes(productId: number){
 
-            let outputProduct = this.recipeElements.find(re => re.type === 'output' && re.product_id === productId);
-            console.log("OUTPUT RECIPE", outputProduct);
+            let recipe = this.recipes.find(r => r.output_product_id === productId);
+            console.log("OUTPUT RECIPE", recipe);
 
-            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === outputProduct.recipe_id);
+            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
             console.log("INPUT RECIPES", inputProducts);
 
             inputProducts.forEach(ir => {

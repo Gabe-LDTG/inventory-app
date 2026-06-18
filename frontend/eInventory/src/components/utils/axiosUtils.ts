@@ -2018,6 +2018,7 @@ var action = {
         status: string;
     }){
         const payload = {
+            po_raw_line_id: po_raw_line.po_raw_line_id,
             product_id: po_raw_line.product_id,
             purchase_order_id: po_raw_line.purchase_order_id,
             invoice_id: po_raw_line.invoice_id ?? null,
@@ -2399,6 +2400,23 @@ var action = {
         }
     },
 
+    async editRecipeElement(recipeElement: any){
+        const {data, error} = await supabase
+            .from('recipe_elements')
+            .update({
+                product_id: recipeElement.product_id,
+                qty: recipeElement.qty
+            })
+            .eq('recipe_element_id', recipeElement.recipe_element_id);
+        if(error){
+            console.error('Error calling RPC:', error);
+            throw error;
+        } else {
+            console.log('Recipe Element Updated:', data);
+            return data;
+        }
+    },
+
     /* //Add a new recipe
     async addRecipe(recipe: any){
         return axios.post(BASE_URL+"/", {
@@ -2566,11 +2584,11 @@ var action = {
         .select(`
             *,  
             purchase_orders!inner(status, purchase_order_name),
-            recipes!inner(*, recipe_elements!inner(*, products!inner(*)))
+            recipes!inner(*, products!inner(*))
             `)
         // .filter('products.fnsku', 'neq', null)
         // .filter('products.asin', 'neq', null)
-        .eq('recipes.recipe_elements.type', 'output')
+        // .eq('recipes.recipe_elements.type', 'output')
         .in('purchase_orders.status', ['Ordered','Inbound', 'Partially Delivered', 'Delivered']);
 
         const {data, error} = await query;
@@ -2581,13 +2599,13 @@ var action = {
             console.log('Requested recipes: ', data);
             const flattenedData = data.map(recipeItem => ({
                 ...recipeItem,
-                product_name: recipeItem.recipes.recipe_elements[0].products.name,
-                product_id: recipeItem.recipes.recipe_elements[0].products.product_id,
-                fnsku: recipeItem.recipes.recipe_elements[0].products.fnsku,
-                asin: recipeItem.recipes.recipe_elements[0].products.asin,
-                units_per_case: recipeItem.recipes.recipe_elements[0].products.default_units_per_case,
-                bag_size: recipeItem.recipes.recipe_elements[0].products.bag_size,
-                box_size: recipeItem.recipes.recipe_elements[0].products.box_size
+                product_name: recipeItem.recipes.products.name,
+                product_id: recipeItem.recipes.products.product_id,
+                fnsku: recipeItem.recipes.products.fnsku,
+                asin: recipeItem.recipes.products.asin,
+                units_per_case: recipeItem.recipes.products.default_units_per_case,
+                bag_size: recipeItem.recipes.products.bag_size,
+                box_size: recipeItem.recipes.products.box_size
 
             }));
             console.log("Flattened recipes: ", flattenedData);

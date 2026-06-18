@@ -858,31 +858,43 @@
         </Dialog>
 
         <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '700px'}" header="Missing Product Fields" :modal="true">
-            <div class="field">
-                <p>The following product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
+            <div v-if="isProcMissingDefaultUnits" class="field">
+                <p class="p-error">Warning: This processed case key for {{ procProdMissingDefaults?.product_name || procProdMissingDefaults?.name }} is missing a default units per case value. Please enter a value below.</p>
+                <InputNumber v-model="missingProcDefaultUnits" :min="1" showButtons class="mb-2" />
+            </div>
+
+            <div class="field" v-if="missingDefaults.length">
+                <p>The following raw product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
             </div>
 
             <div v-for="(item, idx) in missingDefaults" :key="item.product_id" class="field">
                 <div class="grid">
-                    <div class="col-4">
+                    <div class="col-6">
                         <div class="font-bold">{{ item.name }}</div>
                         <div class="text-sm">Item#: {{ item.item_num }}</div>
                     </div>
-                    <div class="col-4">
-                        <label class="block">Default Units per Case</label>
-                        <InputNumber v-model="item.default_units_per_case" :min="1" showButtons />
-                        <small v-if="item.requires_default_units_per_case" class="p-error">Required</small>
-                    </div>
-                    <div class="col-4">
-                        <label class="block">Unit Price</label>
-                        <InputNumber v-model="item.price_2023" mode="currency" currency="USD" locale="en-US" :min="0.01" />
-                        <small v-if="item.requires_price_2023" class="p-error">Required</small>
+                    <div class="col-6 flex flex-column gap-3">
+                        <div>
+                            <label class="block">Default Units per Raw Box</label>
+                            <InputNumber v-model="item.default_units_per_case" :min="1" showButtons />
+                            <small v-if="item.requires_default_units_per_case" class="p-error">Required</small>
+                        </div>
+                        <div>
+                            <label class="block">Raw Unit Price</label>
+                            <InputNumber v-model="item.price_2023" mode="currency" currency="USD" locale="en-US" :min="0.01" />
+                            <small v-if="item.requires_price_2023" class="p-error">Required</small>
+                        </div>
+                        <div v-if="item.requires_recipe_input_units">
+                            <label class="block">Raw Unit(s) Required for 1 Processed Unit</label>
+                            <InputNumber v-model="item.recipe_input_units" :min="1" showButtons />
+                            <small class="p-error">Required</small>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <template #footer>
-                <Button label="Cancel" text @click="missingDefaultUnitsDialog = false" />
+                <Button label="Cancel" text @click="missingDefaultUnitsDialog = false; activeRecipeEditRow = null; missingDefaultsRecipeIndex = null" />
                 <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" :loading="loading" :disabled="loading" autoFocus />
             </template>
         </Dialog>
@@ -1111,6 +1123,7 @@
                             placeholder="Select a recipe"
                             class="w-full"
                             :forceSelection="false"
+                            :disabled="isPoReadOnly"
                         />
                         <div v-if="data.recipeObj" class="mt-2">
                             <DataTable :value="getRecipeInputsForEditRow(data)">
@@ -1174,13 +1187,14 @@
                 </Column>
                 <Column header="# of Cases" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @update:model-value="data.qty = Number(data.amount || 0) * Number(data.units_per_case || 0)" showButtons/>
+                        <InputNumber v-model="data[field]" @update:model-value="data.qty = Number(data.amount || 0) * Number(data.units_per_case || 0)" showButtons :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Units per Case" field="units_per_case">
-                    <template #body="{data}">
+                    <template #body="{data, field}">
                         {{ data.units_per_case || 0 }}
                     </template>
+
                 </Column>
                 <Column header="Total Units" field="qty">
                     <template #editor="{data, field}">
@@ -1195,7 +1209,9 @@
                     </template>
                 </Column> -->
             </DataTable>
-            <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="isPoReadOnly || editRecipeRowsLoading" :loading="editRecipeRowsLoading"/>
+            <div v-tooltip.top="hasEmptyPORecipeLines() ? 'Only one planned case line can be added at a time. This is to ensure all items are saved.' : null">
+                <Button label="Add another Case" class="po-action-btn po-action-btn--recipe po-edit-add-btn" @click="addEditRecipeLine" :disabled="isPoReadOnly || editRecipeRowsLoading || hasEmptyPORecipeLines()" :loading="editRecipeRowsLoading"/>
+            </div>
             <br>
             </section>
 
@@ -1235,6 +1251,7 @@
                                 class="md:w-19rem"
                                 :class="{'p-invalid': submitted && !data.product_id}"
                                 :forceSelection="false"
+                                :disabled="isPoReadOnly"
                             > 
                             <template #option="slotProps">
                                 <div>{{ slotProps.option.name }} - {{ slotProps.option.item_num }}</div>
@@ -1260,11 +1277,11 @@
                 </Column>
                 <Column header="# of Boxes" field="amount">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Units per Box" field="units_per_case">
-                    <template #editor="{data}">
+                    <template #body="{data}">
                         <span>{{ data.units_per_case ?? '—' }}</span>
                     </template>
                 </Column>
@@ -1286,12 +1303,12 @@
                         {{ (data.fbm || 0) }}
                     </template>
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Total Units" field="total">
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" />
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
                         <!-- Math.ceil(data.total/data.units_per_case) -->
                     </template>
                 </Column>
@@ -1301,6 +1318,14 @@
                     </template>
                 </Column>
                 <Column header="Status" field="status"></Column>
+                <Column header="Notes" field="notes">
+                    <template #body="{data}">
+                        {{ data.notes }}
+                    </template>
+                    <template #editor="{data, field}">
+                        <InputText v-model="data[field]" :disabled="isPoReadOnly" />
+                    </template>
+                </Column>
                 <Column :rowEditor="!isPoReadOnly" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
                     <template #body="{data}">
@@ -1325,7 +1350,9 @@
                     </template>
                 </Column>
             </DataTable> 
-            <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="isPoReadOnly || editRawRowsLoading" :loading="editRawRowsLoading"/>
+            <div v-tooltip.top="hasEmptyPORawLines() ? 'Only one raw product line can be added at a time. This is to ensure all items are saved.' : null">
+                <Button label="Add another product" class="po-action-btn po-action-btn--secondary po-edit-add-btn" @click="addEditRawLine" :disabled="isPoReadOnly || editRawRowsLoading || hasEmptyPORawLines()" :loading="editRawRowsLoading"/>
+            </div>
             <br>
             </section>
 
@@ -1751,10 +1778,6 @@
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
                                 @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
                                 @input="onInboundUnitsInput($event, data, 'fba_prep')"
-                                :pt="{
-                                    /* Force input to stack layout flat at 0 so it stays underneath the frozen column (zIndex 10) */
-                                    root: { style: { zIndex: 0, position: 'relative' } }
-                                }" 
                             />
                         </template>
                     </Column>
@@ -2250,6 +2273,7 @@ export default {
             // PO RECIPES
             recipeEditingRows: [] as any[],
             editRecipeRowsLoading: false,
+            activeRecipeEditRow: null as any,
 
             //PRODUCTS VARIABLES
             products: [] as any[],
@@ -2263,14 +2287,20 @@ export default {
 
             // IMPORTANT PRODUCT FIELDS DIALOG
             missingDefaultUnitsDialog: false,
+            isProcMissingDefaultUnits: false,
+            procProdMissingDefaults: null as any,
+            missingProcDefaultUnits: 0,
             missingDefaults: [] as Array<{
                 product_id: number;
+                recipe_id: number | null;
                 name: string;
                 item_num: string;
                 default_units_per_case: number | null;
                 price_2023: number | null;
+                recipe_input_units: number | null;
                 requires_default_units_per_case: boolean;
                 requires_price_2023: boolean;
+                requires_recipe_input_units: boolean;
             }>,
             missingDefaultsRecipeIndex: null as number | null,
 
@@ -2518,11 +2548,12 @@ export default {
                 .filter((recipe: any) => Number(recipe?.purchase_order_id || 0) === poId)
                 .map((recipe: any, idx: number) => {
                     const recipeId = Number(recipe?.recipe_id || 0);
-                    const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
+                    /* const recipeOutput = (this.displayRecipeElements || []).find((element: any) =>
                         Number(element?.recipe_id || 0) === recipeId && element?.type === 'output'
-                    );
-                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0))
-                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeOutput?.product_id || 0));
+                    ); */
+                    const recipeKey = (this.purchaseOrder.recipes || []).find((rec: any) => Number(rec?.recipe_id || 0) === recipeId);
+                    const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeKey?.output_product_id || 0))
+                        || (this.procProducts || []).find((p: any) => Number(p?.product_id || 0) === Number(recipeKey?.output_product_id || 0));
                     const unitsPerCase = Number(product?.default_units_per_case || recipe?.units_per_case || 0);
                     const qty = Number(recipe?.qty || 0);
                     const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
@@ -3857,8 +3888,8 @@ export default {
                     const recipeKey = (this.recipes || []).find(r => poRec.recipe_id === r.recipe_id);
                     if (!recipeKey) return;
                     const recipeElements = (this.recipeElements || []).filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
-                    const processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    const processedRecElKey = (this.products || []).find((p) => processedRecEl && p.product_id === processedRecEl.product_id);
+                    // const processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    const processedRecElKey = (this.products || []).find((p) => p.product_id === recipeKey.output_product_id);
                     const rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     rawRecElArray.forEach(recEl => {
                         if (!this.getTotalCost || typeof this.getTotalCost !== 'function') return;
@@ -3976,24 +4007,21 @@ export default {
             console.log("boxArray", boxArray);
 
             linkedPoRecipes.forEach((poRec: any) => {
-                let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
-                if (!recipeOutput) return;
+                /* let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
+                if (!recipeOutput) return; */
 
-                console.log("recipeOutput", recipeOutput);
+                // Why the heck am I grabbing the po recipe when I am looping inside of the po recipes lol
+                /* let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+                if (!poRecipe) return; */
 
-                let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
-                if (!poRecipe) return;
-
-                console.log("poRecipe",poRecipe);
-
-                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'input');
 
                 let totals = [] as any[];
 
                 rawRecInputs.forEach((r: any) => {
                     let map = {} as any;
                     map.product_id = r.product_id;
-                    r.totalUnits = poRecipe.qty;
+                    r.totalUnits = poRec.qty;
                     map.currentUnits = 0;
                     totals.push(map);
                 });
@@ -4641,6 +4669,11 @@ export default {
                 this.openRawRowEditor(newRow);
             }
         },
+
+        hasEmptyPORawLines(){
+            return this.poBoxes.find((line: any) => line.product_id === null || line.product_id === '') ? true : false;
+        },
+
         async addEditRecipeLine(){
             if (!this.ensurePoEditable('add processed products')) return;
             let newRow: any = null;
@@ -4654,6 +4687,12 @@ export default {
                 this.openRecipeRowEditor(newRow);
             }
         },
+
+        
+        hasEmptyPORecipeLines(){
+            return this.singlePoRecipes.find((line: any) => line.product_id === null || line.product_id === '') ? true : false;
+        },
+
         deleteBulkLine(array: any, counter: any){
             array.splice(counter,1);
         },
@@ -4779,7 +4818,7 @@ export default {
                 if (editingRow) {
                     editingRow.product_id = productObj.product_id;
                     editingRow.product_name = productObj.name;
-                    editingRow.units_per_case = productObj.default_units_per_case || 1;
+                    editingRow.units_per_case = productObj.default_units_per_case || 0;
                     editingRow.qty = editingRow.amount * editingRow.units_per_case;
                 }
             }
@@ -4791,9 +4830,9 @@ export default {
          * @returns An array of raw products
          */
         getRawProducts(procProductId: number){
-            const output = this.recipeElements.find(re => re.product_id === procProductId && re.type === 'output');
+            const recipe = this.recipes.find(re => re.output_product_id === procProductId);
             const rawProductInfo: {rec: any, key: any}[] = [];
-            const inputs = this.recipeElements.filter(re => re.recipe_id === output.recipe_id && re.type === 'input');
+            const inputs = this.recipeElements.filter(re => re.recipe_id === recipe.recipe_id && re.type === 'input');
             for (const input of inputs) {
                 const rawProduct = this.products.find(p => p.product_id === input.product_id);
                 rawProductInfo.push({rec: input, key: rawProduct});
@@ -4819,15 +4858,18 @@ export default {
             };
         },
 
-        getMissingImportantProductFields(products: any[]){
+        getMissingImportantProductFields(products: any[], recipeId: number | null = null){
             type MissingImportantFieldItem = {
                 product_id: number;
+                recipe_id: number | null;
                 name: string;
                 item_num: string;
                 default_units_per_case: number | null;
                 price_2023: number | null;
+                recipe_input_units: number | null;
                 requires_default_units_per_case: boolean;
                 requires_price_2023: boolean;
+                requires_recipe_input_units: boolean;
             };
 
             const uniqueProductsById = new Map<number, any>();
@@ -4841,32 +4883,64 @@ export default {
 
             const missingImportantFields: MissingImportantFieldItem[] = [];
 
+            console.log("Recipe ID for important field check: ", recipeId);
+
             Array.from(uniqueProductsById.values()).forEach((product: any) => {
+                let recipeElement = null;
+                let inputUnits = null;
+                let requiresRecipeInputUnits = false;
+                if(recipeId){
+                    recipeElement = this.recipeElements.find((re: any) => re.product_id === product.product_id && re.recipe_id === recipeId);
+                    console.log("Checking recipe element for product ID " + product.product_id + " and recipe ID " + recipeId, recipeElement);
+                    inputUnits = Number(recipeElement.qty); 
+                    requiresRecipeInputUnits = !Number.isFinite(inputUnits) || inputUnits <= 0;
+                }
+
                 const defaultUnits = Number(product.default_units_per_case);
                 const unitPrice = Number(product.price_2023);
                 const requiresDefaultUnits = !Number.isFinite(defaultUnits) || defaultUnits <= 0;
                 const requiresPrice = !Number.isFinite(unitPrice) || unitPrice <= 0;
+                if (!requiresDefaultUnits && !requiresPrice && !requiresRecipeInputUnits) return;
 
-                if (!requiresDefaultUnits && !requiresPrice) return;
+                if(recipeId){
+                    missingImportantFields.push({
+                        product_id: product.product_id,
+                        recipe_id: recipeId,
+                        name: String(product.name || ''),
+                        item_num: String(product.item_num || ''),
+                        default_units_per_case: Number.isFinite(defaultUnits) && defaultUnits > 0 ? defaultUnits : null,
+                        price_2023: Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null,
+                        recipe_input_units: inputUnits,
+                        requires_default_units_per_case: requiresDefaultUnits,
+                        requires_price_2023: requiresPrice,
+                        requires_recipe_input_units: requiresRecipeInputUnits,
+                    });
+                } else {
+                    missingImportantFields.push({
+                        product_id: product.product_id,
+                        recipe_id: null,
+                        name: String(product.name || ''),
+                        item_num: String(product.item_num || ''),
+                        default_units_per_case: Number.isFinite(defaultUnits) && defaultUnits > 0 ? defaultUnits : null,
+                        price_2023: Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null,
+                        recipe_input_units: null,
+                        requires_default_units_per_case: requiresDefaultUnits,
+                        requires_price_2023: requiresPrice,
+                        requires_recipe_input_units: false,
+                    });
+                }
 
-                missingImportantFields.push({
-                    product_id: product.product_id,
-                    name: String(product.name || ''),
-                    item_num: String(product.item_num || ''),
-                    default_units_per_case: Number.isFinite(defaultUnits) && defaultUnits > 0 ? defaultUnits : null,
-                    price_2023: Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null,
-                    requires_default_units_per_case: requiresDefaultUnits,
-                    requires_price_2023: requiresPrice,
-                });
             });
+
+            console.log("Missing important fields for products: ", missingImportantFields);
 
             return missingImportantFields;
         },
 
-        promptForMissingImportantProductFields(products: any[], recipeIndex: number | null = null){
-            const missingImportantFields = this.getMissingImportantProductFields(products);
+        promptForMissingImportantProductFields(products: any[], recipeIndex: number | null = null, recipeId: number | null = null){
+            const missingImportantFields = this.getMissingImportantProductFields(products, recipeId);
 
-            if (!missingImportantFields.length) return;
+            if (!missingImportantFields.length && this.isProcMissingDefaultUnits === false) return;
 
             this.missingDefaults = missingImportantFields;
             this.missingDefaultsRecipeIndex = recipeIndex;
@@ -4887,16 +4961,18 @@ export default {
                 .map(re => this.products.find(p => p.product_id === re.product_id))
                 .filter(p => !!p);
 
-            this.promptForMissingImportantProductFields(rawProducts, counter);
+            this.promptForMissingImportantProductFields(rawProducts, counter, recipeId);
         },
 
         async saveMissingDefaultUnits(){
             const invalid = this.missingDefaults.some(d => {
                 const defaultUnits = Number(d.default_units_per_case);
                 const unitPrice = Number(d.price_2023);
+                const recipeInputUnits = d.recipe_id ? Number(d.recipe_input_units) : null;
                 const invalidDefaultUnits = d.requires_default_units_per_case && (!Number.isFinite(defaultUnits) || defaultUnits <= 0);
                 const invalidPrice = d.requires_price_2023 && (!Number.isFinite(unitPrice) || unitPrice <= 0);
-                return invalidDefaultUnits || invalidPrice;
+                const invalidRecipeInputUnits = d.recipe_id ? d.requires_recipe_input_units && (!Number.isFinite(recipeInputUnits) || (recipeInputUnits || 0) <= 0) : false;
+                return invalidDefaultUnits || invalidPrice || invalidRecipeInputUnits;
             });
             if (invalid) {
                 this.$toast.add({ severity: 'error', summary: 'Missing value', detail: 'Please enter valid values for all required product fields.' });
@@ -4905,11 +4981,98 @@ export default {
 
             try {
                 this.loading = true;
+                if(this.isProcMissingDefaultUnits){
+                    
+                    this.procProdMissingDefaults.default_units_per_case = Number(this.missingProcDefaultUnits);
+                    await action.editProduct(this.procProdMissingDefaults, []);
+                    const productIdx = this.products.findIndex((p: any) => p.product_id === this.procProdMissingDefaults.product_id);
+                    if(productIdx !== -1) {
+                        this.products[productIdx] = {
+                            ...this.products[productIdx],
+                            ...this.procProdMissingDefaults,
+                        };
+                    } else {
+                        console.warn("Processed product missing default units was not found in products list after update.");
+                    }
+                    const nextUnitsPerCase = Number(this.procProdMissingDefaults.default_units_per_case || 0);
+                    const targetRecipeIndex = Number(this.missingDefaultsRecipeIndex);
+
+                    if (this.activeRecipeEditRow) {
+                        const draftAmount = Number(this.activeRecipeEditRow.amount || 0);
+                        this.activeRecipeEditRow.units_per_case = nextUnitsPerCase;
+                        this.activeRecipeEditRow.qty = Number((draftAmount * nextUnitsPerCase).toFixed(2));
+                    }
+
+                    if (
+                        Number.isInteger(targetRecipeIndex)
+                        && targetRecipeIndex >= 0
+                        && targetRecipeIndex < (this.singlePoRecipes || []).length
+                    ) {
+                        const targetRow = this.singlePoRecipes[targetRecipeIndex] || {};
+                        const targetAmount = Number(targetRow.amount || 0);
+
+                        this.singlePoRecipes.splice(targetRecipeIndex, 1, {
+                            ...targetRow,
+                            units_per_case: nextUnitsPerCase,
+                            qty: Number((targetAmount * nextUnitsPerCase).toFixed(2)),
+                        });
+                    } else {
+                        // Fallback for edge cases where row index could not be resolved.
+                        this.singlePoRecipes = this.singlePoRecipes.map((row: any) => {
+                            if (row.product_id !== this.procProdMissingDefaults.product_id) return row;
+                            const amount = Number(row.amount || 0);
+                            return {
+                                ...row,
+                                units_per_case: nextUnitsPerCase,
+                                qty: Number((amount * nextUnitsPerCase).toFixed(2)),
+                            };
+                        });
+                    }
+
+                    this.editingRows = this.editingRows.map((row: any) => {
+                        if (row.product_id !== this.procProdMissingDefaults.product_id) return row;
+                        return {
+                            ...row,
+                            units_per_case: nextUnitsPerCase,
+                            qty: Number(row.amount || 0) * nextUnitsPerCase,
+                        };
+                    });
+
+                    // console.log("Updated singlePoRecipes after saving missing defaults: ", JSON.stringify(this.singlePoRecipes));
+                    // console.log("Updated editingRows after saving missing defaults: ", JSON.stringify(this.editingRows));
+                    this.isProcMissingDefaultUnits = false;
+                    this.procProdMissingDefaults = null;
+                    this.missingProcDefaultUnits = 0;
+                    this.$toast.add({ severity: 'success', summary: 'Saved', detail: 'Default units per case updated for processed product.' });
+                }
+
                 const updatedByProductId = new Map<number, { default_units_per_case: number | null; price_2023: number | null; requires_default_units_per_case: boolean; requires_price_2023: boolean }>();
 
                 for (const item of this.missingDefaults) {
                     const product = this.products.find(p => p.product_id === item.product_id);
                     if (!product) continue;
+
+                    if(item.recipe_id){
+                        const recipeElement = this.recipeElements.find((re: any) => re.product_id === item.product_id && re.recipe_id === item.recipe_id);
+                        if (recipeElement) {
+                            if (item.requires_recipe_input_units) {
+                                recipeElement.qty = Number(item.recipe_input_units);
+                                await action.editRecipeElement(recipeElement);
+                                const recipeElementIdx = this.recipeElements.findIndex((re: any) => re.recipe_element_id === recipeElement.recipe_element_id);
+                                if (recipeElementIdx !== -1) {
+                                    this.recipeElements[recipeElementIdx] = {
+                                        ...this.recipeElements[recipeElementIdx],
+                                        ...recipeElement,
+                                    };
+                                } else {
+                                    console.warn(`Edited recipe element not found in local state for recipe_element_id ${recipeElement.recipe_element_id}`);
+                                }
+                            }
+                        } else {
+                            console.warn(`Recipe element not found for product_id ${item.product_id} and recipe_id ${item.recipe_id}`);
+                        }
+                    }
+
                     if (item.requires_default_units_per_case) {
                         product.default_units_per_case = Number(item.default_units_per_case);
                     }
@@ -4966,6 +5129,7 @@ export default {
                 });
 
                 this.missingDefaultUnitsDialog = false;
+                this.activeRecipeEditRow = null;
                 this.$toast.add({ severity: 'success', summary: 'Saved', detail: 'Important product fields were updated.', life: 3000 });
 
                 // If we were highlighting a recipe row for missing defaults, clear it now
@@ -4988,33 +5152,44 @@ export default {
             this.recipeArrayEdit.recipe_id = id;
             this.recipeArrayEdit.default_units_per_case = recipeId.default_units_per_case;
             console.log("RECIPE ID: ", id);
-            let recipeElement = this.recipeElements.find(re => re.recipe_id === id && re.type === 'output');
-            console.log("RECIPE ELEMENT, ", recipeElement);
-            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipeElement.product_id);
+            let recipe = this.recipes.find(r => r.recipe_id === id);
+            console.log("RECIPE: ", recipe);
+            this.poCasesEdit = this.procProducts.find(p => p.product_id === recipe.product_id);
             console.log("PO CASE", this.poCasesEdit);
         },
 
         onRecipeSelectionEditRow(recipeObj: any, rowData: any){
-            this.applyRecipeToPoRecipeRow(recipeObj, rowData);
+            this.activeRecipeEditRow = rowData;
+            const rowIndex = (this.singlePoRecipes || []).findIndex((row: any) => row === rowData);
+            this.applyRecipeToPoRecipeRow(recipeObj, rowData, rowIndex);
         },
 
-        applyRecipeToPoRecipeRow(recipeObj: any, rowData: any){
+        applyRecipeToPoRecipeRow(recipeObj: any, rowData: any, rowIndex: number = -1){
             if (!recipeObj?.recipe_id || !rowData) return;
 
             const recipeId = recipeObj.recipe_id;
-            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === recipeId && re.type === 'output');
-            if (!recipeOutput) return;
+            // const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === recipeId && re.type === 'output');
+            // if (!recipeOutput) return;
 
-            const processedProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
-                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
-            if (!processedProduct) return;
+            const processedProduct = (this.products || []).find((p: any) => p.product_id === recipeObj.output_product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipeObj.output_product_id);
+            if (!processedProduct) {
+                this.$toast.add({ severity: 'error', summary: 'Error', detail: 'Processed product not found. Please contact the System Admin.' });
+                return;
+            }
+
+            if(processedProduct.default_units_per_case == null || processedProduct.default_units_per_case <= 0){
+                this.isProcMissingDefaultUnits = true;
+                this.missingProcDefaultUnits = 0;
+                this.procProdMissingDefaults = processedProduct;
+            }
 
             rowData.recipeObj = recipeObj;
             rowData.recipe_id = recipeId;
             rowData.productObj = processedProduct;
             rowData.product_id = processedProduct.product_id;
             rowData.product_name = processedProduct.name;
-            const nextUnitsPerCase = Number(processedProduct.default_units_per_case || rowData.units_per_case || 1);
+            const nextUnitsPerCase = Number(processedProduct.default_units_per_case || rowData.units_per_case || 0);
             rowData.units_per_case = nextUnitsPerCase;
             rowData.amount = Number(rowData.amount || 1);
             rowData.qty = Number((rowData.amount * rowData.units_per_case).toFixed(2));
@@ -5022,7 +5197,7 @@ export default {
             // Force table-level reactivity so non-editor cells reflect the newly selected recipe output immediately.
             this.singlePoRecipes = [...(this.singlePoRecipes || [])];
 
-            this.checkMissingDefaultUnitsForRecipe(recipeObj, 0);
+            this.checkMissingDefaultUnitsForRecipe(recipeObj, rowIndex);
         },
 
         getRecipeInputsForEditRow(rowData: any){
@@ -5425,10 +5600,11 @@ export default {
          * 
          * Created by: Gabe de la Torre
          * Date Created: 2-17-2025
-         * Date Last Edited: 2-17-2025
+         * Date Last Edited: 6-17-2026
          */
         async editPurchaseOrder(purchaseOrder: any) {
             try {
+                console.log("Purchase order to edit, ", purchaseOrder);
                 // this.purchaseOrder = {...purchaseOrder};
                 this.poCases = [];
                 this.poBoxes = [];
@@ -5439,14 +5615,21 @@ export default {
                 this.singlePoRecipes = [];
                 // await this.getRecipes();
 
-                let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
-                let poRecs = this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                // console.log("Recipes when opening po edit, ", this.recipes);
 
-                poRecs.forEach(recLine => {
-                    let outputElement = this.recipeElements.find(re => re.recipe_id === recLine.recipe_id);
-                    if (!outputElement) return;
+                // let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
+                let boxes = purchaseOrder.individual_boxes || [];
+                let poRecs = purchaseOrder.po_recipes || this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
-                    let elementKey = this.products.find(p => p.product_id === outputElement.product_id);
+                // console.log("PO Recs when opening edit, ", poRecs);
+
+                poRecs.forEach((recLine: any) => {
+                    const recipe = this.recipes.find(r => r.recipe_id === recLine.recipe_id);
+                    if (!recipe) return;
+
+                    // console.log("Recipe, ", recipe);
+
+                    let elementKey = this.products.find(p => p.product_id === recipe.output_product_id);
                     if (!elementKey) return;
 
                     const recipeKey = this.recipes.find(r => r.recipe_id === recLine.recipe_id);
@@ -5472,14 +5655,18 @@ export default {
 
                 // Ensure legacy orders have po_raw_lines created (migration support).
                 // Returns persisted records with IDs (re-fetched after insert for legacy orders).
-                const ensuredRawLines = await this.ensureRawLinesExist();
+                /* if(purchaseOrder.po_raw_lines.length <= 0){
+                    const ensuredRawLines = await this.ensureRawLinesExist();
+                } */
 
                 // Raw lines are preloaded by the page RPC; keep a current-PO slice for edit operations.
                 // Fall back to the freshly-ensured lines if the page cache doesn't contain them yet.
-                const cachedLines = (this.po_raw_products || []).filter((line: any) =>
+                const cachedLines = (purchaseOrder.po_raw_lines && purchaseOrder.po_raw_lines.length > 0) 
+                ? purchaseOrder.po_raw_lines 
+                : (this.po_raw_products || []).filter((line: any) =>
                     line.purchase_order_id === this.purchaseOrder.purchase_order_id
                 );
-                this.singlePoRawProducts = cachedLines.length > 0 ? cachedLines : (ensuredRawLines || []);
+                this.singlePoRawProducts = cachedLines.length > 0 ? cachedLines : (await this.ensureRawLinesExist() || []);
 
                 // Keep the page cache consistent so subsequent saves/checks have the right data.
                 if (cachedLines.length === 0 && this.singlePoRawProducts.length > 0) {
@@ -5581,9 +5768,10 @@ export default {
 
             console.log("displayRecipeElements: ", this.displayRecipeElements);
             poRecipes.forEach(poRec => {
-                let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
-                recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
-                poRecElements.push(recElArray);
+                // let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
+                // recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
+                let output = {amount: poRec.qty};
+                poRecElements.push(output);
             });
             poRecElements = poRecElements.flat();
             let total = 0;
@@ -5938,7 +6126,7 @@ export default {
             console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
             //Grab the linked po recipe for the inline processed product
-            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output' && r.recipe_id === rec.recipe_id) !== undefined);
+            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipes.find(r => r.output_product_id === product_id && r.recipe_id === rec.recipe_id) !== undefined);
             
             // let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
 
@@ -6004,7 +6192,7 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let recipeOutput = this.displayRecipeElements.find(r => r.product_id === product_id && r.type === 'output');
+        let recipeOutput = this.displayRecipes.find(r => r.output_product_id === product_id);
         console.log("recipeOutput", recipeOutput);
         let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
         console.log("outputKey", outputKey);
@@ -6357,8 +6545,8 @@ export default {
                     let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
                     //console.log(recipeElements);
 
-                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    // let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === recipeKey.output_product_id);
                     let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
@@ -6424,8 +6612,8 @@ export default {
                     let recipeElements = this.recipeElements.filter(recEl => recEl.recipe_id === recipeKey.recipe_id);
                     //console.log(recipeElements);
 
-                    let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
-                    let processedRecElKey = this.products.find((p: any) => p.product_id === processedRecEl.product_id);
+                    // let processedRecEl = recipeElements.find(recEl => recEl.type === 'output');
+                    let processedRecElKey = this.products.find((p: any) => p.product_id === recipeKey.output_product_id);
                     let rawRecElArray = recipeElements.filter(recEl => recEl.type === 'input');
                     //console.log("Processed Rec El ", processedRecEl, " and Raw Rec El Array ", rawRecElArray);
 
@@ -6768,9 +6956,10 @@ export default {
             if(recMissingRequest.length === 0) 
                 return;
             else{ // Else, grab all recipes and elements and add the necessary requests
-                const recPackage: { elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                const recPackage: { recipes: any[]; elements: any[] } = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
                 console.log("Recipe package", recPackage);
                 
+                const recipes = Array.isArray(recPackage.recipes) ? recPackage.recipes : [];
                 const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
                 const existingRequests = Array.isArray(po_requests) ? po_requests : [];
 
@@ -6780,10 +6969,10 @@ export default {
 
                 for (const recipe of recMissingRequest) {
 
-                    let neededRecElement = recipeElements.find((recElement: any) => recElement.recipe_id === recipe.recipe_id && recElement.type === 'output');
-                    console.log("Needed Recipe Element: ", neededRecElement);
+                    let neededRecipe = recipeElements.find((rec: any) => rec.recipe_id === recipe.recipe_id);
+                    console.log("Needed Recipe Element: ", neededRecipe);
 
-                    if (!neededRecElement || !neededRecElement.product_id) {
+                    if (!neededRecipe || !neededRecipe.output_product_id) {
                         console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
                         if (recipe?.recipe_id) {
                             skippedRecipeIds.push(recipe.recipe_id);
@@ -6791,10 +6980,10 @@ export default {
                         continue;
                     }
 
-                    let productKey = this.products.find(product => product.product_id === neededRecElement.product_id);
+                    let productKey = this.products.find(product => product.product_id === neededRecipe.output_product_id);
                     console.log("Product Key: ", productKey);
 
-                    let recRequest = existingRequests.find(request => request.product_id === neededRecElement.product_id && request.purchase_order_id === poId);
+                    let recRequest = existingRequests.find(request => request.product_id === neededRecipe.output_product_id && request.purchase_order_id === poId);
                     console.log("Recipe Request: ", recRequest);
                     if(!recRequest){
                         // No request made for this recipe yet, make one
@@ -6811,7 +7000,7 @@ export default {
                             warehouse_qty: number;
                             container_qty: number;
                         } = {
-                            product_id: Number(neededRecElement.product_id),
+                            product_id: Number(neededRecipe.output_product_id),
                             purchase_order_id: Number(poId),
                             notes: null, 
                             status: '5 ON ORDER', 
@@ -7438,32 +7627,38 @@ export default {
             const selectedRecipeId = Number(newData?.recipeObj?.recipe_id || newData?.recipe_id || 0);
             if (!poId || !selectedRecipeId) {
                 this.$toast.add({severity:'error', summary: 'Missing Recipe', detail: 'Please select a recipe before saving.', life: 4000});
+                this.isSavingEditDialog = false;
                 return;
             }
 
-            const recipeOutput = (this.recipeElements || []).find((re: any) => re.recipe_id === selectedRecipeId && re.type === 'output');
-            if (!recipeOutput) {
+            const recipe = (this.recipes || []).find((r: any) => r.recipe_id === selectedRecipeId);
+            if (!recipe) {
                 this.$toast.add({severity:'error', summary: 'Recipe Error', detail: 'Selected recipe output could not be found.', life: 4000});
+                this.isSavingEditDialog = false;
                 return;
             }
 
-            const outputProduct = (this.products || []).find((p: any) => p.product_id === recipeOutput.product_id)
-                || (this.procProducts || []).find((p: any) => p.product_id === recipeOutput.product_id);
+            const outputProduct = (this.products || []).find((p: any) => p.product_id === recipe.output_product_id)
+                || (this.procProducts || []).find((p: any) => p.product_id === recipe.output_product_id);
             if (!outputProduct) {
                 this.$toast.add({severity:'error', summary: 'Product Error', detail: 'Recipe output product is missing.', life: 4000});
+                this.isSavingEditDialog = false;
                 return;
             }
 
             const unitsPerCase = Number(outputProduct.default_units_per_case || newData.units_per_case || 1);
+            newData.units_per_case = unitsPerCase;
             const normalizedAmount = Number(newData.amount || 0);
             let desiredQty = Number(newData.qty || 0);
 
             if (desiredQty <= 0 && normalizedAmount > 0) {
                 desiredQty = normalizedAmount * unitsPerCase;
+                newData.qty = desiredQty;
             }
 
             if (!Number.isFinite(desiredQty) || desiredQty <= 0) {
                 this.$toast.add({severity:'error', summary: 'Invalid Amount', detail: 'Please enter a valid case count or total units.', life: 4000});
+                this.isSavingEditDialog = false;
                 return;
             }
 
@@ -7526,6 +7721,7 @@ export default {
                 await this.editPurchaseOrder(this.purchaseOrder);
             } finally {
                 this.isSavingEditDialog = false;
+                this.activeRecipeEditRow = null;
             }
         },
 
@@ -8474,13 +8670,15 @@ export default {
         },
 
         async applyInboundLineAllocation(line: any, unaccountedMode: 'flag' | 'ignore', invoiceLineIds: number[]) {
+            console.log("Applying inbound line allocation for line: ", line, "with unaccounted mode: ", unaccountedMode);
+
             const ordered = Math.max(0, Number(line?.total_units || 0)); //Total units ordered for PO
             const fbmOrdered = Math.max(0, Number(line?.fbm || 0)); // Total number of units in PO being set for fbm
             console.log("Ordered variables : ", ordered, "fbmOrdered: ", fbmOrdered);
 
             const shipped = Math.max(0, Number(line?.units_shipped || 0)); // Total units being shipped in this invoice
-            const fbaShipped = Math.max(0, Number(line?.fba || 0)); // Units being shipped in this invoice for fba prep
-            const storeShipped = Math.max(0, Number(line?.store || 0)); // Units being shipped in this invoice to be stored
+            const fbaShipped = Math.max(0, Number(line?.fba_prep_shipped || 0)); // Units being shipped in this invoice for fba prep
+            const storeShipped = Math.max(0, Number(line?.store_shipped || 0)); // Units being shipped in this invoice to be stored
             const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
             console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
 
@@ -8506,12 +8704,16 @@ export default {
 
             if (!segments.length) return;
 
+            console.log("Segments to apply: ", segments);
+
             const keepKind = shipped > 0
                 ? 'shipped'
                 : backordered > 0
                     ? 'backordered'
                     : 'remaining';
             const keepSegment = segments.find((segment: any) => segment.kind === keepKind) || segments[0];
+
+            console.log("Keep segment: ", keepSegment);
 
             const baseStatus = String(line?.status || this.purchaseOrder?.status || 'Draft');
             const statusByKind: Record<string, string> = {
@@ -8520,9 +8722,16 @@ export default {
                 remaining: unaccountedMode === 'flag' ? 'Flagged' : baseStatus,
             };
 
+            console.log("Status by kind: ", statusByKind);
+
+            console.log("Line right before edit: ", line);
+
             await action.editPurchaseOrderRawLine({
                 ...line,
                 total_units: keepSegment.qty,
+                store: keepSegment.store,
+                fbm: keepSegment.fbm,
+                fba_prep: keepSegment.fba_prep,
                 status: statusByKind[keepSegment.kind],
             });
 
