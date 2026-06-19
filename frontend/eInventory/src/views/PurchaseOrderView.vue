@@ -143,7 +143,7 @@
                             </div>
                             <div class="po-card-metric">
                                 <span class="po-card-metric-label">Total Cost</span>
-                                <span class="po-card-metric-value">{{ formatCurrency(getCreatedCostTotal(po.purchase_order_id, po.discount)) }}</span>
+                                <span class="po-card-metric-value">{{ formatCurrency(getCreatedCostTotal(po.purchase_order_id, po.discount) || 0) }}</span>
                             </div>
                         </div>
 
@@ -730,6 +730,9 @@
                                 size="small"
                                 class="po-detail-table po-detail-table--invoice"
                                 :rowStyle="detailInvoiceRowStyle"
+                                :pt="{
+                                    rowGroupHeaderCell: { colspan: 7 }
+                                }"
                             >
                                 <template #empty>No invoices found for this purchase order.</template>
                                 <template #groupheader="{ data }">
@@ -917,110 +920,6 @@
             </template>
         </Dialog>
 
-        <!-- <Dialog v-model:visible="purchaseOrderDialog" :style="{width: '1000px'}" header="Purchase Order Details" :modal="true" class="p-fluid po-create-dialog">
-
-            <div v-if="purchaseOrder.purchase_order_id">
-
-                <div class="field">
-                        <h3 for="purchaseOrder" class="flex justify-content-start font-bold w-full">Product(s):</h3>
-                    </div>
-                    <DataTable :value="delivered" v-model:editingRows="editingRows" 
-                    rowGroupMode="subheader" groupRowsBy="product_id" 
-                    editMode="row" @row-edit-save="onRowEditSave" :rowStyle="rowStyleCompared"
-                    scrollable scrollHeight="600px"
-                    sortField="product_id" 
-                    showGridlines
-                    tableStyle="background-color: '#16a085'"
-                    >
-                        <template #empty>No units in purchase order.</template>
-
-                        <template #groupheader="{data}">
-                            <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
-                                <h4 class="flex items-center font-bold gap-2">{{ data.product_name }}</h4>
-                                In total there are {{ getReceivedTotal(data.product_id) }} received units.
-                            </div>
-                        </template>
-
-                        <Column class="font-bold" field="moment" header="Status" />
-                        <Column field="product_name" header="Name"/>
-                        <Column field="amount" header="Total Number of Boxes">
-                            <template #body={data}>
-                                {{ data.amount }}
-                            </template>
-                            <template #editor={data}>
-                                <label for=""># of Boxes that Arrived:</label>
-                                <InputNumber inputId="stacked-buttons" :required="true" 
-                                v-model="data.amount" showButtons
-                                @update:model-value="data.total = data.amount*data.units_per_case"
-                                />
-                            </template>
-                        </Column>
-                        <Column header="Total Number of Units">
-                            <template #body={data}>
-                                {{ data.total }}
-                            </template>
-                            <template #editor={data}>
-                                <label for="total"># of Units that Arrived:</label>
-                                <InputNumber v-model="data.total" 
-                                inputId="stacked-buttons" showButtons
-                                @update:model-value="data.amount = onTotalUpdate(data.total, data.units_per_case)"
-                                />
-                            </template>
-                        </Column>
-
-                        <Column header="Location">
-                            <template #body="{data}">
-                                <div v-if="data.moment == 'Received' || data.moment== 'Awaiting' || data.moment== 'Newly Arrived'">
-                                    {{ formatSingleLocation(data.location_id) }}
-                                </div>
-                            </template>
-                            <template #editor="{data}">
-                                <label for="location">Location:</label>
-                                <div class="container">
-                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> --
-                                    <AutoComplete
-                                        :modelValue="getLocationAutoCompleteValue(data.location_id)"
-                                        :suggestions="filteredLocations"
-                                        @complete="searchLocations"
-                                        @focus="searchLocations({ query: '' })"
-                                        @item-select="onLocationAutoCompleteChange(data, $event.value)"
-                                        @update:modelValue="onLocationAutoCompleteChange(data, $event)"
-                                        :dropdown="true"
-                                        :showOnFocus="true"
-                                        optionLabel="name"
-                                        placeholder="Select a Location"
-                                        class="w-full md:w-14rem"
-                                        :forceSelection="true"
-                                    />
-                                    <Button icon="pi pi-plus" v-tooltip.top="'Add New Location'" @click="newLocation()"  />
-                                </div>
-                            </template>
-                        </Column>
-
-                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> --
-                    
-                        <Column >
-                            <template #body="{data}">
-                                <div v-if="data.moment === 'Awaiting' || data.moment === 'Back Ordered' || data.moment === 'Newly Arrived'">
-                                    <Button  icon="pi pi-pencil" text style="color: gray" v-tooltip.top="'Inventory newly-received products'" @click="receivedDialogSetup(data.product_id)"/>
-                                </div>
-                            </template>
-                        </Column>
-
-                    </DataTable> <br>           
-
-            </div>
-
-            <template #footer>
-                <!-- Adding the Total Price line fixed the syntax highlighting everywhere else --
-                <div class="flex flex-start font-bold">Total Units: {{ calculatePoUnitTotal() }}</div>
-                <div class="flex flex-start font-bold">Total Price: {{ formatCurrency(calculatePoCostTotal()) }}</div>
-                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="hideDialog"/>
-                <Button label="Save" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="validate" :disabled="saving" :loading="saving" />
-            </template>
-        </Dialog> -->
-
-        <!-- @TODO Make the width reactive to the size of the user's monitor -->
         <Dialog
             v-model:visible="editPurchaseOrderDialog"
             :style="{width: '1800px', height: '90vh'}"
@@ -1079,7 +978,7 @@
 
             <div class="field">
                 <label for="discount">Discount</label>
-                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid :disabled="isPoReadOnly" />
+                <InputNumber v-model="purchaseOrder.discount" suffix="%" fluid :max="100" :min="0" :disabled="isPoReadOnly" />
             </div>
 
             <div class="field">
@@ -1103,6 +1002,8 @@
                 :value="singlePoRecipes" 
                 :rowStyle="editRowStyleProc" 
                 editMode="row" 
+                scrollable
+                scrollHeight="400px"
                 :loading="editRecipeRowsLoading" 
                 @row-edit-save="onPORecipeRowEditSave">
                 <template #empty>
@@ -1227,6 +1128,8 @@
                 :rowStyle="editRowStyleRaw" 
                 dataKey="line_key" 
                 editMode="row" 
+                scrollable
+                scrollHeight="400px"
                 :loading="editRawRowsLoading" 
                 @row-edit-init="onPOBoxRowEditInit" 
                 @row-edit-save="onPORawLineEditSave"
@@ -1328,7 +1231,7 @@
                 </Column>
                 <Column :rowEditor="!isPoReadOnly" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
                 <Column >
-                    <template #body="{data}">
+                    <template #body="{data, index}">
                         <Button
                             v-if="data.product_id"
                             v-tooltip.top="'Cancel Product'"
@@ -1345,7 +1248,7 @@
                             icon="pi pi-times"
                             severity="secondary"
                             :disabled="isPoReadOnly"
-                            @click="removeUnsavedRawRow(data)"
+                            @click="removeUnsavedRawRow(data, index)"
                         />
                     </template>
                 </Column>
@@ -3475,7 +3378,7 @@ export default {
 
 
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         },
 
@@ -3557,7 +3460,7 @@ export default {
                 //console.log("BOXES: ", this.uBoxes);
                 //console.log("CASES: ", this.pCases);
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         },
 
@@ -3565,7 +3468,7 @@ export default {
             try {
                 this.vendors = await action.getVendors();
             } catch (error) {
-                console.log(error);                
+                console.error(error);                
             }
         },
 
@@ -3585,7 +3488,7 @@ export default {
                 //console.log(this.recipes);
                 //console.log(this.recipeElements);
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         },
 
@@ -3601,7 +3504,7 @@ export default {
                 this.locations = await action.getLocations();
                 this.filteredLocations = Array.isArray(this.locations) ? [...this.locations] : [];
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         }, 
 
@@ -3688,7 +3591,7 @@ export default {
                 this.locationToCreate = {};
                 
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         },
         //Description: 
@@ -3698,10 +3601,10 @@ export default {
         //Date Last Edited: 7-03-2024
         selectRecipeElements(recipe: any){
             
-            console.log("RECIPE  ", recipe);
+            // console.log("RECIPE  ", recipe);
             
             let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
-            console.log("INPUT PRODUCTS: ", inputProducts);
+            // console.log("INPUT PRODUCTS: ", inputProducts);
 
             inputProducts.forEach(ir => {
                 let inProd = this.unprocProducts.find(p => p.product_id === ir.product_id);
@@ -3874,12 +3777,17 @@ export default {
          * Defensive against missing/invalid data.
          */
         calculatePoCostTotal() {
+            // console.log("Calculating PO Cost Total for PO: ", this.purchaseOrder);
             let total = 0;
             // If editing an existing PO, sum from uBoxes
             if (this.purchaseOrder && this.purchaseOrder.purchase_order_id && this.purchaseOrder.po_raw_lines) {
                 this.purchaseOrder.po_raw_lines.forEach((line: any) => {
+                    const productKey = this.products.find((p: any) => p.product_id === line.product_id);
+                    // console.log("Product key for line: ", productKey);
+                    // console.log("Processing line for cost total: ", line);
                     if (this.normalizeRawLineStatus(line.status) !== 'Cancelled') {
-                        total += Number(line.total_units || 0) * line.unit_price;
+                        total += Number(line.total_units || 0) * productKey.price_2023;
+                        // console.log("Total in PO Cost, ", total);
                     }
                 });
             } else {
@@ -3909,6 +3817,7 @@ export default {
             }
             // Apply discount if present
             const discount = this.purchaseOrder && this.purchaseOrder.discount;
+            // console.log("Discount to apply: ", discount);
             if (discount) {
                 const discountDecimal = 1 - (discount / 100);
                 total = total * discountDecimal;
@@ -4004,7 +3913,7 @@ export default {
             let boxesBeingUsed = [] as any[];
 
             let boxArray = this.uBoxes.filter((box: any) => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
-            console.log("boxArray", boxArray);
+            // console.log("boxArray", boxArray);
 
             linkedPoRecipes.forEach((poRec: any) => {
                 /* let recipeOutput = this.displayRecipeElements.find((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'output');
@@ -4025,7 +3934,7 @@ export default {
                     map.currentUnits = 0;
                     totals.push(map);
                 });
-                console.log("rawRecInputs", rawRecInputs);
+                // console.log("rawRecInputs", rawRecInputs);
 
                 for(const b of boxArray) {
                     if(b.purchase_order_id !== purchase_order_id)
@@ -4051,7 +3960,7 @@ export default {
                 }
             })
 
-            console.log("Cases being used: ",boxesBeingUsed);
+            // console.log("Cases being used: ",boxesBeingUsed);
 
             for(const b of boxArray) {
                 if(b.purchase_order_id !== purchase_order_id || b.taken === true)
@@ -4059,8 +3968,8 @@ export default {
 
                 poolArray.push(b);
             }
-            console.log("poolArray", poolArray);
-            console.log("Grouped pool array", helper.groupProductsById(poolArray));
+            // console.log("poolArray", poolArray);
+            // console.log("Grouped pool array", helper.groupProductsById(poolArray));
             return helper.groupProductsById(poolArray);
         },
 
@@ -4245,7 +4154,7 @@ export default {
         ){
             if (!poId) return;
 
-            console.log(`Refreshing purchase order data for PO ID ${poId} with options:`, options);
+            // console.log(`Refreshing purchase order data for PO ID ${poId} with options:`, options);
 
             const { syncTable = true, syncDialog = true, patchRowData = {}, patchDialogData = {} } = options;
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === poId);
@@ -4287,7 +4196,7 @@ export default {
                     po_raw_lines: [...normalizedLines],
                 };
             }
-            console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
+            // console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
         },
 
         /**
@@ -4372,19 +4281,19 @@ export default {
          */
         async ensureRawLinesExist(): Promise<any[]> {
             if (!this.purchaseOrder.purchase_order_id) return [];
-            console.log("In ensureRawLinesExist for PO ID", this.purchaseOrder.purchase_order_id);
+            // console.log("In ensureRawLinesExist for PO ID", this.purchaseOrder.purchase_order_id);
 
             // Check if po_raw_lines already exist for this PO
             const existingLines = await action.getCurrentPurchaseOrderRawLines(this.purchaseOrder.purchase_order_id);
             if (existingLines && existingLines.length > 0) {
-                console.log('PO already has raw lines:', existingLines);
+                // console.log('PO already has raw lines:', existingLines);
                 return existingLines;
             }
 
             // If no lines exist but boxes do, create lines from grouped boxes.
             // Include all statuses (including Cancelled) so old orders are fully represented.
             const boxes = this.purchaseOrder.individual_boxes || (this.uBoxes || []).filter((b: any) => b.purchase_order_id === this.purchaseOrder.purchase_order_id);
-            console.log("Boxes in order: ", boxes);
+            // console.log("Boxes in order: ", boxes);
             if (boxes.length === 0) return [];
 
             // Normalize status on each source row first (row-level transform).
@@ -4409,7 +4318,7 @@ export default {
             // Create the raw lines
             if (rawLinesToCreate.length > 0) {
                 await action.bulkAddPurchaseOrderRawLines(rawLinesToCreate);
-                console.log('Created raw lines from legacy boxes:', rawLinesToCreate);
+                // console.log('Created raw lines from legacy boxes:', rawLinesToCreate);
             }
 
             // Re-fetch so callers receive the persisted records with real po_raw_line_id values.
@@ -4418,7 +4327,9 @@ export default {
         },
 
         formatCurrency(value: any) {
-            if(value)
+            // console.log("Currency value",value);
+            // console.log("Locale string", value.toLocaleString('en-US', {style: 'currency', currency: 'USD'}));
+            if(value >= 0)
                 return value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
             return;
         },
@@ -4501,8 +4412,8 @@ export default {
                 this.loading = true;
                 this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
-                console.log("Purchase Order Dialog opened from Edit PO flow");
-                console.log("Purchase Order to edit:", purchaseOrder);
+                // console.log("Purchase Order Dialog opened from Edit PO flow");
+                // console.log("Purchase Order to edit:", purchaseOrder);
 
                 if (!purchaseOrder?.purchase_order_id) {
                     console.warn("Edit PO flow was called without a valid purchase order.");
@@ -4627,7 +4538,7 @@ export default {
         },
 
         onRawTotalsChange(event: any, line: any, field: any){
-            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
+            // console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
             if (field === 'total'){
                 line.amount = event.value/line.units_per_case;
                 if(line.fbm > event.value)
@@ -4711,11 +4622,11 @@ export default {
         getDate(){
             const date = new Date();
             this.today = date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
-            console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
+            // console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
         },
 
         onVendorAutoCompleteSelect(vendorObj: any){
-            console.log("Vendor AutoComplete Selection:", vendorObj);
+            // console.log("Vendor AutoComplete Selection:", vendorObj);
             if (vendorObj && vendorObj.vendor_id) {
                 this.purchaseOrder.vendor = vendorObj;
                 this.purchaseOrder.vendor_id = vendorObj.vendor_id;
@@ -4769,7 +4680,7 @@ export default {
         },
 
         onProductSelection(productId: any){
-            console.log("PRODUCT ID", productId);
+            // console.log("PRODUCT ID", productId);
 
             let product = this.products.find(p => p.product_id === productId);
 
@@ -4792,7 +4703,7 @@ export default {
             rowData.units_per_case = productKey.default_units_per_case || 1;
             rowData.total          = (rowData.amount || 1) * rowData.units_per_case;
             this.promptForMissingImportantProductFields([productKey]);
-            console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
+            // console.log("applyRawProductToRow – row after assignment:", JSON.stringify(rowData));
         },
 
         /**
@@ -4801,7 +4712,7 @@ export default {
          * @param rowData    The PrimeVue DataTable editing-row data object
          */
         onRawProductAutoCompleteSelectEdit(productObj: any, rowData: any){
-            console.log("Product AutoComplete Selection (edit):", productObj);
+            // console.log("Product AutoComplete Selection (edit):", productObj);
             this.applyRawProductToRow(productObj, rowData);
         },
 
@@ -4810,7 +4721,7 @@ export default {
          * @param productObj 
          */
         onProcessedProductAutoCompleteSelect(productObj: any){
-            console.log("Processed Product AutoComplete Selection:", productObj);
+            // console.log("Processed Product AutoComplete Selection:", productObj);
             
             if (productObj && productObj.product_id) {
                 // Update the product_id in the current editing row
@@ -4837,7 +4748,7 @@ export default {
                 const rawProduct = this.products.find(p => p.product_id === input.product_id);
                 rawProductInfo.push({rec: input, key: rawProduct});
             }
-            console.log("Raw Products: ", rawProductInfo);
+            // console.log("Raw Products: ", rawProductInfo);
             return rawProductInfo;
         },
 
@@ -4883,7 +4794,7 @@ export default {
 
             const missingImportantFields: MissingImportantFieldItem[] = [];
 
-            console.log("Recipe ID for important field check: ", recipeId);
+            // console.log("Recipe ID for important field check: ", recipeId);
 
             Array.from(uniqueProductsById.values()).forEach((product: any) => {
                 let recipeElement = null;
@@ -4891,7 +4802,7 @@ export default {
                 let requiresRecipeInputUnits = false;
                 if(recipeId){
                     recipeElement = this.recipeElements.find((re: any) => re.product_id === product.product_id && re.recipe_id === recipeId);
-                    console.log("Checking recipe element for product ID " + product.product_id + " and recipe ID " + recipeId, recipeElement);
+                    // console.log("Checking recipe element for product ID " + product.product_id + " and recipe ID " + recipeId, recipeElement);
                     inputUnits = Number(recipeElement.qty); 
                     requiresRecipeInputUnits = !Number.isFinite(inputUnits) || inputUnits <= 0;
                 }
@@ -4932,7 +4843,7 @@ export default {
 
             });
 
-            console.log("Missing important fields for products: ", missingImportantFields);
+            // console.log("Missing important fields for products: ", missingImportantFields);
 
             return missingImportantFields;
         },
@@ -5123,7 +5034,7 @@ export default {
                         nextRow.productObj = refreshedProduct;
                     }
 
-                    console.log("Updated row after saving missing defaults: ", JSON.stringify(nextRow));
+                    // console.log("Updated row after saving missing defaults: ", JSON.stringify(nextRow));
 
                     return nextRow;
                 });
@@ -5144,18 +5055,18 @@ export default {
         },
 
         onRecipeSelectionEdit(recipeId: any){
-            console.log("RECIPE ID BEGIN: ", recipeId);
+            // console.log("RECIPE ID BEGIN: ", recipeId);
             let id = recipeId;
             if (typeof recipeId === 'object' && recipeId !== null && 'recipe_id' in recipeId) {
                 id = recipeId.recipe_id;
             }
             this.recipeArrayEdit.recipe_id = id;
             this.recipeArrayEdit.default_units_per_case = recipeId.default_units_per_case;
-            console.log("RECIPE ID: ", id);
+            // console.log("RECIPE ID: ", id);
             let recipe = this.recipes.find(r => r.recipe_id === id);
-            console.log("RECIPE: ", recipe);
+            // console.log("RECIPE: ", recipe);
             this.poCasesEdit = this.procProducts.find(p => p.product_id === recipe.product_id);
-            console.log("PO CASE", this.poCasesEdit);
+            // console.log("PO CASE", this.poCasesEdit);
         },
 
         onRecipeSelectionEditRow(recipeObj: any, rowData: any){
@@ -5294,7 +5205,7 @@ export default {
                     this.purchaseOrder = {};
                 }
             } catch (error) {
-                console.log(error);
+                console.error(error);
             } finally {
                 this.saving = false;
             }
@@ -5305,24 +5216,24 @@ export default {
             try {
                 if (!this.ensurePoEditable('save changes')) return;
                 //this.purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id);
-                console.log(this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id));
+                // console.log(this.purchaseOrders.find(po => po.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
-                console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
+                // console.log("PURCHASE ORDER BEFORE AWAIT ",this.purchaseOrder);
 
                 // if (this.purchaseOrder.status != 'Delivered')
                 if(this.reqPoBoxes.length > 0){
-                    console.log("IN ALOCATE");
+                    // console.log("IN ALOCATE");
                     await this.alocateBoxes();
                 } else {
-                    console.log('Editing PO');
-                    console.log('Boxes to edit: ', this.poBoxes);
-                    console.log('Cases to edit: ', this.poCases);
+                    // console.log('Editing PO');
+                    // console.log('Boxes to edit: ', this.poBoxes);
+                    // console.log('Cases to edit: ', this.poCases);
                 }
 
                 this.uBoxes.forEach(box =>{
                     if(box.status !== 'On RTP' && box.status !== 'Ready' && box.purchase_order_id === this.purchaseOrder.purchase_order_id){
                         this.purchaseOrder.status = 'Partially Delivered';
-                        console.log("Box not ready: ",box)
+                        // console.log("Box not ready: ",box)
                     }
                 })
 
@@ -5337,7 +5248,7 @@ export default {
 
                 const editedPurchaseOrder = await action.editPurchaseOrder(this.purchaseOrder);
                 
-                console.log("PURCHASE ORDER AFTER AWAIT ",this.purchaseOrder);
+                // console.log("PURCHASE ORDER AFTER AWAIT ",this.purchaseOrder);
                 //alert("Testing");
                 this.$toast.add({severity:'success', summary: 'Successful', detail: 'Purchase Order Updated', life: 3000});
                 await this.loadPage(this.currentPage);
@@ -5345,7 +5256,7 @@ export default {
 
                 return editedPurchaseOrder;
             } catch (error) {
-                console.log(error);
+                console.error(error);
                 this.$toast.add({severity:'error', summary: 'Error', detail: error});
             }
         },
@@ -5361,7 +5272,7 @@ export default {
         async alocateBoxes(){
             try {
                 //console.log("BULK CASES IN ALOCATE ",this.poBoxes);
-                console.log("REQUESTED BOXES ", this.reqPoBoxes);
+                // console.log("REQUESTED BOXES ", this.reqPoBoxes);
 
                 if (!this.purchaseOrder.date_received)
                     this.purchaseOrder.date_received = this.today;
@@ -5373,8 +5284,8 @@ export default {
                 let receivedBoxArray = this.checkBoxes("Received");
                 let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
 
-                console.log("receivedBoxArray", receivedBoxArray);
-                console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
+                // console.log("receivedBoxArray", receivedBoxArray);
+                // console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
                 // Loop through all of the requested boxes
                 this.reqPoBoxes.forEach(reqBox => {
@@ -5382,7 +5293,7 @@ export default {
                     let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
                     let newArrive = {} as any;
 
-                    console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
+                    // console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
 
                     if (newlyArrivedBoxes.length === 1) {
                         newArrive = newlyArrivedBoxes[0];
@@ -5422,7 +5333,7 @@ export default {
 
                 await action.bulkEditCases(insertArray);
             } catch (error) {
-                console.log(error);
+                console.error(error);
             }
         },
 
@@ -5439,8 +5350,8 @@ export default {
          * Last Edited: 4-28-2025
          */
         alocateBoxCalculation(requested: any, received: any, newlyArrived: any, lastLocation: Boolean){
-            console.log("IN ALOCATE BOX CALCULATION__________________________________________________________");
-            console.log("REQUESTED BOXES ", requested, " RECEIVED BOXES ", received, "AND NEWLY ARRIVED BOXES ", newlyArrived);
+            // console.log("IN ALOCATE BOX CALCULATION__________________________________________________________");
+            // console.log("REQUESTED BOXES ", requested, " RECEIVED BOXES ", received, "AND NEWLY ARRIVED BOXES ", newlyArrived);
             let boxesToInsert = [] as any[];
 
 
@@ -5470,17 +5381,17 @@ export default {
 
             let poBoxUnitsPerCase = newlyArrived.units_per_case;
 
-            console.log("PRODUCT ", requested.product_name);
-            console.log("REQUESTED UNIT AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER UNIT AMOUNT");
-            console.log("REQ", requested.total, " - (REC + NEW)", "(", received.total, "+", newlyArrived.total, ")", " = LEFT", backorderUnits);
+            // console.log("PRODUCT ", requested.product_name);
+            // console.log("REQUESTED UNIT AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER UNIT AMOUNT");
+            // console.log("REQ", requested.total, " - (REC + NEW)", "(", received.total, "+", newlyArrived.total, ")", " = LEFT", backorderUnits);
 
             //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
             let actualReceivedBoxes = newlyArrived.total/poBoxUnitsPerCase;
             let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
 
-            console.log("REQUESTED BOX AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER BOX AMOUNT");
-            console.log("WHOLE BOX VIEW");
-            console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.amount, ")", " = BO", wholeBackorderBoxAmount);
+            // console.log("REQUESTED BOX AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER BOX AMOUNT");
+            // console.log("WHOLE BOX VIEW");
+            // console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.amount, ")", " = BO", wholeBackorderBoxAmount);
 
             // console.log("DECIMAL BOX VIEW");
             // console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.total/newlyArrived.units_per_case, ")", " = BO", backorderBoxes)
@@ -5500,7 +5411,7 @@ export default {
             // console.log("REMAINDER * UNITS PER CASE = PARTIAL BOX AMOUNT");
             // console.log("REM", remainder," * UNITS", newlyArrived.units_per_case," = PARTIAL",partialBoxAmount);
 
-            console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
+            // console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
             // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
             let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Ready' && box.status !== 'Cancelled');
@@ -5510,7 +5421,7 @@ export default {
             boxes.forEach(box => {
                 if(wholeReceivedBoxAmount > 0){
                     // console.log(newlyArrived);
-                    console.log("FULL BOX");
+                    // console.log("FULL BOX");
                     box.status = 'On RTP';
                     box.date_received = this.today;
 
@@ -5521,7 +5432,7 @@ export default {
                     boxesToInsert.push(box);
                     wholeReceivedBoxAmount--;
                 } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount > 0 && partialBackOrderBoxAmount > 0){
-                    console.log("PARTIAL FULL AND BACKORDER BOXES");
+                    // console.log("PARTIAL FULL AND BACKORDER BOXES");
 
                     //If a partial box arrives, update the last box amount to partial amount a create 
                     // an additional box whose status is back ordered
@@ -5532,7 +5443,7 @@ export default {
                     if(!box.location_id)
                         box.location_id = newlyArrived.location_id;
 
-                    console.log(box);
+                    // console.log(box);
                     boxesToInsert.push(box);
 
                     const boBox: any = {
@@ -5543,14 +5454,14 @@ export default {
                         status: 'BO',
                     };
 
-                    console.log(boBox);
+                    // console.log(boBox);
                     //EVENTUALLY, JUST ADD THE BO BOX DIRECTLY HERE
                     boxesToInsert.push(boBox);
 
                     partialBoxAmount = 0;
                     this.purchaseOrder.status = 'Partially Delivered'
                 } else if (wholeReceivedBoxAmount == 0 && partialBoxAmount == 0 && backorderCompare < wholeBackorderBoxAmount && lastLocation === true) {
-                    console.log("BACKORDER BOX");
+                    // console.log("BACKORDER BOX");
                     //If no partial box arrives, update the remaining box amounts to backorder
                     box.status = 'BO';
 
@@ -5582,14 +5493,14 @@ export default {
 
             this.delivered = this.getDeliveredDataTable(boxes);
 
-            console.log("Boxes ",boxes);
-            console.log("Cases ",cases);
+            // console.log("Boxes ",boxes);
+            // console.log("Cases ",cases);
             this.reqPoBoxes = this.groupReqProducts(boxes);
             this.poBoxes = this.groupProducts(boxes);
             this.poCases = this.groupProducts(cases);
 
-            console.log("reqPoBoxes ", this.reqPoBoxes);
-            console.log("delivered ", this.delivered);
+            // console.log("reqPoBoxes ", this.reqPoBoxes);
+            // console.log("delivered ", this.delivered);
 
             this.purchaseOrderDialog = true;
         },
@@ -5604,7 +5515,7 @@ export default {
          */
         async editPurchaseOrder(purchaseOrder: any) {
             try {
-                console.log("Purchase order to edit, ", purchaseOrder);
+                // console.log("Purchase order to edit, ", purchaseOrder);
                 // this.purchaseOrder = {...purchaseOrder};
                 this.poCases = [];
                 this.poBoxes = [];
@@ -5651,7 +5562,7 @@ export default {
                 })
                 
 
-                console.log("PO Recs: ",poRecs);
+                // console.log("PO Recs: ",poRecs);
 
                 // Ensure legacy orders have po_raw_lines created (migration support).
                 // Returns persisted records with IDs (re-fetched after insert for legacy orders).
@@ -5715,11 +5626,11 @@ export default {
                 // this.poBoxes.forEach(box => box.total = box.amount*box.units_per_case);
                 this.singlePoRecipes = poRecs;
 
-                console.log("PO Boxes: ", this.poBoxes);
-                console.log("PO Recipes: ", this.singlePoRecipes);
+                // console.log("PO Boxes: ", this.poBoxes);
+                // console.log("PO Recipes: ", this.singlePoRecipes);
 
-                console.log("reqPoBoxes ", this.reqPoBoxes);
-                console.log("delivered ", this.delivered);
+                // console.log("reqPoBoxes ", this.reqPoBoxes);
+                // console.log("delivered ", this.delivered);
 
                 this.checkPoTotals();
                 this.editPurchaseOrderDialog = true;
@@ -5732,7 +5643,7 @@ export default {
         onRowExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Purchase Order Expanded', detail: event.data.purchase_order_name, life: 3000 });
             
-            console.log("EVENT DATA ",event.data);
+            // console.log("EVENT DATA ",event.data);
 
             if (event?.data && event.data.showCancelledProducts === undefined) {
                 event.data.showCancelledProducts = false;
@@ -5756,8 +5667,8 @@ export default {
          * Date Last Edited: 2-24-2025
          */
         displayInfo(po: any){
-            console.log("LOOP CHECK_____________________________________________________________");
-            console.log("Purchase Order to display: ",po);
+            // console.log("LOOP CHECK_____________________________________________________________");
+            // console.log("Purchase Order to display: ",po);
             //console.log(this.cases);
             let displayArray = [] as any[];
             // let linkedCases = [] as any[]; 
@@ -5766,7 +5677,7 @@ export default {
             let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
             let poRecElements = [] as any[];
 
-            console.log("displayRecipeElements: ", this.displayRecipeElements);
+            // console.log("displayRecipeElements: ", this.displayRecipeElements);
             poRecipes.forEach(poRec => {
                 // let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
                 // recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
@@ -5830,7 +5741,7 @@ export default {
                     }));
             }
 
-            console.log("DISPLAY ARRAY", displayArray);
+            // console.log("DISPLAY ARRAY", displayArray);
             return displayArray;
         },
 
@@ -6909,7 +6820,7 @@ export default {
                 }   
                 this.statusChangeDialog = false;
             } catch (error) {
-                console.log(error);
+                console.error(error);
             } finally {
                 this.saving = false;
             }
@@ -7357,13 +7268,16 @@ export default {
             return false;
         },
 
-        removeUnsavedRawRow(raw_product: any){
-            if (!raw_product || raw_product.product_id) return;
+        removeUnsavedRawRow(raw_product: any, rawIdx: number){
+            console.log("Removing raw product from poBoxes: ", raw_product);
+            console.log("Current poBoxes before removal: ", this.poBoxes);
+            console.log("Index of raw product to remove: ", rawIdx);
+            // if (!raw_product || raw_product.product_id) return;
 
-            const index = this.poBoxes.findIndex((row: any) => row === raw_product);
-            if (index < 0) return;
+            // const index = this.poBoxes.findIndex((row: any) => row === raw_product);
+            if (rawIdx < 0) return;
 
-            this.poBoxes.splice(index, 1);
+            this.poBoxes.splice(rawIdx, 1);
         },
 
         /**
@@ -9990,8 +9904,9 @@ export default {
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
-    color: #334f68;
+    color: #aad4f9;
     font-size: 0.82rem;
+    grid-column: span 7 / span 7;
 }
 
 :deep(.po-detail-dialog .p-dialog-content) {
@@ -10143,21 +10058,13 @@ export default {
     background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
 }
 
-:deep(.po-invoice-edit-dialog .p-dialog-content) {
-    background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
-}
-
 .po-invoice-edit-layout {
     display: grid;
     gap: 0.9rem;
 }
 
 .po-invoice-edit-section {
-    border: 1px solid #c7d8e8;
-    border-radius: 14px;
     padding: 0.85rem 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-    box-shadow: 0 4px 14px rgba(15, 46, 79, 0.08);
 }
 
 .po-invoice-edit-dialog .field {
@@ -10170,7 +10077,7 @@ export default {
 
 .po-invoice-edit-dialog .field label {
     font-weight: 700;
-    color: #2a4761;
+    color: #6dbafe;
     margin-bottom: 0.3rem;
 }
 
@@ -10184,12 +10091,7 @@ export default {
 .po-invoice-edit-checkbox label {
     margin: 0;
     font-weight: 700;
-    color: #2a4761;
-}
-
-.po-invoice-edit-dialog .p-dialog-footer {
-    border-top: 1px solid #d4e1ee;
-    background: #f4f8fc;
+    color: #6dbafe;
 }
 
 .po-edit-layout {
@@ -10242,7 +10144,6 @@ export default {
 
 .po-edit-dialog .p-dialog-footer {
     border-top: 1px solid #d4e1ee;
-    background: #f4f8fc;
 }
 
 .po-edit-footer-wrap {
