@@ -14,7 +14,7 @@
                             <div v-tooltip.top="isFilterBoxDisabled() ? 'Filter box disabled when search is in place' : null">
                                 <Button :icon="setFilterIcon()" class="p-button-rounded p-button-text" @click="openFilterMenu" :disabled="isFilterBoxDisabled()" />
                             </div>
-                            <Button
+                            <!-- <Button
                                 label="Cards"
                                 icon="pi pi-id-card"
                                 class="po-view-toggle-btn"
@@ -29,7 +29,7 @@
                                 :severity="poViewMode === 'table' ? 'info' : 'secondary'"
                                 :outlined="poViewMode !== 'table'"
                                 @click="setPoViewMode('table')"
-                            />
+                            />  -->
                         </div>
                     </div>
                 </template>
@@ -634,18 +634,22 @@
                             icon="pi pi-plus"
                             class="po-action-btn po-action-btn--inbound"
                             @click="openInboundWorkspace(selectedDetailPo)"
+                            :disabled="detailDialogLoading"
                         />
                         <Button
                             label="Receive Invoices"
                             icon="pi pi-download"
                             class="po-action-btn po-action-btn--receive"
                             @click="openReceiveInvoicesWorkspace(selectedDetailPo)"
+                            :disabled="detailDialogLoading"
                         />
                         <Button
                             label="Edit PO"
                             icon="pi pi-pencil"
                             class="po-action-btn po-action-btn--secondary"
                             @click="openEditWorkspace(selectedDetailPo)"
+                            :disabled="detailDialogLoading"
+                            :loading="detailDialogLoading"
                         />
                     </div>
 
@@ -2160,6 +2164,7 @@ export default {
 
             selectedDetailPo: null as any,
             detailDialogVisible: false,
+            detailDialogLoading: false,
 
             // PO RAW LINES
             rawProductCancelDialog: false,
@@ -4412,6 +4417,9 @@ export default {
                 this.loading = true;
                 this.tableLoading = true;
                 this.isInitializingPurchaseOrder = true;
+
+                if (this.detailDialogVisible === true)
+                    this.detailDialogLoading = true;
                 // console.log("Purchase Order Dialog opened from Edit PO flow");
                 // console.log("Purchase Order to edit:", purchaseOrder);
 
@@ -4441,6 +4449,7 @@ export default {
             } finally {
                 this.isInitializingPurchaseOrder = false;
                 this.loading = false;
+                this.detailDialogLoading = false;
                 this.tableLoading = previousTableLoading;
             }
         },
