@@ -42,6 +42,7 @@ import RadioButton from 'primevue/radiobutton';
 import Row from 'primevue/row';                   // optional
 import Select from 'primevue/select';
 import Tag from 'primevue/tag';
+import Timeline from 'primevue/timeline';
 import Toast from 'primevue/toast';
 import ToastService from 'primevue/toastservice';
 // import ToggleButton from 'primevue/togglebutton';
@@ -96,6 +97,7 @@ app.component('RadioButton', RadioButton);
 app.component('Row', Row);
 app.component('Select', Select);
 app.component('Tag', Tag);
+app.component('Timeline', Timeline);
 app.component('Toast', Toast);
 app.component('ToggleSwitch', ToggleSwitch);
 app.component('Toolbar', Toolbar);

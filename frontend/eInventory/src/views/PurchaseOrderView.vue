@@ -2792,7 +2792,7 @@ export default {
                 return;
             }
 
-            this.detailDialogVisible = false;
+            // this.detailDialogVisible = false;
             void this.openReceiveInvoiceDialog({
                 purchaseOrder: this.selectedDetailPo,
                 invoices: [sourceInvoice],
@@ -8558,29 +8558,36 @@ export default {
             console.log("Ordered variables : ", ordered, "fbmOrdered: ", fbmOrdered);
 
             const shipped = Math.max(0, Number(line?.units_shipped || 0)); // Total units being shipped in this invoice
-            const fbaShipped = Math.max(0, Number(line?.fba_prep_shipped || 0)); // Units being shipped in this invoice for fba prep
-            const storeShipped = Math.max(0, Number(line?.store_shipped || 0)); // Units being shipped in this invoice to be stored
-            const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
-            console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
+            // const fbaShipped = Math.max(0, Number(line?.fba_prep_shipped || 0)); // Units being shipped in this invoice for fba prep
+            // const storeShipped = Math.max(0, Number(line?.store_shipped || 0)); // Units being shipped in this invoice to be stored
+            // const fbmShipped = Math.max(0, Number(line?.fbm_shipped || 0)); // Units being shipped in this invoice for fbm
+            // console.log("Shipped variables : ", shipped, "fbaShipped: ", fbaShipped, "storeShipped: ", storeShipped, "fbmShipped: ", fbmShipped);
+            console.log("Shipped variables : ", shipped);
 
             const backordered = Math.max(0, Number(line?.units_backordered || 0)); // Total units on back order for this invoice, should be the remainder after shipped units are accounted for
-            const fbaBackordered = 0; // No units will be set to fba prep on back order, as all back ordered units not going to fbm will be set to be stored, but this is here for clarity and future proofing
-            const fbmBackordered = Math.max(0, fbmOrdered - fbmShipped); // Units on back order for fbm is the remainder of the fbm ordered units after subtracting any fbm shipped units, as fbm units are always fulfilled before store units
-            const storeBackordered = Math.max(0, backordered - fbaBackordered); // Units on back order for store is the remainder of the backordered units after accounting for fba prep backordered units
-            console.log("Backordered variables : ", backordered, "fbaBackordered: ", fbaBackordered, "storeBackordered: ", storeBackordered, "fbmBackordered: ", fbmBackordered);
+            // const fbaBackordered = 0; // No units will be set to fba prep on back order, as all back ordered units not going to fbm will be set to be stored, but this is here for clarity and future proofing
+            // const fbmBackordered = Math.max(0, fbmOrdered - fbmShipped); // Units on back order for fbm is the remainder of the fbm ordered units after subtracting any fbm shipped units, as fbm units are always fulfilled before store units
+            // const storeBackordered = Math.max(0, backordered - fbaBackordered); // Units on back order for store is the remainder of the backordered units after accounting for fba prep backordered units
+            // console.log("Backordered variables : ", backordered, "fbaBackordered: ", fbaBackordered, "storeBackordered: ", storeBackordered, "fbmBackordered: ", fbmBackordered);
+            console.log("Backordered variables : ", backordered);
 
             const remaining = Math.max(0, ordered - shipped - backordered); // Any units not explicitly marked as shipped or back ordered. Users will be notified if any remainders exist
-            const fbaRemaining = 0; // Again, setting fba prep to zero, as all remainders will either be set to store or to go to fbm
-            const fbmRemaining = Math.max(0, fbmOrdered - fbmShipped - fbmBackordered); // Any fbm units not set to backordered or shipped, should always be zero, but is here just in case
-            const storeRemaining = Math.max(0, remaining - fbmRemaining); // Any store units not set to backordered or shipped, should always be zero, but is here just in case
-            console.log("Remaining variables : ", remaining, "fbaRemaining: ", fbaRemaining, "storeRemaining: ", storeRemaining, "fbmRemaining: ", fbmRemaining);
-            
+            // const fbaRemaining = 0; // Again, setting fba prep to zero, as all remainders will either be set to store or to go to fbm
+            // const fbmRemaining = Math.max(0, fbmOrdered - fbmShipped - fbmBackordered); // Any fbm units not set to backordered or shipped, should always be zero, but is here just in case
+            // const storeRemaining = Math.max(0, remaining - fbmRemaining); // Any store units not set to backordered or shipped, should always be zero, but is here just in case
+            // console.log("Remaining variables : ", remaining, "fbaRemaining: ", fbaRemaining, "storeRemaining: ", storeRemaining, "fbmRemaining: ", fbmRemaining);
+            console.log("Remaining variables : ", remaining);
             
             /**@TODO Incorporate splitting fba_prep, store, and fbm into the shipped and back ordered splits */
-            const segments = [
+            /* const segments = [
                 { kind: 'shipped', qty: shipped, fba_prep: fbaShipped, store: storeShipped, fbm: fbmShipped },
                 { kind: 'backordered', qty: backordered, fba_prep: fbaBackordered, store: storeBackordered, fbm: fbmBackordered },
                 { kind: 'remaining', qty: remaining, fba_prep: fbaRemaining, store: storeRemaining, fbm: fbmRemaining },
+            ].filter((segment: any) => segment.qty > 0); */
+            const segments = [
+                { kind: 'shipped', qty: shipped },
+                { kind: 'backordered', qty: backordered },
+                { kind: 'remaining', qty: remaining },
             ].filter((segment: any) => segment.qty > 0);
 
             if (!segments.length) return;
@@ -8607,12 +8614,18 @@ export default {
 
             console.log("Line right before edit: ", line);
 
-            await action.editPurchaseOrderRawLine({
+            /* await action.editPurchaseOrderRawLine({
                 ...line,
                 total_units: keepSegment.qty,
                 store: keepSegment.store,
                 fbm: keepSegment.fbm,
                 fba_prep: keepSegment.fba_prep,
+                status: statusByKind[keepSegment.kind],
+            }); */
+
+            await action.editPurchaseOrderRawLine({
+                ...line,
+                total_units: keepSegment.qty,
                 status: statusByKind[keepSegment.kind],
             });
 
@@ -8621,13 +8634,21 @@ export default {
             }
 
             const createSegmentLine = async (segment: any) => {
-                const created = await action.addPurchaseOrderRawLine({
+                /* const created = await action.addPurchaseOrderRawLine({
                     product_id: line.product_id,
                     purchase_order_id: line.purchase_order_id,
                     total_units: segment.qty,
                     store: segment.store,
                     fbm: segment.fbm,
                     fba_prep: segment.fba_prep,
+                    notes: line.notes ?? null,
+                    status: statusByKind[segment.kind],
+                }); */
+
+                const created = await action.addPurchaseOrderRawLine({
+                    product_id: line.product_id,
+                    purchase_order_id: line.purchase_order_id,
+                    total_units: segment.qty,
                     notes: line.notes ?? null,
                     status: statusByKind[segment.kind],
                 });
@@ -9096,7 +9117,7 @@ export default {
 
 .inbound-field-label {
     font-weight: 700;
-    color: #2a4761;
+    color: #aad4f9;
     font-size: 0.92rem;
 }
 
@@ -9147,7 +9168,7 @@ export default {
     min-width: 72px;
     justify-content: flex-end;
     font-weight: 700;
-    color: #1d4f73;
+    color: #aad4f9;
 }
 
 .receive-boxes-total--over {
