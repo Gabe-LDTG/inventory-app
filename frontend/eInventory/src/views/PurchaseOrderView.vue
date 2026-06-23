@@ -4201,7 +4201,8 @@ export default {
                     po_raw_lines: [...normalizedLines],
                 };
             }
-            // console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
+            console.log(`Finished refreshing purchase order data for PO ID ${poId}. Updated row:`, this.purchaseOrders[poRowIdx], "Dialog data:", this.purchaseOrder);
+            console.log(`Detail data:`, this.selectedDetailPo);
         },
 
         /**
@@ -4547,7 +4548,7 @@ export default {
         },
 
         onRawTotalsChange(event: any, line: any, field: any){
-            // console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
+            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
             if (field === 'total'){
                 line.amount = event.value/line.units_per_case;
                 if(line.fbm > event.value)
@@ -4558,7 +4559,7 @@ export default {
                 if(event.value > line.total){
                     line.fbm = line.total;
                     line.store = 0;
-                    this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total'});
+                    this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total', life: 10000,});
                 } else {
                     line.store = line.total - event.value - (line.fba_prep || 0);
                 }
@@ -7639,8 +7640,10 @@ export default {
 
             
             try {
+                /**@TODO See if a front end refresh is needed and/or more effecient */
                 await this.loadPage(this.currentPage, { rebuildSubscriptions: false });
-                this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
+                // this.purchaseOrderRefresh(poId, { syncTable: true, syncDialog: true });
+                this.purchaseOrder = this.purchaseOrders.find((po: any) => po.purchase_order_id === poId) || this.purchaseOrder;
                 await this.editPurchaseOrder(this.purchaseOrder);
             } finally {
                 this.isSavingEditDialog = false;
