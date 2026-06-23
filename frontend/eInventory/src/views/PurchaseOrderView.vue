@@ -1210,7 +1210,7 @@
                         {{ (data.fbm || 0) }}
                     </template>
                     <template #editor="{data, field}">
-                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :disabled="isPoReadOnly"/>
+                        <InputNumber v-model="data[field]" @input="onRawTotalsChange($event, data, field)" :max="data.total" :disabled="isPoReadOnly"/>
                     </template>
                 </Column>
                 <Column header="Total Units" field="total">
@@ -1508,100 +1508,7 @@
             </template>
         </Dialog>
 
-        <!-- <Dialog v-model:visible="newPurchaseOrderProductDialog" header="New Purchase Order Product" :modal="true">
-            <h4 class="flex justify-content-start font-bold w-full">Processed Product to Create</h4><br>
-
-            <div class="block-div">
-                        <div class="field">
-                            <label for="name">Name:</label>
-                            <AutoComplete 
-                                v-model="newPORecipe.recipeObj"
-                                :suggestions="filteredRecipesEdit || []"
-                                @complete="(event: any) => searchRecipesEdit(event)"
-                                @item-select="onRecipeSelectionEdit(newPORecipe.recipeObj)"
-                                :dropdown="true"
-                                :optionLabel="'label'"
-                                placeholder="Select or enter a product"
-                                class="md:w-14rem"
-                                :class="{'p-invalid': submitted && !newPORecipe.recipeObj}"
-                                :forceSelection="false"
-                            />
-                            <small class="p-error" v-if="submitted && !newPORecipe.recipeObj">Name is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="qty">Normal Case QTY:</label>
-                            <InputNumber inputId="stacked-buttons" :required="true" 
-                            :class="{'p-invalid': submitted && !newPORecipe.default_units_per_case}"
-                            v-model="poCasesEdit.default_units_per_case" disabled
-                            />
-                            <small class="p-error" v-if="submitted && !newPORecipe.default_units_per_case">Amount is required.</small>
-                        </div>
-
-                        <div class="field">
-                            <label for="amount">Cases Desired to Be Made</label>
-                            <InputNumber inputId="stacked-buttons" :required="true" 
-                            v-model="newPORecipe.amount" showButtons :min="1"
-                            @update=""/>
-                        </div>
-
-                        <div class="field">
-                            <label for="notes">Notes:</label>
-                            <InputText id="notes" v-model="newPORecipe.notes" rows="3" cols="20" />
-                        </div>
-
-                        <div v-if="newPORecipe.amount && newPORecipe.recipeObj" class="field">
-                            <label class="flex justify-content-end font-bold w-full" for="total">Total to be Made:</label>
-                            <div class="flex justify-content-end font-bold w-full">{{ poCasesEdit.default_units_per_case * newPORecipe.amount }}</div>
-                        </div>
-
-                    </div>
-
-                    <div v-if="poCasesEdit.default_units_per_case">
-                        <DataTable :value="selectRecipeElements(newPORecipe.recipeObj)">
-                            <Column field="name" header="Product Name" />
-                            <Column field="qty" header="Units per Box" >
-                                <template #body="{data}">
-                                    {{ getProductInfo(data.product_id, 'default_units_per_case') }}
-                                </template>
-                            </Column>
-                            <Column field="qty" header="Unit(s) per Bundle" ></Column>
-                            <Column header="Total Units Needed">
-                                <template #body="{data}">
-                                        {{  getTotalUnitsNeeded(data, poCasesEdit, newPORecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Units Ordered" >
-                                <template #body="{data}">
-                                    {{ getTotalUnitsOrdered(data, poCasesEdit, newPORecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Raw Box Total" >
-                                <template #body="{data}">
-                                    {{ getRawBoxTotal(data, poCasesEdit, newPORecipe.amount) }}
-                                </template>
-                            </Column>
-                            <Column header="Unit Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getProductInfo(data.product_id,'price_2023')) }}
-                                </template>
-                            </Column>
-                            <Column header="Total Price" >
-                                <template #body="{data}">
-                                    {{ formatCurrency(getTotalCost(data, poCasesEdit, newPORecipe.amount)) }}
-                                </template>
-                            </Column>
-                        </DataTable>
-                        <InputText id="notes" v-model="poCasesEdit.notes" rows="3" cols="20" />
-                    </div>
-            
-            <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="closeNewPurchaseOrderProductDialog"/>
-                <Button label="Save" icon="pi pi-check" text @click="saveNewPurchaseOrderProduct"/>
-            </template>
-        </Dialog> -->
-
-        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Plan Out Invoice for Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '1200px' }" @hide="onInboundDialogHide">
+        <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Add an Invoice to Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '1200px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
 
                 <div class="inbound-invoice-name-field">
@@ -1655,7 +1562,7 @@
                             headerCell: { style: { zIndex: 11, position: 'sticky' } }
                         }"
                     />
-                    <Column header="Planned Units for FBA Prep" field="fba_prep" :pt="{
+                    <!-- <Column header="Planned Units for FBA Prep" field="fba_prep" :pt="{
                             bodyCell: ({ context }) => ({
                                 root: { style: { zIndex: 1, position: 'relative' } },
                                 style: { 
@@ -1751,10 +1658,22 @@
                                 @input="onInboundUnitsInput($event, data, 'fbm')"
                             />
                         </template>
-                    </Column>
+                    </Column> -->
                     <Column header="Units Shipped" field="units_shipped">
-                        <template #body="{ data }">
+                        <!-- <template #body="{ data }">
                             {{ data.units_shipped || 0 }}
+                        </template> -->
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.units_shipped"
+                                :min="0"
+                                :max="data.total_units - (data.units_backordered || 0)"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
+                                @update:modelValue="onInboundUnitsUpdate(data, 'units_shipped')"
+                                @input="onInboundUnitsInput($event, data, 'units_shipped')"
+                            />
                         </template>
                     </Column>
                     <Column header="Units Back Ordered" :pt="{
@@ -1769,6 +1688,7 @@
                             <InputNumber
                                 v-model="data.units_backordered"
                                 :min="0"
+                                :max="data.total_units - (data.units_shipped || 0)"
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
@@ -2300,6 +2220,7 @@ export default {
             poViewMode: 'cards' as 'cards' | 'table',
             poPopupRefs: {} as Record<number, any>,
 
+            isToastActive: false,
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
 
@@ -4547,24 +4468,52 @@ export default {
             };
         },
 
-        onRawTotalsChange(event: any, line: any, field: any){
-            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", event.value);
-            if (field === 'total'){
-                line.amount = event.value/line.units_per_case;
-                if(line.fbm > event.value)
-                    line.fbm = event.value;
-            } else if (field === 'amount'){
-                line.total = (event.value || line.amount || 0)*line.units_per_case;
-            } else if (field === 'fbm'){
-                if(event.value > line.total){
-                    line.fbm = line.total;
-                    line.store = 0;
-                    this.$toast.add({severity:'warn', summary:'Warning', detail:'FBM cannot exceed total', life: 10000,});
+        onRawTotalsChange(event: any, line: any, field: any) {
+            // 1. Parse all relevant values to numbers safely
+            const eventValue = Number(event.value) || 0;
+            const unitsPerCase = Number(line.units_per_case) || 1;
+            const currentTotal = Number(line.total) || 0;
+            const fbaPrep = Number(line.fba_prep) || 0;
+            console.log("Event value parsed: ", eventValue, "Units per case: ", unitsPerCase, "Current total: ", currentTotal, "FBA prep: ", fbaPrep);
+
+            console.log("Checking change on line: ", line, " for field: ", field, " with event value: ", eventValue);
+
+            if (field === 'total') {
+                line.total = eventValue; // Ensure model stays a number
+                line.amount = eventValue / unitsPerCase;
+                
+                if (Number(line.fbm) > eventValue) {
+                line.fbm = eventValue;
+                }
+            } 
+            else if (field === 'amount') {
+                line.amount = eventValue;
+                line.total = eventValue * unitsPerCase;
+            } 
+            else if (field === 'fbm') {
+                if (eventValue > currentTotal) {
+                    // Force Vue to process the state change on the next DOM tick
+                    this.$nextTick(() => {
+                        line.fbm = currentTotal;
+                        line.store = 0;
+                    });
+
+                    // Avoid spamming toasts on every single keystroke
+                    if (!this.isToastActive) {
+                        this.isToastActive = true;
+                        this.$toast.add({
+                        severity: 'warn',
+                        summary: 'Warning',
+                        detail: 'FBM cannot exceed total',
+                        life: 10000,
+                        });
+                        setTimeout(() => { this.isToastActive = false; }, 10000);
+                    }
                 } else {
-                    line.store = line.total - event.value - (line.fba_prep || 0);
+                    line.fbm = eventValue;
+                    line.store = currentTotal - eventValue - fbaPrep;
                 }
             }
-
         },
 
         openRecipeRowEditor(rowData: any){
@@ -6890,8 +6839,8 @@ export default {
 
                 for (const recipe of recMissingRequest) {
 
-                    let neededRecipe = recipeElements.find((rec: any) => rec.recipe_id === recipe.recipe_id);
-                    console.log("Needed Recipe Element: ", neededRecipe);
+                    let neededRecipe = recipes.find((rec: any) => rec.recipe_id === recipe.recipe_id);
+                    console.log("Needed Recipe: ", neededRecipe);
 
                     if (!neededRecipe || !neededRecipe.output_product_id) {
                         console.warn("Skipping request creation: missing output recipe element for recipe", recipe?.recipe_id);
@@ -6901,13 +6850,14 @@ export default {
                         continue;
                     }
 
-                    let productKey = this.products.find(product => product.product_id === neededRecipe.output_product_id);
+                    const productKey = this.products.find(product => product.product_id === neededRecipe.output_product_id);
                     console.log("Product Key: ", productKey);
 
                     let recRequest = existingRequests.find(request => request.product_id === neededRecipe.output_product_id && request.purchase_order_id === poId);
                     console.log("Recipe Request: ", recRequest);
                     if(!recRequest){
                         // No request made for this recipe yet, make one
+                        const numOfCases = Number(recipe.qty) / Number(productKey?.default_units_per_case || 1);
                         const createdRequest: {
                             product_id: number; 
                             purchase_order_id: number;
@@ -6930,8 +6880,8 @@ export default {
                             priority: '6 Prep For Later', 
                             ship_to_amz: 0, 
                             deadline: null, 
-                            warehouse_qty: 0,
-                            container_qty: Number(recipe.qty)
+                            warehouse_qty: numOfCases,
+                            container_qty: Number(productKey?.default_units_per_case || 1),
                         };
 
                         console.log("Created Request: ", createdRequest);
@@ -7305,7 +7255,7 @@ export default {
                 return;
             }
 
-            // console.log("Saving raw line edit with data:", newData);
+            console.log("Saving raw line edit with data:", newData);
 
             this.isSavingEditDialog = true;
 
@@ -8573,14 +8523,19 @@ export default {
         },
 
         onInboundUnitsInput(event: any, data: any, field: string){
-            console.log("Inbound input event: ", event);
-            if (field === 'fba_prep'){
+            // console.log("Inbound input event: ", event);
+            /* if (field === 'fba_prep'){
                 data.units_shipped = event.value + data.store_shipped + data.fbm_shipped;
             } else if (field === 'store') {
                 data.units_shipped = data.fba_prep_shipped + event.value + data.fbm_shipped;
             } else if (field === 'fbm') {
                 data.units_shipped = data.fba_prep_shipped + data.store_shipped + event.value;
-            } else if (field === 'backordered'){
+            }  */
+            if (field === 'units_shipped'){
+                data.units_shipped = event.value;
+                this.getInboundRemaining(data);
+            }
+            else if (field === 'backordered'){
                 data.units_backordered = event.value;
                 this.getInboundRemaining(data);
             }
