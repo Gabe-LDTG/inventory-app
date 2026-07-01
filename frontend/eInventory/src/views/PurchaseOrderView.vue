@@ -751,7 +751,7 @@
                                             </button>
                                             <Button
                                                 label="Plan"
-                                                @click.stop="openPlanningInvoiceDialog(data.invoice_id)"
+                                                @click.stop="openPlanningInvoiceDialog(data)"
                                             />
                                             <Button
                                                 label="Receive"
@@ -1741,7 +1741,7 @@
                 Account for each product by splitting units into fba prep, fbm, or store.
             </p>
             <DataTable 
-                    :value="inboundLineAllocations" 
+                    :value="planningRawLines" 
                     stripedRows 
                     showGridlines 
                     responsiveLayout="scroll" 
@@ -1774,13 +1774,12 @@
                      >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fba_prep_shipped"
+                                v-model="data.fba_prep"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
-                                @input="onInboundUnitsInput($event, data, 'fba_prep')"
+                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                @input="handlePlanInput('fba_prep', $event, data)"
                             />
                         </template>
                     </Column>
@@ -1794,13 +1793,12 @@
                     >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.store_shipped"
+                                v-model="data.store"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'store')"
-                                @input="onInboundUnitsInput($event, data, 'store')"
+                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                @input="handlePlanInput('store', $event, data)"
                             />
                         </template>
                     </Column>
@@ -1814,13 +1812,12 @@
                      >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fbm_shipped"
+                                v-model="data.fbm"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'fbm')"
-                                @input="onInboundUnitsInput($event, data, 'fbm')"
+                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                @input="handlePlanInput('fbm', $event, data)"
                             />
                         </template>
                     </Column>
@@ -1832,7 +1829,7 @@
                     </Column>
                 </DataTable>
             <template #footer>
-                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="planningInvoiceDialogVisible = false" />
+                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="closePlanningInvoiceDialog" />
             </template>
 
         </Dialog>
@@ -2107,7 +2104,6 @@
 import { FilterMatchMode } from '@primevue/core/api';
 import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
-import importAction from "../components/utils/importUtils";
 
 
 import { debounce, keys } from 'lodash';
@@ -2193,7 +2189,8 @@ export default {
                 notes: '',
             } as any,
             planningInvoiceDialogVisible: false,
-            planningRawLines: [] as any[],
+            invoiceToPlan: null as any,
+            planSaveTimers: {} as Record<string, number>,
 
             // PO RAW LINES
             rawProductCancelDialog: false,
@@ -2360,6 +2357,7 @@ export default {
         purchaseOrder: {
         deep: true,
         handler() {
+            // if(this.planningInvoiceDialogVisible) console.log('Planning invoice dialog is open, skipping lazy save');
             if (this.isInitializingPurchaseOrder || !this.editPurchaseOrderDialog || this.isPoReadOnly) return;
             this.lazySave();
         }
@@ -2734,6 +2732,35 @@ export default {
 
         },
 
+        planningRawLines(): any[] {
+            const poId = Number(this.purchaseOrder.purchase_order_id || 0);
+            const invoiceId = this.invoiceToPlan.invoice_id;
+            if (!poId || !invoiceId || this.invoiceToPlan.purchase_order_id !== poId) return [];
+
+            return (this.purchaseOrder.po_raw_lines || [])
+                .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' && line.invoice_id === invoiceId)
+                .map((line: any) => {
+                    // const productId = Number(line?.product_id || 0);
+                    // const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === productId);
+                    // const unitsPerCase = Number(product?.default_units_per_case || line?.units_per_case || 0);
+                    // const qty = Number(line?.total_units || 0);
+                    // const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
+
+                    const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
+                    const fba_prep = setAllocationField('fba_prep');
+                    const fbm = setAllocationField('fbm');
+                    const store = setAllocationField('store');
+                    
+                    return {
+                        ...line,
+                        fba_prep,
+                        fbm,
+                        store,
+                    };
+                });
+            
+        },
+
     },
     methods: {
         lazySave: () => Promise.resolve(),
@@ -2779,10 +2806,87 @@ export default {
             }
         },
 
-        openPlanningInvoiceDialog(invoiceId: number){
-            this.planningRawLines = this.purchaseOrder.po_raw_lines?.filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' || line.invoice_id === invoiceId) || [];
+        openPlanningInvoiceDialog(invoice: any){
+            this.invoiceToPlan = invoice;
             this.planningInvoiceDialogVisible = true;
 
+        },
+
+        closePlanningInvoiceDialog(){
+            this.invoiceToPlan = null;
+            this.planningInvoiceDialogVisible = false;
+        },
+
+        handlePlanInput(allocationType: string, event: any, line: any){
+            console.log("Handle plan input for allocation type: ", allocationType, "event:", event, "line:", line);
+
+            const newValue = event.value; 
+
+            // Validate the line to see if the total allocated units exceeds the total ordered units
+            const isPlanValid = this.validatePlanning(allocationType, newValue, line);
+            if(!isPlanValid){
+                return;
+            }
+
+            // If the plan is valid, proceed to save the allocation
+            this.debouncedPlanSave(allocationType, newValue, line);
+        },
+
+        validatePlanning(allocationType: string, value: number, line: any){
+            if(!this.invoiceToPlan) return false;
+            if(allocationType !== 'fba_prep' && allocationType !== 'fbm' && allocationType !== 'store') {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Invalid Plan',
+                    detail: `Error with allocation type. Read type: ${allocationType}`,
+                    life: 8000,
+                });
+                return false;
+            };
+
+            if(allocationType === 'fba_prep' && (value < 0 || value + line.fbm + line.store > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (FBA Prep)',
+                    detail: `FBA Prep allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
+                });
+                return false;
+            }
+
+            if(allocationType === 'fbm' && (value < 0 || value + line.fba_prep + line.store > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (FBM)',
+                    detail: `FBM allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
+                });
+                return false;
+            }
+
+            if(allocationType === 'store' && (value < 0 || value + line.fba_prep + line.fbm > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (Store)',
+                    detail: `Store allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
+                });
+                return false;
+            }
+
+            return true;
+        },
+
+        debouncedPlanSave(allocationType: string, newValue: number, line: any){
+            const cellKey = `${line.po_raw_line_id}_${allocationType}`;
+
+            // Reset any pending timers for this exact cell
+            if (this.planSaveTimers[cellKey]) {
+                clearTimeout(this.planSaveTimers[cellKey]);
+            }
+
+            // Schedule database update 500ms after user pauses typing
+            this.planSaveTimers[cellKey] = window.setTimeout(() => {
+                // this.persistAllocationToDatabase(orderLineId, deptId, value);
+                delete this.planSaveTimers[cellKey];
+            }, 500);
         },
 
         confirmDeletePurchaseOrder(purchaseOrder: any) {

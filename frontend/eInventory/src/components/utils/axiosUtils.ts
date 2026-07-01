@@ -2129,6 +2129,41 @@ var action = {
         }
     },
 
+    // PO UNIT ALLOCATIONS-----------------------------------------------------------------------------
+    async upsertPurchaseOrderUnitAllocation(allocations: {
+        poRecipeId: number;
+        poRawLineId: number;
+        allocatedUnits: number;
+        allocatedType: string;
+    }){
+        try {
+            const {data, error} = await supabase
+                .from('po_unit_allocations')
+                .upsert(
+                    {
+                        po_recipe_id: allocations.poRecipeId,
+                        po_raw_line_id: allocations.poRawLineId,
+                        allocated_units: allocations.allocatedUnits,
+                        allocated_type: allocations.allocatedType
+                    }, 
+                    { 
+                        onConflict:'po_raw_line_id, allocated_type' 
+                    }
+                )
+                .select()
+                .single();
+            if(error){
+                throw error;
+            } else {
+                console.log('Purchase Order Unit Allocation Upserted:', data);
+                return data;
+            }
+        } catch (err) {
+            console.error('Error in upsertPurchaseOrderUnitAllocation:', err);
+            throw err;
+        }
+    },
+
     // INVOICES--------------------------------------------------------------------------------------------
     // Get invoices
     async getInvoices(){
