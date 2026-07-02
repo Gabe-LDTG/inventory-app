@@ -1294,7 +1294,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- <Button label="Save" icon="pi pi-check"  text @click="validate" /> -->
             </template>
         </Dialog>
 
@@ -1736,7 +1735,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="planningInvoiceDialogVisible" :header="'Plan Cases for Invoice '" :modal="true" :style="{ width: '1200px' }">
+        <Dialog v-model:visible="planningInvoiceDialogVisible" :header="'Plan Cases for Invoice '" :modal="true" :style="{ width: '1200px' }" :closable="false" :closeOnEscape="false">
             <p class="inbound-instructions m-0">
                 Account for each product by splitting units into fba prep, fbm, or store.
             </p>
@@ -1827,14 +1826,51 @@
                             {{ data.remaining || 0 }}
                         </template>
                     </Column>
-                </DataTable>
+            </DataTable>
+
             <template #footer>
-                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="closePlanningInvoiceDialog" />
+                <div class="po-edit-footer-wrap">
+                    <div class="flex flex-column gap-2 align-items-end justify-content-between">
+                        
+                        <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="closePlanningInvoiceDialog" />
+                        <div class="po-edit-footer-actions">
+                            <div class="po-autosave-banner" :class="{ 'is-visible': planningAutoSaveState !== 'idle' }">
+                                <div v-if="planningAutoSaveState !== 'idle'" class="po-autosave-indicator">
+                                    <template v-if="planningAutoSaveState === 'saving'">
+                                        <ProgressSpinner style="width: 18px; height: 18px" strokeWidth="4" animationDuration=".8s" />
+                                        <span>Saving changes...</span>
+                                    </template>
+                                    <template v-else-if="planningAutoSaveState === 'error'">
+                                        <i style="color: #e24c4c;" class="pi pi-exclamation-triangle po-autosave-error"></i>
+                                        <span style="color: #e24c4c;">Error saving changes</span>
+                                    </template>
+                                    <template v-else>
+                                        <i class="pi pi-check-circle po-autosave-check"></i>
+                                        <span>Changes saved</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </template>
 
         </Dialog>
 
-        <Dialog v-model:visible="inboundUnaccountedDialog" header="Unaccounted Product Units" :modal="true" :style="{ width: '560px' }">
+        <Dialog v-model:visible="unsavedPlanInvoiceDialogVisible" :header="'Unsaved Changes'" :modal="true" :style="{ width: '450px' }" :closable="false" :closeOnEscape="false">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
+                <div>
+                    <p class="m-0">You have unsaved changes in the plan for this invoice. If you continue, your changes will be lost.</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="unsavedPlanInvoiceDialogVisible = false" />
+                <Button label="Continue" icon="pi pi-check" class="p-button-warning" @click="confirmUnsavedPlanInvoiceDialog" />
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="inboundUnaccountedDialog" header="Unaccounted Product Units" :modal="true" :style="{ width: '560px' }" :closable="false" :closeOnEscape="false">
             <div class="confirmation-content">
                 <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
                 <div>
@@ -2191,6 +2227,7 @@ export default {
             planningInvoiceDialogVisible: false,
             invoiceToPlan: null as any,
             planSaveTimers: {} as Record<string, number>,
+            unsavedPlanInvoiceDialogVisible: false,
 
             // PO RAW LINES
             rawProductCancelDialog: false,
@@ -2329,6 +2366,7 @@ export default {
             isToastActive: false,
             saving: false,
             autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
+            planningAutoSaveState: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
 
             activePoLock: null as any,
             currentEditingPoId: null as number | null,
@@ -2813,12 +2851,24 @@ export default {
         },
 
         closePlanningInvoiceDialog(){
-            this.invoiceToPlan = null;
-            this.planningInvoiceDialogVisible = false;
+            if(this.planningAutoSaveState === 'error') {
+                this.unsavedPlanInvoiceDialogVisible = true;
+            } else {
+                this.invoiceToPlan = null;
+                this.planningInvoiceDialogVisible = false;
+                this.planningAutoSaveState = 'idle';
+            }
+        },
+
+        confirmUnsavedPlanInvoiceDialog(){
+            this.planningAutoSaveState = 'idle';
+            this.unsavedPlanInvoiceDialogVisible = false;
+            this.closePlanningInvoiceDialog()
         },
 
         handlePlanInput(allocationType: string, event: any, line: any){
             console.log("Handle plan input for allocation type: ", allocationType, "event:", event, "line:", line);
+            this.planningAutoSaveState = 'saving';
 
             const newValue = event.value; 
 
@@ -2833,14 +2883,22 @@ export default {
         },
 
         validatePlanning(allocationType: string, value: number, line: any){
-            if(!this.invoiceToPlan) return false;
+            if(!this.invoiceToPlan){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Invalid Plan',
+                    detail: `Error finding invoice to plan. Please close and reopen the planning dialog.`,
+                });
+                this.planningAutoSaveState = 'error';
+                return false;
+            } 
             if(allocationType !== 'fba_prep' && allocationType !== 'fbm' && allocationType !== 'store') {
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Invalid Plan',
                     detail: `Error with allocation type. Read type: ${allocationType}`,
-                    life: 8000,
                 });
+                this.planningAutoSaveState = 'error';
                 return false;
             };
 
@@ -2850,6 +2908,7 @@ export default {
                     summary: 'Total limit exceeded (FBA Prep)',
                     detail: `FBA Prep allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
                 });
+                this.planningAutoSaveState = 'error';
                 return false;
             }
 
@@ -2859,6 +2918,7 @@ export default {
                     summary: 'Total limit exceeded (FBM)',
                     detail: `FBM allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
                 });
+                this.planningAutoSaveState = 'error';
                 return false;
             }
 
@@ -2868,6 +2928,7 @@ export default {
                     summary: 'Total limit exceeded (Store)',
                     detail: `Store allocation causes total planned units to exceed shipped total of ${line.total_units} units.`,
                 });
+                this.planningAutoSaveState = 'error';
                 return false;
             }
 
@@ -2885,6 +2946,46 @@ export default {
             // Schedule database update 500ms after user pauses typing
             this.planSaveTimers[cellKey] = window.setTimeout(() => {
                 // this.persistAllocationToDatabase(orderLineId, deptId, value);
+                const allocation = {
+                    allocatedType: allocationType,
+                    allocatedUnits: newValue,
+                    poRawLineId: Number(line.po_raw_line_id),
+                }
+
+                const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
+                console.log("Upserted allocation to database:", upsertValue);
+
+                // Update the allocation in the local state
+                const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
+                if(allocationIdx !== -1){
+                    line.allocations[allocationIdx].allocated_units = newValue;
+                } else {
+                    line.allocations.push({
+                        allocation_type: allocationType,
+                        allocated_units: newValue,
+                        po_raw_line_id: Number(line.po_raw_line_id),
+                    });
+                }
+
+                // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
+                const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
+                if(poIdx !== -1){
+                    this.purchaseOrders[poIdx] = {
+                        ...this.purchaseOrders[poIdx],
+                        ...this.purchaseOrder,
+                        po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
+                            if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
+                                return {
+                                    ...l,
+                                }
+                            }
+                            return l;
+                        })
+                    }
+                }
+
+                this.planningAutoSaveState = 'saved';
+
                 delete this.planSaveTimers[cellKey];
             }, 500);
         },

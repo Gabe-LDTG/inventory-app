@@ -2130,8 +2130,8 @@ var action = {
     },
 
     // PO UNIT ALLOCATIONS-----------------------------------------------------------------------------
-    async upsertPurchaseOrderUnitAllocation(allocations: {
-        poRecipeId: number;
+    async upsertPurchaseOrderUnitAllocation(allocation: {
+        poRecipeId?: number | null;
         poRawLineId: number;
         allocatedUnits: number;
         allocatedType: string;
@@ -2141,13 +2141,14 @@ var action = {
                 .from('po_unit_allocations')
                 .upsert(
                     {
-                        po_recipe_id: allocations.poRecipeId,
-                        po_raw_line_id: allocations.poRawLineId,
-                        allocated_units: allocations.allocatedUnits,
-                        allocated_type: allocations.allocatedType
+                        po_recipe_id: allocation.poRecipeId,
+                        po_raw_line_id: allocation.poRawLineId,
+                        allocated_units: allocation.allocatedUnits,
+                        allocation_type: allocation.allocatedType
                     }, 
                     { 
-                        onConflict:'po_raw_line_id, allocated_type' 
+                        onConflict:'po_raw_line_id, allocation_type',
+                        defaultToNull: false
                     }
                 )
                 .select()
