@@ -2135,6 +2135,7 @@ var action = {
         poRawLineId: number;
         allocatedUnits: number;
         allocatedType: string;
+        receivedUnits?: number;
     }){
         try {
             const {data, error} = await supabase
@@ -2144,7 +2145,8 @@ var action = {
                         po_recipe_id: allocation.poRecipeId,
                         po_raw_line_id: allocation.poRawLineId,
                         allocated_units: allocation.allocatedUnits,
-                        allocation_type: allocation.allocatedType
+                        allocation_type: allocation.allocatedType,
+                        received_units: allocation.receivedUnits
                     }, 
                     { 
                         onConflict:'po_raw_line_id, allocation_type',

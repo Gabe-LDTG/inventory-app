@@ -1915,7 +1915,7 @@
 
                 <DataTable
                     v-else
-                    :value="receiveInvoiceLineAllocations"
+                    :value="receivingRawLines"
                     dataKey="row_key"
                     rowGroupMode="subheader"
                     groupRowsBy="invoice_id"
@@ -2228,6 +2228,7 @@ export default {
             invoiceToPlan: null as any,
             planSaveTimers: {} as Record<string, number>,
             unsavedPlanInvoiceDialogVisible: false,
+            invoicesToReceive: [] as any[],
 
             // PO RAW LINES
             rawProductCancelDialog: false,
@@ -2795,8 +2796,103 @@ export default {
                         fbm,
                         store,
                     };
+                }); 
+        },
+
+        /**@TODO Switch the calculation of receiving lines from the openReceiveInvoiceDialog function to a computed property */
+        receivingRawLines(): any[] {
+            const receivedInvoices = (this.invoicesToReceive || []);
+            if(!receivedInvoices.length) return [];
+
+            const receivingLines = [] as any[];
+            const purchaseOrder = this.purchaseOrder || null;
+            const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
+
+            (receivedInvoices || []).forEach((invoice: any) => {
+                const linkedLines = this.getInvoiceReceiveableLines(invoice);
+                const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
+                const invoicePurchaseOrderName = String(
+                    invoice?.purchase_order_name
+                    || (this.purchaseOrders || []).find((po: any) => Number(po?.purchase_order_id || 0) === invoicePurchaseOrderId)?.purchase_order_name
+                    || purchaseOrder?.purchase_order_name
+                    || ''
+                );
+
+                linkedLines.forEach((line: any) => {
+                    const productId = Number(line?.product_id || 0);
+                    const product = (this.products || []).find((p: any) => p.product_id === productId)
+                        || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
+                    const unitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
+
+                    const expectedBoxes = this.getReceiveExpectedBoxes(line);
+                    const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
+                    const fba_prep = setAllocationField('fba_prep');
+                    const fbm = setAllocationField('fbm');
+                    const store = setAllocationField('store');
+                    let partialQty = 0;
+
+                    if(!Number.isInteger(expectedBoxes)) {
+                        const wholeBoxes = Math.trunc(expectedBoxes);
+                        partialQty = Number(line.total_units - (wholeBoxes * unitsPerCase));
+                    }
+
+                    receivingLines.push({
+                        row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                        invoice_id: Number(invoice?.invoice_id || 0),
+                        invoice_name: String(invoice?.invoice_name || ''),
+                        purchase_order_id: invoicePurchaseOrderId,
+                        purchase_order_name: invoicePurchaseOrderName,
+                        po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                        product_id: productId,
+                        product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                        item_num: String(line?.item_num || product?.item_num || ''),
+                        total_units: Number(line?.total_units - partialQty || 0),
+                        default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                        actual_units_per_box: unitsPerCase > 0 ? unitsPerCase : 0,
+                        receive_splits: [
+                            {
+                                split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                boxes_received: 0,
+                                location_id: null,
+                            },
+                        ],
+                        line_status: String(line?.status || 'Inbound'),
+                        line_notes: line?.notes ?? null,
+                    });
+
+                    if(partialQty > 0){
+                        receivingLines.push({
+                        row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
+                        invoice_id: Number(invoice?.invoice_id || 0),
+                        invoice_name: String(invoice?.invoice_name || ''),
+                        purchase_order_id: invoicePurchaseOrderId,
+                        purchase_order_name: invoicePurchaseOrderName,
+                        po_raw_line_id: Number(line?.po_raw_line_id || 0),
+                        product_id: productId,
+                        product_name: String(line?.product_name || product?.name || `Product #${productId}`),
+                        item_num: String(line?.item_num || product?.item_num || ''),
+                        total_units: Number(partialQty),
+                        default_units_per_case: unitsPerCase > 0 ? unitsPerCase : 0,
+                        actual_units_per_box: partialQty > 0 ? partialQty : 0,
+                        receive_splits: [
+                            {
+                                split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
+                                boxes_received: 0,
+                                location_id: null,
+                            },
+                        ],
+                        line_status: String(line?.status || 'Inbound'),
+                        line_notes: line?.notes ?? null,
+                    });
+                    }
                 });
-            
+            });
+
+            return receivingLines.sort((a: any, b: any) => {
+                if (a.purchase_order_id !== b.purchase_order_id) return a.purchase_order_id - b.purchase_order_id;
+                if (a.invoice_id !== b.invoice_id) return a.invoice_id - b.invoice_id;
+                return String(a.product_name || '').localeCompare(String(b.product_name || ''));
+            });
         },
 
     },
@@ -3095,6 +3191,8 @@ export default {
                 Number(invoice?.purchase_order_id || 0) === purchaseOrderId,
             );
 
+            this.invoicesToReceive = purchaseOrderInvoices;
+
             void this.openReceiveInvoiceDialog({
                 purchaseOrder,
                 invoices: purchaseOrderInvoices,
@@ -3113,6 +3211,8 @@ export default {
                 });
                 return;
             }
+
+            this.invoicesToReceive = activeInvoices;
 
             void this.openReceiveInvoiceDialog({
                 invoices: activeInvoices,
@@ -3134,6 +3234,8 @@ export default {
                 });
                 return;
             }
+
+            this.invoicesToReceive = [sourceInvoice];
 
             // this.detailDialogVisible = false;
             void this.openReceiveInvoiceDialog({
@@ -9123,6 +9225,7 @@ export default {
          * Called when user clicks "Save Received Boxes" in the Receive Invoice dialog. 
          * Validates that at least one box is received, that all splits with received boxes have a location, and that all lines have valid units per case. 
          * Then creates cases for each split with received boxes and updates PO line statuses as needed.
+         * @TODO Autosave the unit allocations being received, that way progress is not lost of the system crashes. Create a second "Update Inventory" Button that will create the actual boxes
          */
         async saveReceivedInvoiceBoxes() {
             this.receiveInvoicesSubmitted = true;
