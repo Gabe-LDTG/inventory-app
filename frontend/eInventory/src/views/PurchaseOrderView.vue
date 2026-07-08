@@ -6140,6 +6140,10 @@ export default {
             return splits.some((split: any) => Number(split?.boxes_received || 0) > 0 && !split?.location_id);
         },
 
+        /**
+         * Opens the receive invoice dialog and prepares the invoice lines for receiving.
+         * @param options - The options for opening the dialog, including the purchase order, invoices, and title.
+         */
         async openReceiveInvoiceDialog(options: { purchaseOrder?: any; invoices?: any[]; title?: string } = {}) {
             const purchaseOrder = options.purchaseOrder || null;
             const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
