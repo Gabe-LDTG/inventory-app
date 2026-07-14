@@ -4,6 +4,9 @@ import { supabase } from "@/clients/supabase";
 import type { NumericLiteral } from "typescript";
 import helper from "./helperUtils";
 import type ProcessedCases from "@/views/ProcessedCases.vue";
+import type {
+    PurchaseOrderPageDetails
+} from "@/types/index";
 // import { error } from "console";
 
 const BASE_URL = "http://localhost:5000";
@@ -1604,45 +1607,7 @@ var action = {
         filter_data: string,
         sort_field: string,
         sort_order: number
-    ): Promise<{
-        total_count: number;
-        page: number;
-        rows_per_page: number;
-        purchase_order_ids: number[];
-        purchase_orders: any[];
-        all_products: any[];
-        all_boxes: any[];
-        all_recipes: any[];
-        all_po_recipes: any[];
-        all_recipe_elements: any[];
-        all_po_raw_lines: any[];
-        all_invoices: any[];
-        all_boxes_ids: number[];
-        all_po_recipes_ids: number[];
-        all_products_ids: number[];
-        all_po_raw_lines_ids: number[];
-        all_invoices_ids: number[];
-    }>{
-        let result = {
-            total_count: 0,
-            page,
-            rows_per_page: rows_per_page,
-            purchase_order_ids: [] as number[],
-            purchase_orders: [] as any[],
-            all_products: [] as any[],
-            all_boxes: [] as any[],
-            all_recipes: [] as any[],
-            all_po_recipes: [] as any[],
-            all_recipe_elements: [] as any[],
-            all_po_raw_lines: [] as any[],
-            all_invoices: [] as any[],
-            all_boxes_ids: [] as number[],
-            all_po_recipes_ids: [] as number[],
-            all_products_ids: [] as number[],
-            all_po_raw_lines_ids: [] as number[],
-            all_invoices_ids: [] as number[],
-        };
-    
+    ): Promise<PurchaseOrderPageDetails>{  
         try {
             
             const { data, error } = await supabase.rpc('get_purchase_orders_with_details', {
@@ -1656,14 +1621,15 @@ var action = {
     
             if (error) {
                 console.error('Error calling RPC (getPurchaseOrdersDetails):', error);
+                return {} as PurchaseOrderPageDetails;
             } else {
                 console.log('Purchase Orders page data:', data);
-                result = data ?? result;
+                return data;
             }
         } catch (err) {
             console.error('Error in getPurchaseOrdersPage:', err);
+            return {} as PurchaseOrderPageDetails;
         }
-        return result;
     },
 
      /**

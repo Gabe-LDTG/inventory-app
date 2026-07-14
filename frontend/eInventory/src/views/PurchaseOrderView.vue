@@ -2144,6 +2144,9 @@ import helper from "../components/utils/helperUtils";
 
 import { debounce, keys } from 'lodash';
 import { ref } from 'vue'; 
+import type {
+    PurchaseOrderWithDetails
+} from "@/types/index";
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
 import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
@@ -2175,7 +2178,8 @@ export default {
             locationSubmitted: false,
 
             //PURCHASE ORDER VARIABLES
-            purchaseOrders: [] as any[],
+            purchaseOrders: [] as PurchaseOrderWithDetails[],
+            //  purchaseOrders: [] as any[],
             /**@TODO need to see how to consolidate purchaseOrder, selectedPurchaseOrder, and selectedDetailPo */
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
@@ -2760,6 +2764,7 @@ export default {
             return map;
         },
 
+        // Use this whenever operations require a product key object. A map is far more effecient than looping through the products array provided by the database
         productIndexMap(): {[key: number]: any} {
             const map: {[key: number]: any} = {};
             for (const product of this.products) {
@@ -2823,131 +2828,7 @@ export default {
                         || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
                     const defaultUnitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
 
-                    const expectedBoxes = this.getReceiveExpectedBoxes(line);
-                    const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
-                    const fbaPrep = setAllocationField('fba_prep');
-                    const fbm = setAllocationField('fbm');
-                    const store = setAllocationField('store');
-
-                    const allocations = [
-                        { type: 'fba_prep', allocated_units: fbaPrep },
-                        { type: 'fbm', allocated_units: fbm },
-                        { type: 'store', allocated_units: store },
-                    ].filter(item => item.allocated_units > 0);
-
-                    console.log('Allocations for line', line?.po_raw_line_id, allocations);
-
-                    let partialQty = 0;
-
-                    const boxGroupMap = new Map();
-
-                    if(allocations.length === 0){
-                        if(!Number.isInteger(expectedBoxes)) {
-                            const wholeBoxes = Math.trunc(expectedBoxes);
-                            partialQty = Number(line.total_units - (wholeBoxes * defaultUnitsPerCase));
-                        }
-
-                        receivingLines.push({
-                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
-                            invoice_id: Number(invoice?.invoice_id || 0),
-                            invoice_name: String(invoice?.invoice_name || ''),
-                            purchase_order_id: invoicePurchaseOrderId,
-                            purchase_order_name: invoicePurchaseOrderName,
-                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
-                            product_id: productId,
-                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
-                            item_num: String(line?.item_num || product?.item_num || ''),
-                            total_units: Number(line?.total_units - partialQty || 0),
-                            default_units_per_case: defaultUnitsPerCase > 0 ? defaultUnitsPerCase : 0,
-                            actual_units_per_box: defaultUnitsPerCase > 0 ? defaultUnitsPerCase : 0,
-                            receive_splits: [
-                                {
-                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
-                                    boxes_received: 0,
-                                    location_id: null,
-                                },
-                            ],
-                            line_status: String(line?.status || 'Inbound'),
-                            line_notes: line?.notes ?? null,
-                        });
-
-                        if(partialQty > 0){
-                            receivingLines.push({
-                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}`,
-                            invoice_id: Number(invoice?.invoice_id || 0),
-                            invoice_name: String(invoice?.invoice_name || ''),
-                            purchase_order_id: invoicePurchaseOrderId,
-                            purchase_order_name: invoicePurchaseOrderName,
-                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
-                            product_id: productId,
-                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
-                            item_num: String(line?.item_num || product?.item_num || ''),
-                            total_units: Number(partialQty),
-                            default_units_per_case: defaultUnitsPerCase > 0 ? defaultUnitsPerCase : 0,
-                            actual_units_per_box: partialQty > 0 ? partialQty : 0,
-                            receive_splits: [
-                                {
-                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-0`,
-                                    boxes_received: 0,
-                                    location_id: null,
-                                },
-                            ],
-                            line_status: String(line?.status || 'Inbound'),
-                            line_notes: line?.notes ?? null,
-                        });
-                        }
-                        return;
-                    }
-
-                    allocations.forEach((alloc: { type: string, allocated_units: number }) => {
-                        const wholeBoxes = Math.floor(alloc.allocated_units / defaultUnitsPerCase);
-                        const partialUnits = alloc.allocated_units % defaultUnitsPerCase;
-
-                        if (wholeBoxes > 0) {
-                            if(!boxGroupMap.has(defaultUnitsPerCase)){
-                                boxGroupMap.set(defaultUnitsPerCase, { fba_prep: 0, fbm: 0, store: 0 });
-                            }
-                            boxGroupMap.get(defaultUnitsPerCase)[alloc.type] += wholeBoxes;
-                        }
-
-                        if (partialUnits > 0) {
-                            if(!boxGroupMap.has(partialUnits)){
-                                boxGroupMap.set(partialUnits, { fba_prep: 0, fbm: 0, store: 0 });
-                            }
-                            boxGroupMap.get(partialUnits)[alloc.type] += 1;
-                        }
-                    })
-
-                    console.log('Box Group Map for line', line?.po_raw_line_id, boxGroupMap);
-
-                    for(const [unitsPerBox, allocCounts] of boxGroupMap){
-                        const totalBoxes = allocCounts.fba_prep + allocCounts.fbm + allocCounts.store;
-
-                        receivingLines.push({
-                            row_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-box-${unitsPerBox}`,
-                            invoice_id: Number(invoice?.invoice_id || 0),
-                            invoice_name: String(invoice?.invoice_name || ''),
-                            purchase_order_id: invoicePurchaseOrderId,
-                            purchase_order_name: invoicePurchaseOrderName,
-                            po_raw_line_id: Number(line?.po_raw_line_id || 0),
-                            product_id: productId,
-                            product_name: String(line?.product_name || product?.name || `Product #${productId}`),
-                            item_num: String(line?.item_num || product?.item_num || ''),
-                            total_units: Number(unitsPerBox) * totalBoxes,
-                            default_units_per_case: defaultUnitsPerCase > 0 ? defaultUnitsPerCase : 0,
-                            actual_units_per_box: Number(unitsPerBox),
-                            receive_splits: [
-                                {
-                                    split_key: `recv-${invoicePurchaseOrderId}-${invoice?.invoice_id}-${line?.po_raw_line_id}-split-${unitsPerBox}`,
-                                    boxes_received: totalBoxes,
-                                    location_id: null,
-                                },
-                            ],
-                            line_status: String(line?.status || 'Inbound'),
-                            line_notes: line?.notes ?? null,
-                        });
-                    }
-
+                    
                 });
             });
 
@@ -4594,14 +4475,15 @@ export default {
             const poRowIdx = (this.purchaseOrders || []).findIndex((po: any) => po.purchase_order_id === poId);
             const existingRow = poRowIdx > -1 ? this.purchaseOrders[poRowIdx] : null;
             const normalizedLines = this.getPurchaseOrderLinesForDisplay(poId, existingRow);
-            let refreshedRow = existingRow;
+            let refreshedRow = existingRow || {};
 
             if (syncTable && poRowIdx > -1) {
                 const nextPoRow = {
                     ...existingRow,
-                    ...patchRowData,
+                    ...(patchRowData || {}),
                     po_raw_lines: [...normalizedLines],
-                };
+                } as PurchaseOrderWithDetails;
+                
                 this.purchaseOrders.splice(poRowIdx, 1, nextPoRow);
                 refreshedRow = nextPoRow;
             }
@@ -6601,9 +6483,11 @@ export default {
 
         getPurchaseOrderDiscount(purchase_order_id: number){
             let discount = 0;
-            let po = this.purchaseOrders.find(po => po.purchase_order_id === purchase_order_id);
+            let po = this.purchaseOrders.find((po) => po.purchase_order_id === purchase_order_id) || {} as PurchaseOrderWithDetails;
+            if(po){
                 if(po.discount)
                     discount = po.discount/100;
+            }
             return discount;
         },
 
