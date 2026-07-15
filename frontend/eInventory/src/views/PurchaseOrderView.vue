@@ -2178,8 +2178,9 @@ export default {
             locationSubmitted: false,
 
             //PURCHASE ORDER VARIABLES
-            purchaseOrders: [] as PurchaseOrderWithDetails[],
-            //  purchaseOrders: [] as any[],
+            /**@TODO I need to figure out how to get TypeScript to stop yelling about type being excessively deep */
+            // purchaseOrders: [] as PurchaseOrderWithDetails[],
+             purchaseOrders: [] as any[],
             /**@TODO need to see how to consolidate purchaseOrder, selectedPurchaseOrder, and selectedDetailPo */
             purchaseOrder: {} as any,
             purchaseOrderDialog: false,
@@ -2824,7 +2825,7 @@ export default {
 
                 linkedLines.forEach((line: any) => {
                     const productId = Number(line?.product_id || 0);
-                    const product = (this.products || []).find((p: any) => p.product_id === productId)
+                    const product = this.productIndexMap[productId]
                         || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
                     const defaultUnitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
 
@@ -3603,10 +3604,10 @@ export default {
 
                 /**@TODO Potentially optimize this by only loading vendors relevant to the current page. Was deemed not yet necessary as of 3/5/2026 */
                 // Attach vendor_name etc. the same way you do in getProducts()
-                data.purchase_orders.forEach((p: any) => {
+                /* data.purchase_orders.forEach((p: any) => {
                     const vendor = this.vendors.find((v: any) => p['vendor_id'] == v['vendor_id']);
                     if (vendor) p['vendor_name'] = vendor['vendor_name'];
-                });
+                }); */
 
                 
                 // this.products = await action.getProducts();
