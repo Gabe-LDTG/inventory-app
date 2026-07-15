@@ -85,7 +85,7 @@ export interface PurchaseOrderPageDetails {
     all_po_raw_lines_ids: number[];
     all_invoices_ids: number[];
     purchase_order_ids: number[];
-    purchase_orders: PurchaseOrderWithDetails[];
+    purchase_orders: Omit<PurchaseOrderWithDetails, never>[];
 };
 
 export type CleanPOPageDetails = Prettify<PurchaseOrderPageDetails>;
