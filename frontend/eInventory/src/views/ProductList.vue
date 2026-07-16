@@ -2,7 +2,7 @@
     <div class="pl-scale-shell">
         <div class="pl-scale-root">
         <div class="card">
-            <Toast />
+            <!-- <Toast /> -->
             <Toolbar class="mb-4 pl-toolbar">
                 <template #start>
                     <span class="p-input-icon-right pl-toolbar-search">

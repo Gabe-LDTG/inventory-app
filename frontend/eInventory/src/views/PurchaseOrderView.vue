@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="card">
-            <Toast />
+            <!-- <Toast /> -->
             <Toolbar class="mb-4 po-toolbar">
                 <template #start>
                     <div class="po-toolbar-filters">
@@ -1763,7 +1763,7 @@
                             headerCell: { style: { zIndex: 11, position: 'sticky' } }
                         }"
                     />
-                     <Column header="Shipped (FBA Prep)" field="fba_prep" class="inbound-fba-prep" :pt="{
+                     <Column header="FBA Prep" field="planned_fba_prep" class="inbound-fba-prep" :pt="{
                             bodyCell: ({ context }) => ({
                                 style: { 
                                     backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
@@ -1773,16 +1773,16 @@
                      >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fba_prep"
+                                v-model="data.planned_fba_prep"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                :class="{ 'inbound-units-input--over': Number(data.planned_fba_prep || 0) + Number(data.planned_fbm || 0) + Number(data.planned_store || 0) > Number(data.total_units || 0) }"
                                 @input="handlePlanInput('fba_prep', $event, data)"
                             />
                         </template>
                     </Column>
-                    <Column header="Shipped (Store)" field="store" :pt="{
+                    <Column header="Store" field="planned_store" :pt="{
                             bodyCell: ({ context }) => ({
                                 style: { 
                                     backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
@@ -1792,16 +1792,16 @@
                     >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.store"
+                                v-model="data.planned_store"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                :class="{ 'inbound-units-input--over': Number(data.planned_fba_prep || 0) + Number(data.planned_fbm || 0) + Number(data.planned_store || 0) > Number(data.total_units || 0) }"
                                 @input="handlePlanInput('store', $event, data)"
                             />
                         </template>
                     </Column>
-                     <Column header="Shipped (FBM)" field="fbm" :pt="{
+                     <Column header="FBM" field="planned_fbm" :pt="{
                             bodyCell: ({ context }) => ({
                                 style: { 
                                     backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
@@ -1811,11 +1811,11 @@
                      >
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.fbm"
+                                v-model="data.planned_fbm"
                                 :min="0"
                                 :useGrouping="false"
                                 class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.fba_prep || 0) + Number(data.fbm || 0) + Number(data.store || 0) > Number(data.total_units || 0) }"
+                                :class="{ 'inbound-units-input--over': Number(data.planned_fba_prep || 0) + Number(data.planned_fbm || 0) + Number(data.planned_store || 0) > Number(data.total_units || 0) }"
                                 @input="handlePlanInput('fbm', $event, data)"
                             />
                         </template>
@@ -2397,6 +2397,7 @@ export default {
             await this.loadPage(1);
         }, 300, { trailing: true }) as (() => Promise<void>);
     },
+    /**@TODO Add a watcher for planning order allocations, this is cleaner than having an @input property for each field in the form */
     watch: {
         purchaseOrder: {
         deep: true,
@@ -2782,6 +2783,8 @@ export default {
             const invoiceId = this.invoiceToPlan.invoice_id;
             if (!poId || !invoiceId || this.invoiceToPlan.purchase_order_id !== poId) return [];
 
+            // console.log("Planning raw lines for invoice: ", this.invoiceToPlan, " in purchase order: ", this.purchaseOrder);
+
             return (this.purchaseOrder.po_raw_lines || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' && line.invoice_id === invoiceId)
                 .map((line: any) => {
@@ -2791,18 +2794,16 @@ export default {
                     // const qty = Number(line?.total_units || 0);
                     // const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
 
-                    const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
+                    /* const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
                     const fba_prep = setAllocationField('fba_prep');
                     const fbm = setAllocationField('fbm');
-                    const store = setAllocationField('store');
+                    const store = setAllocationField('store'); */
                     
                     return {
                         ...line,
-                        fba_prep,
-                        fbm,
-                        store,
+                        remaining: line.total_units - (line.planned_fba_prep + line.planned_fbm + line.planned_store),
                     };
-                }); 
+                });
         },
 
         receivingRawLines(): any[] {
@@ -2829,7 +2830,14 @@ export default {
                         || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
                     const defaultUnitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
 
-                    
+                    receivingLines.push({
+                        ...line,
+                        // purchase_order_id: invoicePurchaseOrderId,
+                        // purchase_order_name: invoicePurchaseOrderName,
+                        // product_name: line?.product_name || product?.name || 'Unknown product',
+                        // default_units_per_case: defaultUnitsPerCase,
+                        // units_per_case: defaultUnitsPerCase,
+                    });
                 });
             });
 
@@ -2943,7 +2951,7 @@ export default {
                 return false;
             };
 
-            if(allocationType === 'fba_prep' && (value < 0 || value + line.fbm + line.store > line.total_units)){
+            if(allocationType === 'fba_prep' && (value < 0 || value + line.planned_fbm + line.planned_store > line.total_units)){
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Total limit exceeded (FBA Prep)',
@@ -2953,7 +2961,7 @@ export default {
                 return false;
             }
 
-            if(allocationType === 'fbm' && (value < 0 || value + line.fba_prep + line.store > line.total_units)){
+            if(allocationType === 'fbm' && (value < 0 || value + line.planned_fba_prep + line.planned_store > line.total_units)){
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Total limit exceeded (FBM)',
@@ -2963,7 +2971,7 @@ export default {
                 return false;
             }
 
-            if(allocationType === 'store' && (value < 0 || value + line.fba_prep + line.fbm > line.total_units)){
+            if(allocationType === 'store' && (value < 0 || value + line.planned_fba_prep + line.planned_fbm > line.total_units)){
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Total limit exceeded (Store)',
@@ -2979,6 +2987,8 @@ export default {
         debouncedPlanSave(allocationType: string, newValue: number, line: any){
             const cellKey = `${line.po_raw_line_id}_${allocationType}`;
 
+            // console.log("Line being changed:" , line, "allocation type: ", allocationType, "with value", newValue);
+
             // Reset any pending timers for this exact cell
             if (this.planSaveTimers[cellKey]) {
                 clearTimeout(this.planSaveTimers[cellKey]);
@@ -2993,8 +3003,12 @@ export default {
                     poRawLineId: Number(line.po_raw_line_id),
                 }
 
+                // Update the frontend planned value
+                const allocationTypeName = 'planned_' + allocationType;
+                line[allocationTypeName] = newValue;
+
                 const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
-                console.log("Upserted allocation to database:", upsertValue);
+                // console.log("Upserted allocation to database:", upsertValue);
 
                 // Update the allocation in the local state
                 const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
@@ -3008,7 +3022,10 @@ export default {
                     });
                 }
 
+                
+
                 // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
+                /**@TODO Since changing the fields to planned_[field name], the front end is not updating to reflect changes */
                 const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
                 if(poIdx !== -1){
                     this.purchaseOrders[poIdx] = {
@@ -3016,14 +3033,22 @@ export default {
                         ...this.purchaseOrder,
                         po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
                             if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
+                                // console.log("Updating line in local state:", l, "with new allocation:", line);
                                 return {
                                     ...l,
+                                    ...line,
                                 }
                             }
                             return l;
                         })
                     }
+
+                    this.purchaseOrder = {
+                        ...this.purchaseOrders[poIdx],
+                    }
                 }
+
+                // console.log("Updated local state for purchase order:", this.purchaseOrders[poIdx]);
 
                 this.planningAutoSaveState = 'saved';
 

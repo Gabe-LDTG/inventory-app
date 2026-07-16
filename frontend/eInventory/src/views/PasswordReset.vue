@@ -1,6 +1,6 @@
 <template lang="">
     <div>
-        <Toast />
+        <!-- <Toast /> -->
         <Dialog v-model:visible="showDialog" name="password-reset-form" class="" header="Password Reset">
       <div class="field">
         <label for="password">Password: </label> <br>

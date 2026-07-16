@@ -1,7 +1,7 @@
 <template> 
     <div>
         <div class="card">
-            <Toast />
+            <!-- <Toast /> -->
             <Toolbar class="mb-4 cl-toolbar">
                 <template #start>
                     <div class="cl-toolbar-start">
