@@ -1943,12 +1943,12 @@
 
                     <Column field="product_name" header="Product" sortable />
                     <Column field="item_num" header="Item #" sortable />
-                    <Column field="total_units" header="Total Units" sortable />
-                    <Column field="default_units_per_case" header="Default Units / Box" sortable />
+                    <Column field="planned_total" header="Total Units" sortable />
+                    <Column field="units_per_case" header="Units / Box" sortable />
                     <Column header="Actual Units / Box" sortable>
                         <template #body="{ data }">
                             <InputNumber
-                                v-model="data.actual_units_per_box"
+                                v-model="data.actual_units_per_case"
                                 :min="0"
                                 :maxFractionDigits="2"
                                 :useGrouping="false"
@@ -1956,37 +1956,92 @@
                             />
                         </template>
                     </Column>
-                    <Column header="Expected Boxes" sortable>
+                    <Column field="planned_total_boxes" header="Expected Boxes" sortable />
+                    <Column field="planned_fba_prep_boxes" header="Planned FBA Prep Boxes" sortable :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                    />
+                    <Column header="Received Boxes" sortable :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
-                            {{ getReceiveExpectedBoxes(data) }}
+                            <InputNumber
+                                v-model="data.received_fba_prep_boxes"
+                                :min="0"
+                                :maxFractionDigits="2"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :disabled="data.planned_fba_prep_boxes <= 0"
+                            />
                         </template>
                     </Column>
-                    <Column header="Boxes Received" sortable>
+                    <Column field="planned_fbm_boxes" header="Planned FBM Boxes" sortable :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                    />
+                    <Column header="Received Boxes" sortable :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
-                            <span
-                                class="receive-boxes-total"
-                                :class="{ 'receive-boxes-total--over': Number(getReceiveAllocatedBoxes(data) || 0) > Number(getReceiveExpectedBoxes(data) || 0) }"
-                            >
-                                {{ getReceiveAllocatedBoxes(data) }}
-                            </span>
+                            <InputNumber
+                                v-model="data.received_fbm_boxes"
+                                :min="0"
+                                :maxFractionDigits="2"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :disabled="data.planned_fbm_boxes <= 0"
+                            />
                         </template>
                     </Column>
-                    <Column header="Location Split (Pallets)">
+
+                    <Column field="planned_store_boxes" header="Planned Store Boxes" sortable :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    />
+                    <Column header="Location Split (Pallets)" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
+                                }
+                            })
+                        }"
+                    >
                         <template #body="{ data }">
-                            <div class="receive-split-grid">
+                            <div v-if="data.planned_store_boxes > 0" class="receive-split-grid">
                                 <div
-                                    v-for="(split, splitIdx) in (data.receive_splits || [])"
+                                    v-for="(split, splitIdx) in (data.location_array || [])"
                                     :key="split.split_key || `${data.row_key}-${splitIdx}`"
                                     class="receive-split-row"
                                 >
                                     <InputNumber
-                                        v-model="split.boxes_received"
+                                        v-model="split.received_store_boxes"
                                         :min="0"
                                         showButtons
-                                        :maxFractionDigits="2"
+                                        :maxFractionDigits="0"
                                         :useGrouping="false"
                                         class="inbound-units-input receive-split-row__boxes"
-                                        @update:modelValue="onReceiveSplitBoxesInput(data, split)"
                                     />
                                     <AutoComplete
                                         :modelValue="getLocationAutoCompleteValue(split.location_id)"
@@ -2006,7 +2061,7 @@
                                         icon="pi pi-times"
                                         class="p-button-text p-button-sm"
                                         @click="removeReceiveSplit(data, Number(splitIdx))"
-                                        :disabled="(data.receive_splits || []).length <= 1"
+                                        :disabled="data.planned_store_boxes <= 0"
                                     />
                                 </div>
 
@@ -2829,15 +2884,89 @@ export default {
                     const product = this.productIndexMap[productId]
                         || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
                     const defaultUnitsPerCase = Number(line?.default_units_per_case || product?.default_units_per_case || 0);
+                    const actualUnitsPerCase = line?.actual_units_per_case || defaultUnitsPerCase;
 
-                    receivingLines.push({
-                        ...line,
-                        // purchase_order_id: invoicePurchaseOrderId,
-                        // purchase_order_name: invoicePurchaseOrderName,
-                        // product_name: line?.product_name || product?.name || 'Unknown product',
-                        // default_units_per_case: defaultUnitsPerCase,
-                        // units_per_case: defaultUnitsPerCase,
-                    });
+                    const wholePlannedFbaPrepBoxes = Math.floor((line?.planned_fba_prep || 0) / defaultUnitsPerCase);
+                    const wholePlannedFbmBoxes = Math.floor((line?.planned_fbm || 0) / defaultUnitsPerCase);
+                    const wholePlannedStoreBoxes = Math.floor((line?.planned_store || 0) / defaultUnitsPerCase);
+
+                    const wholeReceivedFbaPrepBoxes = Math.floor((line?.received_fba_prep || 0) / defaultUnitsPerCase);
+                    const wholeReceivedFbmBoxes = Math.floor((line?.received_fbm || 0) / defaultUnitsPerCase);
+                    const wholeReceivedStoreBoxes = Math.floor((line?.received_store || 0) / defaultUnitsPerCase);
+
+                    const locationArray = wholePlannedStoreBoxes ? [{ location_id: null, location_name: '', planned_store_boxes: wholePlannedStoreBoxes, planned_store: wholePlannedStoreBoxes * defaultUnitsPerCase}] : [];
+
+                    if(wholePlannedFbaPrepBoxes + wholePlannedFbmBoxes + wholePlannedStoreBoxes > 0) {
+                        receivingLines.push({
+                            ...line,
+                            units_per_case: defaultUnitsPerCase,
+                            actual_units_per_case: actualUnitsPerCase,
+                            planned_fba_prep_boxes: wholePlannedFbaPrepBoxes,
+                            planned_fbm_boxes: wholePlannedFbmBoxes,
+                            planned_store_boxes: wholePlannedStoreBoxes,
+                            planned_total_boxes: wholePlannedFbaPrepBoxes + wholePlannedFbmBoxes + wholePlannedStoreBoxes,
+                            planned_fba_prep: wholePlannedFbaPrepBoxes * defaultUnitsPerCase,
+                            planned_fbm: wholePlannedFbmBoxes * defaultUnitsPerCase,
+                            planned_store: wholePlannedStoreBoxes * defaultUnitsPerCase,
+                            planned_total: (wholePlannedFbaPrepBoxes + wholePlannedFbmBoxes + wholePlannedStoreBoxes) * defaultUnitsPerCase,
+                            received_fba_prep_boxes: wholeReceivedFbaPrepBoxes,
+                            received_fbm_boxes: wholeReceivedFbmBoxes,
+                            received_store_boxes: wholeReceivedStoreBoxes,
+                            received_total_boxes: wholeReceivedFbaPrepBoxes + wholeReceivedFbmBoxes + wholeReceivedStoreBoxes,
+                            received_fba_prep: wholeReceivedFbaPrepBoxes * defaultUnitsPerCase,
+                            received_fbm: wholeReceivedFbmBoxes * defaultUnitsPerCase,
+                            received_store: wholeReceivedStoreBoxes * defaultUnitsPerCase,
+                            received_total: (wholeReceivedFbaPrepBoxes + wholeReceivedFbmBoxes + wholeReceivedStoreBoxes) * defaultUnitsPerCase,
+                            location_array: locationArray,
+                        });
+                    }
+                    
+                    const remainingFbaPrepUnits = line?.planned_fba_prep % defaultUnitsPerCase;
+                    const remainingFbmUnits = line?.planned_fbm % defaultUnitsPerCase;
+                    const remainingStoreUnits = line?.planned_store % defaultUnitsPerCase;
+
+                    const remainingFbaPrepReceivedUnits = (line?.received_fba_prep || 0) % defaultUnitsPerCase;
+                    const remainingFbmReceivedUnits = (line?.received_fbm || 0) % defaultUnitsPerCase;
+                    const remainingStoreReceivedUnits = (line?.received_store || 0) % defaultUnitsPerCase;
+
+                    const uniqueRemainders = Array.from(new Set([remainingFbaPrepUnits, remainingFbmUnits, remainingStoreUnits])).filter(r => r > 0);
+
+                    for (const remainder of uniqueRemainders) {
+                        // Handle each unique remainder as needed
+                        const fbaPrepCount = remainder === remainingFbaPrepUnits ? remainingFbaPrepUnits : 0;
+                        const fbmCount = remainder === remainingFbmUnits ? remainingFbmUnits : 0;
+                        const storeCount = remainder === remainingStoreUnits ? remainingStoreUnits : 0;
+
+                        const fbaPrepReceivedCount = remainder === remainingFbaPrepReceivedUnits ? remainingFbaPrepReceivedUnits : 0;
+                        const fbmReceivedCount = remainder === remainingFbmReceivedUnits ? remainingFbmReceivedUnits : 0;
+                        const storeReceivedCount = remainder === remainingStoreReceivedUnits ? remainingStoreReceivedUnits : 0;
+
+                        const remainderLocationArray = storeCount ? [{ location_id: null, location_name: '', planned_store_boxes: storeCount / remainder, planned_store: storeCount, received_store_boxes: storeReceivedCount / remainder, received_store: storeReceivedCount }] : [];
+
+                        receivingLines.push({
+                            ...line,
+                            units_per_case: remainder,
+                            actual_units_per_case: remainder,
+                            planned_fba_prep_boxes: fbaPrepCount / remainder,
+                            planned_fbm_boxes: fbmCount / remainder,
+                            planned_store_boxes: storeCount / remainder,
+                            planned_total_boxes: (fbaPrepCount + fbmCount + storeCount) / remainder,
+                            planned_fba_prep: fbaPrepCount,
+                            planned_fbm: fbmCount,
+                            planned_store: storeCount,
+                            planned_total: fbaPrepCount + fbmCount + storeCount,
+                            received_fba_prep_boxes: fbaPrepReceivedCount / remainder,
+                            received_fbm_boxes: fbmReceivedCount / remainder,
+                            received_store_boxes: storeReceivedCount / remainder,
+                            received_total_boxes: (fbaPrepReceivedCount + fbmReceivedCount + storeReceivedCount) / remainder,
+                            received_fba_prep: fbaPrepReceivedCount,
+                            received_fbm: fbmReceivedCount,
+                            received_store: storeReceivedCount,
+                            received_total: fbaPrepReceivedCount + fbmReceivedCount + storeReceivedCount,
+                            location_array: remainderLocationArray,
+                        });
+                    }
+                    
                 });
             });
 

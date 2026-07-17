@@ -524,7 +524,7 @@ begin
 
   return v_result;
 end;
-$function$
+$function$;
 
 ALTER TABLE public.po_raw_lines
     DROP COLUMN IF EXISTS store;
