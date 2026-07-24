@@ -2263,6 +2263,7 @@ export default {
             detailDialogLoading: false,
 
             // INVOICE VARIABLES
+            invoices: [] as any[],
             receiveInvoiceDialogVisible: false,
             receiveInvoiceDialogTitle: 'Receive Invoices' as string,
             receiveInvoiceLoading: false,
@@ -2287,6 +2288,7 @@ export default {
             planningInvoiceDialogVisible: false,
             invoiceToPlan: null as any,
             planSaveTimers: {} as Record<string, number>,
+            receiveSaveTimers: {} as Record<string, number>,
             unsavedPlanInvoiceDialogVisible: false,
             invoicesToReceive: [] as any[],
 
@@ -2358,7 +2360,6 @@ export default {
             delivered: [] as any[],
             boxesToDelete: [] as any[],
             po_raw_products: [] as any[],
-            invoices: [] as any[],
             singlePoRawProducts: [] as any[],
 
             //VENDOR VARIABLES
@@ -2426,8 +2427,9 @@ export default {
 
             isToastActive: false,
             saving: false,
-            autoSaveState: 'idle' as 'idle' | 'saving' | 'saved',
+            autoSaveState: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
             planningAutoSaveState: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
+            receivingAutoSaveState: 'idle' as 'idle' | 'saving' | 'saved' | 'error',
 
             activePoLock: null as any,
             currentEditingPoId: null as number | null,
@@ -2833,6 +2835,35 @@ export default {
 
         },
 
+        invoiceLinkedLines(): any[] {
+            /* const poId = Number(invoice?.purchase_order_id || this.purchaseOrder?.purchase_order_id || this.detailSelectedPoId || 0);
+            const invoiceId = Number(invoice?.invoice_id || 0);
+            const rawLines = Array.isArray(invoice?.po_raw_lines) && invoice.po_raw_lines.length > 0
+                ? invoice.po_raw_lines
+                : (this.po_raw_products || []).filter((line: any) =>
+                    Number(line?.purchase_order_id || 0) === poId && Number(line?.invoice_id || 0) === invoiceId,
+                );
+
+            return (rawLines || [])
+                .filter((line: any) => line && line.product_id != null)
+                .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0)); */
+
+            const linkLines: any[] = [];
+
+
+            return linkLines;
+        },
+
+        invoiceReceivableLinesMap(): {[key: number]: any[]} {
+            /* return (this.getInvoiceLinkedLines(invoice) || []).filter((line: any) => {
+                    const totalUnits = Number(line?.total_units || 0);
+                    const normalizedStatus = String(this.normalizeRawLineStatus(line?.status) || '').toLowerCase();
+                    return totalUnits > 0 && normalizedStatus !== 'delivered' && normalizedStatus !== 'cancelled';
+                }); */
+
+            return {};
+        },
+
         planningRawLines(): any[] {
             const poId = Number(this.purchaseOrder.purchase_order_id || 0);
             const invoiceId = this.invoiceToPlan.invoice_id;
@@ -2842,18 +2873,7 @@ export default {
 
             return (this.purchaseOrder.po_raw_lines || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' && line.invoice_id === invoiceId)
-                .map((line: any) => {
-                    // const productId = Number(line?.product_id || 0);
-                    // const product = (this.products || []).find((p: any) => Number(p?.product_id || 0) === productId);
-                    // const unitsPerCase = Number(product?.default_units_per_case || line?.units_per_case || 0);
-                    // const qty = Number(line?.total_units || 0);
-                    // const cases = unitsPerCase > 0 ? Number((qty / unitsPerCase).toFixed(2)) : 0;
-
-                    /* const setAllocationField = (type: string) => Number(line.allocations.find((alloc: {allocated_units: number, allocation_type:string}) => alloc.allocation_type === type)?.allocated_units) || 0;
-                    const fba_prep = setAllocationField('fba_prep');
-                    const fbm = setAllocationField('fbm');
-                    const store = setAllocationField('store'); */
-                    
+                .map((line: any) => {                    
                     return {
                         ...line,
                         remaining: line.total_units - (line.planned_fba_prep + line.planned_fbm + line.planned_store),
@@ -2894,7 +2914,33 @@ export default {
                     const wholeReceivedFbmBoxes = Math.floor((line?.received_fbm || 0) / defaultUnitsPerCase);
                     const wholeReceivedStoreBoxes = Math.floor((line?.received_store || 0) / defaultUnitsPerCase);
 
-                    const locationArray = wholePlannedStoreBoxes ? [{ location_id: null, location_name: '', planned_store_boxes: wholePlannedStoreBoxes, planned_store: wholePlannedStoreBoxes * defaultUnitsPerCase}] : [];
+                    const wholeArray = [] as any[];
+                    const partialArray = [] as any[];
+
+                    (line.storage_locations || []).forEach((loc: any) => {
+                        const wholeReceivedBoxesForLoc = Math.floor((loc.received_units || 0) / defaultUnitsPerCase);
+                        const partialReceivedBoxesForLoc = (loc.received_units || 0) % defaultUnitsPerCase;
+                        if (wholeReceivedBoxesForLoc > 0) {
+                            wholeArray.push({
+                                location_id: loc.location_id || null,
+                                location_name: loc.location_name || '',
+                                received_store_boxes: wholeReceivedBoxesForLoc,
+                                received_store: wholeReceivedBoxesForLoc * defaultUnitsPerCase,
+                            });
+                        }
+                        if (partialReceivedBoxesForLoc > 0) {
+                            partialArray.push({
+                                location_id: loc.location_id || null,
+                                location_name: loc.location_name || '',
+                                received_store_boxes: 1,
+                                received_store: partialReceivedBoxesForLoc,
+                            });
+                        }
+                    });
+
+                    // The desired structure for the database locations array is an array of objects with the following properties: {location_id: number, location_name:string, received_units: number}
+                    // const locationArray = wholeArray || [{ location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
+                    const locationArray: any[] = [];
 
                     if(wholePlannedFbaPrepBoxes + wholePlannedFbmBoxes + wholePlannedStoreBoxes > 0) {
                         receivingLines.push({
@@ -2941,7 +2987,8 @@ export default {
                         const fbmReceivedCount = remainder === remainingFbmReceivedUnits ? remainingFbmReceivedUnits : 0;
                         const storeReceivedCount = remainder === remainingStoreReceivedUnits ? remainingStoreReceivedUnits : 0;
 
-                        const remainderLocationArray = storeCount ? [{ location_id: null, location_name: '', planned_store_boxes: storeCount / remainder, planned_store: storeCount, received_store_boxes: storeReceivedCount / remainder, received_store: storeReceivedCount }] : [];
+                        // const remainderLocationArray = partialArray || [{ location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
+                        const remainderLocationArray: any[] = [];
 
                         receivingLines.push({
                             ...line,
@@ -3060,6 +3107,23 @@ export default {
             this.debouncedPlanSave(allocationType, newValue, line);
         },
 
+        handleReceiveInput(allocationType: string, event: any, line: any){
+            console.log("Handle receive input for allocation type: ", allocationType, "event:", event, "line:", line);
+            this.receivingAutoSaveState = 'saving';
+
+            const newValue = event.value; 
+
+            // Validate the line to see if the total received units exceeds the total ordered units
+            const isReceiveValid = this.validateReceiving(allocationType, newValue, line);
+            if(!isReceiveValid){
+                this.receivingAutoSaveState = 'error';
+                return;
+            }
+
+            // If the receive is valid, proceed to save the allocation
+            this.debouncedReceiveSave(allocationType, newValue, line);
+        },
+
         validatePlanning(allocationType: string, value: number, line: any){
             if(!this.invoiceToPlan){
                 this.$toast.add({
@@ -3113,6 +3177,12 @@ export default {
             return true;
         },
 
+        validateReceiving(allocationType: string, value: number, line: any){
+            
+            this.receivingAutoSaveState = 'saved';
+            return true;
+        },
+
         debouncedPlanSave(allocationType: string, newValue: number, line: any){
             const cellKey = `${line.po_raw_line_id}_${allocationType}`;
 
@@ -3154,7 +3224,6 @@ export default {
                 
 
                 // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
-                /**@TODO Since changing the fields to planned_[field name], the front end is not updating to reflect changes */
                 const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
                 if(poIdx !== -1){
                     this.purchaseOrders[poIdx] = {
@@ -3182,6 +3251,68 @@ export default {
                 this.planningAutoSaveState = 'saved';
 
                 delete this.planSaveTimers[cellKey];
+            }, 500);
+        },
+
+        debouncedReceiveSave(allocationType: string, newValue: number, line: any){
+            const cellKey = `${line.po_raw_line_id}_${allocationType}`;
+
+            // Reset any pending timers for this exact cell
+            if (this.receiveSaveTimers[cellKey]) {
+                clearTimeout(this.receiveSaveTimers[cellKey]);
+            }
+
+            // Schedule database update 500ms after user pauses typing
+            this.receiveSaveTimers[cellKey] = window.setTimeout(() => {
+                const allocation = {
+                    allocatedType: allocationType,
+                    allocatedUnits: newValue,
+                    poRawLineId: Number(line.po_raw_line_id),
+                }
+
+                // Update the frontend received value
+                const allocationTypeName = 'received_' + allocationType;
+                line[allocationTypeName] = newValue;
+
+                const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
+
+                // Update the allocation in the local state
+                const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
+                if(allocationIdx !== -1){
+                    line.allocations[allocationIdx].allocated_units = newValue;
+                } else {
+                    line.allocations.push({
+                        allocation_type: allocationType,
+                        allocated_units: newValue,
+                        po_raw_line_id: Number(line.po_raw_line_id),
+                    });
+                }
+
+                // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
+                const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
+                if(poIdx !== -1){
+                    this.purchaseOrders[poIdx] = {
+                        ...this.purchaseOrders[poIdx],
+                        ...this.purchaseOrder,
+                        po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
+                            if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
+                                return {
+                                    ...l,
+                                    ...line,
+                                }
+                            }
+                            return l;
+                        })
+                    }
+
+                    this.purchaseOrder = {
+                        ...this.purchaseOrders[poIdx],
+                    }
+                }
+
+                this.receivingAutoSaveState = 'saved';
+
+                delete this.receiveSaveTimers[cellKey];
             }, 500);
         },
 
