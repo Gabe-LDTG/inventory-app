@@ -1,9 +1,6 @@
-import { requiredUnless } from "@vuelidate/validators";
 import axios from "axios";
 import { supabase } from "@/clients/supabase";
-import type { NumericLiteral } from "typescript";
 import helper from "./helperUtils";
-import type ProcessedCases from "@/views/ProcessedCases.vue";
 import type {
     PurchaseOrderPageDetails
 } from "@/types/index";
@@ -11,7 +8,7 @@ import type {
 
 const BASE_URL = "http://localhost:5000";
 
-var action = {
+const action = {
     // AUTH COMMANDS--------------------------------------------------------------------------------------------
     async getSessionUser(){
         try {
@@ -449,11 +446,11 @@ var action = {
 
         console.log('Product: ', p, 'Recipe: ', r);
 
-        let recipe_elements = r['recipeElements'];
+        const recipe_elements = r['recipeElements'];
 
         console.log('Recipe Elements: ', recipe_elements);
 
-        let element_array = [] as any[];
+        const element_array = [] as any[];
 
         recipe_elements.forEach((element: any) => {
             console.log(element.product_id);
@@ -463,7 +460,7 @@ var action = {
 
         console.log('Recipe Element Array: ', element_array);
 
-        let product : {
+        const product : {
             name: string;
             item_num: number;
             vendor_id: number;
@@ -592,7 +589,7 @@ var action = {
 
         console.log('Product: ', p, 'Recipe: ', r);
 
-        let product : {
+        const product : {
             product_id: number;
             name: string;
             item_num: number;
@@ -668,7 +665,7 @@ var action = {
             is_processed: p.is_processed
         };
 
-        let elementArray = r;
+        const elementArray = r;
 
         console.log('Recipe Elements: ', elementArray);
         
@@ -678,7 +675,7 @@ var action = {
 
             console.log('Created processed product');
 
-            let recipeElements = [] as any[];
+            const recipeElements = [] as any[];
 
             elementArray.forEach((element: any) => {
                 if (element.product_id){
@@ -721,7 +718,7 @@ var action = {
 
         // console.log(p);
 
-        let id_array = [] as any[];
+        const id_array = [] as any[];
 
         p.forEach((record: any) => {
             if(record.product_id)
@@ -2835,7 +2832,7 @@ var action = {
                 } else {
                     console.log('Used Req Ids: ', usedRequestIds);
                     console.log('Array length', usedRequestIds.length);
-                    let requestIds: number[] = [];
+                    const requestIds: number[] = [];
                     usedRequestIds.forEach(record => {
                         if(requestIds.includes(record.request_id) === false)
                             requestIds.push(record.request_id);
@@ -2922,7 +2919,7 @@ var action = {
     },
 
     
-    async generatePicklistElement(recipe_id: Number){
+    async generatePicklistElement(recipe_id: number){
         try {
             const query = supabase
                 .from('recipes')

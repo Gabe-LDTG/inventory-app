@@ -323,7 +323,7 @@
                                 <Column field="amount" header="Total # of Cases" />
                                 <Column field="totalUnits" header="Total # of Units" :sortable="true" />
                                 <!-- <Column field="status" header="Status" /> -->
-                                <template #expansion="{data}" style="background-color: '#16a085'">
+                                <template #expansion="{data}">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.product_name }}</h4>
                                     <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="product_name" header="Name"/>
@@ -433,7 +433,7 @@
                                         {{ data.total_units || (data.units_per_case * data.amount) }}
                                     </template>
                                 </Column >
-                                <<!-- Column header="Location">
+                                <!-- Column header="Location">
                                     <template #body="{data}">
                                         {{ formatSingleLocation(data.location_id) }}
                                     </template>
@@ -878,7 +878,7 @@
                 <p>The following raw product(s) are missing important values needed for accurate ordering totals. Please review and complete the required fields below.</p>
             </div>
 
-            <div v-for="(item, idx) in missingDefaults" :key="item.product_id" class="field">
+            <div v-for="(item) in missingDefaults" :key="item.product_id" class="field">
                 <div class="grid">
                     <div class="col-6">
                         <div class="font-bold">{{ item.name }}</div>
@@ -1100,7 +1100,7 @@
                     </template>
                 </Column>
                 <Column header="Units per Case" field="units_per_case">
-                    <template #body="{data, field}">
+                    <template #body="{data}">
                         {{ data.units_per_case || 0 }}
                     </template>
 
@@ -1149,7 +1149,7 @@
                     </div>
                 </template>
                 <Column header="Name" field="product_name">
-                    <template #editor="{data, field, index}">
+                    <template #editor="{data}">
                         <AutoComplete 
                                 v-model="data.productObj"
                                 :suggestions="filteredRawProducts || []"
@@ -1409,8 +1409,8 @@
         </Dialog>
 
         <Dialog v-model:visible="additionalLocationDialog" :style="{width: '450px'}" header="Add Location" :modal="true">
-            <template v-if="selectedOrderType" class="caseCard" v-for="(poBox, counter) in poBoxes">
-                <div class="field">
+            <template v-if="selectedOrderType" >
+                <div class="field" v-for="(poBox, index) in poBoxes" :key="index">
                     <label for="location">Location:</label>
                     <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
                     <AutoComplete
@@ -1713,7 +1713,7 @@
                         </template>
                     </Column>
                     <Column header="Disc%">
-                        <template #body="{ data }">
+                        <template>
                             {{ purchaseOrder.discount ? purchaseOrder.discount + '%' : '—' }}
                         </template>
                     </Column>
@@ -1782,6 +1782,25 @@
                             />
                         </template>
                     </Column>
+                    <Column header="FBM" field="planned_fbm" :pt="{
+                            bodyCell: ({ context }) => ({
+                                style: { 
+                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
+                                }
+                            })
+                        }"
+                     >
+                        <template #body="{ data }">
+                            <InputNumber
+                                v-model="data.planned_fbm"
+                                :min="0"
+                                :useGrouping="false"
+                                class="inbound-units-input"
+                                :class="{ 'inbound-units-input--over': Number(data.planned_fba_prep || 0) + Number(data.planned_fbm || 0) + Number(data.planned_store || 0) > Number(data.total_units || 0) }"
+                                @input="handlePlanInput('fbm', $event, data)"
+                            />
+                        </template>
+                    </Column>
                     <Column header="Store" field="planned_store" :pt="{
                             bodyCell: ({ context }) => ({
                                 style: { 
@@ -1801,25 +1820,7 @@
                             />
                         </template>
                     </Column>
-                     <Column header="FBM" field="planned_fbm" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
-                                }
-                            })
-                        }"
-                     >
-                        <template #body="{ data }">
-                            <InputNumber
-                                v-model="data.planned_fbm"
-                                :min="0"
-                                :useGrouping="false"
-                                class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.planned_fba_prep || 0) + Number(data.planned_fbm || 0) + Number(data.planned_store || 0) > Number(data.total_units || 0) }"
-                                @input="handlePlanInput('fbm', $event, data)"
-                            />
-                        </template>
-                    </Column>
+                     
  
                     <Column header="Remaining">
                         <template #body="{ data }">
@@ -1915,7 +1916,7 @@
 
                 <DataTable
                     v-else
-                    :value="receivingRawLines"
+                    :value="rawLinesToReceive"
                     dataKey="row_key"
                     rowGroupMode="subheader"
                     groupRowsBy="invoice_id"
@@ -1981,6 +1982,7 @@
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :disabled="data.planned_fba_prep_boxes <= 0"
+                                @input="handleReceiveInput('fba_prep', $event, data)"
                             />
                         </template>
                     </Column>
@@ -2008,6 +2010,7 @@
                                 :useGrouping="false"
                                 class="inbound-units-input"
                                 :disabled="data.planned_fbm_boxes <= 0"
+                                @input="handleReceiveInput('fbm', $event, data)"
                             />
                         </template>
                     </Column>
@@ -2035,6 +2038,7 @@
                                     :key="split.split_key || `${data.row_key}-${splitIdx}`"
                                     class="receive-split-row"
                                 >
+                                <!-- {{split}} -->
                                     <InputNumber
                                         v-model="split.received_store_boxes"
                                         :min="0"
@@ -2042,6 +2046,7 @@
                                         :maxFractionDigits="0"
                                         :useGrouping="false"
                                         class="inbound-units-input receive-split-row__boxes"
+                                        @input="handleReceiveInput('store', $event, data)"
                                     />
                                     <AutoComplete
                                         :modelValue="getLocationAutoCompleteValue(split.location_id)"
@@ -2087,8 +2092,43 @@
             </div>
 
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="receiveInvoiceDialogVisible = false" :disabled="receiveInvoiceSaving" />
-                <Button label="Save Received Boxes" icon="pi pi-check" class="po-action-btn po-action-btn--receive" @click="saveReceivedInvoiceBoxes" :loading="receiveInvoiceSaving" />
+                <div class="po-edit-footer-wrap">
+                    <div class="flex flex-column gap-2 align-items-end justify-content-between">
+                        
+                        <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="closeReceivingInvoiceDialog" />
+                        <div class="po-edit-footer-actions">
+                            <div class="po-autosave-banner" :class="{ 'is-visible': receivingAutoSaveState !== 'idle' }">
+                                <div v-if="receivingAutoSaveState !== 'idle'" class="po-autosave-indicator">
+                                    <template v-if="receivingAutoSaveState === 'saving'">
+                                        <ProgressSpinner style="width: 18px; height: 18px" strokeWidth="4" animationDuration=".8s" />
+                                        <span>Saving changes...</span>
+                                    </template>
+                                    <template v-else-if="receivingAutoSaveState === 'error'">
+                                        <i style="color: #e24c4c;" class="pi pi-exclamation-triangle po-autosave-error"></i>
+                                        <span style="color: #e24c4c;">Error saving changes</span>
+                                    </template>
+                                    <template v-else>
+                                        <i class="pi pi-check-circle po-autosave-check"></i>
+                                        <span>Changes saved</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <Dialog v-model:visible="unsavedReceiveInvoiceDialogVisible" :header="'Unsaved Changes'" :modal="true" :style="{ width: '450px' }" :closable="false" :closeOnEscape="false">
+            <div class="confirmation-content">
+                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--yellow-500)" />
+                <div>
+                    <p class="m-0">You have unsaved changes in the plan for this invoice. If you continue, your changes will be lost.</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Go Back" icon="pi pi-arrow-left" class="p-button-text" @click="unsavedReceiveInvoiceDialogVisible = false" />
+                <Button label="Continue" icon="pi pi-check" class="p-button-warning" @click="confirmUnsavedReceiveInvoiceDialog" />
             </template>
         </Dialog>
 
@@ -2215,7 +2255,6 @@ import { pinia } from '@/stores';
 export default {
     components: {
         ZoomDropdown,
-        ProductAutoComplete
     },
     data() {
         return {
@@ -2290,6 +2329,7 @@ export default {
             planSaveTimers: {} as Record<string, number>,
             receiveSaveTimers: {} as Record<string, number>,
             unsavedPlanInvoiceDialogVisible: false,
+            unsavedReceiveInvoiceDialogVisible: false,
             invoicesToReceive: [] as any[],
 
             // PO RAW LINES
@@ -2302,6 +2342,7 @@ export default {
             inboundBoxes: [] as any[],
             rawOrderType: ['By Box', 'By Unit'],
             selectedOrderType: "",
+            rawLinesToReceive: [] as any[],
             
 
             // PO RECIPES
@@ -2835,6 +2876,54 @@ export default {
 
         },
 
+        activeInvoiceKeys(): string[] {
+            const allInvoices = [
+                this.invoiceToPlan,
+                ...(this.invoicesToReceive || []),
+            ].filter(Boolean); //Removes null/undefined values
+
+            if(allInvoices.length === 0) return [];
+
+            const keys = new Set<string>();
+
+            allInvoices.forEach((invoice: any) => {
+                const poId = Number(invoice?.purchase_order_id || 0);
+                const invoiceId = Number(invoice?.invoice_id || 0);
+
+                if(poId > 0 && invoiceId > 0){
+                    keys.add(`${poId}:${invoiceId}`);
+                }
+            });
+
+            return Array.from(keys);
+        },
+
+        invoiceLinkedLinesByKey(): Record<string, any[]> {
+            const out: Record<string, any[]> = {};
+            const keySet = new Set(this.activeInvoiceKeys);
+
+            if(!keySet.size) return out;
+            (this.po_raw_products || []).forEach((line: any) => {
+                const poId = Number(line?.purchase_order_id || 0);
+                const invoiceId = Number(line?.invoice_id || 0);
+                if(poId && invoiceId && poId > 0 && invoiceId > 0){
+                    const key = `${poId}:${invoiceId}`;
+                    if(!keySet.has(key)) return;
+
+                    if(!out[key]) out[key] = [];
+                    out[key].push(line);
+                }
+            });
+
+            Object.keys(out).forEach((key) => {
+                out[key] = out[key]
+                    .filter((line: any) => line && line.product_id !== null)
+                    .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0));
+            })
+
+            return out;
+        },
+
         invoiceLinkedLines(): any[] {
             /* const poId = Number(invoice?.purchase_order_id || this.purchaseOrder?.purchase_order_id || this.detailSelectedPoId || 0);
             const invoiceId = Number(invoice?.invoice_id || 0);
@@ -2871,7 +2960,7 @@ export default {
 
             // console.log("Planning raw lines for invoice: ", this.invoiceToPlan, " in purchase order: ", this.purchaseOrder);
 
-            return (this.purchaseOrder.po_raw_lines || [])
+            return (this.invoiceLinkedLinesByKey[`${poId}:${invoiceId}`] || [])
                 .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' && line.invoice_id === invoiceId)
                 .map((line: any) => {                    
                     return {
@@ -2879,6 +2968,15 @@ export default {
                         remaining: line.total_units - (line.planned_fba_prep + line.planned_fbm + line.planned_store),
                     };
                 });
+
+            /* return (this.purchaseOrder.po_raw_lines || [])
+                .filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled' && line.invoice_id === invoiceId)
+                .map((line: any) => {                    
+                    return {
+                        ...line,
+                        remaining: line.total_units - (line.planned_fba_prep + line.planned_fbm + line.planned_store),
+                    };
+                }); */
         },
 
         receivingRawLines(): any[] {
@@ -2922,6 +3020,7 @@ export default {
                         const partialReceivedBoxesForLoc = (loc.received_units || 0) % defaultUnitsPerCase;
                         if (wholeReceivedBoxesForLoc > 0) {
                             wholeArray.push({
+                                row_key: line.product_id + '_' + (loc.location_id || ''),
                                 location_id: loc.location_id || null,
                                 location_name: loc.location_name || '',
                                 received_store_boxes: wholeReceivedBoxesForLoc,
@@ -2930,6 +3029,7 @@ export default {
                         }
                         if (partialReceivedBoxesForLoc > 0) {
                             partialArray.push({
+                                row_key: line.product_id + '_' + (loc.location_id || '') + '_partial',
                                 location_id: loc.location_id || null,
                                 location_name: loc.location_name || '',
                                 received_store_boxes: 1,
@@ -2938,12 +3038,16 @@ export default {
                         }
                     });
 
+                    console.log("Whole array for line:", wholeArray);
+                    console.log("Partial array for line:", partialArray);
+
                     // The desired structure for the database locations array is an array of objects with the following properties: {location_id: number, location_name:string, received_units: number}
-                    // const locationArray = wholeArray || [{ location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
-                    const locationArray: any[] = [];
+                    const locationArray = wholeArray?.length ? wholeArray : [{ row_key: line.product_id + '_default', location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
+                    // const locationArray: any[] = [];
 
                     if(wholePlannedFbaPrepBoxes + wholePlannedFbmBoxes + wholePlannedStoreBoxes > 0) {
                         receivingLines.push({
+                            line_key: line.product_id + '_default',
                             ...line,
                             units_per_case: defaultUnitsPerCase,
                             actual_units_per_case: actualUnitsPerCase,
@@ -2987,11 +3091,12 @@ export default {
                         const fbmReceivedCount = remainder === remainingFbmReceivedUnits ? remainingFbmReceivedUnits : 0;
                         const storeReceivedCount = remainder === remainingStoreReceivedUnits ? remainingStoreReceivedUnits : 0;
 
-                        // const remainderLocationArray = partialArray || [{ location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
-                        const remainderLocationArray: any[] = [];
+                        const remainderLocationArray = partialArray?.length ? partialArray : [{ row_key: line.product_id + '_default_partial', location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
+                        // const remainderLocationArray: any[] = [];
 
                         receivingLines.push({
                             ...line,
+                            line_key: line.product_id + '_partial_' + remainder,
                             units_per_case: remainder,
                             actual_units_per_case: remainder,
                             planned_fba_prep_boxes: fbaPrepCount / remainder,
@@ -3016,6 +3121,8 @@ export default {
                     
                 });
             });
+
+            console.log("Receiving lines before sorting:", receivingLines);
 
             return receivingLines.sort((a: any, b: any) => {
                 if (a.purchase_order_id !== b.purchase_order_id) return a.purchase_order_id - b.purchase_order_id;
@@ -3085,10 +3192,26 @@ export default {
             }
         },
 
+        closeReceivingInvoiceDialog(){
+            if(this.receivingAutoSaveState === 'error') {
+                this.unsavedReceiveInvoiceDialogVisible = true;
+            } else {
+                this.invoicesToReceive = [];
+                this.receiveInvoiceDialogVisible = false;
+                this.receivingAutoSaveState = 'idle';
+            }
+        },
+
         confirmUnsavedPlanInvoiceDialog(){
             this.planningAutoSaveState = 'idle';
             this.unsavedPlanInvoiceDialogVisible = false;
             this.closePlanningInvoiceDialog()
+        },
+
+        confirmUnsavedReceiveInvoiceDialog(){
+            this.receivingAutoSaveState = 'idle';
+            this.unsavedReceiveInvoiceDialogVisible = false;
+            this.closeReceivingInvoiceDialog()
         },
 
         handlePlanInput(allocationType: string, event: any, line: any){
@@ -3113,15 +3236,10 @@ export default {
 
             const newValue = event.value; 
 
-            // Validate the line to see if the total received units exceeds the total ordered units
-            const isReceiveValid = this.validateReceiving(allocationType, newValue, line);
-            if(!isReceiveValid){
-                this.receivingAutoSaveState = 'error';
-                return;
-            }
+            
 
-            // If the receive is valid, proceed to save the allocation
-            this.debouncedReceiveSave(allocationType, newValue, line);
+            // If the receive is valid, proceed to reconsolidate the received line
+            this.reconsolidateReceivedLine(allocationType, newValue, line);
         },
 
         validatePlanning(allocationType: string, value: number, line: any){
@@ -3142,7 +3260,7 @@ export default {
                 });
                 this.planningAutoSaveState = 'error';
                 return false;
-            };
+            }
 
             if(allocationType === 'fba_prep' && (value < 0 || value + line.planned_fbm + line.planned_store > line.total_units)){
                 this.$toast.add({
@@ -3178,6 +3296,54 @@ export default {
         },
 
         validateReceiving(allocationType: string, value: number, line: any){
+            if(!this.invoicesToReceive){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Invalid Receive',
+                    detail: `Error finding invoices to receive. Please close and reopen the receiving dialog.`,
+                });
+                this.receivingAutoSaveState = 'error';
+                return false;
+            }
+            if(allocationType !== 'fba_prep' && allocationType !== 'fbm' && allocationType !== 'store') {
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Invalid Receive',
+                    detail: `Error with allocation type. Received type: ${allocationType}`,
+                });
+                this.receivingAutoSaveState = 'error';
+                return false;
+            }
+            if(allocationType === 'fba_prep' && (value < 0 || value + line.received_fbm + line.received_store > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (FBA Prep)',
+                    detail: `FBA Prep allocation causes total received units to exceed shipped total of ${line.total_units} units.`,
+                });
+                this.receivingAutoSaveState = 'error';
+                return false;
+            }
+
+            if(allocationType === 'fbm' && (value < 0 || value + line.received_fba_prep + line.received_store > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (FBM)',
+                    detail: `FBM allocation causes total received units to exceed shipped total of ${line.total_units} units.`,
+                });
+                this.receivingAutoSaveState = 'error';
+                return false;
+            }
+
+            if(allocationType === 'store' && (value < 0 || value + line.received_fba_prep + line.received_fbm > line.total_units)){
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Total limit exceeded (Store)',
+                    detail: `Store allocation causes total received units to exceed shipped total of ${line.total_units} units.`,
+                });
+                this.receivingAutoSaveState = 'error';
+                return false;
+            }
+
             
             this.receivingAutoSaveState = 'saved';
             return true;
@@ -3254,6 +3420,27 @@ export default {
             }, 500);
         },
 
+        reconsolidateReceivedLine(allocationType: string, newValue: number, line: any){
+            const matchingRawLines = this.rawLinesToReceive.filter((l: any) => {
+                return (Number(l.po_raw_line_id) === Number(line.po_raw_line_id) && l.line_key !== line.line_key);
+            });
+
+            let totalUnits = newValue * line.actual_units_per_case;
+
+            matchingRawLines.forEach((l: any) => {
+                totalUnits += l['received_' + allocationType] * l.actual_units_per_case;
+            });
+
+            // Validate the line to see if the total received units exceeds the total ordered units
+            const isReceiveValid = this.validateReceiving(allocationType, totalUnits, line);
+            if(!isReceiveValid){
+                this.receivingAutoSaveState = 'error';
+                return;
+            }
+
+            this.debouncedReceiveSave(allocationType, totalUnits, line);
+        },
+
         debouncedReceiveSave(allocationType: string, newValue: number, line: any){
             const cellKey = `${line.po_raw_line_id}_${allocationType}`;
 
@@ -3274,7 +3461,9 @@ export default {
                 const allocationTypeName = 'received_' + allocationType;
                 line[allocationTypeName] = newValue;
 
-                const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
+                console.log("Debounced receive save called with allocation:", allocation);
+
+                // const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
 
                 // Update the allocation in the local state
                 const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
@@ -6446,30 +6635,32 @@ export default {
 
         addReceiveSplit(line: any) {
             if (!line) return;
-            if (!Array.isArray(line.receive_splits)) {
-                line.receive_splits = [];
+            if (!Array.isArray(line.location_array)) {
+                line.location_array = [];
             }
 
-            const nextIdx = line.receive_splits.length;
-            line.receive_splits.push({
-                split_key: `${line.row_key}-split-${nextIdx}`,
-                boxes_received: 0,
-                location_id: null,
+            const nextIdx = line.location_array.length;
+            line.location_array.push({
+                row_key: line.product_id + '_new_line_' + nextIdx, 
+                location_id: null, 
+                location_name: '', 
+                received_store_boxes: 0, 
+                received_store: 0
             });
         },
 
         removeReceiveSplit(line: any, splitIdx: number) {
-            if (!line || !Array.isArray(line.receive_splits)) return;
-            if (line.receive_splits.length <= 1) {
-                line.receive_splits[0].boxes_received = 0;
-                line.receive_splits[0].location_id = null;
+            if (!line || !Array.isArray(line.location_array)) return;
+            if (line.location_array.length <= 1) {
+                line.location_array[0].boxes_received = 0;
+                line.location_array[0].location_id = null;
                 return;
             }
-            line.receive_splits.splice(splitIdx, 1);
+            line.location_array.splice(splitIdx, 1);
         },
 
         hasReceiveSplitLocationErrors(line: any): boolean {
-            const splits = Array.isArray(line?.receive_splits) ? line.receive_splits : [];
+            const splits = Array.isArray(line?.location_array) ? line.location_array : [];
             return splits.some((split: any) => Number(split?.boxes_received || 0) > 0 && !split?.location_id);
         },
 
@@ -6486,6 +6677,8 @@ export default {
             }
 
             this.receiveInvoiceDialogVisible = true;
+            // Decoupling my form state so that I can actually mutate the raw line array
+            this.rawLinesToReceive = this.receivingRawLines;
             this.receiveInvoiceDialogTitle = options.title || (purchaseOrder?.purchase_order_name
                 ? `Receive Invoices for ${purchaseOrder.purchase_order_name}`
                 : 'Receive Invoices');
@@ -6679,8 +6872,8 @@ export default {
          * Date Last Edited: 3-12-2025
          */
         displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
-        console.log("LOOP CHECK: ___________________________________________________");
-        console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
+        // console.log("LOOP CHECK: ___________________________________________________");
+        // console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
         // the recipe that is being used, determined by output product
         /**
@@ -6689,13 +6882,13 @@ export default {
          * being used in the purchase order.
          */
         let recipeOutput = this.displayRecipes.find(r => r.output_product_id === product_id);
-        console.log("recipeOutput", recipeOutput);
+        // console.log("recipeOutput", recipeOutput);
         let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
-        console.log("outputKey", outputKey);
+        // console.log("outputKey", outputKey);
 
         // console.log(this.poRecipes)
         let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
-        console.log("poRecipe",poRecipe);
+        // console.log("poRecipe",poRecipe);
 
         // the input products given the recipe id
         /*2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. This was also a problem on line 1600. 
@@ -6715,8 +6908,8 @@ export default {
 
             totals.push(map);
         });
-        console.log("rawRecInputs", rawRecInputs);
-        console.log("totals: ", totals);
+        // console.log("rawRecInputs", rawRecInputs);
+        // console.log("totals: ", totals);
 
 
         // get the input boxes that are being used as inputs. Use a filter-map for-loop
@@ -6784,7 +6977,8 @@ export default {
         getUnitCost(product_id: number){
             //RUNS TWICE FOR SOME REASON, ASK MICHAEL AT SOME POINT
             // console.log("PRODUCT ID: ", product_id);
-            let prod = this.products.find(p => product_id === p.product_id);
+            // let prod = this.products.find(p => product_id === p.product_id);
+            const prod = this.productIndexMap[product_id];
 
             //console.log(prod.price_2023);
             //NEED TO MAKE ANOTHER TABLE FOR PRICES
@@ -6801,7 +6995,8 @@ export default {
         //Date Last Edited: 5-28-2024
         getFNSKU(product_id: number){
             //console.log("PRODUCT ID: ", product_id);
-            let prod = this.products.find(p => product_id === p.product_id);
+            // let prod = this.products.find(p => product_id === p.product_id);
+            const prod = this.productIndexMap[product_id];
 
             //console.log(prod.fnsku);
             return prod.fnsku;
@@ -6813,7 +7008,8 @@ export default {
         //Date Last Edited: 5-28-2024
         getUPC(product_id: number){
             //console.log("PRODUCT ID: ", product_id);
-            let prod = this.products.find(p => product_id === p.product_id);
+            // let prod = this.products.find(p => product_id === p.product_id);
+            const prod = this.productIndexMap[product_id];
 
             //console.log(prod.upc);
             return prod.upc;
@@ -6830,7 +7026,8 @@ export default {
          */
         getItemNum(product_id: number){
             //console.log("PRODUCT ID: ", product_id);
-            let prod = this.products.find(p => product_id === p.product_id);
+            // let prod = this.products.find(p => product_id === p.product_id);
+            const prod = this.productIndexMap[product_id];
 
             return prod.item_num;
         },
