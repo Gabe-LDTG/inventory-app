@@ -549,7 +549,7 @@ const action = {
 
             console.log('2D Array', recipeElements);
 
-            const {data, error} = await supabase.rpc('create_product_key', {
+            const {error} = await supabase.rpc('create_product_key', {
                 new_product_data: product,
                 new_recipe_data: recipeElements
             });
@@ -561,7 +561,7 @@ const action = {
             }
         } else {    
             console.log('Creating raw product');
-            const {data, error} = await supabase.rpc('create_product_key', {new_product_data: product});
+            const {error} = await supabase.rpc('create_product_key', {new_product_data: product});
             if(error){
                 console.error('Error calling RPC:', error);
                 throw error;
@@ -688,7 +688,7 @@ const action = {
                 }
             })
 
-            const {data, error} = await supabase.rpc('update_product_key', {
+            const {error} = await supabase.rpc('update_product_key', {
                 updated_product_data: product,
                 updated_recipe_data: recipeElements
             })
@@ -701,7 +701,7 @@ const action = {
 
         } else {
             console.log('Updated Raw Product')
-            const {data, error} = await supabase.rpc('update_product_key',{updated_product_data: product})
+            const { error} = await supabase.rpc('update_product_key',{updated_product_data: product})
             if(error){
                 console.error('Error calling RPC: ', error);
                 throw error;
@@ -1214,7 +1214,7 @@ const action = {
         request_id: number | null,
         invoice_id: number | null
     }[]){
-        const {data, error} = await supabase.rpc('create_multiple_cases_by_type',{received_box_data: case_array})
+        const {error} = await supabase.rpc('create_multiple_cases_by_type',{received_box_data: case_array})
         if(error){
             console.error('Error calling RPC: ', error);
             throw error;
@@ -1645,8 +1645,8 @@ const action = {
         let purchaseOrders: any[] = [];
     
         // page is 1-based here; convert to 0-based indices
-        const from = (page - 1) * rowsPerPage;
-        const to   = from + rowsPerPage - 1;
+        // const from = (page - 1) * rowsPerPage;
+        // const to   = from + rowsPerPage - 1;
     
         try {
             
@@ -2568,7 +2568,8 @@ const action = {
         }
 
         const normalizedLinked = (linkedPoResult.data || []).map((row: any) => {
-            const { purchase_orders, ...requestRow } = row;
+            // const { purchase_orders, ...requestRow } = row;
+            const { ...requestRow } = row;
             return requestRow;
         });
 
@@ -2952,7 +2953,7 @@ const action = {
     async addPicklist( picklistData: {label: string, picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[]}){
         try {
             console.log("Picklist Data: ", picklistData);
-            const {data, error} = await supabase.rpc('create_picklist', {picklist_data: picklistData});
+            const {error} = await supabase.rpc('create_picklist', {picklist_data: picklistData});
             if (error)
                 throw error;
             else {
@@ -3002,12 +3003,12 @@ const action = {
 
     // Update a picklist
     // router.put("/picklists/:id", updatePicklist);
-    async editPicklist(picklist: {
+    /* async editPicklist(picklist: {
         picklist_id: number;
         label: string; 
     }){
         
-    },
+    }, */
 
     // Delete a picklist
     // router.delete("/picklists/:id", deletePicklist);

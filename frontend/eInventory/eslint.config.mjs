@@ -31,8 +31,8 @@ export default tseslint.config(
     rules: {
       "prefer-const": isProduction ? "warn" : "error",                      
       "no-unneeded-ternary": isProduction ? "warn" : "error",               
-      "@typescript-eslint/no-explicit-any": "warn", 
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }] 
+      "@typescript-eslint/no-explicit-any": "off", // Turning off for now until I get better at Typescript. To many interfaces linked to database table.
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }] 
     },
   }
 );

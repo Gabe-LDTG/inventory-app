@@ -325,7 +325,7 @@
                                 <!-- <Column field="status" header="Status" /> -->
                                 <template #expansion="{data}">
                                     <h4 class="font-bold">Raw Product(s) required for {{ data.product_name }}</h4>
-                                    <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id, data.amount)" :rowClass="rowClass" :rowStyle="rowStyle">
+                                    <DataTable :value="displayRawInfoMicheal(data.purchase_order_id, data.product_id)" :rowClass="rowClass" :rowStyle="rowStyle">
                                         <Column field="product_name" header="Name"/>
                                         <Column header="UPC">
                                             <template #body = {data}>
@@ -1437,14 +1437,14 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="receivedDialog" header="Received Boxes [Click any cell to edit]" :modal="true">
+        <!-- <Dialog v-model:visible="receivedDialog" header="Received Boxes [Click any cell to edit]" :modal="true">
             <DataTable :value="receivedLocationsArray" v-model:editingRows="editingRows" 
                     rowGroupMode="subheader" groupRowsBy="name" 
                     editMode="cell" @row-edit-save="onReceivedLocationRowSave" @cell-edit-complete="onReceivedLocationCellEdit"
                     scrollable scrollHeight="400px"
                     showGridlines
                     >
-                        <!-- <Column field="name" header="Name"/> -->
+                        <!- <Column field="name" header="Name"/> --
                         <Column field="amount" header="Total Number of Boxes">
                             <template #body={data}>
                                 {{ data.amount }}
@@ -1474,7 +1474,7 @@
                             </template>
                             <template #editor="{data}">
                                 <div class="container">
-                                    <!-- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> -->
+                                    <!- <InputText id="location" v-model="eCase.location" rows="3" cols="20" /> --
                                     <AutoComplete
                                         :modelValue="getLocationAutoCompleteValue(data.location_id)"
                                         :suggestions="filteredLocations"
@@ -1494,7 +1494,7 @@
                             </template>
                         </Column>
 
-                        <!-- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> -->
+                        <!- <Column :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column> --
 
                         <Column >
                             <template #body="{index}">
@@ -1504,12 +1504,12 @@
                             </template>
                         </Column>
                     </DataTable>
-                    <!-- <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/> -->
+                    <!- <Button  text label="Additional Pallet" v-tooltip.top="'Products located on additional pallet'" @click="addReceivedArrayLine"/> --
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="receivedDialog = false;"/>
                 <Button label="Save" icon="pi pi-check" text @click="receivedDialogSave" />
             </template>
-        </Dialog>
+        </Dialog> -->
 
         <Dialog v-model:visible="inboundPurchaseOrderDialog" :header="'Add an Invoice to Purchase Order ' + purchaseOrder.purchase_order_name" :modal="true" :style="{ width: '1200px' }" @hide="onInboundDialogHide">
             <div class="flex flex-column gap-3">
@@ -1565,103 +1565,6 @@
                             headerCell: { style: { zIndex: 11, position: 'sticky' } }
                         }"
                     />
-                    <!-- <Column header="Planned Units for FBA Prep" field="fba_prep" :pt="{
-                            bodyCell: ({ context }) => ({
-                                root: { style: { zIndex: 1, position: 'relative' } },
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
-                                }
-                            })
-                        }"
-                    >
-                        <template #body="{ data }">
-                            {{ data.fba_prep || 0 }}
-                        </template>
-                    </Column>
-                     <Column header="Shipped (FBA Prep)" field="fba_prep" class="inbound-fba-prep" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#8bc34a' : '#8bc34a' 
-                                }
-                            })
-                        }"
-                     >
-                        <template #body="{ data }">
-                            <InputNumber
-                                v-model="data.fba_prep_shipped"
-                                :min="0"
-                                :useGrouping="false"
-                                class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'fba_prep')"
-                                @input="onInboundUnitsInput($event, data, 'fba_prep')"
-                            />
-                        </template>
-                    </Column>
-                    <Column header="Planned Units to Store" field="store" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
-                                }
-                            })
-                        }"
-                    >
-                        <template #body="{ data }">
-                            {{ data.store || 0 }}
-                        </template>
-                    </Column>
-                    <Column header="Shipped (Store)" field="store" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#cca677' : '#cca677' 
-                                }
-                            })
-                        }"
-                    >
-                        <template #body="{ data }">
-                            <InputNumber
-                                v-model="data.store_shipped"
-                                :min="0"
-                                :useGrouping="false"
-                                class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'store')"
-                                @input="onInboundUnitsInput($event, data, 'store')"
-                            />
-                        </template>
-                    </Column>
-                    <Column header="Planned Units for FBM" field="fbm" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
-                                }
-                            })
-                        }"
-                    >
-                        <template #body="{ data }">
-                            {{ data.fbm || 0 }}
-                        </template>
-                    </Column>
-                     <Column header="Shipped (FBM)" field="fbm" :pt="{
-                            bodyCell: ({ context }) => ({
-                                style: { 
-                                    backgroundColor: context.index % 2 === 0 ? '#741b47' : '#741b47' 
-                                }
-                            })
-                        }"
-                     >
-                        <template #body="{ data }">
-                            <InputNumber
-                                v-model="data.fbm_shipped"
-                                :min="0"
-                                :useGrouping="false"
-                                class="inbound-units-input"
-                                :class="{ 'inbound-units-input--over': Number(data.units_shipped || 0) + Number(data.units_backordered || 0) > Number(data.total_units || 0) }"
-                                @update:modelValue="onInboundUnitsUpdate(data, 'fbm')"
-                                @input="onInboundUnitsInput($event, data, 'fbm')"
-                            />
-                        </template>
-                    </Column> -->
                     <Column header="Units Shipped" field="units_shipped">
                         <!-- <template #body="{ data }">
                             {{ data.units_shipped || 0 }}
@@ -1702,7 +1605,7 @@
                     </Column>
                     <Column header="Remaining">
                         <template #body="{ data }">
-                            <span :class="getInboundRemainingClass(data)">
+                            <span :class="getInboundRemainingClass()">
                                 {{ getInboundRemaining(data) }}
                             </span>
                         </template>
@@ -2237,14 +2140,13 @@ import action from "../components/utils/axiosUtils";
 import helper from "../components/utils/helperUtils";
 
 
-import { debounce, keys } from 'lodash';
-import { ref } from 'vue'; 
+import { debounce } from 'lodash';
 import type {
-    PurchaseOrderWithDetails
+    PurchaseOrderWithDetails,
+    
 } from "@/types/index";
 
 import ZoomDropdown from '@/components/ZoomDropdown.vue';
-import ProductAutoComplete from '@/components/ProductAutoComplete.vue';
 import { supabase } from '@/clients/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { pinia } from '@/stores';
@@ -2690,7 +2592,7 @@ export default {
             return Array.from(groupedByProduct.values())
                 .sort((a: any, b: any) => String(a?.product_name || '').localeCompare(String(b?.product_name || '')))
                 .map((line: any) => {
-                    const { first_seen_idx, ...rest } = line;
+                    const { _first_seen_idx, ...rest } = line;
                     return rest;
                 });
         },
@@ -2921,36 +2823,9 @@ export default {
                     .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0));
             })
 
+            console.log("Invoice Linked Lines Output", out);
+
             return out;
-        },
-
-        invoiceLinkedLines(): any[] {
-            /* const poId = Number(invoice?.purchase_order_id || this.purchaseOrder?.purchase_order_id || this.detailSelectedPoId || 0);
-            const invoiceId = Number(invoice?.invoice_id || 0);
-            const rawLines = Array.isArray(invoice?.po_raw_lines) && invoice.po_raw_lines.length > 0
-                ? invoice.po_raw_lines
-                : (this.po_raw_products || []).filter((line: any) =>
-                    Number(line?.purchase_order_id || 0) === poId && Number(line?.invoice_id || 0) === invoiceId,
-                );
-
-            return (rawLines || [])
-                .filter((line: any) => line && line.product_id != null)
-                .sort((a: any, b: any) => Number(a?.po_raw_line_id || 0) - Number(b?.po_raw_line_id || 0)); */
-
-            const linkLines: any[] = [];
-
-
-            return linkLines;
-        },
-
-        invoiceReceivableLinesMap(): {[key: number]: any[]} {
-            /* return (this.getInvoiceLinkedLines(invoice) || []).filter((line: any) => {
-                    const totalUnits = Number(line?.total_units || 0);
-                    const normalizedStatus = String(this.normalizeRawLineStatus(line?.status) || '').toLowerCase();
-                    return totalUnits > 0 && normalizedStatus !== 'delivered' && normalizedStatus !== 'cancelled';
-                }); */
-
-            return {};
         },
 
         planningRawLines(): any[] {
@@ -2988,14 +2863,15 @@ export default {
             const purchaseOrderId = Number(purchaseOrder?.purchase_order_id || 0);
 
             (receivedInvoices || []).forEach((invoice: any) => {
-                const linkedLines = this.getInvoiceReceiveableLines(invoice);
-                const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
-                const invoicePurchaseOrderName = String(
+                // const linkedLines = this.getInvoiceReceiveableLines(invoice);
+                const linkedLines = this.invoiceLinkedLinesByKey[`${purchaseOrderId}:${Number(invoice?.invoice_id || 0)}`] || [];
+                // const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
+                /* const invoicePurchaseOrderName = String(
                     invoice?.purchase_order_name
                     || (this.purchaseOrders || []).find((po: any) => Number(po?.purchase_order_id || 0) === invoicePurchaseOrderId)?.purchase_order_name
                     || purchaseOrder?.purchase_order_name
                     || ''
-                );
+                ); */
 
                 linkedLines.forEach((line: any) => {
                     const productId = Number(line?.product_id || 0);
@@ -3175,6 +3051,75 @@ export default {
                 popover.toggle(event);
             }
         },
+
+        /**
+         * Upserts a single updated object into a baseline array.
+         * 
+         * @param {Array} baseline - The original array containing full fields.
+         * @param {Object} updateItem - The single item containing partial fields.
+         * @param {string} idKey - The unique identifier key (e.g., 'id').
+         * @param {string} nestedKey - The key of the nested array that also needs an upsert.
+         * @param {string} nestedIdKey - The unique key for items inside the nested array.
+         */
+        upsertSingleItem(baseline: any[], updateItem: any, idKey: string, nestedKey?: string, nestedIdKey?: string) {
+            // console.log("Baseline before upsert:", baseline, "Update item:", updateItem, "idKey:", idKey, "nestedKey:", nestedKey, "nestedIdKey:", nestedIdKey);
+            // 1. Find the target object in the baseline array
+            const targetId = updateItem[idKey as string];
+            const existingIndex = baseline.findIndex(item => item[idKey as string] === targetId);
+
+            // 2. If it doesn't exist, this is an INSERT
+            if (existingIndex === -1) {
+                baseline.push(updateItem);
+                return baseline;
+            }
+
+            const existingItem = baseline[existingIndex];
+            const mergedItem = { ...existingItem };
+
+            // 3. If it does exist, this is an UPDATE. Merge fields.
+            for (const key in updateItem) {
+                if (!Object.prototype.hasOwnProperty.call(updateItem, key)) continue;
+
+                const updateValue = updateItem[key];
+
+                // Rule A: Skip undefined updates so they don't overwrite baseline data
+                if (updateValue === undefined) continue;
+
+                // Rule B: Handle the special nested array upsert logic
+                if (nestedKey && key === (nestedKey as string) && Array.isArray(updateValue)) {
+                    if (!(mergedItem as any)[key]) {
+                        (mergedItem as any)[key] = [];
+                    }
+
+                    const nestedBaseline = (mergedItem as any)[key];
+                    const nestedUpdates = updateValue;
+
+                    if (nestedIdKey) {
+                        for (const nestedUpdate of nestedUpdates) {
+                            this.upsertSingleItem(nestedBaseline, nestedUpdate, nestedIdKey);
+                        }
+                    }
+                }
+                // Rule C: If the property is a plain object, deep merge its internal keys
+                else if (
+                    updateValue && typeof updateValue === "object" && !Array.isArray(updateValue) &&
+                    (mergedItem as any)[key] && typeof (mergedItem as any)[key] === "object" && !Array.isArray((mergedItem as any)[key])
+                ) {
+                    (mergedItem as any)[key] = {
+                        ...(mergedItem as any)[key],
+                        ...updateValue
+                    };
+                }
+                // Rule D: Standard primitive replacement (strings, numbers, booleans)
+                else {
+                    (mergedItem as any)[key] = updateValue;
+                }
+            }
+
+            baseline.splice(existingIndex, 1, mergedItem);
+            return baseline;
+        },
+
 
         openPlanningInvoiceDialog(invoice: any){
             this.invoiceToPlan = invoice;
@@ -3360,7 +3305,7 @@ export default {
             }
 
             // Schedule database update 500ms after user pauses typing
-            this.planSaveTimers[cellKey] = window.setTimeout(() => {
+            this.planSaveTimers[cellKey] = window.setTimeout(async () => {
                 // this.persistAllocationToDatabase(orderLineId, deptId, value);
                 const allocation = {
                     allocatedType: allocationType,
@@ -3368,15 +3313,26 @@ export default {
                     poRawLineId: Number(line.po_raw_line_id),
                 }
 
+                /**@TODO Potentially might need to manually set planned values in computed property, since that is the only way for updating allocations to update this 
+                 * line automatically.
+                 */
                 // Update the frontend planned value
                 const allocationTypeName = 'planned_' + allocationType;
                 line[allocationTypeName] = newValue;
 
-                const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
-                // console.log("Upserted allocation to database:", upsertValue);
+                
+                this.upsertSingleItem(this.po_raw_products, line, 'po_raw_line_id', 'allocations', 'po_units_allocation_id');
+                console.log("Po Raw product, ", this.po_raw_products);
+
+                const upsertValue = await action.upsertPurchaseOrderUnitAllocation(allocation);
+                console.log("Upserted allocation to database:", upsertValue);
+
+                this.upsertSingleItem(line.allocations, upsertValue, 'po_units_allocation_id');
+
+                console.log("Line allocation after upsert:", line);
 
                 // Update the allocation in the local state
-                const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
+                /* const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
                 if(allocationIdx !== -1){
                     line.allocations[allocationIdx].allocated_units = newValue;
                 } else {
@@ -3385,7 +3341,9 @@ export default {
                         allocated_units: newValue,
                         po_raw_line_id: Number(line.po_raw_line_id),
                     });
-                }
+                } */
+
+                console.log("Line allocation updated after index:", line);
 
                 
 
@@ -4098,8 +4056,6 @@ export default {
                         po.date_received = po.date_received.split('T')[0];
                 });
                 
-                const poIds: number[] = this.purchaseOrders.map((po: any) => po.purchase_order_id);
-                
                 // const pageRecipes = await action.getRecipesAndElementsForPOs(poIds);
                 this.displayRecipes = data.all_recipes;
                 this.displayRecipeElements = data.all_recipe_elements;
@@ -4132,7 +4088,7 @@ export default {
                     const scrollableTable = dtElement?.querySelector('.p-datatable-scrollable-table');
                     if (scrollableTable) {
                         // The wrapper is usually 2-3 parents up
-                        let scrollableWrapper = scrollableTable.parentElement;
+                        const scrollableWrapper = scrollableTable.parentElement;
                         if (scrollableWrapper && scrollableWrapper.scrollHeight > scrollableWrapper.clientHeight) {
                             scrollableWrapper.scrollTop = 0;
                         }
@@ -4270,7 +4226,7 @@ export default {
         async getRecipes(){
             try {
                 if(this.recipes.length === 0 || this.recipeElements.length === 0 || this.recipes[0].vendor_id !== this.purchaseOrder.vendor_id){
-                    let recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
+                    const recipesAndElements = await action.getRecipesAndElementsForVendors(this.purchaseOrder.vendor_id);
                     this.recipes = recipesAndElements.recipes;
                     this.recipeElements = recipesAndElements.elements;
                 }
@@ -4393,11 +4349,11 @@ export default {
             
             // console.log("RECIPE  ", recipe);
             
-            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
+            const inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
             // console.log("INPUT PRODUCTS: ", inputProducts);
 
             inputProducts.forEach(ir => {
-                let inProd = this.unprocProducts.find(p => p.product_id === ir.product_id);
+                const inProd = this.unprocProducts.find(p => p.product_id === ir.product_id);
                 ir.name = inProd.name;
             })
 
@@ -4413,9 +4369,9 @@ export default {
         //Date Last Edited: 5-29-2024
         getVendor(vendorId: any){
             //console.log(vendorId);
-            let vendor = this.vendors.find(v => v.vendor_id === vendorId);
+            const vendor = this.vendors.find(v => v.vendor_id === vendorId);
             //console.log(vendor);
-            let name = vendor.vendor_name;
+            const name = vendor.vendor_name;
             //console.log(name);
             return name;
         },
@@ -4495,7 +4451,7 @@ export default {
         //Date Created: ???
         //Date Last Edited: 7-1-2024
         getTotalCost(rawRecEl: any, poCase: any, recipeAmount: number){
-            let rawBox = this.unprocProducts.find(p => p.product_id === rawRecEl.product_id);
+            const rawBox = this.unprocProducts.find(p => p.product_id === rawRecEl.product_id);
             return rawBox.price_2023*this.getTotalUnitsOrdered(rawRecEl, poCase, recipeAmount); 
         },
         /* getCreatedUnitTotal(poID: number){
@@ -4530,8 +4486,8 @@ export default {
         getCreatedCostTotal(poID: number, poDiscount: number){
             let total = 0;
             const poLines = this.getPurchaseOrderLinesForDisplay(poID);
-            let usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
-            let usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
+            const usedLines = (poLines || []).filter((line: any) => this.normalizeRawLineStatus(line?.status) !== 'Cancelled');
+            const usedBoxes = this.uBoxes.filter(b => b.purchase_order_id === poID && b.status !== 'Cancelled');
             // console.log("Used Boxes For Cost Total", usedBoxes);
             // console.log("Products List", this.products);
             usedLines.forEach((line: any) => {
@@ -4543,7 +4499,7 @@ export default {
 
             if(usedLines.length === 0){
                 usedBoxes.forEach((b: any) => {
-                    let prod = this.products.find(p => p.product_id === b.product_id);
+                    const prod = this.products.find(p => p.product_id === b.product_id);
                     if (!prod) return;
                     // console.log("Product key for box: ", prod);
                     total+=(b.units_per_case*prod.price_2023);
@@ -4699,10 +4655,10 @@ export default {
             }
 
             // Legacy fallback: if raw lines do not exist yet, keep previous box-based behavior.
-            let poolArray = [] as any[];
-            let boxesBeingUsed = [] as any[];
+            const poolArray = [] as any[];
+            const boxesBeingUsed = [] as any[];
 
-            let boxArray = this.uBoxes.filter((box: any) => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
+            const boxArray = this.uBoxes.filter((box: any) => box.purchase_order_id === purchase_order_id && box.status !== 'Cancelled');
             // console.log("boxArray", boxArray);
 
             linkedPoRecipes.forEach((poRec: any) => {
@@ -4713,12 +4669,12 @@ export default {
                 /* let poRecipe = this.poRecipes.find((recipe: any) => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
                 if (!poRecipe) return; */
 
-                let rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'input');
+                const rawRecInputs = this.displayRecipeElements.filter((r: any) => r.recipe_id === poRec.recipe_id && r.type === 'input');
 
-                let totals = [] as any[];
+                const totals = [] as any[];
 
                 rawRecInputs.forEach((r: any) => {
-                    let map = {} as any;
+                    const map = {} as any;
                     map.product_id = r.product_id;
                     r.totalUnits = poRec.qty;
                     map.currentUnits = 0;
@@ -4730,12 +4686,12 @@ export default {
                     if(b.purchase_order_id !== purchase_order_id)
                     continue;
 
-                    let inputEl = rawRecInputs.find((r: any) => r.product_id  === b.product_id);
+                    const inputEl = rawRecInputs.find((r: any) => r.product_id  === b.product_id);
                     if(inputEl){
-                        let total = totals.find((t: any) => t.product_id === inputEl.product_id);
+                        const total = totals.find((t: any) => t.product_id === inputEl.product_id);
                         if (!total) continue;
 
-                        let boxInArray = boxesBeingUsed.find((boxLine: any) => boxLine.case_id === b.case_id);
+                        const boxInArray = boxesBeingUsed.find((boxLine: any) => boxLine.case_id === b.case_id);
                         if(boxInArray)
                             continue;
 
@@ -4763,23 +4719,6 @@ export default {
             return helper.groupProductsById(poolArray);
         },
 
-        //Description: Creates a pool of raw products that don't have a plan
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 5-31-2024
-        //Date Last Edited: 2-24-2025
-        getPool(poId: number){
-            let poolProd = [] as any[];
-
-            let linkedPoRecipes = this.poRecipes.filter(rec => rec.purchase_order_id === poId);
-
-            linkedPoRecipes.forEach(poRec => {
-                let linkedInputElements = this.recipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'input');
-            })
-
-            return poolProd;
-        },
-
         /**
          * Description: Groups products together to get the total amount per product
          * @param prodArray {any[]} An array of individual records that needs to be grouped
@@ -4792,7 +4731,7 @@ export default {
          */
         groupProducts(prodArray: any[]){
             // get the products in the pool along with their amount
-            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+            const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.status + ':' + product.units_per_case + ':' + product.location_id;
                 //console.log("KEY", key);
                 //console.log("MAP", map);
@@ -4812,7 +4751,7 @@ export default {
 
         groupReqProducts(prodArray: any[]){
             // get the products in the pool along with their amount
-            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+            const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.units_per_case;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
@@ -4838,7 +4777,7 @@ export default {
          */
          groupProductsByKey(prodArray: any[], keyArray: any[]){
             // get the products in the pool along with their amount
-            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+            const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 let keyString = "";
                 keyArray.forEach(key => keyString += ':'+product[key]);
 
@@ -4855,7 +4794,7 @@ export default {
         },
          groupProductsByKeyOLD(prodArray: any[], keyString: string){
             // get the products in the pool along with their amount
-            let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+            const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.units_per_case + ':' + keyString;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
@@ -5050,7 +4989,7 @@ export default {
                 const rawProduct = this.products.find(p => p.product_id === rawRecEl.product_id);
                 if (!rawProduct) return;
 
-                const units_per_case = rawProduct.default_units_per_case || 1;
+                // const units_per_case = rawProduct.default_units_per_case || 1;
                 const totalUnitsNeeded = rawRecEl.qty * amount;
                 
                 rawLines.push({
@@ -5198,7 +5137,7 @@ export default {
          * @dateLastEdited 5-20-2026
          */
         async onPurchaseOrderDialogOpen(purchaseOrder: any){
-            let previousTableLoading = this.tableLoading;
+            const previousTableLoading = this.tableLoading;
             try {
                 this.autoSaveState = 'idle';
                 this.loading = true;
@@ -5833,7 +5772,7 @@ export default {
             this.recipeArrayEdit.recipe_id = id;
             this.recipeArrayEdit.default_units_per_case = recipeId.default_units_per_case;
             // console.log("RECIPE ID: ", id);
-            let recipe = this.recipes.find(r => r.recipe_id === id);
+            const recipe = this.recipes.find(r => r.recipe_id === id);
             // console.log("RECIPE: ", recipe);
             this.poCasesEdit = this.procProducts.find(p => p.product_id === recipe.product_id);
             // console.log("PO CASE", this.poCasesEdit);
@@ -5911,11 +5850,11 @@ export default {
         //Date Created: ???
         //Date Last Edited: ???
         validate() {
-            this.submitted == true;
+            this.submitted = true;
             
 
             let errAmount = 0;
-            let errText = [] as any[];
+            const errText = [] as any[];
             //console.log("PO", this.purchaseOrder);
             //console.log("PO CASES: ", this.poCases);
             //console.log("PO BOXES: ", this.poBoxes);
@@ -6048,19 +5987,19 @@ export default {
                     this.purchaseOrder.date_received = this.today;
 
                 this.purchaseOrder.status = 'Delivered';
-                let boxesToInsert = [] as any[];
+                const boxesToInsert = [] as any[];
 
                 // Grab the boxes already received and the newly inputted boxes
-                let receivedBoxArray = this.checkBoxes("Received");
-                let newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
+                const receivedBoxArray = this.checkBoxes("Received");
+                const newlyArrivedBoxArray = this.checkBoxes("Newly Arrived");
 
                 // console.log("receivedBoxArray", receivedBoxArray);
                 // console.log("newlyArrivedBoxArray",newlyArrivedBoxArray);
                 
                 // Loop through all of the requested boxes
                 this.reqPoBoxes.forEach(reqBox => {
-                    let receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
-                    let newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
+                    const receivedBox = receivedBoxArray.find(rb => rb.product_id === reqBox.product_id);
+                    const newlyArrivedBoxes = newlyArrivedBoxArray.filter(ab => ab.product_id === reqBox.product_id);
                     let newArrive = {} as any;
 
                     // console.log("NEW ARRIVAL ARRAY", newlyArrivedBoxes);
@@ -6080,7 +6019,7 @@ export default {
                             lineIdx++;
                         });
                     } else {
-                        let noArrivales = {} as any;
+                        const noArrivales = {} as any;
                         noArrivales.total = 0;
                         noArrivales.amount = 0;
                         noArrivales.units_per_case = reqBox.units_per_case;
@@ -6090,11 +6029,11 @@ export default {
                     }
                 });
 
-                let insertArray = [] as any[];
+                const insertArray = [] as any[];
 
                 boxesToInsert.flat().forEach(async box => {
                     if (box.case_id){
-                        let tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location_id, box.status, box.purchase_order_id, box.request_id, box.case_id];
+                        const tempArray = [box.units_per_case, box.date_received, box.notes, box.product_id, box.location_id, box.status, box.purchase_order_id, box.request_id, box.case_id];
                         insertArray.push(tempArray);
                     } else {
                         await action.addCase(box);
@@ -6119,10 +6058,10 @@ export default {
          * 
          * Last Edited: 4-28-2025
          */
-        alocateBoxCalculation(requested: any, received: any, newlyArrived: any, lastLocation: Boolean){
+        alocateBoxCalculation(requested: any, received: any, newlyArrived: any, lastLocation: boolean){
             // console.log("IN ALOCATE BOX CALCULATION__________________________________________________________");
             // console.log("REQUESTED BOXES ", requested, " RECEIVED BOXES ", received, "AND NEWLY ARRIVED BOXES ", newlyArrived);
-            let boxesToInsert = [] as any[];
+            const boxesToInsert = [] as any[];
 
 
 
@@ -6145,18 +6084,18 @@ export default {
                 newlyArrived.total = newlyArrived.amount * newlyArrived.units_per_case;
 
             // Calculate any units that would be back ordered
-            let backorderUnits = requested.total - (received.total + newlyArrived.total);
-            let backorderBoxes = backorderUnits/newlyArrived.units_per_case;
-            let wholeBackorderBoxAmount = Math.floor(backorderBoxes);
+            const backorderUnits = requested.total - (received.total + newlyArrived.total);
+            const backorderBoxes = backorderUnits/newlyArrived.units_per_case;
+            const wholeBackorderBoxAmount = Math.floor(backorderBoxes);
 
-            let poBoxUnitsPerCase = newlyArrived.units_per_case;
+            const poBoxUnitsPerCase = newlyArrived.units_per_case;
 
             // console.log("PRODUCT ", requested.product_name);
             // console.log("REQUESTED UNIT AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER UNIT AMOUNT");
             // console.log("REQ", requested.total, " - (REC + NEW)", "(", received.total, "+", newlyArrived.total, ")", " = LEFT", backorderUnits);
 
             //Get the specific decimal number for partial box purposes. 12 Received boxes might actually be 11.5
-            let actualReceivedBoxes = newlyArrived.total/poBoxUnitsPerCase;
+            const actualReceivedBoxes = newlyArrived.total/poBoxUnitsPerCase;
             let wholeReceivedBoxAmount = Math.floor(actualReceivedBoxes);
 
             // console.log("REQUESTED BOX AMOUNT - (RECEIVED + NEWLY ARRIVED UNIT AMOUNT) = BACKORDER BOX AMOUNT");
@@ -6167,7 +6106,7 @@ export default {
             // console.log("REQ", requested.amount, " - (REC + NEW)", "(", received.amount, "+", newlyArrived.total/newlyArrived.units_per_case, ")", " = BO", backorderBoxes)
             
             //Gets the decimal value if one of the leftover boxes is partial
-            let remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
+            const remainder = actualReceivedBoxes - wholeReceivedBoxAmount;
 
             let partialBoxAmount = 0;
             if(backorderUnits > 0)
@@ -6184,7 +6123,7 @@ export default {
             // console.log("PARTIAL BACK ORDER BOX AMOUNT", partialBackOrderBoxAmount);
 
             // Grab all the boxes for this PO of this product type that are not cancelled or arrived. 
-            let boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Ready' && box.status !== 'Cancelled');
+            const boxes = this.uBoxes.filter(box => box.purchase_order_id === newlyArrived.purchase_order_id && box.product_id === newlyArrived.product_id && box.status !== 'On RTP' && box.status !== 'Ready' && box.status !== 'Cancelled');
 
             let backorderCompare = 0;
 
@@ -6258,8 +6197,8 @@ export default {
             this.editedLine = {};
             this.delivered = [];
 
-            let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
-            let cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
+            const boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
+            const cases = this.pCases.filter(c => c.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
             this.delivered = this.getDeliveredDataTable(boxes);
 
@@ -6299,8 +6238,8 @@ export default {
                 // console.log("Recipes when opening po edit, ", this.recipes);
 
                 // let boxes = this.uBoxes.filter(b => b.purchase_order_id === this.purchaseOrder.purchase_order_id && b.status !== 'Cancelled');
-                let boxes = purchaseOrder.individual_boxes || [];
-                let poRecs = purchaseOrder.po_recipes || this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
+                const boxes = purchaseOrder.individual_boxes || [];
+                const poRecs = purchaseOrder.po_recipes || this.poRecipes.filter(r => r.purchase_order_id === this.purchaseOrder.purchase_order_id);
 
                 // console.log("PO Recs when opening edit, ", poRecs);
 
@@ -6310,7 +6249,7 @@ export default {
 
                     // console.log("Recipe, ", recipe);
 
-                    let elementKey = this.products.find(p => p.product_id === recipe.output_product_id);
+                    const elementKey = this.products.find(p => p.product_id === recipe.output_product_id);
                     if (!elementKey) return;
 
                     const recipeKey = this.recipes.find(r => r.recipe_id === recLine.recipe_id);
@@ -6444,18 +6383,17 @@ export default {
             // let linkedCases = [] as any[]; 
             let linkedBoxes = [] as any[];
             let linkedRawLines = [] as any[];
-            let poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
+            const poRecipes = this.poRecipes.filter(rec => po.purchase_order_id === rec.purchase_order_id);
             let poRecElements = [] as any[];
 
             // console.log("displayRecipeElements: ", this.displayRecipeElements);
             poRecipes.forEach(poRec => {
                 // let recElArray = this.displayRecipeElements.filter(recEl => recEl.recipe_id === poRec.recipe_id && recEl.type === 'output');
                 // recElArray.flatMap(recEl => recEl.amount = poRec.qty * recEl.qty);
-                let output = {amount: poRec.qty};
+                const output = {amount: poRec.qty};
                 poRecElements.push(output);
             });
             poRecElements = poRecElements.flat();
-            let total = 0;
 
             // linkedCases = this.pCases.filter(c => c.purchase_order_id === po.purchase_order_id);
             const includeCancelled = !!po.showCancelledProducts;
@@ -6472,7 +6410,7 @@ export default {
             if(po.displayStatus === "Processed"){
 
                 poRecElements.forEach(recEl => {
-                    let productKey = this.products.find(product => product.product_id === recEl.product_id);
+                    const productKey = this.products.find(product => product.product_id === recEl.product_id);
                     productKey.amount = recEl.amount/productKey.default_units_per_case;
                     productKey.units_per_case = productKey.default_units_per_case;
                     productKey.status = po.status;
@@ -6815,15 +6753,15 @@ export default {
             console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
             //Grab the linked po recipe for the inline processed product
-            let linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipes.find(r => r.output_product_id === product_id && r.recipe_id === rec.recipe_id) !== undefined);
+            const linkedPoRec = this.poRecipes.find(rec => rec.purchase_order_id === purchase_order_id && this.displayRecipes.find(r => r.output_product_id === product_id && r.recipe_id === rec.recipe_id) !== undefined);
             
             // let linkedCase = this.pCases.find(c => c.purchase_order_id === purchase_order_id && c.product_id === product_id);
 
             //let linkedRecEl = this.recipeElements.find(r => r.product_id === product_id && r.type === 'output');
-            let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
+            const rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === linkedPoRec.recipe_id && r.type === 'input');
             //let linkedBoxes = this.uBoxes.filter(b => b.purchase_order_id === purchase_order_id);
 
-            let linkedBoxes = [] as any[];
+            const linkedBoxes = [] as any[];
             for(const box of this.uBoxes) {
                 if (box.purchase_order_id !== purchase_order_id)
                 continue;
@@ -6836,7 +6774,7 @@ export default {
             console.log("LINKED BOXES ",linkedBoxes);
             console.log("PO RECIPE ARRAY", linkedPoRec);
 
-            let displayArray = this.groupProducts(linkedBoxes);
+            const displayArray = this.groupProducts(linkedBoxes);
             console.log("DISPLAY ARRAY BEFORE FOR EACH", displayArray);
 
            /*  displayArray.forEach((line: any) => {
@@ -6871,7 +6809,7 @@ export default {
          * Date Created: 7-18-2024 
          * Date Last Edited: 3-12-2025
          */
-        displayRawInfoMicheal(purchase_order_id: number, product_id: number, amount: number) {
+        displayRawInfoMicheal(purchase_order_id: number, product_id: number) {
         // console.log("LOOP CHECK: ___________________________________________________");
         // console.log("PURCHASE ORDER:", purchase_order_id," PROCESSED PRODUCT ID:", product_id," AMOUNT:", amount);
 
@@ -6881,25 +6819,24 @@ export default {
          * Or is this enforced as unique? This is why I recommended you to store the recipes
          * being used in the purchase order.
          */
-        let recipeOutput = this.displayRecipes.find(r => r.output_product_id === product_id);
+        const recipeOutput = this.displayRecipes.find(r => r.output_product_id === product_id);
         // console.log("recipeOutput", recipeOutput);
-        let outputKey = this.products.find(p => p.product_id === recipeOutput.product_id);
         // console.log("outputKey", outputKey);
 
         // console.log(this.poRecipes)
-        let poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
+        const poRecipe = this.poRecipes.find(recipe => recipe.purchase_order_id === purchase_order_id && recipe.recipe_id === recipeOutput.recipe_id);
         // console.log("poRecipe",poRecipe);
 
         // the input products given the recipe id
         /*2-27-2026 NOTE: I changed poRecipe.recipeObj.recipe_id to poRecipe.recipe_id because logging poRecipe in this function shows that there is no nest object. This was also a problem on line 1600. 
         * There appears to have been a change in the structure of poRecipe at some point. Will look closer when I have the time. Right now, I am on a tight schedule.
         */
-        let rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
+        const rawRecInputs = this.displayRecipeElements.filter(r => r.recipe_id === poRecipe.recipe_id && r.type === 'input');
 
-        let totals = [] as any[];
+        const totals = [] as any[];
 
         rawRecInputs.forEach(r => {
-            let map = {} as any;
+            const map = {} as any;
             map.product_id = r.product_id;
             map.currentUnits = 0;
 
@@ -6917,18 +6854,16 @@ export default {
 
         // console.log(this.uBoxes);
 
-        let boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
+        const boxArray = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
         console.log("boxArray", boxArray);
 
-        let filteredBoxArray = this.groupProducts(boxArray);
+        const filteredBoxArray = this.groupProducts(boxArray);
         console.log("filteredBoxArray", filteredBoxArray);
 
-        let boxIdx = 0;
-
         for(const b of boxArray) {
-            let inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
+            const inputEl = rawRecInputs.find(r => r.product_id  === b.product_id);
             if(inputEl){
-                let total = totals.find(t => t.product_id === inputEl.product_id)
+                const total = totals.find(t => t.product_id === inputEl.product_id)
                 console.log("Current Total: ", total.currentUnits);
 
                 /*
@@ -6951,9 +6886,7 @@ export default {
 
         console.log("inputBoxesAndRecEl", inputBoxesAndRecEl);
 
-        let returnArray = inputBoxesAndRecEl.map(({ box, rec }) => ({
-            ...box,
-        }));
+        const returnArray = inputBoxesAndRecEl;
 
         console.log("returnArray", returnArray);
 
@@ -6962,7 +6895,7 @@ export default {
 
         getPurchaseOrderDiscount(purchase_order_id: number){
             let discount = 0;
-            let po = this.purchaseOrders.find((po) => po.purchase_order_id === purchase_order_id) || {} as PurchaseOrderWithDetails;
+            const po = this.purchaseOrders.find((po) => po.purchase_order_id === purchase_order_id) || {} as PurchaseOrderWithDetails;
             if(po){
                 if(po.discount)
                     discount = po.discount/100;
@@ -7035,7 +6968,7 @@ export default {
             let total = 0;
 
             if (this.cases) {
-                for (let c of this.cases) {
+                for (const c of this.cases) {
                     if (c.name == name && c.purchase_order_id == purchase_order_id) {
                         total++;
                     }
@@ -7048,7 +6981,7 @@ export default {
             let total = 0;
 
             if (this.cases) {
-                for (let c of this.cases) {
+                for (const c of this.cases) {
                     if (c.name == name && c.purchase_order_id == purchase_order_id) {
                         total += c.units_per_case;
                         //console.log(c.units_per_case);
@@ -7151,7 +7084,7 @@ export default {
             return Number((total/units_per_case).toFixed(2));
         },
         onQtyUpdate(qty: any, units_per_case: any){
-            let total = qty*units_per_case;
+            const total = qty*units_per_case;
             return total;
         },
         //Description: When the PO status is changed, the date ordered and date received fields are
@@ -7487,10 +7420,6 @@ export default {
             this.openStatusChangeDialog(purchaseOrder);
         },
 
-        disablePoPhase(poStatus: string){
-
-        },
-
         /**
          * When a user wants to update their status, a dialog is opened.
          * 
@@ -7505,18 +7434,6 @@ export default {
         openStatusChangeDialog(purchaseOrder: any) {
             this.purchaseOrder = purchaseOrder;
             this.statusChangeDialog = true;
-        },
-
-        //Description: When the user clicks confirm on a status change, the PO status is changed to the appropriate phase
-        //
-        //Created by: Gabe de la Torre
-        //Date Created: 6-06-2024
-        //Date Last Edited: 6-06-2024
-        confirmStatusChangeDialog(newStatus: string){
-
-            this.statusChangeDialog = false;
-
-            this.purchaseOrder = {};
         },
 
         /**
@@ -7566,7 +7483,7 @@ export default {
         async checkForRequests(){
             // Check to see if there are any requests for the PO recipes, if not, create them
             // let requests = await action.getRequests('');
-            let po_requests = await action.getPurchaseOrderRequests(this.purchaseOrder.purchase_order_id || 0);
+            const po_requests = await action.getPurchaseOrderRequests(this.purchaseOrder.purchase_order_id || 0);
 
 
 
@@ -7584,7 +7501,7 @@ export default {
             const poRecipes = Array.isArray(this.purchaseOrder?.po_recipes) ? this.purchaseOrder.po_recipes : [];
             const recMissingRequest: any[] = [];
             poRecipes.forEach((poRec: any) => {
-                let foundRequest = po_requests.find((req: any) => req.product_id === poRec.product_id);
+                const foundRequest = po_requests.find((req: any) => req.product_id === poRec.product_id);
                 if (!foundRequest) {
                     console.warn("No Request found for the following po recipe", poRec);
                     recMissingRequest.push(poRec);
@@ -7599,7 +7516,7 @@ export default {
                 console.log("Recipe package", recPackage);
                 
                 const recipes = Array.isArray(recPackage.recipes) ? recPackage.recipes : [];
-                const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
+                // const recipeElements = Array.isArray(recPackage.elements) ? recPackage.elements : [];
                 const existingRequests = Array.isArray(po_requests) ? po_requests : [];
 
                 console.log("Needed Po Recipes: ", recMissingRequest);
@@ -7608,7 +7525,7 @@ export default {
 
                 for (const recipe of recMissingRequest) {
 
-                    let neededRecipe = recipes.find((rec: any) => rec.recipe_id === recipe.recipe_id);
+                    const neededRecipe = recipes.find((rec: any) => rec.recipe_id === recipe.recipe_id);
                     console.log("Needed Recipe: ", neededRecipe);
 
                     if (!neededRecipe || !neededRecipe.output_product_id) {
@@ -7622,7 +7539,7 @@ export default {
                     const productKey = this.products.find(product => product.product_id === neededRecipe.output_product_id);
                     console.log("Product Key: ", productKey);
 
-                    let recRequest = existingRequests.find(request => request.product_id === neededRecipe.output_product_id && request.purchase_order_id === poId);
+                    const recRequest = existingRequests.find(request => request.product_id === neededRecipe.output_product_id && request.purchase_order_id === poId);
                     console.log("Recipe Request: ", recRequest);
                     if(!recRequest){
                         // No request made for this recipe yet, make one
@@ -7698,17 +7615,17 @@ export default {
             console.log("PO BOXES", this.poBoxes);
             //console.log("PO BOXES BY PRODUCT", this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id)));
 
-            let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
+            const allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
+            const receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
             // console.log("RECEIVED BOXES", receivedBoxes);
 
             //CHANGE TO INCOMING
-            let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
+            const awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
             // console.log("AWAITED BOXES", awaitedBoxes);
 
-            let newlyArrivedBoxes = this.poBoxes.filter(boxLine => boxLine.moment === 'Newly Arrived');
+            const newlyArrivedBoxes = this.poBoxes.filter(boxLine => boxLine.moment === 'Newly Arrived');
             
 
             if(boxType === 'Received'){
@@ -7742,13 +7659,13 @@ export default {
             let boxArray = [] as any[];
 
             //console.log("PO BOXES", this.poBoxes);
-            let allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
+            const allBoxes = this.groupReqProducts(this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id));
 
             //POSSIBLY CHECK FOR NOT EQUALS AS WELL
-            let receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
+            const receivedBoxes = this.poBoxes.filter(boxLine => (boxLine.status !== 'Draft' && boxLine.status !== 'Submitted' && boxLine.status !== 'Ordered' && boxLine.status !== 'Inbound' && boxLine.status !== 'BO') || boxLine.status === 'On RTP');
             //console.log("RECEIVED BOXES", receivedBoxes);
 
-            let awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
+            const awaitedBoxes = this.poBoxes.filter(boxLine => boxLine.status === 'Draft' || boxLine.status === 'Submitted' || boxLine.status === 'Ordered' || boxLine.status === 'Inbound' || boxLine.status === 'BO')
             //console.log(boxArray.push(allBoxes), boxArray.push(receivedBoxes), boxArray);
             awaitedBoxes.forEach(box => {
                 if(!box.total)
@@ -7924,7 +7841,7 @@ export default {
          */
         onCellEditComplete(event: any) {
             console.log(event);
-            let {data, newValue, field} = event;
+            const {data, newValue, field} = event;
             data[field] = newValue;
         },
 
@@ -7940,7 +7857,7 @@ export default {
         onRowEditSave(event: any) {
             console.log("EVENT ",event);
             
-            let { data, newData } = event;
+            const { data, newData } = event;
 
             console.log(this.poBoxes);
 
@@ -8167,7 +8084,7 @@ export default {
             * Create an array of objects that tracks a raw box type, the recipes it is used in, 
             * the raw total units, and the needed total units
             */
-            let poTotals: {raw_id: number, recipe_id: number[], raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
+            const poTotals: {raw_id: number, recipe_id: number[], raw_total: number, needed_total: number}[] = Object.values(this.poBoxes.reduce((map, box) => {
                 const key = box.product_id;
 
                 // console.log("Box in reduce: ", box);
@@ -8192,7 +8109,7 @@ export default {
                 
 
                 // Grab each recipe element that is used in this PO
-                let usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.po_recipe_id && recElement.type === 'input');
+                const usedRecElements = this.recipeElements.filter(recElement => recElement.recipe_id === poRecipe.po_recipe_id && recElement.type === 'input');
 
                 // Go through each recipe element
                 usedRecElements.forEach(recElement => {
@@ -8215,7 +8132,7 @@ export default {
             });
             console.log("PO Totals after check: ", poTotals);
 
-            let recipeIdxArray: number[] = [];
+            const recipeIdxArray: number[] = [];
 
             // Loop through the total array 
             poTotals.forEach(totalLine => {
@@ -8334,7 +8251,7 @@ export default {
                 rawInputs
                     .forEach((rawInput: any) => {
                         const rawKey = this.products.find((product: any) => product.product_id === rawInput.product_id);
-                        let totalUnits = Math.ceil((Number(rawInput.qty || 0)*desiredQty)/rawKey.default_units_per_case)*rawKey.default_units_per_case;
+                        const totalUnits = Math.ceil((Number(rawInput.qty || 0)*desiredQty)/rawKey.default_units_per_case)*rawKey.default_units_per_case;
 
                         rawLinesToInsert.push({
                         product_id: rawInput.product_id,
@@ -8666,7 +8583,7 @@ export default {
         },
 
         getReceivedTotal(product_id: number) {
-            let receivedArray = this.checkSpecificBoxes('Received', product_id);
+            const receivedArray = this.checkSpecificBoxes('Received', product_id);
             let total = 0;
 
             receivedArray.forEach(line => {
@@ -8676,7 +8593,7 @@ export default {
         },
 
         getRequestedTotal(product_id: number) {
-            let receivedArray = this.checkSpecificBoxes('All', product_id);
+            const receivedArray = this.checkSpecificBoxes('All', product_id);
             let total = 0;
 
             receivedArray.forEach(line => {
@@ -8697,7 +8614,7 @@ export default {
          * Date Last Edited: 8-05-2024 
          */
          getDeliveredDataTable(poBoxes: any[]){
-            let tableData = [] as any[];
+            const tableData = [] as any[];
             // let boxes = this.uBoxes.filter(box => box.purchase_order_id === purchase_order_id);
 
             for(const box of poBoxes){
@@ -8710,7 +8627,7 @@ export default {
                 tableData.push(requestedBox);
 
                 if (box.status === 'On RTP' || box.status === 'Ready'){
-                    let readyBox = {} as any;
+                    const readyBox = {} as any;
                     readyBox.case_id = box.case_id;
                     readyBox.date_received = box.data_received;
                     readyBox.location_id = location;
@@ -8727,7 +8644,7 @@ export default {
                 }
 
                 if (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'){
-                    let awaitedBox = {} as any;
+                    const awaitedBox = {} as any;
                     awaitedBox.case_id = box.case_id;
                     awaitedBox.date_received = box.data_received;
                     awaitedBox.location_id = location;
@@ -8772,7 +8689,7 @@ export default {
         formatSingleLocation(location_id: any[]){
             //  console.log("Location: ",location_id)
             if(location_id){
-                let curLoc = this.locations.find(l => l.location_id === location_id);
+                const curLoc = this.locations.find(l => l.location_id === location_id);
 
                 return curLoc.name;
             }
@@ -8782,10 +8699,10 @@ export default {
         formatLocations(locations: any[]){
             console.log(locations)
             if(locations){
-                let locationNames = [] as any[];
+                const locationNames = [] as any[];
                 locations.forEach(loc => {
                     if (loc){
-                        let curLoc = this.locations.find(l => l.location_id === loc);
+                        const curLoc = this.locations.find(l => l.location_id === loc);
                         //console.log(loc)
                         //console.log(curLoc)
                         locationNames.push(curLoc.name);
@@ -8809,13 +8726,13 @@ export default {
             this.receivedLocationsArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Awaiting" || box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
 
             if (this.editedLine === undefined){
-                let bundleArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
+                const bundleArray = this.delivered.filter(box => box.product_id === product_id && (box.moment === "Newly Arrived" || box.moment === "Back Ordered"));
                 this.editedLine = {};
                 this.editedLine.amount = 0;
                 this.editedLine.total = 0;
                 
                 bundleArray.forEach(boxLine => {
-                    let map = {} as any;
+                    const map = {} as any;
                     map.amount = boxLine.amount;
                     map.total = boxLine.total;
                     map.product_id = boxLine.product_id;
@@ -8863,7 +8780,7 @@ export default {
         // 8/8
         onReceivedLocationRowSave(event: any){
             console.log(event);
-            let { newData, index } = event;
+            const { newData, index } = event;
 
             this.receivedLocationsArray[index] = newData;
             // console.log(this.receivedLocationsArray[index])
@@ -8882,246 +8799,9 @@ export default {
          */
          onReceivedLocationCellEdit(event: any) {
             // console.log(event);
-            let { newData, index } = event;
+            const { newData, index } = event;
 
             this.receivedLocationsArray[index] = newData;
-        },
-
-        /**
-         * 
-         * 
-         * Created By: Gabe de la Torre-Garcia on: 8-8-24
-         * 
-         * Last Edited: 4-7-2025
-         */
-        receivedDialogSave(){
-            let total = 0;
-            let numErr = 0;
-            let errMSG = [] as any[];
-            this.locationSubmitted = true;
-            this.receivedLocationsArray.forEach((line: { amount: number; location_id: number; }) => {
-                total += line.amount
-
-                if (!line.location_id){
-                    numErr++;
-                    errMSG.push("Location Required");
-                }
-
-            });
-
-            let requestedTotalOBJ = {} as any;
-            let arrivingTotalAmount = 0;
-            let arrivingTotalUnits = 0;
-            // console.log(total);
-            // console.log(this.editedLine.amount);
-
-            /**
-             * @TODO Eventually, I want this to open a confirm dialog to make sure a user knows that the inserted 
-             * box amount is greater than what was order. This is for the fringe cases where we get more than we ordered
-             */
-            /* if (total > this.editedLine.amount){
-                numErr++;
-                errMSG.push("Number Awaiting: "+ this.editedLine.amount+ ". Number Inputted: "+total);
-            }  */
-            
-            // Check to make sure that the user has entered locations for each line 
-            if (this.locationSubmitted === true && numErr > 0) {
-                this.$toast.add({severity:'error', summary: "Error", detail: errMSG.join('\n')});
-            } else {
-                // Grab all PO boxes that are not received already
-                let awaitedBoxes = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && box.product_id === this.editedLine.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
-                console.log("awaitedBoxes", awaitedBoxes);
-                // console.log("Received locations array:", this.receivedLocationsArray);
-
-                // Make a key variable with all of the required box fields
-                let receivedLocKey = this.receivedLocationsArray[0];
-
-                if (this.receivedLocationsArray.length === 1){ // All boxes placed on one location
-
-                    console.log("PO Boxes: ", this.poBoxes);
-                    // 
-                    this.poBoxes.forEach(box => {
-                        if (box.product_id === receivedLocKey.product_id && (box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered' || box.status === 'BO')){
-                            box.location_id = receivedLocKey.location_id;
-                            box.amount = receivedLocKey.amount;
-                            box.total = receivedLocKey.total;
-                            box.moment = "Newly Arrived";
-                        }
-                    })
-
-                    console.log("delivered before forEach",this.delivered);
-
-                    this.delivered.forEach(box => {
-                        if (box.product_id === receivedLocKey.product_id && (box.moment==='Awaiting' || box.moment === 'Back Ordered' || box.moment==='Newly Arrived') ){
-                            box.location_id = receivedLocKey.location_id;
-                            box.amount = receivedLocKey.amount;
-                            box.total = receivedLocKey.total;
-                            box.moment = "Newly Arrived";
-
-                            arrivingTotalAmount += box.amount;
-                            arrivingTotalUnits += box.total;
-
-                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Received') {
-                            arrivingTotalAmount += box.amount;
-                            arrivingTotalUnits += box.total;
-
-                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Requested'){
-                            requestedTotalOBJ = box;
-                        }
-                    })
-                    console.log("delivered after forEach", this.delivered);
-                    console.log("poBoxes", this.poBoxes);
-
-                } else { // Boxes spread accross multiple locations
-
-                    // let receivedLocKey = this.receivedLocationsArray[0];
-                    let boxKey = {} as any;
-                    let locationAmountArray = [] as any[];
-                    this.receivedLocationsArray.forEach((line: { location_id: number; amount: number; }) => {
-                        let locationAmountOBJ = {} as any;
-                        locationAmountOBJ.location_id = line.location_id;
-                        locationAmountOBJ.amount = line.amount;
-
-                        locationAmountArray.push(locationAmountOBJ);
-                    });
-
-                    this.poBoxes.forEach(box => {
-                            if (box.product_id === receivedLocKey.product_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered') ){
-                                boxKey = box;
-                                box.location_id = receivedLocKey.location_id;
-                                box.amount = receivedLocKey.amount;
-                                box.total = receivedLocKey.total;
-                                box.moment = "Newly Arrived";
-                            }
-                        })
-
-                    console.log("delivered",this.delivered);
-
-                    this.delivered.forEach(box => {
-                        if (box.product_id === receivedLocKey.product_id && box.moment==='Awaiting' ){
-                            box.location_id = receivedLocKey.location_id;
-                            box.amount = receivedLocKey.amount;
-                            box.total = receivedLocKey.total;
-                            box.moment = "Newly Arrived";
-
-                            arrivingTotalAmount += box.amount;
-                            arrivingTotalUnits += box.total;
-
-                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Received') {
-                            arrivingTotalAmount += box.amount;
-                            arrivingTotalUnits += box.total;
-
-                        } else if (box.product_id === receivedLocKey.product_id && box.moment==='Requested'){
-                            requestedTotalOBJ = box;
-                        }
-                    })
-
-                
-                    // this.delivered = this.delivered.filter(row => row.product_id !== receivedLocKey.product_id);
-                    // console.log("Irrelevant Product Table Lines: ", this.delivered);
-
-                    /**
-                     * Starting with the first additional location, loop through all locations, creating an object 
-                     * using that indexes field values. This object is pushed into the delivered table array and 
-                     * the PO Boxes array. 
-                     * 
-                     * @TODO If the user needs to reopen the menu and edit something, the edited line will be pushed
-                     * as a new line, rather than updating the necessary line. Need to find a way to only push new 
-                     * lines while successfully updating edited lines. 
-                     */
-                    console.log("Received locations array:", this.receivedLocationsArray);
-                    console.log("Array length ",this.receivedLocationsArray.length);
-                    console.log("Box Key: ", boxKey);
-                    for ( let locArrayIdx = 1; locArrayIdx < this.receivedLocationsArray.length; locArrayIdx++){
-                        console.log('receivedLocationsArray', this.receivedLocationsArray[locArrayIdx]);
-                        let newArrayObj = {} as any;
-                        newArrayObj.amount = this.receivedLocationsArray[locArrayIdx].amount;
-                        newArrayObj.location_id = this.receivedLocationsArray[locArrayIdx].location_id;
-                        newArrayObj.product_id = this.receivedLocationsArray[locArrayIdx].product_id;
-                        newArrayObj.total = this.receivedLocationsArray[locArrayIdx].total;
-                        newArrayObj.units_per_case = this.receivedLocationsArray[locArrayIdx].units_per_case;
-
-                        newArrayObj.product_name = this.receivedLocationsArray[0].product_name;
-                        newArrayObj.case_id = this.receivedLocationsArray[0].case_id;
-                        newArrayObj.date_received = this.receivedLocationsArray[0].date_received;
-                        newArrayObj.moment = "Newly Arrived";
-                        newArrayObj.notes = this.receivedLocationsArray[0].notes;
-                        newArrayObj.purchase_order_id = this.receivedLocationsArray[0].purchase_order_id;
-                        newArrayObj.status = this.receivedLocationsArray[0].status;
-
-                        arrivingTotalAmount += this.receivedLocationsArray[locArrayIdx].amount;
-                        arrivingTotalUnits += this.receivedLocationsArray[locArrayIdx].total;
-
-                        this.delivered.push(newArrayObj);
-                        this.poBoxes.push(newArrayObj);
-
-                        let newlyArrivedProductArray = this.delivered.filter(row => row.product_id === receivedLocKey.product_id && row.moment === 'Newly Arrived');
-
-                        console.log("Relevant Product Table Lines: ", newlyArrivedProductArray);
-                       
-                    }
-
-                    let awaitedBoxArray = this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'BO'|| box.status === 'Draft' || box.status === 'Submitted' || box.status === 'Ordered' || box.status === 'Inbound' || box.status === 'Partially Delivered'));
-                    console.log("AWAITED BOXES IN DIALOG SAVE", awaitedBoxArray);
-                    console.log("LOCATION ARRAY", locationAmountArray);
-
-                    let locationIdx = 0;
-
-                    awaitedBoxArray.forEach(box => {
-                        if(locationAmountArray[locationIdx]){
-                            console.log("LOCATION" , locationAmountArray[locationIdx].location_id, "AMOUNT", locationAmountArray[locationIdx].amount);
-                            console.log(box);
-                            if(locationAmountArray[locationIdx].amount === 0){
-                            locationIdx++;
-                            } else {
-                            box.location_id = locationAmountArray[locationIdx].location_id;
-
-                            console.log(box.location_id);
-                            locationAmountArray[locationIdx].amount--;
-                            }
-                        }
-    
-                    });
-
-                }
-                // let key = this.uBoxes.find(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id);
-                
-                console.log("U Boxes after location setting",this.uBoxes.filter(box => box.purchase_order_id === this.purchaseOrder.purchase_order_id && (box.status === 'Draft' || box.status === 'BO')))
-
-                let backOrderLine = this.delivered.find(line => line.moment === "Back Ordered")
-
-                /* if(backOrderLine){
-                    console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
-                    console.log(backOrderLine.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
-                    console.log(backOrderLine.amount);
-                    console.log(requestedTotalOBJ.amount);
-                    console.log(arrivingTotalAmount);
-                    backOrderLine.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
-                    backOrderLine.total = requestedTotalOBJ.total - arrivingTotalUnits;
-                } else {
-                    let backOrderOBJ = {} as any;
-                    backOrderOBJ.moment = "Back Ordered";
-                    
-                    // console.log(backOrderLine.amount);
-                    console.log(requestedTotalOBJ);
-                    console.log(arrivingTotalAmount);
-                    backOrderOBJ.amount = requestedTotalOBJ.amount - arrivingTotalAmount;
-                    backOrderOBJ.total = requestedTotalOBJ.total - arrivingTotalUnits;
-                    backOrderOBJ.name = this.editedLine.name;
-
-                    console.log("backOrderLine.amount", " = ", "requestedTotalOBJ.amount", " - ", "arrivingTotalAmount");
-
-                    console.log(backOrderOBJ.amount, " = ", requestedTotalOBJ.amount, " - ", arrivingTotalAmount);
-                    
-                    this.delivered.push(backOrderOBJ);
-                } */
-
-                console.log("Received locations array at end of save:", this.receivedLocationsArray);
-                console.log("delivered",this.delivered);
-                console.log("Po Boxes at end of save: ",this.poBoxes);
-
-                this.receivedDialog = false;
-            }
         },
 
         searchVendors(event: any) {
@@ -9269,7 +8949,7 @@ export default {
             return ordered - shipped - backordered;
         },
 
-        getInboundRemainingClass(line: any): Record<string, boolean> {
+        getInboundRemainingClass(): Record<string, boolean> {
             return {
                 'inbound-remaining--alert': true,
             };
