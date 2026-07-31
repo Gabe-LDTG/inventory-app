@@ -2617,6 +2617,7 @@ export default {
             const invoiceRows: any[] = [];
             const discountPct = Number(this.selectedDetailPo?.discount || 0);
             const discountMultiplier = 1 - (Number.isFinite(discountPct) ? discountPct : 0) / 100;
+            // const poId = (this.selectedDetailPo.purchase_order_id || this.purchaseOrder.purchase_order_id || 0);
 
             (this.detailInvoiceList || []).forEach((invoice: any, invoiceIdx: number) => {
                 const linkedLines = this.getInvoiceLinkedLines(invoice);
@@ -2865,6 +2866,7 @@ export default {
             (receivedInvoices || []).forEach((invoice: any) => {
                 // const linkedLines = this.getInvoiceReceiveableLines(invoice);
                 const linkedLines = this.invoiceLinkedLinesByKey[`${purchaseOrderId}:${Number(invoice?.invoice_id || 0)}`] || [];
+                // console.log("Linked lines for invoice:", linkedLines);
                 // const invoicePurchaseOrderId = Number(invoice?.purchase_order_id || purchaseOrderId || 0);
                 /* const invoicePurchaseOrderName = String(
                     invoice?.purchase_order_name
@@ -2873,7 +2875,9 @@ export default {
                     || ''
                 ); */
 
+                /**@TODO Need to make a separate list, maybe even a new computed property, that lists any products linked to an invoice but with unplanned units */
                 linkedLines.forEach((line: any) => {
+                    // console.log("Processing line:", line);
                     const productId = Number(line?.product_id || 0);
                     const product = this.productIndexMap[productId]
                         || (this.unprocProducts || []).find((p: any) => p.product_id === productId);
@@ -2914,8 +2918,8 @@ export default {
                         }
                     });
 
-                    console.log("Whole array for line:", wholeArray);
-                    console.log("Partial array for line:", partialArray);
+                    console.log("Whole array for  locations:", wholeArray);
+                    console.log("Partial array for locations:", partialArray);
 
                     // The desired structure for the database locations array is an array of objects with the following properties: {location_id: number, location_name:string, received_units: number}
                     const locationArray = wholeArray?.length ? wholeArray : [{ row_key: line.product_id + '_default', location_id: null, location_name: '', received_store_boxes: 0, received_store: 0}];
@@ -3240,7 +3244,9 @@ export default {
             return true;
         },
 
-        validateReceiving(allocationType: string, value: number, line: any){
+        /**@TODO Make checks not just per line, but per total units using lineBaseline */
+        validateReceiving(allocationType: string, value: number, line: any, lineBaseline: any){
+            console.log(lineBaseline);
             if(!this.invoicesToReceive){
                 this.$toast.add({
                     severity: 'error',
@@ -3306,100 +3312,115 @@ export default {
 
             // Schedule database update 500ms after user pauses typing
             this.planSaveTimers[cellKey] = window.setTimeout(async () => {
-                // this.persistAllocationToDatabase(orderLineId, deptId, value);
-                const allocation = {
-                    allocatedType: allocationType,
-                    allocatedUnits: newValue,
-                    poRawLineId: Number(line.po_raw_line_id),
-                }
+                try{
+                    // this.persistAllocationToDatabase(orderLineId, deptId, value);
+                    const allocation = {
+                        allocatedType: allocationType,
+                        allocatedUnits: newValue,
+                        poRawLineId: Number(line.po_raw_line_id),
+                    }
 
-                /**@TODO Potentially might need to manually set planned values in computed property, since that is the only way for updating allocations to update this 
-                 * line automatically.
-                 */
-                // Update the frontend planned value
-                const allocationTypeName = 'planned_' + allocationType;
-                line[allocationTypeName] = newValue;
+                    /**@TODO Potentially might need to manually set planned values in computed property, since that is the only way for updating allocations to update this 
+                     * line automatically.
+                     */
+                    // Update the frontend planned value
+                    const allocationTypeName = 'planned_' + allocationType;
+                    line[allocationTypeName] = newValue;
 
-                
-                this.upsertSingleItem(this.po_raw_products, line, 'po_raw_line_id', 'allocations', 'po_units_allocation_id');
-                console.log("Po Raw product, ", this.po_raw_products);
+                    
+                    this.upsertSingleItem(this.po_raw_products, line, 'po_raw_line_id', 'allocations', 'po_units_allocation_id');
+                    console.log("Po Raw product, ", this.po_raw_products);
 
-                const upsertValue = await action.upsertPurchaseOrderUnitAllocation(allocation);
-                console.log("Upserted allocation to database:", upsertValue);
+                    const upsertValue = await action.upsertPurchaseOrderUnitAllocation(allocation);
+                    console.log("Upserted allocation to database:", upsertValue);
 
-                this.upsertSingleItem(line.allocations, upsertValue, 'po_units_allocation_id');
+                    this.upsertSingleItem(line.allocations, upsertValue, 'po_units_allocation_id');
 
-                console.log("Line allocation after upsert:", line);
+                    console.log("Line allocation after upsert:", line);
 
-                // Update the allocation in the local state
-                /* const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
-                if(allocationIdx !== -1){
-                    line.allocations[allocationIdx].allocated_units = newValue;
-                } else {
-                    line.allocations.push({
-                        allocation_type: allocationType,
-                        allocated_units: newValue,
-                        po_raw_line_id: Number(line.po_raw_line_id),
-                    });
-                } */
+                    // Update the allocation in the local state
+                    /* const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
+                    if(allocationIdx !== -1){
+                        line.allocations[allocationIdx].allocated_units = newValue;
+                    } else {
+                        line.allocations.push({
+                            allocation_type: allocationType,
+                            allocated_units: newValue,
+                            po_raw_line_id: Number(line.po_raw_line_id),
+                        });
+                    } */
 
-                console.log("Line allocation updated after index:", line);
+                    console.log("Line allocation updated after index:", line);
 
-                
+                    
 
-                // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
-                const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
-                if(poIdx !== -1){
-                    this.purchaseOrders[poIdx] = {
-                        ...this.purchaseOrders[poIdx],
-                        ...this.purchaseOrder,
-                        po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
-                            if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
-                                // console.log("Updating line in local state:", l, "with new allocation:", line);
-                                return {
-                                    ...l,
-                                    ...line,
+                    // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
+                    const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
+                    if(poIdx !== -1){
+                        this.purchaseOrders[poIdx] = {
+                            ...this.purchaseOrders[poIdx],
+                            ...this.purchaseOrder,
+                            po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
+                                if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
+                                    // console.log("Updating line in local state:", l, "with new allocation:", line);
+                                    return {
+                                        ...l,
+                                        ...line,
+                                    }
                                 }
-                            }
-                            return l;
-                        })
+                                return l;
+                            })
+                        }
+
+                        this.purchaseOrder = {
+                            ...this.purchaseOrders[poIdx],
+                        }
                     }
 
-                    this.purchaseOrder = {
-                        ...this.purchaseOrders[poIdx],
-                    }
+                    // console.log("Updated local state for purchase order:", this.purchaseOrders[poIdx]);
+
+                    this.planningAutoSaveState = 'saved';
+
+                    delete this.planSaveTimers[cellKey];
+                } catch (err) {
+                    console.error('Error in debouncedPlanSave:', err);
+                    this.planningAutoSaveState = 'error';
                 }
-
-                // console.log("Updated local state for purchase order:", this.purchaseOrders[poIdx]);
-
-                this.planningAutoSaveState = 'saved';
-
-                delete this.planSaveTimers[cellKey];
             }, 500);
         },
 
+        /**@TODO Fix this mess. Need to grab all lines for the invoice with the same product type but without the line key. Then the totals need to be added and fed into
+         * the upsert function. 
+         */
         reconsolidateReceivedLine(allocationType: string, newValue: number, line: any){
+            const linkedLines = (this.invoiceLinkedLinesByKey[`${line.purchase_order_id}:${line.invoice_id}`] || []);
+            console.log("Linked lines in reconsolidate: ", linkedLines);
+            const lineBaseline = linkedLines.find((l: any) => {return Number(l.po_raw_line_id) === Number(line.po_raw_line_id);});
+
+            // const totalUnits = line.actual_units_per_case * newValue;
             const matchingRawLines = this.rawLinesToReceive.filter((l: any) => {
                 return (Number(l.po_raw_line_id) === Number(line.po_raw_line_id) && l.line_key !== line.line_key);
             });
 
-            let totalUnits = newValue * line.actual_units_per_case;
+            let totalUnits = Number(newValue) * Number(line.actual_units_per_case);
 
             matchingRawLines.forEach((l: any) => {
-                totalUnits += l['received_' + allocationType] * l.actual_units_per_case;
+                totalUnits += l['received_' + allocationType];
             });
 
+            console.log("Total units before validate: ", totalUnits);
+
             // Validate the line to see if the total received units exceeds the total ordered units
-            const isReceiveValid = this.validateReceiving(allocationType, totalUnits, line);
+            const isReceiveValid = this.validateReceiving(allocationType, totalUnits, line, lineBaseline);
             if(!isReceiveValid){
                 this.receivingAutoSaveState = 'error';
                 return;
             }
 
-            this.debouncedReceiveSave(allocationType, totalUnits, line);
+            this.debouncedReceiveSave(allocationType, totalUnits, line, lineBaseline);
         },
 
-        debouncedReceiveSave(allocationType: string, newValue: number, line: any){
+        debouncedReceiveSave(allocationType: string, newValue: number, line: any, lineBaseline: any){
             const cellKey = `${line.po_raw_line_id}_${allocationType}`;
 
             // Reset any pending timers for this exact cell
@@ -3408,58 +3429,74 @@ export default {
             }
 
             // Schedule database update 500ms after user pauses typing
-            this.receiveSaveTimers[cellKey] = window.setTimeout(() => {
-                const allocation = {
-                    allocatedType: allocationType,
-                    allocatedUnits: newValue,
-                    poRawLineId: Number(line.po_raw_line_id),
-                }
+            this.receiveSaveTimers[cellKey] = window.setTimeout(async () => {
+                try {
+                    const plannedAllocName = 'planned_'+allocationType;
+                    const allocation = {
+                        allocatedType: allocationType,
+                        allocatedUnits: Number(lineBaseline[plannedAllocName]),
+                        receivedUnits: Number(newValue),
+                        poRawLineId: Number(line.po_raw_line_id),
+                        storageLocations: line.storage_locations,
+                    }
 
-                // Update the frontend received value
-                const allocationTypeName = 'received_' + allocationType;
-                line[allocationTypeName] = newValue;
+                    // Update the frontend received value
+                    const allocationTypeName = 'received_' + allocationType;
+                    line[allocationTypeName] = newValue;
 
-                console.log("Debounced receive save called with allocation:", allocation);
+                    /**@TODO Figure out how to stop partial boxes, from proccing the computed lines. If you received a partial box of 4 units,
+                     * and then go to the plan, it will tell you there are 4 planned units, even though below the hood, the system knows it 
+                     * is the actual planned amount. 
+                     */
 
-                // const upsertValue = action.upsertPurchaseOrderUnitAllocation(allocation);
+                    this.upsertSingleItem(this.po_raw_products, line, 'po_raw_line_id', 'allocations', 'po_units_allocation_id');
 
-                // Update the allocation in the local state
-                const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
-                if(allocationIdx !== -1){
-                    line.allocations[allocationIdx].allocated_units = newValue;
-                } else {
-                    line.allocations.push({
-                        allocation_type: allocationType,
-                        allocated_units: newValue,
-                        po_raw_line_id: Number(line.po_raw_line_id),
-                    });
-                }
+                    console.log("Debounced receive save called with allocation:", allocation);
 
-                // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
-                const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
-                if(poIdx !== -1){
-                    this.purchaseOrders[poIdx] = {
-                        ...this.purchaseOrders[poIdx],
-                        ...this.purchaseOrder,
-                        po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
-                            if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
-                                return {
-                                    ...l,
-                                    ...line,
+                    const upsertValue = await action.upsertPurchaseOrderUnitAllocation(allocation);
+                    console.log("Upsert value returned:", upsertValue);
+
+                    // Update the allocation in the local state
+                    /* const allocationIdx = line.allocations.findIndex((alloc: {allocation_type: string}) => alloc.allocation_type === allocationType);
+                    if(allocationIdx !== -1){
+                        line.allocations[allocationIdx].allocated_units = newValue;
+                    } else {
+                        line.allocations.push({
+                            allocation_type: allocationType,
+                            allocated_units: newValue,
+                            po_raw_line_id: Number(line.po_raw_line_id),
+                        });
+                    } */
+
+                    // Refresh PO List in front end (Might need to make this more effecient later (7/2/26))
+                    const poIdx = this.purchaseOrders.findIndex(po => Number(po.purchase_order_id) === Number(line.purchase_order_id));
+                    if(poIdx !== -1){
+                        this.purchaseOrders[poIdx] = {
+                            ...this.purchaseOrders[poIdx],
+                            ...this.purchaseOrder,
+                            po_raw_lines: this.purchaseOrders[poIdx].po_raw_lines.map((l: any) => {
+                                if(Number(l.po_raw_line_id) === Number(line.po_raw_line_id)){
+                                    return {
+                                        ...l,
+                                        ...line,
+                                    }
                                 }
-                            }
-                            return l;
-                        })
+                                return l;
+                            })
+                        }
+
+                        this.purchaseOrder = {
+                            ...this.purchaseOrders[poIdx],
+                        }
                     }
 
-                    this.purchaseOrder = {
-                        ...this.purchaseOrders[poIdx],
-                    }
+                    this.receivingAutoSaveState = 'saved';
+
+                    delete this.receiveSaveTimers[cellKey];
+                } catch (error) {
+                    console.error("Error in debouncedReceiveSave:", error);
+                    this.receivingAutoSaveState = 'error';
                 }
-
-                this.receivingAutoSaveState = 'saved';
-
-                delete this.receiveSaveTimers[cellKey];
             }, 500);
         },
 

@@ -2099,6 +2099,7 @@ const action = {
         allocatedUnits: number;
         allocatedType: string;
         receivedUnits?: number;
+        storageLocations?: any[];
     }){
         try {
             const {data, error} = await supabase
@@ -2109,7 +2110,8 @@ const action = {
                         po_raw_line_id: allocation.poRawLineId,
                         allocated_units: allocation.allocatedUnits,
                         allocation_type: allocation.allocatedType,
-                        received_units: allocation.receivedUnits
+                        received_units: allocation.receivedUnits,
+                        storage_locations: allocation.storageLocations
                     }, 
                     { 
                         onConflict:'po_raw_line_id, allocation_type',
