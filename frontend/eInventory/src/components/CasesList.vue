@@ -93,7 +93,7 @@
                     </template>
                 </Column>
 
-                <template #expansion="{data}" style="background-color: '#16a085'">
+                <template #expansion="{data}" >
                     <DataTable :value="getIndivCases(data.product_id, data.units_per_case)" v-model:selection="selectedCases" dataKey="case_id"
                     class="cl-stable-table"
                     removableSort
@@ -367,7 +367,7 @@
                 <InputText id="purchaseOrder" v-model="purchaseOrder" rows="3" cols="20" />
             </div>
             
-            <template v-for="(bCase, counter) in bulkCases">
+            <template v-for="(bCase, counter) in bulkCases" :key="bCase.case_id">
 
                 <span @click="deleteBulkLine(counter)">x</span>
                 <h3 class="flex justify-content-start font-bold w-full">Product #{{ counter + 1 }}</h3><br>
@@ -745,7 +745,7 @@ export default {
         getIndivLocation(locationId: number){
             //console.log("LOCATION ID",locationId);
             //console.log("LOCATIONS", this.locations)
-            let location = this.locations.find(l => l.location_id === locationId);
+            const location = this.locations.find(l => l.location_id === locationId);
             //console.log("LOCATION",location);
             if(location !== undefined){
                 return location.name;
@@ -760,10 +760,10 @@ export default {
         formatLocations(locations: any[]){
             // console.log(locations)
             if(locations){
-                let locationNames = [] as any[];
+                const locationNames = [] as any[];
                 locations.forEach(loc => {
                     if (loc){
-                        let curLoc = this.locations.find(l => l.location_id === loc);
+                        const curLoc = this.locations.find(l => l.location_id === loc);
                         //console.log(loc)
                         // console.log(curLoc)
                         locationNames.push(curLoc.name);
@@ -778,8 +778,8 @@ export default {
             console.log("SORT EVENT", event);
             if(!event.sortField){
                 this.cases.sort((data1: any, data2: any) => {
-                    let value1 = data1.units_per_case * data1.amount;
-                    let value2 = data2.units_per_case * data2.amount;
+                    const value1 = data1.units_per_case * data1.amount;
+                    const value2 = data2.units_per_case * data2.amount;
                     let result = null;
 
                     if (value1 == null && value2 != null)
@@ -800,7 +800,7 @@ export default {
         onProductSelection(productObj: any){
             console.log("PRODUCT OBJ", productObj);
 
-            let prodId = productObj.product_id;
+            const prodId = productObj.product_id;
 
             if(typeof productObj === 'object' && productObj !== null && 'product_id' in productObj){
                 if(this.displayValue === 'processed')
@@ -934,7 +934,7 @@ export default {
 
                 
             } catch (error) {
-                
+                throw error;
             }
         },
 
@@ -960,10 +960,10 @@ export default {
                 // console.log('Old case values ', this.oldCaseValues);
 
                 // Match database boxes/cases by product type, location, unit quantity, and status
-                let boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location_id === this.oldCaseValues.location_id && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
+                const boxesToEdit = this.dbCases.filter(box => box.product_id === this.oldCaseValues.product_id &&  box.location_id === this.oldCaseValues.location_id && box.status === this.oldCaseValues.status && box.units_per_case === this.oldCaseValues.units_per_case)
     
                 // console.log("BOXES TO EDIT", boxesToEdit);
-                let editBoxArray = [] as any[];
+                const editBoxArray = [] as any[];
 
                 // console.log("Box amount: ",this.eCase.amount);
 
@@ -1107,14 +1107,14 @@ export default {
         async bulkDeleteCase() {
             try {
                 //this.dbCases = this.dbCases.filter(c => c.case_id !== this.eCase.case_id);
-                let id_array = [] as number[];
-                let boxesToDelete = this.dbCases.filter(box => box.product_id === this.eCase.product_id &&  box.location_id === this.eCase.location_id && box.status === this.eCase.status && box.units_per_case === this.eCase.units_per_case)
+                const id_array = [] as number[];
+                const boxesToDelete = this.dbCases.filter(box => box.product_id === this.eCase.product_id &&  box.location_id === this.eCase.location_id && box.status === this.eCase.status && box.units_per_case === this.eCase.units_per_case)
                 console.log('Boxes to delete: ', boxesToDelete);
 
                 console.log(this.eCase.amount);
 
                 for (let delIdx=0; delIdx < this.eCase.amount; delIdx++){
-                    let boxMap = boxesToDelete[delIdx];
+                    const boxMap = boxesToDelete[delIdx];
                     // console.log("Box Map: ", boxMap);
                     id_array.push(boxMap.case_id);
                 }
@@ -1211,7 +1211,7 @@ export default {
             let total = 0;
 
             if (this.cases) {
-                for (let c of this.cases) {
+                for (const c of this.cases) {
                     if (c.name === name) {
                         total++;
                     }
@@ -1224,7 +1224,7 @@ export default {
             let total = 0;
 
             if (this.cases) {
-                for (let c of this.cases) {
+                for (const c of this.cases) {
                     if (c.name === name) {
                         total += c.units_per_case;
                         //console.log(c.units_per_case);
@@ -1308,21 +1308,21 @@ export default {
         //Date Last Edited: 6-12-2024
         groupBoxes(boxArray: any[]){
             // get the products in the pool along with their amount
-            let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
+            const pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.units_per_case + ':' + product.status;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
                     map[key].total_units += product.units_per_case;
                     if(map[key].location.find((l: any) => l === product.location_id) === undefined){
                         //console.log("DIFFERENT LOCATION");
-                        let location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
+                        const location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
                         map[key].location.push(product.location_id);
                         map[key].location_name.push(location_name);
                         // console.log(map[key].location);
                     } 
                 }
                 else{ // otherwise, add it to the map
-                    let location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
+                    const location_name = this.locations.find(l => l.location_id === product.location_id)?.name;
                     map[key] = { ...product, units_per_case: product.units_per_case, location: [product.location_id], location_name: [location_name], amount: 1 , total_units: product.units_per_case};
                 }
                 return map;
@@ -1338,7 +1338,7 @@ export default {
         //Date Last Edited: 7-10-2024
         groupByLocation(boxArray: any[]){
             // get the products in the pool along with their amount
-            let pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
+            const pool: (typeof boxArray)[number] & { amount: number } = Object.values(boxArray.reduce((map, product) => {
                 const key = product.product_id + ':' + product.location_id + ':' + product.status + ':' + product.purchase_order_id + ':' + product.date_received;
                 if (map[key]) { // if it already exists, incremenet
                     map[key].amount++;
@@ -1352,7 +1352,7 @@ export default {
         },
 
         getPoName(poId: number){
-            let po = this.purchase_orders.find(po => po.purchase_order_id === poId);
+            const po = this.purchase_orders.find(po => po.purchase_order_id === poId);
             let name = "N/A";
 
             if (po !== undefined)
@@ -1382,7 +1382,7 @@ export default {
         },
 
         onPage(event: any){
-            // console.log("PAGE: ", event);
+            console.log("PAGE: ", event);
             console.log("SELECTED CASES: ", this.selectedCases);
             this.selectedCases = [];
             this.expandedRows = [];

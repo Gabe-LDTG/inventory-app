@@ -4,8 +4,6 @@
 </template>
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
-import { ref } from "vue";
-import axios from "axios";
 //import ComponentA from './ProductList.vue'
 import CaseList from '../components/CasesList.vue'
 

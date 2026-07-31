@@ -39,19 +39,17 @@
 import { ref } from "vue";
 import { supabase } from "../clients/supabase"
 import { useToast } from "primevue/usetoast";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 
 const toast = useToast();
 const router = useRouter();
-const route = useRoute();
 
-let email = ref("");
-let password = ref("");
-let firstName = ref("");
-let errMSG = ref("");
-let forgotPasswordDialog = ref(false);
+const email = ref("");
+const password = ref("");
+// let errMSG = ref("");
+const forgotPasswordDialog = ref(false);
 
-async function createAccount() {
+/* async function createAccount() {
 	const { data:{user}, error } = await supabase.auth.signUp({
 		email: email.value,
 		password: password.value,
@@ -69,7 +67,7 @@ async function createAccount() {
 	{
 		console.log(user);
 	}
-}
+} */
 
 async function login() {
 	console.log("run")
@@ -90,7 +88,7 @@ async function login() {
 	}
 }
 
-async function seeUser() {
+/* async function seeUser() {
 	const localUser = await supabase.auth.getSession();
 	console.log(localUser.data.session)
 }
@@ -104,7 +102,7 @@ async function logout() {
 	else {
 		console.log("Sign out success")
 	}
-}
+} */
 
 function onForgotPassword() {
 	forgotPasswordDialog.value = true;
@@ -118,7 +116,7 @@ async function forgotPassword(){
 	console.log("TEST: " + test);
 	console.log("URL: " + url);
 	// REMEMBER TO AUTHENTICATE PAGE IF SUPABASE PROJECT HAS TO BE REMADE
-	const { data, error } = await supabase.auth.resetPasswordForEmail(email.value, {
+	const { error } = await supabase.auth.resetPasswordForEmail(email.value, {
 		redirectTo: url + '/passwordreset'
 	});
 	if (error) {

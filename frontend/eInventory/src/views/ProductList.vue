@@ -395,7 +395,7 @@
                     <h4 class="pl-dialog-section-title">Processed Product Recipe</h4>
                     <div class="field">
                         <label>Product(s) Needed</label>
-                        <template class="caseCard" v-for="(ing, counter) in recipesInUse">
+                        <template v-for="(ing, counter) in recipesInUse" :key="ing.product_id">
 
                             <div class ="caseCard">
                                 <Button icon="pi pi-times" severity="danger" aria-label="Cancel" style="display:flex; justify-content: center;" @click="deleteIngredient(counter)"/>
@@ -799,7 +799,7 @@ export default {
                     const scrollableTable = dtElement?.querySelector('.p-datatable-scrollable-table');
                     if (scrollableTable) {
                         // The wrapper is usually 2-3 parents up
-                        let scrollableWrapper = scrollableTable.parentElement;
+                        const scrollableWrapper = scrollableTable.parentElement;
                         console.log('Found scrollable table, scrolling parent:', scrollableWrapper);
                         if (scrollableWrapper && scrollableWrapper.scrollHeight > scrollableWrapper.clientHeight) {
                             scrollableWrapper.scrollTop = 0;
@@ -951,8 +951,8 @@ export default {
         }, */
 
         getRecipeNames(recipe: any){
-            let recipeMap = {};
-            let namedRecipes= [];
+            // const recipeMap = {};
+            // const namedRecipes= [];
             for (let prodIdx=0; prodIdx < this.products.length; prodIdx++ ){
                 console.log("IN LOOP")
                 if (recipe.product_made==this.products[prodIdx].product_id){
@@ -1120,7 +1120,7 @@ export default {
                 //recMap['vendor_id' as any] = this.product.vendor;
                 recMap['recipeElements' as any] = this.recipesInUse;
 
-                let addedProduct = await action.addProduct(this.product, recMap);
+                const addedProduct = await action.addProduct(this.product, recMap);
 
                 this.products.push(addedProduct);
                 // this.displayProducts.push(addedProduct);
@@ -1149,7 +1149,7 @@ export default {
 
             if(this.product.is_processed){
                 console.log('Processed Product Edit');
-                let recipeMap = this.getProductRecipes(this.product.product_id);
+                const recipeMap = this.getProductRecipes(this.product.product_id);
 
                 console.log("RECIPE MAP", recipeMap);
 
@@ -1179,8 +1179,8 @@ export default {
             console.log("DISPLAY PRODUCT INFO ",this.product);
             console.log("Keys", Object.keys(this.product));
 
-            let keys = Object.keys(this.product);
-            let map = {} as any;
+            const keys = Object.keys(this.product);
+            const map = {} as any;
 
             if(this.filtered == false){
                 keys.forEach((key) => {
@@ -1294,9 +1294,7 @@ export default {
                 'global': {value: null, matchMode: FilterMatchMode.CONTAINS},
             }
         },
-        globalFilter(filterString: string){
 
-        },
         getStatusLabel(status: any) {
             switch (status) {
                 case 'INSTOCK':
@@ -1352,8 +1350,8 @@ export default {
         onRowExpand(event: any) {
             this.$toast.add({ severity: 'info', summary: 'Product Expanded', detail: event.data.name, life: 3000 });
             
-            let map = [] as any[];
-            let recipe = [] as any[];
+            const map = [] as any[];
+            const recipe = [] as any[];
             this.recipeProducts = [];
 
             for(let prodIdx = 0; prodIdx < this.products.length; prodIdx++){
@@ -1496,14 +1494,14 @@ export default {
 
         getProductRecipes(productId: number){
 
-            let recipe = this.recipes.find(r => r.output_product_id === productId);
+            const recipe = this.recipes.find(r => r.output_product_id === productId);
             console.log("OUTPUT RECIPE", recipe);
 
-            let inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
+            const inputProducts = this.recipeElements.filter(re => re.type === 'input' && re.recipe_id === recipe.recipe_id);
             console.log("INPUT RECIPES", inputProducts);
 
             inputProducts.forEach(ir => {
-                let inProd = this.products.find(p => p.product_id === ir.product_id);
+                const inProd = this.products.find(p => p.product_id === ir.product_id);
                 ir.name = inProd.name;
                 ir.item_num = inProd.item_num;
             })

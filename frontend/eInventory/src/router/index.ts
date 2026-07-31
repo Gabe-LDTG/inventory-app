@@ -12,9 +12,9 @@ import Login from '../views/LoginView.vue'
 
 import About from '../views/AboutView.vue'
 import PurchaseOrder from '../views/PurchaseOrderView.vue'
-import PurchaseOrderV2 from '@/views/PurchaseOrderViewV2.vue';
+// import PurchaseOrderV2 from '@/views/PurchaseOrderViewV2.vue';
 import RequestToProcessView from '@/views/RequestToProcessView.vue'
-import PickList from '../views/Picklist.vue'
+import PickList from '../views/PicklistView.vue'
 import PasswordReset from '../views/PasswordReset.vue'
 
 let localUser;

@@ -34,7 +34,7 @@
                 :selectAll="false" removableSort
                 v-model:filters="picklistFilters" filterDisplay="row"
                 scrollable scrollHeight="800px" >
-                    <template #header class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <template #header>
                         <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                             <Select v-model="picklistType" :options="requestQtyType" placeholder="Select a picklist type"/>
                         </div>
@@ -260,12 +260,11 @@
  * 
  * _____________________________________________________________________________________________________________________
  */
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import action from "@/components/utils/axiosUtils";
 import helper from "@/components/utils/helperUtils";
 import { FilterMatchMode } from "@primevue/core/api";
 import { useToast } from "primevue/usetoast";
-import { debounce, pick } from 'lodash';
 
 // PICKLIST VARIABLES___________________________________________________________________________________________________
 const picklistSetupDialog = ref(false);
@@ -274,7 +273,7 @@ const picklistDetailsDialog = ref(false);
 const picklists = ref();
 const picklist = ref();
 const picklistLabels = ref();
-const picklist_id = ref();
+// const picklist_id = ref();
 const picklistFilters = ref({
     product_name: {value: null, matchMode: FilterMatchMode.CONTAINS},
     status: {value: null, matchMode: FilterMatchMode.IN}
@@ -300,18 +299,18 @@ const selectedPicklist = ref<PicklistType | null>(null);
 // REQUEST VARIABLES____________________________________________________________________________________________________
 const requests = ref();
 const selectedRequests = ref();
-const request = ref();
+// const request = ref();
 const requestStatuses = ref(['1 WORKING', '1.25 PICKED', '1.5 PICKLIST',
                             '2 READY', '3 AWAITING PLAN', '4 INBOUND', '5 ON ORDER',
                             '6 ISSUE', '7 FLAGGED']);
 // PRODUCT VARIABLES____________________________________________________________________________________________________
-const products = ref();
+// const products = ref();
 // BOX VARIABLES________________________________________________________________________________________________________
 const boxes = ref();
 // LOCATION VARIABLES___________________________________________________________________________________________________
-const locations = ref();
+// const locations = ref();
 // PURCHASE ORDER VARIABLES_____________________________________________________________________________________________
-const purchaseOrders = ref();
+// const purchaseOrders = ref();
 // RECIPE VARIABLES_____________________________________________________________________________________________________
 const recipes = ref();
 const recipe_elements = ref();
@@ -367,13 +366,13 @@ async function getPicklists(){
 };
 
 // Grab all products
-async function getProducts(){
+/* async function getProducts(){
     try {
         products.value = await action.getProducts();
     } catch (error) {
         console.error(error);
     }
-};
+}; */
 
 // Grab all boxes
 async function getBoxes(){
@@ -385,13 +384,13 @@ async function getBoxes(){
 };
 
 // Grab all purchase orders
-async function getPurchaseOrders(){
+/* async function getPurchaseOrders(){
     try {
         purchaseOrders.value = await action.getPurchaseOrders();
     } catch (error) {
         console.error(error);
     }
-};
+}; */
 
 // Grab all recipes
 async function getRecipes(){
@@ -404,13 +403,13 @@ async function getRecipes(){
 };
 
 // Grab all locations
-async function getLocations(){
+/* async function getLocations(){
     try {
         locations.value = await action.getLocations();
     } catch (error) {
         console.error(error);
     }
-};
+}; */
 
 // Grab all requests to process
 async function getRequests(){
@@ -443,13 +442,13 @@ async function generatePicklist(){
     try {
         // let usedBoxes: [{req: typeof selectedRequests, box: typeof boxes}]; Need to figure out typescript
         const usedBoxes: any[] = [];
-        const usedBoxIds: Number[] = [];
-        let newPicklistArray: any[] = [];
-        const requestIds = [];
+        const usedBoxIds: number[] = [];
+        const newPicklistArray: any[] = [];
+        // const requestIds = [];
         // Loop through each request
         for(const request of selectedRequests.value){
             console.log("Request: ",request);
-            let newRequest = splitRequestByType(request, picklistType.value);
+            const newRequest = splitRequestByType(request, picklistType.value);
             if(newRequest){
                 await action.addRequest(newRequest);
             }
@@ -475,7 +474,7 @@ async function generatePicklist(){
 
             // Loop through each input element
             for(const element of inputAndBoxes.recipe_elements){
-                let reqMap = {...request, boxes: [] as any[]};
+                const reqMap = {...request, boxes: [] as any[]};
                 console.log("Input Product: ", element.products.name);
                 // Calculate total input units needed
                 const totalInputUnits = totalOutputUnits * element.qty;
@@ -519,7 +518,7 @@ async function generatePicklist(){
                     }
                 }
                 console.log("Req Map", reqMap);
-                let groups: (typeof reqMap)[number] & { amount: number } = Object.values(reqMap.boxes.reduce((map: any, box: any) => {
+                const groups: (typeof reqMap)[number] & { amount: number } = Object.values(reqMap.boxes.reduce((map: any, box: any) => {
                     // Use the inner key to group by product type
                     const key = box.units_per_case +':'+ box.location_id;
 
@@ -538,7 +537,7 @@ async function generatePicklist(){
                 let locationGroup = '';
                 let rawTotalUnits = 0;
                 let rawTotalBoxes = 0;
-                let rawProductName = groups[0].rawProductName;
+                const rawProductName = groups[0].rawProductName;
                 groups.forEach((group: any) => {
                     locationGroup = (locationGroup === '') ? group.locationName : locationGroup + ', ' + group.locationName;
                     rawTotalUnits += group.totalUnits;
@@ -567,7 +566,7 @@ async function generatePicklist(){
                 picklistIdx++;
         }
 
-        let picklistLabel = d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate()+"-"+picklistIdx;
+        const picklistLabel = d.getFullYear()+''+(d.getMonth()+1)+''+d.getDate()+"-"+picklistIdx;
 
         let picklistElements: {notes: string, request_id: number, lane_location: string, usedCaseIds: number[]}[] = [];
         for(const element of newPicklistArray){
@@ -578,7 +577,7 @@ async function generatePicklist(){
             picklistElements = [...picklistElements, {notes: '', request_id: element.request_id, lane_location: '', usedCaseIds: totalCases}];
         }
 
-        let picklistData = {label: picklistLabel, picklistElements: picklistElements};
+        const picklistData = {label: picklistLabel, picklistElements: picklistElements};
 
         await action.addPicklist(picklistData);
 
@@ -604,7 +603,7 @@ function getTotalBoxes(picklist: any) {
 }
 
 function getLocationsList(picklistElement: any) {
-    let locationList: string[] = [];
+    const locationList: string[] = [];
     for(const box of picklistElement.cases) {
         if (box.locations && !locationList.includes(box.locations.name)) {
             locationList.push(box.locations.name);
@@ -665,7 +664,7 @@ async function onElementCellEditComplete(event: any) {
     try {
         console.log('Cell edit complete:', event.data, event.field, event.newValue);
 
-        let { data, field, newValue } = event;
+        const { data, field, newValue } = event;
         data[field] = newValue; // Update the data object with the new value
         await action.editPicklistElement(field, newValue, data.picklist_element_id);
     } catch (error) {
@@ -679,7 +678,7 @@ async function onBoxGroupSelectionChange(picklistElement: any, boxGroup: any) {
         console.log('Box group selection changed:', boxGroup);
         console.log('Selected picklist element:', picklistElement);
         let pickedStatus = "";
-        let selectedIds: number[] = [];
+        const selectedIds: number[] = [];
         if (Array.isArray(picklistElement.cases)) {
             for(const box of picklistElement.cases) {
                 // Check if the box matches the group criteria

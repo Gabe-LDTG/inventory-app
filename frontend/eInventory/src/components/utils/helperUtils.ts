@@ -1,6 +1,6 @@
-var helper = {
+const helper = {
     formatDate(rawDate: string) {
-        var date = new Date(rawDate);
+        const date = new Date(rawDate);
         //momentDate = this.eCase.date_received;
         //console.log("TESTING DATES: ", date);
         let month = '';
@@ -44,7 +44,7 @@ var helper = {
      */
     groupProducts(itemArray: any[]){
         // get the items in the pool along with their amount
-        let pool: (typeof itemArray)[number] & { amount: number } = Object.values(itemArray.reduce((map, item) => {
+        const pool: (typeof itemArray)[number] & { amount: number } = Object.values(itemArray.reduce((map, item) => {
             const key = item.product_id + ':' + item.status + ':' + item.units_per_case;
             //console.log("KEY", key);
             //console.log("MAP", map);
@@ -74,7 +74,7 @@ var helper = {
      */
     groupProductsByKey(prodArray: any[], keyArray: any[]){
         // get the products in the pool along with their amount
-        let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+        const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
             let keyString = "";
             keyArray.forEach(key => keyString += ':'+product[key]);
 
@@ -102,7 +102,7 @@ var helper = {
      */
     groupProductsById(prodArray: any[]){
         // get the products in the pool along with their amount
-        let pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
+        const pool: (typeof prodArray)[number] & { amount: number } = Object.values(prodArray.reduce((map, product) => {
 
             const key = product.product_id
             if (map[key]) { // if it already exists, incremenet
@@ -133,7 +133,7 @@ var helper = {
      */
     groupItemsByKey(itemArray: any[], keyArray: any[]){
         // get the items in the pool along with their amount
-        let pool: (typeof itemArray)[number] & { amount: number } = Object.values(itemArray.reduce((map, item) => {
+        const pool: (typeof itemArray)[number] & { amount: number } = Object.values(itemArray.reduce((map, item) => {
             let keyString = "";
             keyArray.forEach(key => keyString += ':'+item[key]);
 
@@ -179,8 +179,8 @@ var helper = {
 
         getRequestPriority(reqDeadline: Date | null){
             
-            let today = new Date();
-            let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const today = new Date();
+            const compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
             if(reqDeadline){
                 // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());

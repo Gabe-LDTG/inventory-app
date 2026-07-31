@@ -23,18 +23,17 @@
 import { ref } from "vue";
 import { supabase } from "../clients/supabase"
 import { useToast } from "primevue/usetoast";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 
 const toast = useToast();
 const router = useRouter();
-const route = useRoute();
 
 // const {data: user} = await supabase.auth.getUser();
-let newPassword = ref("");
-let retypedNewPassword = ref("");
-let errMSG = ref("");
-let showDialog = ref(true);
-let submitted = ref(false);
+const newPassword = ref("");
+const retypedNewPassword = ref("");
+// const errMSG = ref("");
+// const showDialog = ref(true);
+const submitted = ref(false);
 async function onPasswordReset() {
   try {
     console.log("onPasswordReset");

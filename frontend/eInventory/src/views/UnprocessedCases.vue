@@ -3,8 +3,6 @@
 </template>
 <script lang="ts">
 // import { assertExpressionStatement } from '@babel/types';
-import { ref } from "vue";
-import axios from "axios";
 import CaseList from '../components/CasesList.vue'
 
 //Want to work on making the dialog box its own vue file for more organization

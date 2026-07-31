@@ -68,7 +68,7 @@
                 </template>
             </Column>
             <Column field="status" header="Status" sortable style="min-width: 160px">
-                <template #body="{data}" class="flex flex-wrap gap-2 align-items-center justify-content-between">
+                <template #body="{data}" >
                     <!-- {{ data.status }} -->
                     <Tag :style="statusStyle(data.status)">{{ data.status }}</Tag>
                 </template>
@@ -81,7 +81,7 @@
                 </template>
             </Column>
             <Column field="labels_printed" header="LABELS PRINTED" :style="labelStyle">
-                <template #body="{data}" :bodyStyle="labelStyle">
+                <template #body="{data}" >
                     <!-- {{ data.labels_printed ? "Yes" : "No" }} -->
                     <Tag :style="labelStyle(data.labels_printed)">{{ data.labels_printed ? "Yes" : "No" }}</Tag>
                 </template>
@@ -346,9 +346,8 @@ import { useAuthStore } from "@/stores/auth";
 import { pinia } from "@/stores";
 
 /** @TODO Try to fix module later */
-// @ts-ignore
+// @ts-expect-error This module was not being read
 import html2pdf from "html2pdf.js";
-import InputNumber from 'primevue/inputnumber';
 
 const RTP_FILTERS_STORAGE_KEY_BASE = 'einventory:v2:view:RequestToProcess:filters';
 const RTP_FILTERS_STORAGE_KEY_V2_LEGACY = 'einventory:v2:view:RequestToProcess:filters';
@@ -813,7 +812,7 @@ export default {
 
                 for(const request of this.requestsToProcess){
                     // console.log("request", request);
-                    let productKey = this.products.find(p => p.product_id === request.product_id);
+                    const productKey = this.products.find(p => p.product_id === request.product_id);
                     let purchaseOrder = this.purchaseOrders.find(po => po.purchase_order_id === request.purchase_order_id);
 
                     // Skip orphaned requests that reference a PO filtered out by backend status rules.
@@ -848,7 +847,7 @@ export default {
                     casesWithR2PsAndPOs.push({ req: request, key: productKey, po: purchaseOrder, recipe: requestedRecipe });
                 }
 
-                let returnArray = casesWithR2PsAndPOs.map(({ req, key, po, recipe }) => ({
+                const returnArray = casesWithR2PsAndPOs.map(({ req, key, po, recipe }) => ({
                     ...req,
                     ...recipe,
                     purchase_order_name: po.purchase_order_name,
@@ -875,7 +874,7 @@ export default {
         },
 
         addNewRequest(){
-            let request = {
+            const request = {
                             notes: null, 
                             status: '5 ON ORDER', 
                             labels_printed: false, 
@@ -1013,20 +1012,20 @@ export default {
                     }){
             try {
                 console.log("Request data: ", request_data);
-                let errorMSG = '';
+                // const errorMSG = '';
                 let editedRequests = [] as any[];
 
                 //Typescript request a default minutes part
                 // request_data.deadline += ':00';
                 
-                let deadline = request_data.deadline !== null ? request_data.deadline : null;
-                let notes = request_data.notes !== null ? request_data.notes : null;
-                let purchase_order_id = request_data.purchase_order_id !== null ? request_data.purchase_order_id : null;
+                const deadline = request_data.deadline !== null ? request_data.deadline : null;
+                const notes = request_data.notes !== null ? request_data.notes : null;
+                const purchase_order_id = request_data.purchase_order_id !== null ? request_data.purchase_order_id : null;
 
                 if(request_data.request_id){
                     console.log("Request exists", request_data);
 
-                    let editedRequest: {
+                    const editedRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
                         notes: string | null, 
@@ -1059,7 +1058,7 @@ export default {
                     await action.editRequest(editedRequest)
                 }
                 else{
-                    let createdRequest: {
+                    const createdRequest: {
                         product_id: number; 
                         purchase_order_id: number | null;
                         notes: string | null, 
@@ -1134,7 +1133,7 @@ export default {
         onAmountCellEdit(event: any){
             // console.log(event);
 
-            let {data, index, newData} = event;
+            const {_data, index, newData} = event;
 
             this.picklistRecipes[index] = newData; 
         },
@@ -1142,7 +1141,7 @@ export default {
         onPicklistCellEdit(event: any){
             // console.log(event);
 
-            let {data, index, newData} = event;
+            const {_data, index, newData} = event;
 
             this.pickListArray[index] = newData; 
         },
@@ -1150,8 +1149,8 @@ export default {
         openPicklistDialog(){
             this.picklistAmountDialog = false;
             this.picklistDialog = true;
-            let pickListOutputOBJ = {} as any;
-            let pickListInputArray = [] as any[];
+            // let pickListOutputOBJ = {} as any;
+            const pickListInputArray = [] as any[];
             this.pickListArray = [];
 
             console.log("uBoxes", this.uBoxes);
@@ -1159,10 +1158,10 @@ export default {
 
             // Loop through the selected picklist recipes
             for(const pickRecipe of this.picklistRecipes){
-                pickListOutputOBJ = pickRecipe;
+                // pickListOutputOBJ = pickRecipe;
 
                 // Grab the output recipe element
-                let recipe = this.recipes.find(rec => rec.recipe_id === pickRecipe.recipe_id);
+                const recipe = this.recipes.find(rec => rec.recipe_id === pickRecipe.recipe_id);
                 
                 let recInputs = [] as any[];
 
@@ -1171,7 +1170,7 @@ export default {
 
                 console.log("Recipe ", recipe);
                 console.log("recInputs", recInputs);
-                let totalArray = [] as any[];
+                const totalArray = [] as any[];
                 // pickListInputArray = [];
 
                 if(pickRecipe.purchase_order_id){
@@ -1191,17 +1190,17 @@ export default {
                             return;
                         
                         let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
-                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+                        const recInput = recInputs.find(rec => rec.product_id === box.product_id);
                         if (recInput === undefined)
                         return;
 
-                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                        const boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
                         // Box already being used
                         if(boxInArray)
                         return;
 
                         // Checks if the 
-                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                        const recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
                         // console.log("recIdx", recIdx);
                         if(recIdx >= 0){
                             console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
@@ -1245,17 +1244,17 @@ export default {
 
                         // console.log("Box", box);
                         let recipeTotalOBJ = {} as { product_id: number; total: number; currAmount: number; }
-                        let recInput = recInputs.find(rec => rec.product_id === box.product_id);
+                        const recInput = recInputs.find(rec => rec.product_id === box.product_id);
                         if (recInput === undefined)
                         continue;
 
-                        let boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
+                        const boxInArray = pickListInputArray.find(boxLine => boxLine.case_id === box.case_id);
                         // Box already being used
                         if(boxInArray)
                         continue;
 
                         // Checks if the 
-                        let recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
+                        const recIdx = totalArray.findIndex(recLine => recLine.product_id === box.product_id);
                         // console.log("recIdx", recIdx);
                         if(recIdx >= 0){
                             console.log("REC INPUT TOTAL", totalArray[recIdx].total," AND REC INPUT CURR AMOUNT", totalArray[recIdx].currAmount);
@@ -1414,8 +1413,8 @@ export default {
 
         getRequestPriority(reqDeadline: Date | null){
             
-            let today = new Date();
-            let compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const today = new Date();
+            const compareDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
             if(reqDeadline){
                 // console.log("Deadline: ", new Date(reqDeadline).getMonth() + 1, new Date(reqDeadline).getDate(), new Date(reqDeadline).getFullYear());
@@ -1512,10 +1511,6 @@ export default {
                 return this.procProducts;
             }
                 
-        },
-
-        getTotalCases(poId: number | null, productId: number){
-            
         },
 
         onPage(event: any){
