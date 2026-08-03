@@ -903,7 +903,7 @@
                     </div>
                 </div>
             </div>
-
+ 
             <template #footer>
                 <Button label="Cancel" text @click="missingDefaultUnitsDialog = false; activeRecipeEditRow = null; missingDefaultsRecipeIndex = null" />
                 <Button label="Save" icon="pi pi-check" @click="saveMissingDefaultUnits" :loading="loading" :disabled="loading" autoFocus />
