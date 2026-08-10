@@ -3437,7 +3437,7 @@ export default {
                         allocatedUnits: Number(lineBaseline[plannedAllocName]),
                         receivedUnits: Number(newValue),
                         poRawLineId: Number(line.po_raw_line_id),
-                        storageLocations: line.storage_locations,
+                        storageLocations: line.location_array,
                     }
 
                     // Update the frontend received value
@@ -4312,6 +4312,11 @@ export default {
             return (this.locations || []).find((location: any) =>
                 Number(location?.location_id || 0) === normalizedLocationId
             ) || null;
+        },
+
+        onReceivingLocationAutoCompleteChange(targetRow: any, nextValue: any){
+            this.onLocationAutoCompleteChange(targetRow, nextValue);
+            this.handleReceiveInput('store', $event, data);
         },
 
         onLocationAutoCompleteChange(targetRow: any, nextValue: any){
