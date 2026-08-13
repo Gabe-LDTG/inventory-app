@@ -1956,8 +1956,8 @@
                                         :suggestions="filteredLocations"
                                         @complete="searchLocations"
                                         @focus="searchLocations({ query: '' })"
-                                        @item-select="onLocationAutoCompleteChange(split, $event.value)"
-                                        @update:modelValue="onLocationAutoCompleteChange(split, $event)"
+                                        @item-select="onReceivingLocationAutoCompleteChange(split, $event.value, data.location_array)"
+                                        @update:modelValue="onReceivingLocationAutoCompleteChange(split, $event, data.location_array)"
                                         :dropdown="true"
                                         :showOnFocus="true"
                                         optionLabel="name"
@@ -4314,9 +4314,15 @@ export default {
             ) || null;
         },
 
-        onReceivingLocationAutoCompleteChange(targetRow: any, nextValue: any){
-            this.onLocationAutoCompleteChange(targetRow, nextValue);
-            this.handleReceiveInput('store', $event, data);
+        /**@TODO I need to make sure that during a chagnge, the system adds the split location line to the json that will be stored in the allocation.  */
+        onReceivingLocationAutoCompleteChange(splitRow: any, eventValue: any, locationArray: any){
+            console.log("In onReceivingLocationAutoCompleteChange, splitRow: ", splitRow, " eventValue: ", eventValue, " locationArray: ", locationArray);
+            this.onLocationAutoCompleteChange(splitRow, eventValue);
+            // this.handleReceiveInput('store', locationArray, splitRow);
+        },
+
+        consolidatingReceivingLocations(){
+
         },
 
         onLocationAutoCompleteChange(targetRow: any, nextValue: any){
@@ -4324,6 +4330,7 @@ export default {
 
             if (nextValue && typeof nextValue === 'object' && 'location_id' in nextValue) {
                 targetRow.location_id = Number(nextValue.location_id || 0) || null;
+                targetRow.location_name = String(nextValue.name || '') || null;
                 return;
             }
 
@@ -4332,7 +4339,9 @@ export default {
                 const matchedLocation = (this.locations || []).find((location: any) =>
                     String(location?.name || '').toLowerCase() === normalizedName
                 );
+                console.log("Matched Location: ", matchedLocation);
                 targetRow.location_id = matchedLocation ? Number(matchedLocation.location_id || 0) : null;
+                targetRow.location_name = matchedLocation ? String(matchedLocation.name || '') : null;
                 return;
             }
 
