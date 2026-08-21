@@ -842,31 +842,13 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="vendorDialog" :style="{width: '450px'}" header="Vendor Select" :modal="true" class="vendor-select-dialog">
-            <div class="field vendor-select-content">
-                <p class="vendor-select-subtitle">Choose the vendor for this purchase order.</p>
-                <AutoComplete 
-                    v-model="purchaseOrder.vendor"
-                    :suggestions="filteredVendors"
-                    @complete="searchVendors"
-                    @item-select="onVendorAutoCompleteSelect($event.value)"
-                    :dropdown="true"
-                    @focus="searchVendors({ query: '' })"
-                    :showOnFocus="true"
-                    :optionLabel="'vendor_name'"
-                    placeholder="Select or enter a vendor"
-                    class="vendor-select-autocomplete"
-                    :class="{'p-invalid': vendorSubmitted == true && !purchaseOrder.vendor}"
-                    :forceSelection="false"
-                />
-                <small class="p-error" v-if="vendorSubmitted == true && !purchaseOrder.vendor">Vendor is required.</small>
-
-            </div>
-            <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="hideVendorDialog()"/>
-                <Button label="Select" icon="pi pi-check" text @click="vendorSubmitted = true; validateVendor();" />
-            </template>
-        </Dialog>
+        <!-- Moved to its own component on 8/21/2026 -->
+        <VendorSelectDialog
+            v-model:visible="vendorDialog"
+            :vendors="vendors"
+            @select="onVendorSelected"
+            @cancel="hideVendorDialog"
+        />
 
         <Dialog v-model:visible="missingDefaultUnitsDialog" :style="{width: '700px'}" header="Missing Product Fields" :modal="true">
             <div v-if="isProcMissingDefaultUnits" class="field">
@@ -2151,12 +2133,15 @@ import { supabase } from '@/clients/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { pinia } from '@/stores';
 
+import VendorSelectDialog from '@/components/purchase-orders/vendorSelectDialog.vue';
+
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
 
 export default {
     components: {
         ZoomDropdown,
+        VendorSelectDialog,
     },
     data() {
         return {
@@ -4622,24 +4607,6 @@ export default {
             return total;
         }, */
 
-        /**
-         * Description: Validates that a vendor has been selected before allowing the user to create a new purchase order. 
-         * If validation passes, a draft purchase order is created immediately and opened in the edit dialog.
-         * 
-         * @author Gabe de la Torre-Garcia
-         * 
-         * Date Created: 3-16-2026
-         * 
-         * Date Last Edited: 3-16-2026
-         */
-        async validateVendor(){
-            if (!this.purchaseOrder.vendor_id && this.vendorSubmitted == true) {
-                this.$toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Vendor is required.' });
-            }
-            else {
-                await this.startNewPurchaseOrderDraftFlow();
-            }
-        },
 
         /** @TODO Split the recipes into two different arrays: one for when users are editing/creating po's and one for the recipes in pagination */
         getPoolNew(purchase_order_id: number){
@@ -5121,6 +5088,27 @@ export default {
             this.purchaseOrder = {};
         },
 
+        
+        onVendorSelected(vendor: any) {
+            if (!vendor?.vendor_id) {
+                console.warn("Vendor selected without a valid vendor_id:", vendor);
+                return;
+            }
+
+            this.purchaseOrder = {
+                ...this.purchaseOrder,
+                vendor,
+                vendor_id: vendor.vendor_id,
+            }
+
+            void this.startNewPurchaseOrderDraftFlow();
+        },
+
+        hideVendorDialog() {
+            this.purchaseOrder = {};
+            this.vendorDialog = false;
+        },
+
         //Description: Gets the raw or processed products for a specific vendor
         //
         //Created by: Gabe de la Torre
@@ -5382,23 +5370,10 @@ export default {
             array.splice(counter,1);
         },
 
-        hideVendorDialog() {
-            this.vendorSubmitted = false;
-            this.purchaseOrder = {};
-            this.vendorDialog = false;
-        },
         getDate(){
             const date = new Date();
             this.today = date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate();
             // console.log("TODAYS DATE ", date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate());
-        },
-
-        onVendorAutoCompleteSelect(vendorObj: any){
-            // console.log("Vendor AutoComplete Selection:", vendorObj);
-            if (vendorObj && vendorObj.vendor_id) {
-                this.purchaseOrder.vendor = vendorObj;
-                this.purchaseOrder.vendor_id = vendorObj.vendor_id;
-            }
         },
 
         async saveMissingVendorNickname() {
