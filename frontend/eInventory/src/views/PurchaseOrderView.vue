@@ -1229,7 +1229,7 @@
                             icon="pi pi-ban"
                             severity="danger"
                             :disabled="isPoReadOnly || Boolean(data?.d_editing) || isRawRowEditing(data)"
-                            @click="onRawProductCancel(data)"
+                            @click="openRawProductCancelDialog(data)"
                         />
                         <Button
                             v-else
@@ -1314,60 +1314,14 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="rawProductCancelDialog" :style="{width: '500px'}" header="Cancel Product" :modal="true">
-            <div class="field" v-if="rawProductToCancel">
-                <p class="m-0 mb-3">
-                    Cancel <b>{{ rawProductToCancel.product_name || ('Product #' + rawProductToCancel.product_id) }}</b>
-                    ({{ rawProductToCancel.units_per_case }} units per box, {{ rawProductToCancel.amount }} box{{ rawProductToCancel.amount !== 1 ? 'es' : '' }} total)
-                </p>
-                
-                <div class="mb-4">
-                    <div class="mb-3">
-                        <RadioButton v-model="rawProductCancelOption" value="boxes" inputId="cancel-boxes" />
-                        <label for="cancel-boxes" class="ml-2">Cancel by Box Count</label>
-                    </div>
-                    <div v-if="rawProductCancelOption === 'boxes'" class="field ml-5 mb-3">
-                        <label class="block font-bold mb-2">Number of Boxes to Cancel</label>
-                        <InputNumber
-                            v-model="rawProductCancelAmount"
-                            :min="1"
-                            :max="rawProductToCancel.amount"
-                            :useGrouping="false"
-                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
-                            @input="onRawProductCancelAmountInput"
-                        />
-                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <RadioButton v-model="rawProductCancelOption" value="units" inputId="cancel-units" />
-                        <label for="cancel-units" class="ml-2">Cancel by Unit Quantity</label>
-                    </div>
-                    <div v-if="rawProductCancelOption === 'units'" class="field ml-5">
-                        <label class="block font-bold mb-2">Number of Units to Cancel</label>
-                        <InputNumber
-                            v-model="rawProductCancelAmount"
-                            :min="1"
-                            :max="rawProductToCancel.amount * rawProductToCancel.units_per_case"
-                            :useGrouping="false"
-                            :class="['w-full', { 'raw-cancel-input--invalid': isRawCancelOverMax() }]"
-                            @input="onRawProductCancelAmountInput"
-                        />
-                        <small v-if="isRawCancelOverMax()" class="p-d-block mt-2 p-error">{{ getRawCancelValidationMessage() }}</small>
-                        <small class="p-d-block mt-2 text-color-secondary">Max: {{ rawProductToCancel.amount * rawProductToCancel.units_per_case }} units</small>
-                    </div>
-                </div>
-
-                <div v-if="getRawCancelPreview() || getRawCancelValidationMessage()" :class="['p-3 border-round border-1', isRawCancelOverMax() ? 'surface-border bg-red-50 text-900' : 'surface-border bg-blue-50 text-900']">
-                    <div class="font-bold mb-1">{{ isRawCancelOverMax() ? 'Warning' : 'Preview' }}</div>
-                    <small :class="{ 'p-error': isRawCancelOverMax() }">{{ isRawCancelOverMax() ? getRawCancelValidationMessage() : getRawCancelPreview() }}</small>
-                </div>
-            </div>
-            <template #footer>
-                <Button label="Close" icon="pi pi-times" text severity="danger" @click="closeRawProductCancelDialog"/>
-                <Button label="Confirm Cancel" icon="pi pi-check" severity="danger" @click="confirmRawProductCancel" :disabled="!rawProductCancelAmount || rawProductCancelAmount <= 0 || isRawCancelOverMax()" :loading="loading" />
-            </template>
-        </Dialog>
+        <RawProductCancelDialog 
+            v-model:visible="rawProductCancelDialog"
+            :product-to-cancel="rawProductToCancel"
+            :purchase-order-name="purchaseOrder.purchase_order_name"
+            :loading="loading"
+            @confirm="confirmRawProductCancel"
+            @close="closeRawProductCancelDialog"
+        />
 
         <Dialog v-model:visible="statusChangeDialog" :style="{width: '450px'}" header="Status Change" :modal="true">
             <div class="confirmation-content">
@@ -2088,6 +2042,7 @@ import { pinia } from '@/stores';
 
 import VendorSelectDialog from '@/components/purchase-orders/VendorSelectDialog.vue';
 import InvoiceEditDialog from '@/components/purchase-orders/InvoiceEditDialog.vue';
+import RawProductCancelDialog from '@/components/purchase-orders/RawProductCancelDialog.vue';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -2097,6 +2052,7 @@ export default {
         ZoomDropdown,
         VendorSelectDialog,
         InvoiceEditDialog,
+        RawProductCancelDialog,
     },
     data() {
         return {
@@ -2181,7 +2137,7 @@ export default {
             editRawRowsLoading: false,
             inboundBoxesLoading: false,
             inboundBoxes: [] as any[],
-            rawOrderType: ['By Box', 'By Unit'],
+            rawOrderType: ['By Box', 'By Unit'], 
             selectedOrderType: "",
             rawLinesToReceive: [] as any[],
             
@@ -2223,10 +2179,6 @@ export default {
             // MISSING VENDOR NICKNAME DIALOG
             missingVendorNicknameDialog: false,
             pendingVendorNickname: '',
-
-            // RAW PRODUCT CANCEL OPTIONS
-            rawProductCancelOption: 'boxes' as 'boxes' | 'units',
-            rawProductCancelAmount: 0 as number,
 
             //CASE VARIABLES
             cases: [] as any[],
@@ -8268,7 +8220,7 @@ export default {
         },
 
 
-        onRawProductCancel(raw_product: any){
+        openRawProductCancelDialog(raw_product: any){
             if (!this.ensurePoEditable('cancel raw products')) return;
             if (!raw_product) return;
 
@@ -8301,85 +8253,41 @@ export default {
             }
 
             this.rawProductToCancel = this.poBoxes[index];
-            this.rawProductCancelOption = 'boxes';
-            this.rawProductCancelAmount = 1;
             this.rawProductCancelDialog = true;
         },
 
         closeRawProductCancelDialog(){
             this.rawProductCancelDialog = false;
             this.rawProductToCancel = null;
-            this.rawProductCancelOption = 'boxes';
-            this.rawProductCancelAmount = 0;
         },
 
-        onRawProductCancelAmountInput(event: any){
-            const nextValue = Number(event?.value ?? 0);
-            this.rawProductCancelAmount = Number.isFinite(nextValue) ? nextValue : 0;
-        },
+        async confirmRawProductCancel(request: {productToCancel: any, amount: number, option:'boxes' | 'units'}){
+            const { productToCancel, amount, option } = request;
 
-        getRawCancelMax(){
-            const target = this.rawProductToCancel;
-            if (!target) return 0;
-
-            if (this.rawProductCancelOption === 'boxes') {
-                return Number(target.amount || 0);
-            }
-
-            return Number(target.amount || 0) * Number(target.units_per_case || 0);
-        },
-
-        isRawCancelOverMax(){
-            const amount = Number(this.rawProductCancelAmount || 0);
-            const max = this.getRawCancelMax();
-            return amount > 0 && max > 0 && amount > max;
-        },
-
-        getRawCancelValidationMessage(){
-            if (!this.isRawCancelOverMax()) return '';
-
-            const amount = Number(this.rawProductCancelAmount || 0);
-            const max = this.getRawCancelMax();
-            const unitLabel = this.rawProductCancelOption === 'boxes' ? 'box(es)' : 'unit(s)';
-            return `Entered amount (${amount}) exceeds max allowed (${max} ${unitLabel}).`;
-        },
-
-        getRawCancelPreview(){
-            const target = this.rawProductToCancel;
-            const amount = Number(this.rawProductCancelAmount || 0);
-            if (!target || amount <= 0) return '';
-
-            const poLabel = this.purchaseOrder?.purchase_order_name || `#${target.purchase_order_id ?? 'N/A'}`;
-
-            if (this.rawProductCancelOption === 'boxes') {
-                if (amount > (target.amount || 0)) return '';
-                return `Will cancel ${amount} box${amount !== 1 ? 'es' : ''} from PO ${poLabel}.`;
-            }
-
-            const unitsPerCase = Number(target.units_per_case || 0);
-            const totalUnits = Number(target.amount || 0) * unitsPerCase;
-            if (!unitsPerCase || amount > totalUnits) return '';
-
-            const fullBoxesCancelled = Math.floor(amount / unitsPerCase);
-            const partialCancelledUnits = amount % unitsPerCase;
-
-            if (partialCancelledUnits === 0) {
-                return `Will cancel ${amount} units (${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''}) from PO ${poLabel}.`;
-            }
-
-            const remainingUnits = unitsPerCase - partialCancelledUnits;
-            return `Will cancel ${amount} units from PO ${poLabel}: ${fullBoxesCancelled} full box${fullBoxesCancelled !== 1 ? 'es' : ''} plus 1 split box. Split result: original box becomes ${partialCancelledUnits} units and Cancelled; new partial box is ${remainingUnits} units and stays linked to PO ${poLabel}.`;
-        },
-
-        async confirmRawProductCancel(){
-            if (!this.rawProductToCancel || !this.rawProductCancelAmount) {
+            console.log("Confirming raw product cancel with request:", request);
+            
+            this.loading = true;
+            try {
+                
+                
+            } catch (error) {
+                console.error("Error cancelling product: ", error);
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Cancellation Failed',
+                    detail: 'An error occurred while cancelling this product. Please try again.',
+                    life: 4000
+                });
+            } finally {
+                this.loading = false;
                 this.closeRawProductCancelDialog();
-                return;
             }
+        },
 
-            const target = this.rawProductToCancel;
-            const cancelAmount = this.rawProductCancelAmount;
-            const cancelOption = this.rawProductCancelOption;
+        /* async confirmRawProductCancel(request: {productToCancel: any, amount: number, option:'boxes' | 'units'}){
+            const { productToCancel, amount, option } = request;
+
+            console.log("Confirming raw product cancel with request:", request);
             
             this.loading = true;
             try {
@@ -8387,11 +8295,11 @@ export default {
                 const individualBoxes: any[] = this.purchaseOrder.individual_boxes || [];
                 const matchingBoxes = individualBoxes
                     .filter(b =>
-                        b.product_id === target.product_id &&
-                        b.units_per_case === target.units_per_case &&
+                        b.product_id === productToCancel.product_id &&
+                        b.units_per_case === productToCancel.units_per_case &&
                         b.status !== 'Cancelled'
                     )
-                    .slice(0, target.amount);
+                    .slice(0, productToCancel.amount);
 
                 if (matchingBoxes.length === 0) {
                     this.$toast.add({
@@ -8408,9 +8316,9 @@ export default {
                 let partialBoxData: any = null;
                 const cancelPayload: any[] = [];
 
-                if (cancelOption === 'boxes') {
+                if (option === 'boxes') {
                     // Simple box cancellation: cancel the first N boxes
-                    if (cancelAmount > matchingBoxes.length) {
+                    if (amount > matchingBoxes.length) {
                         this.$toast.add({
                             severity: 'warn',
                             summary: 'Invalid Amount',
@@ -8421,7 +8329,7 @@ export default {
                         return;
                     }
 
-                    boxesToCancel = matchingBoxes.slice(0, cancelAmount);
+                    boxesToCancel = matchingBoxes.slice(0, amount);
                     boxesToCancel.forEach((b: any) => {
                         cancelPayload.push({
                             case_id:            b.case_id,
@@ -8438,7 +8346,7 @@ export default {
                 } else {
                     // Unit-based cancellation with partial-box split logic
                     const totalUnitsAvailable = matchingBoxes.reduce((sum: number, box: any) => sum + (Number(box.units_per_case) || 0), 0);
-                    if (cancelAmount > totalUnitsAvailable) {
+                    if (amount > totalUnitsAvailable) {
                         this.$toast.add({
                             severity: 'warn',
                             summary: 'Invalid Amount',
@@ -8449,7 +8357,7 @@ export default {
                         return;
                     }
 
-                    let unitsLeftToCancel = cancelAmount;
+                    let unitsLeftToCancel = amount;
 
                     for (const box of matchingBoxes) {
                         if (unitsLeftToCancel <= 0) break;
@@ -8495,7 +8403,7 @@ export default {
                         partialBoxData = {
                             product_id: box.product_id,
                             units_per_case: remainingUnits,
-                            purchase_order_id: this.purchaseOrder?.purchase_order_id || box.purchase_order_id || target.purchase_order_id || null,
+                            purchase_order_id: this.purchaseOrder?.purchase_order_id || box.purchase_order_id || productToCancel.purchase_order_id || null,
                             status: box.status,
                             date_received: box.date_received ?? null,
                             notes: `Partial box created during cancellation (${remainingUnits} units remaining)`,
@@ -8532,14 +8440,14 @@ export default {
                 this.purchaseOrderRefresh(this.purchaseOrder?.purchase_order_id, { syncTable: true, syncDialog: true });
                 this.checkPoTotals();
 
-                const cancelDescription = cancelOption === 'boxes' 
-                    ? `${cancelAmount} box${cancelAmount !== 1 ? 'es' : ''}`
-                    : `${cancelAmount} units`;
+                const cancelDescription = option === 'boxes' 
+                    ? `${amount} box${amount !== 1 ? 'es' : ''}`
+                    : `${amount} units`;
 
                 this.$toast.add({
                     severity: 'success',
                     summary: 'Product Cancelled',
-                    detail: `${target.product_name || 'Selected product'} was marked as cancelled (${cancelDescription})${partialBoxData ? ' - partial box created with remainder.' : ''}`,
+                    detail: `${productToCancel.product_name || 'Selected product'} was marked as cancelled (${cancelDescription})${partialBoxData ? ' - partial box created with remainder.' : ''}`,
                     life: 3000
                 });
             } catch (error) {
@@ -8554,7 +8462,7 @@ export default {
                 this.loading = false;
                 this.closeRawProductCancelDialog();
             }
-        },
+        }, */
 
         onProcProductCancel(product_id: number){
             const index = this.poCases.findIndex(item => item.product_id === product_id);
