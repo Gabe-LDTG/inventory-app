@@ -842,7 +842,7 @@
             </template>
         </Dialog>
 
-        <!-- Moved to its own component on 8/21/2026 -->
+        <!-- First to be moved to its own component on 8/21/2026 -->
         <VendorSelectDialog
             v-model:visible="vendorDialog"
             :vendors="vendors"
@@ -2017,60 +2017,13 @@
             </template>
         </Dialog>
 
-        <Dialog
+        <InvoiceEditDialog 
             v-model:visible="invoiceEditDialogVisible"
-            header="Edit Invoice"
-            :modal="true"
-            :style="{ width: '560px', maxWidth: '94vw' }"
-            class="p-fluid po-invoice-edit-dialog"
-        >
-            <div class="po-invoice-edit-layout">
-                <div class="po-invoice-edit-section">
-                    <div class="field">
-                        <label for="invoiceEditName">Invoice Name</label>
-                        <InputText
-                            id="invoiceEditName"
-                            v-model="invoiceEditDraft.invoice_name"
-                            :class="{ 'p-invalid': invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim() }"
-                            placeholder="Invoice name"
-                        />
-                        <small class="p-error" v-if="invoiceEditSubmitted && !String(invoiceEditDraft.invoice_name || '').trim()">
-                            Invoice name is required.
-                        </small>
-                    </div>
-
-                    <div class="field">
-                        <label for="invoiceEditDateShipped">Date Shipped</label>
-                        <input id="invoiceEditDateShipped" v-model="invoiceEditDraft.date_shipped" type="date" class="p-inputtext p-component w-full" />
-                    </div>
-
-                    <div class="field">
-                        <label for="invoiceEditDateDue">Date Due</label>
-                        <input id="invoiceEditDateDue" v-model="invoiceEditDraft.date_due" type="date" class="p-inputtext p-component w-full" />
-                    </div>
-
-                    <div class="field">
-                        <label for="invoiceEditDatePaid">Date Paid</label>
-                        <input id="invoiceEditDatePaid" v-model="invoiceEditDraft.date_paid" type="date" class="p-inputtext p-component w-full" />
-                    </div>
-
-                    <div class="field">
-                        <label for="invoiceEditNotes">Notes</label>
-                        <textarea id="invoiceEditNotes" v-model="invoiceEditDraft.notes" rows="3" class="p-inputtext p-component w-full"></textarea>
-                    </div>
-
-                    <div class="po-invoice-edit-checkbox">
-                        <input id="invoiceEditFiled" v-model="invoiceEditDraft.filed" type="checkbox" />
-                        <label for="invoiceEditFiled">Filed</label>
-                    </div>
-                </div>
-            </div>
-
-            <template #footer>
-                <Button label="Cancel" icon="pi pi-times" class="po-action-btn po-action-btn--secondary" @click="invoiceEditDialogVisible = false" :disabled="invoiceEditSaving" />
-                <Button label="Save Invoice" icon="pi pi-check" class="po-action-btn po-action-btn--primary" @click="saveInvoiceEdits" :loading="invoiceEditSaving" />
-            </template>
-        </Dialog>
+            :draft="invoiceEditDraft"
+            :saving="invoiceEditSaving"
+            @save="saveInvoiceEdits"
+            @cancel="invoiceEditDialogVisible = false"
+        />
 
         <Dialog
             v-model:visible="filterDialog"
@@ -2133,7 +2086,8 @@ import { supabase } from '@/clients/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { pinia } from '@/stores';
 
-import VendorSelectDialog from '@/components/purchase-orders/vendorSelectDialog.vue';
+import VendorSelectDialog from '@/components/purchase-orders/VendorSelectDialog.vue';
+import InvoiceEditDialog from '@/components/purchase-orders/InvoiceEditDialog.vue';
 
 //REFERENCE FOR PAGES
 //https://codesandbox.io/s/6vr9a7h?file=/src/App.vue:3297-3712
@@ -2142,6 +2096,7 @@ export default {
     components: {
         ZoomDropdown,
         VendorSelectDialog,
+        InvoiceEditDialog,
     },
     data() {
         return {
@@ -2198,7 +2153,6 @@ export default {
             receiveInvoiceLineAllocations: [] as any[],
             invoiceEditDialogVisible: false,
             invoiceEditSaving: false,
-            invoiceEditSubmitted: false,
             invoiceEditDraft: {
                 invoice_id: null as number | null,
                 invoice_name: '',
@@ -9174,31 +9128,24 @@ export default {
                 notes: String(sourceInvoice?.notes ?? sourceInvoice?.invoice_notes ?? ''),
             };
 
-            this.invoiceEditSubmitted = false;
             this.invoiceEditDialogVisible = true;
         },
 
-        async saveInvoiceEdits() {
-            this.invoiceEditSubmitted = true;
-
-            if (!String(this.invoiceEditDraft?.invoice_name || '').trim()) {
-                return;
-            }
-
+        async saveInvoiceEdits(editedDraft: any) {
             this.invoiceEditSaving = true;
 
             try {
                 await action.editInvoice({
-                    invoice_id: Number(this.invoiceEditDraft.invoice_id || 0),
-                    invoice_name: String(this.invoiceEditDraft.invoice_name || '').trim(),
-                    total_cost: Number(this.invoiceEditDraft.total_cost || 0),
-                    purchase_order_id: Number(this.invoiceEditDraft.purchase_order_id || this.detailSelectedPoId || 0),
-                    date_shipped: this.toNullableInvoiceDate(this.invoiceEditDraft.date_shipped),
-                    date_due: this.toNullableInvoiceDate(this.invoiceEditDraft.date_due),
-                    date_paid: this.toNullableInvoiceDate(this.invoiceEditDraft.date_paid),
-                    card: Number(this.invoiceEditDraft.card || 0),
-                    filed: !!this.invoiceEditDraft.filed,
-                    notes: String(this.invoiceEditDraft.notes || '').trim() || null,
+                    invoice_id: Number(editedDraft.invoice_id || 0),
+                    invoice_name: String(editedDraft.invoice_name || '').trim(),
+                    total_cost: Number(editedDraft.total_cost || 0),
+                    purchase_order_id: Number(editedDraft.purchase_order_id || this.detailSelectedPoId || 0),
+                    date_shipped: this.toNullableInvoiceDate(editedDraft.date_shipped),
+                    date_due: this.toNullableInvoiceDate(editedDraft.date_due),
+                    date_paid: this.toNullableInvoiceDate(editedDraft.date_paid),
+                    card: Number(editedDraft.card || 0),
+                    filed: !!editedDraft.filed,
+                    notes: String(editedDraft.notes || '').trim() || null,
                 });
 
                 this.invoiceEditDialogVisible = false;
@@ -10510,42 +10457,6 @@ export default {
 
 :deep(.po-edit-dialog .p-dialog-content) {
     background: linear-gradient(180deg, #f7fbff 0%, #eef5fd 100%);
-}
-
-.po-invoice-edit-layout {
-    display: grid;
-    gap: 0.9rem;
-}
-
-.po-invoice-edit-section {
-    padding: 0.85rem 1rem;
-}
-
-.po-invoice-edit-dialog .field {
-    margin-bottom: 0.75rem;
-}
-
-.po-invoice-edit-dialog .field:last-child {
-    margin-bottom: 0;
-}
-
-.po-invoice-edit-dialog .field label {
-    font-weight: 700;
-    color: #6dbafe;
-    margin-bottom: 0.3rem;
-}
-
-.po-invoice-edit-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding-top: 0.25rem;
-}
-
-.po-invoice-edit-checkbox label {
-    margin: 0;
-    font-weight: 700;
-    color: #6dbafe;
 }
 
 .po-edit-layout {
