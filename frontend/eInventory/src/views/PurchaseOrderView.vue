@@ -8261,6 +8261,11 @@ export default {
             this.rawProductToCancel = null;
         },
 
+        /**@TODO Insert every time that a user cancels product. In the dialog, prompt the user for the reason why, and insert into the notes section:
+         * Cancelled by: Username
+         * Cancelled On: Date
+         * Reason for Cancellation: (Potentially offer a multiselect box and include an other option with a text box to fill in)
+         */
         async confirmRawProductCancel(request: {productToCancel: any, amount: number, option:'boxes' | 'units'}){
             const { productToCancel, amount, option } = request;
 
